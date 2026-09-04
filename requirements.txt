@@ -1,0 +1,12 @@
+# The client itself (ctgov.py) is stdlib-only. These are for convenience.
+
+# Makes Python verify TLS against the Windows certificate store. Required on
+# this machine because a TLS-intercepting proxy re-signs certificates.
+truststore
+
+# Only needed for ctgov.to_frame() / the --csv flag.
+pandas
+
+# The monitoring app's view layer, and the test framework.
+streamlit
+pytest
