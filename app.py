@@ -13,7 +13,7 @@ import streamlit as st
 import monitor
 import simulate
 import storage
-from display import SYNTHETIC, label, show
+from display import SYNTHETIC, render_field, show
 
 st.set_page_config(page_title="Trial Change Monitor", layout="wide")
 
@@ -108,7 +108,8 @@ if not trials:
 
 for trial in trials:
     nct = trial["nct_id"]
-    profile = monitor.profile_of(conn, nct) or {}
+    marked = monitor.marked_profile(conn, nct)
+    profile = marked["profile"]
     badge = f"{SYNTHETIC} · " if storage.is_synthetic(conn, nct) else ""
     header = (
         f"{badge}**{nct}** · {show(profile.get('leadSponsor'))} · "
@@ -116,11 +117,8 @@ for trial in trials:
     )
     with st.expander(header):
         st.caption(f"Last checked {show(trial['last_checked'])}")
-        for key, value in profile.items():
-            if key == "resultsUrl" and value:
-                st.markdown(f"**{label(key)}**  \n[View results on ClinicalTrials.gov]({value})")
-            else:
-                st.markdown(f"**{label(key)}**  \n{show(value)}")
+        for row in marked["rows"]:
+            st.markdown(render_field(row))
 
 # --- feed
 

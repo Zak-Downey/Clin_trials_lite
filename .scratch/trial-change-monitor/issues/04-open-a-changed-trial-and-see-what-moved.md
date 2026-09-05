@@ -10,16 +10,16 @@ Not every change carries the same weight. A slipped primary completion date and 
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] Expanding a changed trial shows its full monitored profile, not only the changed fields
-- [ ] Changed fields are visually highlighted within that profile
-- [ ] Each changed field shows both its previous and its current value
-- [ ] No elapsed-time or duration arithmetic is performed on date changes
-- [ ] Where a field changed more than once since last review, the previous value shown is the immediately preceding one
-- [ ] A previously-empty field renders explicitly as empty rather than blank
-- [ ] High-signal fields are visually more prominent than ordinary ones when changed
-- [ ] Unchanged fields render plainly, with no highlight
-- [ ] A trial with no changes expands to a plain profile with nothing highlighted
-- [ ] Synthetic changes remain badged in this view
-- [ ] Tests cover: which fields are marked for highlighting, empty-to-populated transitions, repeated changes resolving to the most recent, and high-signal designation
+- [x] Expanding a changed trial shows its full monitored profile, not only the changed fields
+- [x] Changed fields are visually highlighted within that profile
+- [x] Each changed field shows both its previous and its current value
+- [x] No elapsed-time or duration arithmetic is performed on date changes
+- [x] Where a field changed more than once since last review, the previous value shown is the immediately preceding one
+- [x] A previously-empty field renders explicitly as empty rather than blank
+- [x] High-signal fields are visually more prominent than ordinary ones when changed
+- [x] Unchanged fields render plainly, with no highlight
+- [x] A trial with no changes expands to a plain profile with nothing highlighted
+- [x] Synthetic changes remain badged in this view
+- [x] Tests cover: which fields are marked for highlighting, empty-to-populated transitions, repeated changes resolving to the most recent, and high-signal designation

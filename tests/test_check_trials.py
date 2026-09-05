@@ -175,3 +175,60 @@ def test_a_revised_record_is_not_reported_by_its_last_updated_date(watched, reco
 
     assert "2026-03-03" not in result["detail"]
     assert monitor.summarise([result])["level"] == "warning"
+
+
+# --- the marked-up profile the page reads
+
+
+def revised(record: dict, count: int, date: str) -> dict:
+    """A record whose enrolment has moved, and whose registry stamp says so."""
+    moved = bumped(record, date)
+    moved["protocolSection"]["designModule"]["enrollmentInfo"]["count"] = count
+    return moved
+
+
+def test_a_trial_with_no_changes_is_marked_up_with_nothing_highlighted(watched):
+    marked = monitor.marked_profile(watched, "NCT03412565")
+
+    assert marked["profile"]["enrollment"]
+    assert not any(row["changed"] for row in marked["rows"])
+
+
+def test_a_changed_field_is_marked_up_with_the_value_it_moved_from(
+    watched, record, make_fetcher
+):
+    monitor.check(
+        watched,
+        "NCT03412565",
+        fetch=make_fetcher(default=revised(record, 180, "2026-01-15")),
+        when="2026-01-15T00:00:00+00:00",
+    )
+
+    rows = {r["field"]: r for r in monitor.marked_profile(watched, "NCT03412565")["rows"]}
+    assert rows["enrollment"]["changed"] is True
+    assert rows["enrollment"]["value"] == 180
+    assert rows["enrollment"]["previous"] == 265  # the registry's own figure
+    assert rows["briefTitle"]["changed"] is False
+
+
+def test_a_field_that_moved_twice_is_marked_up_from_the_most_recent_move(
+    watched, record, make_fetcher
+):
+    """Two unreviewed moves each write a row; the page shows the later one."""
+    monitor.check(
+        watched,
+        "NCT03412565",
+        fetch=make_fetcher(default=revised(record, 300, "2026-01-15")),
+        when="2026-01-15T00:00:00+00:00",
+    )
+    monitor.check(
+        watched,
+        "NCT03412565",
+        fetch=make_fetcher(default=revised(record, 180, "2026-02-15")),
+        when="2026-02-15T00:00:00+00:00",
+    )
+
+    assert len(storage.list_changes(watched, "NCT03412565")) == 2
+    rows = {r["field"]: r for r in monitor.marked_profile(watched, "NCT03412565")["rows"]}
+    assert rows["enrollment"]["previous"] == 300
+    assert rows["enrollment"]["value"] == 180

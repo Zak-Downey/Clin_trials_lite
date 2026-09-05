@@ -100,8 +100,12 @@ def _last_updated(record: dict | None) -> str | None:
 
 
 def fields_moved(count: int) -> str:
-    """How many monitored fields moved, in words the analyst reads."""
-    return f"{count} field{'' if count == 1 else 's'}"
+    """How many monitored fields moved, in the words the analyst reads.
+
+    One phrase, owned here, so the watchlist, the check result and the feed
+    never drift apart on how a change is described.
+    """
+    return f"{count} field{'' if count == 1 else 's'} changed"
 
 
 def _record_changes(
@@ -175,7 +179,7 @@ def check(
     storage.mark_checked(conn, nct, stamp)
 
     detail = (
-        f"{fields_moved(moved)} changed."
+        f"{fields_moved(moved)}."
         if moved
         else "The registry record has been revised, but no monitored field moved."
     )
@@ -266,9 +270,24 @@ def feed(conn: sqlite3.Connection) -> list[dict]:
             {
                 "at": at,
                 "nct_id": nct,
-                "kind": f"{fields_moved(len(changes))} changed",
+                "kind": fields_moved(len(changes)),
                 "synthetic": any(c["synthetic"] for c in changes),
             }
         )
 
     return sorted(events, key=lambda e: e["at"], reverse=True)
+
+
+def marked_profile(conn: sqlite3.Connection, nct_id: str) -> dict:
+    """A trial's monitored profile, marked up with what has moved.
+
+    Returns the profile itself, for a caller wanting a field by name, and one
+    row per field marked with whether it moved and what it moved from. Every
+    field is included, not only the ones that moved, so a change is read in the
+    context of the study around it.
+    """
+    profile = profile_of(conn, nct_id) or {}
+    return {
+        "profile": profile,
+        "rows": diff.annotate(profile, storage.list_changes(conn, nct_id)),
+    }

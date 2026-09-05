@@ -1,7 +1,8 @@
 """Comparing two monitored profiles.
 
-Pure functions only: no storage, no network, no registry knowledge beyond the
-names of the fields that must never be reported.
+Pure functions only: no storage, no network, no registry knowledge beyond two
+named sets of field names: those that must never be reported as changed, and
+those whose movement matters most to the team reading the page.
 """
 
 from __future__ import annotations
@@ -37,3 +38,64 @@ def compare(previous: dict, current: dict) -> list[dict]:
         if field not in EXCLUDED
         and _comparable(previous.get(field)) != _comparable(value)
     ]
+
+
+# The fields a medical affairs team acts on. A slipped completion date and a
+# typo fix in the official title must not look alike, so these are marked for
+# greater prominence when they move.
+HIGH_SIGNAL = (
+    "overallStatus",
+    "whyStopped",
+    "primaryCompletionDate",
+    "completionDate",
+    "enrollment",
+    "armGroups",
+    "interventions",
+    "hasResults",
+)
+
+
+def _most_recent(changes: list[dict]) -> dict[str, dict]:
+    """The latest recorded change per field.
+
+    A field that moved more than once resolves to its immediately preceding
+    value, not the value it started from: chaining back through a field's whole
+    history is a later feature.
+
+    Changes are expected newest first, as storage returns them. Detection times
+    are only second-precise, so two moves recorded in the same second cannot be
+    told apart by time: the first seen wins, which under that order is the
+    later one.
+    """
+    latest: dict[str, dict] = {}
+    for change in changes:
+        seen = latest.get(change["field"])
+        if seen is None or change["detected_at"] > seen["detected_at"]:
+            latest[change["field"]] = change
+    return latest
+
+
+def annotate(profile: dict, changes: list[dict]) -> list[dict]:
+    """The whole profile as rows, each marked with what moved.
+
+    Every field is returned, changed or not: a move is read in the context of
+    the study rather than in isolation. A row carries the value it moved from,
+    whether the field is high-signal, and whether the move was simulated.
+    """
+    latest = _most_recent(changes)
+    rows = []
+    for field, value in profile.items():
+        # A field that is never reported as changed is never marked as one,
+        # whatever happens to be recorded against it.
+        moved = None if field in EXCLUDED else latest.get(field)
+        rows.append(
+            {
+                "field": field,
+                "value": value,
+                "changed": moved is not None,
+                "previous": moved["previous"] if moved else None,
+                "high_signal": field in HIGH_SIGNAL,
+                "synthetic": bool(moved and moved["synthetic"]),
+            }
+        )
+    return rows

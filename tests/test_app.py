@@ -173,3 +173,36 @@ def test_simulating_is_offered_only_once_a_trial_is_watched(app):
 
     assert not app.exception
     assert not [b for b in app.button if b.key == "simulate"]
+
+
+# --- seeing what moved
+
+
+def test_a_changed_trial_shows_the_moved_field_highlighted_in_its_profile(
+    app, fetcher, monkeypatch
+):
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+
+    app.run()
+    app.button(key="simulate").click().run()
+    app.button(key="check_all").click().run()
+
+    assert not app.exception
+    rendered = " ".join(m.value for m in app.markdown)
+    # The whole profile is still there, with the moved fields marked up.
+    assert "Official title" in rendered
+    assert display.HIGHLIGHT_HIGH_SIGNAL in rendered
+    assert "Previously" in rendered
+
+
+def test_an_unchanged_trial_expands_to_a_plain_profile(app, fetcher):
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+
+    app.run()
+
+    assert not app.exception
+    rendered = " ".join(m.value for m in app.markdown)
+    assert "Enrollment" in rendered
+    assert display.HIGHLIGHT not in rendered
+    assert display.HIGHLIGHT_HIGH_SIGNAL not in rendered
