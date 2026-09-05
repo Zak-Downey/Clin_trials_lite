@@ -7,6 +7,7 @@ never touches the network.
 from __future__ import annotations
 
 import pathlib
+import urllib.error
 
 import pytest
 from streamlit.testing.v1 import AppTest
@@ -71,3 +72,37 @@ def test_an_empty_submission_is_reported_inline(app):
 
     assert not app.exception
     assert any("Paste an NCT ID" in err.value for err in app.error)
+
+
+def test_checking_a_clean_watchlist_reports_no_changes(app, fetcher, monkeypatch):
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+
+    app.run()
+    app.button(key="check_all").click().run()
+
+    assert not app.exception
+    assert any("no changes" in msg.value for msg in app.success)
+
+
+def test_a_trial_that_fails_to_check_is_reported_inline(app, fetcher, make_fetcher, monkeypatch):
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+    monkeypatch.setattr(
+        monitor,
+        "_default_fetch",
+        make_fetcher(failures={"NCT03412565": urllib.error.URLError("connection refused")}),
+    )
+
+    app.run()
+    app.button(key="check_all").click().run()
+
+    assert not app.exception
+    assert any("connection refused" in err.value for err in app.error)
+    assert not app.success
+
+
+def test_an_empty_watchlist_offers_no_check_control(app):
+    app.run()
+
+    assert not app.exception
+    assert not [b for b in app.button if b.label == "Check all"]

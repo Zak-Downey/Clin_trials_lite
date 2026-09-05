@@ -41,9 +41,36 @@ if submitted:
             except monitor.MonitorError as exc:
                 st.error(str(exc))
 
-# --- watchlist
+# --- check for changes
 
 trials = storage.list_trials(conn)
+
+if trials:
+    if st.button("Check all", key="check_all", type="primary"):
+        total = len(trials)
+        progress = st.progress(0.0, text="Checking…")
+        results = []
+        for done, result in enumerate(monitor.check_all(conn), start=1):
+            progress.progress(
+                done / total, text=f"Checked {result['nct_id']} ({done} of {total})"
+            )
+            results.append(result)
+        progress.empty()
+
+        summary = monitor.summarise(results)
+        if summary["level"] == "success":
+            st.success(summary["message"])
+        else:
+            st.warning(summary["message"])
+        for result in summary["updated"]:
+            st.markdown(f"**{result['nct_id']}** — {result['detail']}")
+        for result in summary["failed"]:
+            st.error(f"{result['nct_id']} — {result['detail']}")
+
+        # Re-read so the rows below show the "last checked" times just written.
+        trials = storage.list_trials(conn)
+
+# --- watchlist
 
 st.subheader(f"Watchlist ({len(trials)})")
 

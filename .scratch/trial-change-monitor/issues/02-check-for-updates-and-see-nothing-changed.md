@@ -8,14 +8,14 @@ Against NCT03412565 — a completed trial last updated in April 2025 — "nothin
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] A single control re-checks every trial on the watchlist
-- [ ] Progress is visible to the analyst while the check runs
-- [ ] Trials are checked one at a time with a short pause between them, to stay polite to a public government API
-- [ ] A trial whose registry record is untouched since the last check short-circuits without a full comparison
-- [ ] Each trial's "last checked" time updates whether or not anything changed
-- [ ] The analyst is clearly told when a check found no changes
-- [ ] A trial that fails to fetch reports its error without aborting the rest of the run
-- [ ] Tests cover: the short-circuit path, the last-checked update, and one trial failing mid-run while others succeed
-- [ ] Verified by hand: checking NCT03412565 against the live API reports no changes
+- [x] A single control re-checks every trial on the watchlist
+- [x] Progress is visible to the analyst while the check runs
+- [x] Trials are checked one at a time with a short pause between them, to stay polite to a public government API
+- [x] A trial whose registry record is untouched since the last check short-circuits without a full comparison
+- [x] Each trial's "last checked" time updates whether or not anything changed
+- [x] The analyst is clearly told when a check found no changes
+- [x] A trial that fails to fetch reports its error without aborting the rest of the run
+- [x] Tests cover: the short-circuit path, the last-checked update, and one trial failing mid-run while others succeed
+- [x] Verified by hand: checking NCT03412565 against the live API reports no changes

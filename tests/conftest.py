@@ -34,12 +34,32 @@ def conn(tmp_path):
 
 
 @pytest.fixture
-def fetcher(record):
-    """A stub fetcher standing in for the API, recording what it was asked for."""
+def make_fetcher():
+    """Builds stub fetchers standing in for the API.
 
-    def fetch(nct_id: str) -> dict:
-        fetch.calls.append(nct_id)
-        return record
+    A fetcher serves the record listed for an NCT ID -- or raises the exception
+    listed for it, or falls back to `default` -- and records what it was asked
+    for, so a test can assert that a fetch never happened.
+    """
 
-    fetch.calls = []
-    return fetch
+    def build(records: dict | None = None, failures: dict | None = None, default=None):
+        def fetch(nct_id: str) -> dict:
+            fetch.calls.append(nct_id)
+            if failures and nct_id in failures:
+                raise failures[nct_id]
+            if records and nct_id in records:
+                return records[nct_id]
+            if default is None:
+                raise KeyError(f"no stub record for {nct_id}")
+            return default
+
+        fetch.calls = []
+        return fetch
+
+    return build
+
+
+@pytest.fixture
+def fetcher(record, make_fetcher):
+    """A stub fetcher serving the captured NCT03412565 record for any ID."""
+    return make_fetcher(default=record)
