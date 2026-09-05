@@ -120,12 +120,18 @@ def add_snapshot(
 
 
 def latest_snapshot(conn: sqlite3.Connection, nct_id: str) -> dict | None:
-    """The most recently stored record for a trial, or None if never fetched."""
+    """A trial's most recently stored state, or None if it was never fetched.
+
+    Returns the record together with whether it was written by the simulator,
+    since a change found against a simulated baseline is itself simulated.
+    """
     row = conn.execute(
-        "SELECT record FROM snapshots WHERE nct_id = ? ORDER BY id DESC LIMIT 1",
+        "SELECT * FROM snapshots WHERE nct_id = ? ORDER BY id DESC LIMIT 1",
         (nct_id,),
     ).fetchone()
-    return json.loads(row["record"]) if row else None
+    if row is None:
+        return None
+    return {"record": json.loads(row["record"]), "synthetic": bool(row["synthetic"])}
 
 
 def count_snapshots(conn: sqlite3.Connection, nct_id: str) -> int:
@@ -137,10 +143,80 @@ def count_snapshots(conn: sqlite3.Connection, nct_id: str) -> int:
 # --- changes
 
 
-def list_changes(conn: sqlite3.Connection, nct_id: str | None = None) -> list[sqlite3.Row]:
+def add_change(
+    conn: sqlite3.Connection,
+    nct_id: str,
+    change: dict,
+    when: str | None = None,
+    synthetic: bool = False,
+) -> None:
+    """Record one field that moved, as reported by the comparison.
+
+    Values are stored as JSON so a list comes back as a list rather than as its
+    printed form.
+    """
+    conn.execute(
+        "INSERT INTO changes (nct_id, field, previous, current, detected_at, synthetic)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            nct_id,
+            change["field"],
+            json.dumps(change["previous"]),
+            json.dumps(change["current"]),
+            when or now(),
+            int(synthetic),
+        ),
+    )
+    conn.commit()
+
+
+def list_changes(conn: sqlite3.Connection, nct_id: str | None = None) -> list[dict]:
     """Recorded changes, newest first. All trials unless one is named."""
     if nct_id is None:
-        return conn.execute("SELECT * FROM changes ORDER BY id DESC").fetchall()
-    return conn.execute(
-        "SELECT * FROM changes WHERE nct_id = ? ORDER BY id DESC", (nct_id,)
-    ).fetchall()
+        rows = conn.execute("SELECT * FROM changes ORDER BY id DESC").fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM changes WHERE nct_id = ? ORDER BY id DESC", (nct_id,)
+        ).fetchall()
+    return [
+        {
+            "nct_id": row["nct_id"],
+            "field": row["field"],
+            "previous": json.loads(row["previous"]),
+            "current": json.loads(row["current"]),
+            "detected_at": row["detected_at"],
+            "synthetic": bool(row["synthetic"]),
+        }
+        for row in rows
+    ]
+
+
+# --- synthetic data
+
+
+def is_synthetic(conn: sqlite3.Connection, nct_id: str) -> bool:
+    """Whether what a trial currently shows was fabricated by the simulator.
+
+    True while its newest stored state is a simulated one, and while any change
+    found against such a state is still recorded.
+    """
+    row = conn.execute(
+        "SELECT (SELECT synthetic FROM snapshots WHERE nct_id = ?1"
+        "        ORDER BY id DESC LIMIT 1) AS newest,"
+        "       (SELECT COUNT(*) FROM changes WHERE nct_id = ?1 AND synthetic = 1) AS found",
+        (nct_id,),
+    ).fetchone()
+    return bool(row["newest"]) or bool(row["found"])
+
+
+def delete_synthetic(conn: sqlite3.Connection) -> int:
+    """Remove everything the simulator caused to be written, in one operation.
+
+    The flag is a column rather than text inside a value, so this is a delete by
+    predicate rather than string matching, and real data is untouched. Returns
+    the number of rows removed.
+    """
+    removed = conn.execute("DELETE FROM changes WHERE synthetic = 1").rowcount
+    removed += conn.execute("DELETE FROM snapshots WHERE synthetic = 1").rowcount
+    conn.commit()
+    return removed

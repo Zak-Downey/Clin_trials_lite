@@ -14,6 +14,7 @@ import urllib.error
 from collections.abc import Iterator
 
 import ctgov
+import diff
 import medical_affairs
 import storage
 
@@ -98,6 +99,33 @@ def _last_updated(record: dict | None) -> str | None:
     return medical_affairs.profile(record)["lastUpdatePostDate"]
 
 
+def fields_moved(count: int) -> str:
+    """How many monitored fields moved, in words the analyst reads."""
+    return f"{count} field{'' if count == 1 else 's'}"
+
+
+def _record_changes(
+    conn: sqlite3.Connection,
+    nct: str,
+    previous: dict | None,
+    record: dict,
+    when: str,
+    synthetic: bool,
+) -> int:
+    """Store every monitored field that moved between two records.
+
+    A trial with no earlier snapshot has nothing to be compared against, so it
+    records a baseline rather than 41 changes.
+    """
+    if previous is None:
+        return 0
+
+    moved = diff.compare(medical_affairs.profile(previous), medical_affairs.profile(record))
+    for change in moved:
+        storage.add_change(conn, nct, change, when, synthetic=synthetic)
+    return len(moved)
+
+
 def check(
     conn: sqlite3.Connection,
     nct_id: str,
@@ -111,9 +139,10 @@ def check(
     trial is left alone but marked as checked. This keeps a check cheap as the
     watchlist grows.
 
-    Returns a result: nct_id, an outcome of "unchanged" or "updated", and a
-    detail line for the analyst. Raises MonitorError if the trial isn't watched
-    or the registry can't be reached, leaving stored state untouched.
+    Returns a result: nct_id, an outcome of "unchanged" or "updated", the number
+    of monitored fields that moved, and a detail line for the analyst. Raises
+    MonitorError if the trial isn't watched or the registry can't be reached,
+    leaving stored state untouched.
     """
     nct = normalise(nct_id)
 
@@ -123,21 +152,34 @@ def check(
     record = _fetch_record(nct, fetch)
     stamp = when or storage.now()
 
-    previous = _last_updated(storage.latest_snapshot(conn, nct))
+    snapshot = storage.latest_snapshot(conn, nct)
+    stored = snapshot["record"] if snapshot else None
+    previous = _last_updated(stored)
     current = _last_updated(record)
     # An absent stamp on either side is not evidence of sameness, so only a
     # match between two real dates is allowed to short-circuit the comparison.
     if previous is not None and previous == current:
         storage.mark_checked(conn, nct, stamp)
-        return {"nct_id": nct, "outcome": "unchanged", "detail": "No changes."}
+        return {"nct_id": nct, "outcome": "unchanged", "changes": 0, "detail": "No changes."}
 
+    # A change found against simulated history is itself simulated.
+    moved = _record_changes(
+        conn,
+        nct,
+        stored,
+        record,
+        stamp,
+        synthetic=bool(snapshot and snapshot["synthetic"]),
+    )
     storage.add_snapshot(conn, nct, record, stamp)
     storage.mark_checked(conn, nct, stamp)
-    return {
-        "nct_id": nct,
-        "outcome": "updated",
-        "detail": "The registry record has been revised.",
-    }
+
+    detail = (
+        f"{fields_moved(moved)} changed."
+        if moved
+        else "The registry record has been revised, but no monitored field moved."
+    )
+    return {"nct_id": nct, "outcome": "updated", "changes": moved, "detail": detail}
 
 
 def check_all(
@@ -160,7 +202,7 @@ def check_all(
         try:
             result = check(conn, nct, fetch=fetch, when=when)
         except MonitorError as exc:
-            result = {"nct_id": nct, "outcome": "error", "detail": str(exc)}
+            result = {"nct_id": nct, "outcome": "error", "changes": 0, "detail": str(exc)}
         yield result
 
 
@@ -194,18 +236,39 @@ def summarise(results: list[dict]) -> dict:
 
 def profile_of(conn: sqlite3.Connection, nct_id: str) -> dict | None:
     """The monitored profile derived from a trial's newest stored snapshot."""
-    record = storage.latest_snapshot(conn, nct_id)
-    return medical_affairs.profile(record) if record else None
+    snapshot = storage.latest_snapshot(conn, nct_id)
+    return medical_affairs.profile(snapshot["record"]) if snapshot else None
 
 
 def feed(conn: sqlite3.Connection) -> list[dict]:
     """Events for the activity feed, most recent first.
 
-    Currently one kind: a trial being added. Change entries join this feed in a
-    later slice.
+    The feed names trials, not fields: every field that moved in one check of
+    one trial collapses into a single entry, so a sponsor revising fifteen
+    fields at once doesn't bury everything else.
     """
     events = [
-        {"at": t["monitoring_began"], "nct_id": t["nct_id"], "kind": "started monitoring"}
+        {
+            "at": t["monitoring_began"],
+            "nct_id": t["nct_id"],
+            "kind": "started monitoring",
+            "synthetic": False,
+        }
         for t in storage.list_trials(conn)
     ]
+
+    detections: dict[tuple[str, str], list[dict]] = {}
+    for change in storage.list_changes(conn):
+        detections.setdefault((change["nct_id"], change["detected_at"]), []).append(change)
+
+    for (nct, at), changes in detections.items():
+        events.append(
+            {
+                "at": at,
+                "nct_id": nct,
+                "kind": f"{fields_moved(len(changes))} changed",
+                "synthetic": any(c["synthetic"] for c in changes),
+            }
+        )
+
     return sorted(events, key=lambda e: e["at"], reverse=True)

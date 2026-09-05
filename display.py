@@ -9,6 +9,10 @@ import re
 
 EMPTY = "—"
 
+# Shown against anything the simulator caused, so nobody in a demo mistakes
+# fabricated data for the registry's.
+SYNTHETIC = "🧪 SYNTHETIC"
+
 
 def label(key: str) -> str:
     """camelCase profile key -> readable label. primaryCompletionDate -> 'Primary completion date'."""

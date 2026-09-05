@@ -12,21 +12,21 @@ Lists of values are compared by membership rather than order, since the registry
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] A visibly developer-only control can alter a trial's stored previous state
-- [ ] The simulator alters stored history, never the incoming registry response
-- [ ] A simulated change is detected by the ordinary check, through the same code used for real changes
-- [ ] Each differing field is recorded with its previous value, its new value, and when it was detected
-- [ ] The feed shows one entry per changed trial, naming the trial and the number of fields that changed, with a timestamp
-- [ ] The feed is ordered most-recent-first
-- [ ] Comparison of two identical profiles reports nothing
-- [ ] List-valued fields compare by membership, so reordering alone is not reported
-- [ ] The registry's last-updated timestamp is never reported as a change
-- [ ] The results link is never reported as a change
-- [ ] Every record written by the simulator is marked synthetic in the database
-- [ ] Synthetic data is visibly badged everywhere it appears in the UI
-- [ ] Stored field values contain no synthetic marker text
-- [ ] All synthetic data can be deleted in one operation, and doing so leaves real data intact
-- [ ] Tests cover the comparison directly: scalar changes, list membership changes, reordering, identical profiles, and both excluded fields
-- [ ] Tests cover the synthetic path: flagging, wholesale deletion, and absence of marker text in stored values
+- [x] A visibly developer-only control can alter a trial's stored previous state
+- [x] The simulator alters stored history, never the incoming registry response
+- [x] A simulated change is detected by the ordinary check, through the same code used for real changes
+- [x] Each differing field is recorded with its previous value, its new value, and when it was detected
+- [x] The feed shows one entry per changed trial, naming the trial and the number of fields that changed, with a timestamp
+- [x] The feed is ordered most-recent-first
+- [x] Comparison of two identical profiles reports nothing
+- [x] List-valued fields compare by membership, so reordering alone is not reported
+- [x] The registry's last-updated timestamp is never reported as a change
+- [x] The results link is never reported as a change
+- [x] Every record written by the simulator is marked synthetic in the database
+- [x] Synthetic data is visibly badged everywhere it appears in the UI
+- [x] Stored field values contain no synthetic marker text
+- [x] All synthetic data can be deleted in one operation, and doing so leaves real data intact
+- [x] Tests cover the comparison directly: scalar changes, list membership changes, reordering, identical profiles, and both excluded fields
+- [x] Tests cover the synthetic path: flagging, wholesale deletion, and absence of marker text in stored values

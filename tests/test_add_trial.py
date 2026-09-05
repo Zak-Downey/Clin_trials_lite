@@ -26,7 +26,7 @@ def test_adding_a_trial_records_a_baseline_and_no_changes(conn, fetcher):
 def test_the_baseline_keeps_the_raw_record_not_just_the_profile(conn, fetcher):
     monitor.add(conn, "NCT03412565", fetch=fetcher)
 
-    stored = storage.latest_snapshot(conn, "NCT03412565")
+    stored = storage.latest_snapshot(conn, "NCT03412565")["record"]
     # A raw registry field the monitored profile discards entirely.
     assert stored["protocolSection"]["contactsLocationsModule"]["locations"]
 
@@ -36,7 +36,7 @@ def test_the_baseline_drops_the_results_section(conn, fetcher, record):
 
     monitor.add(conn, "NCT03412565", fetch=fetcher)
 
-    assert "resultsSection" not in storage.latest_snapshot(conn, "NCT03412565")
+    assert "resultsSection" not in storage.latest_snapshot(conn, "NCT03412565")["record"]
 
 
 def test_a_watched_trial_exposes_its_monitored_profile(conn, fetcher):
