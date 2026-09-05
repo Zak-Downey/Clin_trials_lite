@@ -13,7 +13,7 @@ import streamlit as st
 import monitor
 import simulate
 import storage
-from display import SYNTHETIC, render_field, show
+from display import SYNTHETIC, UNREVIEWED, render_field, show
 
 st.set_page_config(page_title="Trial Change Monitor", layout="wide")
 
@@ -110,13 +110,23 @@ for trial in trials:
     nct = trial["nct_id"]
     marked = monitor.marked_profile(conn, nct)
     profile = marked["profile"]
+    unreviewed = marked["unreviewed"]
     badge = f"{SYNTHETIC} · " if storage.is_synthetic(conn, nct) else ""
+    # A trial carrying changes nobody has read yet says so on its closed row,
+    # so the watchlist is read at a glance without opening anything.
+    flag = f" · {UNREVIEWED} {monitor.fields_moved(unreviewed)}" if unreviewed else ""
     header = (
         f"{badge}**{nct}** · {show(profile.get('leadSponsor'))} · "
-        f"{show(profile.get('overallStatus'))} — {show(profile.get('briefTitle'))}"
+        f"{show(profile.get('overallStatus'))} — {show(profile.get('briefTitle'))}{flag}"
     )
     with st.expander(header):
-        st.caption(f"Last checked {show(trial['last_checked'])}")
+        st.caption(
+            f"Last checked {show(trial['last_checked'])} · "
+            f"last reviewed {show(trial['last_reviewed'])}"
+        )
+        if unreviewed and st.button("Mark as reviewed", key=f"review_{nct}"):
+            monitor.review(conn, nct)
+            st.rerun()
         for row in marked["rows"]:
             st.markdown(render_field(row))
 
@@ -129,4 +139,5 @@ if not events:
     st.caption("No activity yet.")
 for event in events:
     badge = f" · {SYNTHETIC}" if event["synthetic"] else ""
-    st.markdown(f"`{event['at']}` — **{event['nct_id']}** — {event['kind']}{badge}")
+    state = "" if event["reviewed"] else f" · {UNREVIEWED} unreviewed"
+    st.markdown(f"`{event['at']}` — **{event['nct_id']}** — {event['kind']}{state}{badge}")

@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS changes (
     previous    TEXT,
     current     TEXT,
     detected_at TEXT NOT NULL,
-    synthetic   INTEGER NOT NULL DEFAULT 0
+    synthetic   INTEGER NOT NULL DEFAULT 0,
+    reviewed    INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS changes_by_trial ON changes(nct_id, id);
@@ -60,11 +61,26 @@ def now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
 
 
+# Columns added to the schema after databases existed in the wild. CREATE TABLE
+# IF NOT EXISTS leaves an older table as it was, so they are added on connect.
+LATE_COLUMNS = (("changes", "reviewed", "INTEGER NOT NULL DEFAULT 0"),)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add any column a database predating it is missing."""
+    for table, column, declaration in LATE_COLUMNS:
+        existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+    conn.commit()
+
+
 def connect(path: str | None = None) -> sqlite3.Connection:
     """Open the database, creating the schema if it isn't there yet."""
     conn = sqlite3.connect(path or DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
 
 
@@ -94,6 +110,21 @@ def mark_checked(conn: sqlite3.Connection, nct_id: str, when: str | None = None)
         "UPDATE trials SET last_checked = ? WHERE nct_id = ?", (when or now(), nct_id)
     )
     conn.commit()
+
+
+def mark_reviewed(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> int:
+    """Mark everything so far detected on a trial as seen. Returns how many rows.
+
+    The rows are kept and flagged rather than deleted: they are the trial's
+    history, and only the highlighting is being cleared.
+    """
+    stamp = when or now()
+    marked = conn.execute(
+        "UPDATE changes SET reviewed = 1 WHERE nct_id = ? AND reviewed = 0", (nct_id,)
+    ).rowcount
+    conn.execute("UPDATE trials SET last_reviewed = ? WHERE nct_id = ?", (stamp, nct_id))
+    conn.commit()
+    return marked
 
 
 # --- snapshots
@@ -186,9 +217,17 @@ def list_changes(conn: sqlite3.Connection, nct_id: str | None = None) -> list[di
             "current": json.loads(row["current"]),
             "detected_at": row["detected_at"],
             "synthetic": bool(row["synthetic"]),
+            "reviewed": bool(row["reviewed"]),
         }
         for row in rows
     ]
+
+
+def count_unreviewed(conn: sqlite3.Connection, nct_id: str) -> int:
+    """How many of a trial's recorded changes have not been marked as read."""
+    return conn.execute(
+        "SELECT COUNT(*) AS n FROM changes WHERE nct_id = ? AND reviewed = 0", (nct_id,)
+    ).fetchone()["n"]
 
 
 # --- synthetic data

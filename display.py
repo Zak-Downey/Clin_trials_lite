@@ -40,6 +40,9 @@ HIGHLIGHT_HIGH_SIGNAL = "red-background"
 
 RESULTS_LINK = "View results on ClinicalTrials.gov"
 
+# Marks what has moved since the analyst last said they had read it.
+UNREVIEWED = "🔔"
+
 
 def render_field(row: dict) -> str:
     """One marked-up profile row, as the markdown the page renders.

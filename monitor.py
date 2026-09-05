@@ -256,7 +256,9 @@ def feed(conn: sqlite3.Connection) -> list[dict]:
             "at": t["monitoring_began"],
             "nct_id": t["nct_id"],
             "kind": "started monitoring",
+            # Not something there is anything to review, so never flagged as new.
             "synthetic": False,
+            "reviewed": True,
         }
         for t in storage.list_trials(conn)
     ]
@@ -272,6 +274,7 @@ def feed(conn: sqlite3.Connection) -> list[dict]:
                 "nct_id": nct,
                 "kind": fields_moved(len(changes)),
                 "synthetic": any(c["synthetic"] for c in changes),
+                "reviewed": all(c["reviewed"] for c in changes),
             }
         )
 
@@ -281,13 +284,33 @@ def feed(conn: sqlite3.Connection) -> list[dict]:
 def marked_profile(conn: sqlite3.Connection, nct_id: str) -> dict:
     """A trial's monitored profile, marked up with what has moved.
 
-    Returns the profile itself, for a caller wanting a field by name, and one
-    row per field marked with whether it moved and what it moved from. Every
-    field is included, not only the ones that moved, so a change is read in the
-    context of the study around it.
+    Returns the profile itself, for a caller wanting a field by name, one row
+    per field marked with whether it moved and what it moved from, and how much
+    is still awaiting review. Every field is included, not only the ones that
+    moved, so a change is read in the context of the study around it.
+
+    The outstanding count comes from the stored records rather than from the
+    marked rows: a change recorded against a field since dropped from the
+    monitored set has nothing left to highlight, but must still be clearable.
     """
     profile = profile_of(conn, nct_id) or {}
     return {
         "profile": profile,
         "rows": diff.annotate(profile, storage.list_changes(conn, nct_id)),
+        "unreviewed": storage.count_unreviewed(conn, nct_id),
     }
+
+
+def review(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> int:
+    """Mark a trial's outstanding changes as read, clearing its highlighting.
+
+    Nothing is deleted: the change records are the trial's history, and a later
+    move highlights it afresh. Returns how many records were marked. Raises
+    MonitorError if the trial isn't watched.
+    """
+    nct = normalise(nct_id)
+
+    if storage.get_trial(conn, nct) is None:
+        raise MonitorError(f"{nct} is not on the watchlist.")
+
+    return storage.mark_reviewed(conn, nct, when)

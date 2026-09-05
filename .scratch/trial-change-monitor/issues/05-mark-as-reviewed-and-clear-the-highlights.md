@@ -8,13 +8,13 @@ Simulating a further change and re-checking must re-highlight the trial, closing
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] Each trial carrying unreviewed changes offers a way to mark it reviewed
-- [ ] Marking a trial reviewed clears its highlighting
-- [ ] Marking a trial reviewed does not delete any change records
-- [ ] The feed distinguishes trials with unreviewed changes from reviewed ones
-- [ ] Reviewing one trial does not affect any other trial's highlighting
-- [ ] A change detected after a review re-highlights the trial
-- [ ] The full loop is walkable end to end: add a trial, check, simulate a change, check, see it highlighted, review it, simulate again, see it highlighted afresh
-- [ ] Tests cover: highlighting clears on review, history survives review, a later change re-highlights, and review state is per-trial
+- [x] Each trial carrying unreviewed changes offers a way to mark it reviewed
+- [x] Marking a trial reviewed clears its highlighting
+- [x] Marking a trial reviewed does not delete any change records
+- [x] The feed distinguishes trials with unreviewed changes from reviewed ones
+- [x] Reviewing one trial does not affect any other trial's highlighting
+- [x] A change detected after a review re-highlights the trial
+- [x] The full loop is walkable end to end: add a trial, check, simulate a change, check, see it highlighted, review it, simulate again, see it highlighted afresh
+- [x] Tests cover: highlighting clears on review, history survives review, a later change re-highlights, and review state is per-trial

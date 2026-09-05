@@ -206,3 +206,64 @@ def test_an_unchanged_trial_expands_to_a_plain_profile(app, fetcher):
     assert "Enrollment" in rendered
     assert display.HIGHLIGHT not in rendered
     assert display.HIGHLIGHT_HIGH_SIGNAL not in rendered
+
+
+# --- marking a trial reviewed
+
+
+@pytest.fixture
+def live(app, fetcher, monkeypatch):
+    """The page with one watched trial, and the check button wired to the stub."""
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    app.run()
+    return app
+
+
+def highlighted(app) -> bool:
+    rendered = " ".join(m.value for m in app.markdown)
+    return display.HIGHLIGHT_HIGH_SIGNAL in rendered or display.HIGHLIGHT in rendered
+
+
+def test_a_trial_with_no_unreviewed_changes_offers_no_review_control(live):
+    assert not [b for b in live.button if b.key == "review_NCT03412565"]
+
+
+def test_the_whole_loop_from_adding_to_reviewing_and_changing_again_is_walkable(
+    app, fetcher, monkeypatch
+):
+    """Every step taken through the page, as the analyst takes them."""
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    app.run()
+
+    app.text_input[0].set_value("NCT03412565")
+    app.button[0].click().run()
+    assert any("Now monitoring NCT03412565" in msg.value for msg in app.success)
+
+    app.button(key="check_all").click().run()
+    assert not highlighted(app)
+
+    app.button(key="simulate").click().run()
+    app.button(key="check_all").click().run()
+    assert highlighted(app)
+
+    app.button(key="review_NCT03412565").click().run()
+    assert not highlighted(app)
+
+    app.button(key="simulate").click().run()
+    app.button(key="check_all").click().run()
+
+    assert not app.exception
+    assert highlighted(app)
+
+
+def test_reviewing_marks_the_feed_entry_as_read_without_removing_it(live):
+    live.button(key="simulate").click().run()
+    live.button(key="check_all").click().run()
+    assert "unreviewed" in " ".join(m.value for m in live.markdown)
+
+    live.button(key="review_NCT03412565").click().run()
+
+    rendered = " ".join(m.value for m in live.markdown)
+    assert "3 fields changed" in rendered
+    assert "unreviewed" not in rendered

@@ -55,8 +55,11 @@ HIGH_SIGNAL = (
 )
 
 
-def _most_recent(changes: list[dict]) -> dict[str, dict]:
-    """The latest recorded change per field.
+def _latest_unreviewed(changes: list[dict]) -> dict[str, dict]:
+    """The latest change per field that has not yet been reviewed.
+
+    A change the analyst has already read is not news, so it stops being
+    marked. The row itself stays in storage; only the marking is dropped.
 
     A field that moved more than once resolves to its immediately preceding
     value, not the value it started from: chaining back through a field's whole
@@ -69,6 +72,8 @@ def _most_recent(changes: list[dict]) -> dict[str, dict]:
     """
     latest: dict[str, dict] = {}
     for change in changes:
+        if change["reviewed"]:
+            continue
         seen = latest.get(change["field"])
         if seen is None or change["detected_at"] > seen["detected_at"]:
             latest[change["field"]] = change
@@ -81,8 +86,12 @@ def annotate(profile: dict, changes: list[dict]) -> list[dict]:
     Every field is returned, changed or not: a move is read in the context of
     the study rather than in isolation. A row carries the value it moved from,
     whether the field is high-signal, and whether the move was simulated.
+
+    A row is "changed" when it carries a move not yet reviewed, so a highlight
+    means "new since you last looked" rather than "moved at some point": a
+    reviewed move leaves its row plain, though the record of it remains.
     """
-    latest = _most_recent(changes)
+    latest = _latest_unreviewed(changes)
     rows = []
     for field, value in profile.items():
         # A field that is never reported as changed is never marked as one,

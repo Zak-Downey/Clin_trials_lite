@@ -116,7 +116,10 @@ def test_changes_are_reported_in_profile_order(profile):
 def change():
     """One recorded change, shaped as storage returns it."""
 
-    def build(field, previous, current, at="2026-01-03T00:00:00+00:00", synthetic=False):
+    def build(
+        field, previous, current, at="2026-01-03T00:00:00+00:00",
+        synthetic=False, reviewed=False,
+    ):
         return {
             "nct_id": "NCT03412565",
             "field": field,
@@ -124,6 +127,7 @@ def change():
             "current": current,
             "detected_at": at,
             "synthetic": synthetic,
+            "reviewed": reviewed,
         }
 
     return build
@@ -229,3 +233,48 @@ def test_two_moves_recorded_in_the_same_second_resolve_to_the_newer(profile, cha
     }
 
     assert rows["enrollment"]["previous"] == 300
+
+# --- clearing what has already been reviewed
+
+
+def test_a_change_already_reviewed_is_no_longer_marked(profile, change):
+    """Highlighting means "new since you last looked", not "moved at some point"."""
+    rows = {
+        r["field"]: r
+        for r in diff.annotate(profile, [change("enrollment", 350, 265, reviewed=True)])
+    }
+
+    assert rows["enrollment"]["changed"] is False
+    assert rows["enrollment"]["previous"] is None
+
+
+def test_a_field_that_moved_again_after_a_review_shows_the_newer_move(profile, change):
+    rows = {
+        r["field"]: r
+        for r in diff.annotate(
+            profile,
+            [
+                change("enrollment", 300, 265, at="2026-02-01T00:00:00+00:00"),
+                change("enrollment", 350, 300, at="2026-01-01T00:00:00+00:00", reviewed=True),
+            ],
+        )
+    }
+
+    assert rows["enrollment"]["changed"] is True
+    assert rows["enrollment"]["previous"] == 300
+
+
+def test_reviewing_one_field_leaves_another_field_marked(profile, change):
+    rows = {
+        r["field"]: r
+        for r in diff.annotate(
+            profile,
+            [
+                change("enrollment", 350, 265, reviewed=True),
+                change("overallStatus", "ACTIVE", "COMPLETED"),
+            ],
+        )
+    }
+
+    assert rows["enrollment"]["changed"] is False
+    assert rows["overallStatus"]["changed"] is True

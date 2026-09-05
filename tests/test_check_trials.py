@@ -232,3 +232,124 @@ def test_a_field_that_moved_twice_is_marked_up_from_the_most_recent_move(
     rows = {r["field"]: r for r in monitor.marked_profile(watched, "NCT03412565")["rows"]}
     assert rows["enrollment"]["previous"] == 300
     assert rows["enrollment"]["value"] == 180
+
+
+# --- marking a trial reviewed
+
+
+@pytest.fixture
+def changed_trial(watched, record, make_fetcher):
+    """A watched trial carrying one detected, unreviewed change."""
+    monitor.check(
+        watched,
+        "NCT03412565",
+        fetch=make_fetcher(default=revised(record, 180, "2026-01-15")),
+        when="2026-01-15T00:00:00+00:00",
+    )
+    return watched
+
+
+def marked(conn, nct_id="NCT03412565") -> dict:
+    return {r["field"]: r for r in monitor.marked_profile(conn, nct_id)["rows"]}
+
+
+def test_reviewing_a_trial_clears_its_highlighting(changed_trial):
+    monitor.review(changed_trial, "NCT03412565", when="2026-01-16T00:00:00+00:00")
+
+    assert not any(
+        row["changed"] for row in monitor.marked_profile(changed_trial, "NCT03412565")["rows"]
+    )
+
+
+def test_reviewing_a_trial_keeps_every_change_record(changed_trial):
+    """History is retained so a per-field view can be built from it later.
+
+    Reviewing flags the rows as read; what they record is untouched.
+    """
+    kept = ("field", "previous", "current", "detected_at")
+    before = [
+        {k: c[k] for k in kept} for c in storage.list_changes(changed_trial, "NCT03412565")
+    ]
+
+    monitor.review(changed_trial, "NCT03412565", when="2026-01-16T00:00:00+00:00")
+
+    after = storage.list_changes(changed_trial, "NCT03412565")
+    assert [{k: c[k] for k in kept} for c in after] == before
+    assert all(c["reviewed"] for c in after)
+
+
+def test_a_change_detected_after_a_review_highlights_the_trial_again(
+    changed_trial, record, make_fetcher
+):
+    monitor.review(changed_trial, "NCT03412565", when="2026-01-16T00:00:00+00:00")
+
+    monitor.check(
+        changed_trial,
+        "NCT03412565",
+        fetch=make_fetcher(default=revised(record, 90, "2026-02-15")),
+        when="2026-02-15T00:00:00+00:00",
+    )
+
+    rows = marked(changed_trial)
+    assert rows["enrollment"]["changed"] is True
+    assert rows["enrollment"]["previous"] == 180
+    assert rows["enrollment"]["value"] == 90
+
+
+def test_reviewing_one_trial_leaves_another_trial_highlighted(
+    watched, record, make_fetcher
+):
+    monitor.add(watched, "NCT00000001", fetch=make_fetcher(default=record))
+    fetch = make_fetcher(default=revised(record, 180, "2026-01-15"))
+    monitor.check(watched, "NCT03412565", fetch=fetch, when="2026-01-15T00:00:00+00:00")
+    monitor.check(watched, "NCT00000001", fetch=fetch, when="2026-01-15T00:00:00+00:00")
+
+    monitor.review(watched, "NCT03412565", when="2026-01-16T00:00:00+00:00")
+
+    assert marked(watched)["enrollment"]["changed"] is False
+    assert marked(watched, "NCT00000001")["enrollment"]["changed"] is True
+
+
+def test_reviewing_an_unwatched_trial_is_refused(conn):
+    with pytest.raises(monitor.MonitorError, match="not on the watchlist"):
+        monitor.review(conn, "NCT03412565")
+
+
+def test_the_marked_up_profile_counts_what_is_still_unreviewed(changed_trial):
+    assert monitor.marked_profile(changed_trial, "NCT03412565")["unreviewed"] == 1
+
+    monitor.review(changed_trial, "NCT03412565", when="2026-01-16T00:00:00+00:00")
+
+    assert monitor.marked_profile(changed_trial, "NCT03412565")["unreviewed"] == 0
+
+
+def test_the_feed_distinguishes_unreviewed_changes_from_reviewed_ones(changed_trial):
+    [entry] = [e for e in monitor.feed(changed_trial) if "changed" in e["kind"]]
+    assert entry["reviewed"] is False
+
+    monitor.review(changed_trial, "NCT03412565", when="2026-01-16T00:00:00+00:00")
+
+    [entry] = [e for e in monitor.feed(changed_trial) if "changed" in e["kind"]]
+    assert entry["reviewed"] is True
+
+
+def test_a_change_recorded_against_a_field_no_longer_monitored_stays_clearable(
+    changed_trial,
+):
+    """The monitored set has been revised before and may be again. A record left
+    behind by a dropped field has nothing to highlight, but must not leave the
+    trial permanently flagged."""
+    storage.add_change(
+        changed_trial,
+        "NCT03412565",
+        {"field": "retiredField", "previous": "a", "current": "b"},
+        when="2026-01-15T00:00:00+00:00",
+    )
+
+    marked = monitor.marked_profile(changed_trial, "NCT03412565")
+    assert marked["unreviewed"] == 2
+    assert "retiredField" not in {row["field"] for row in marked["rows"]}
+
+    monitor.review(changed_trial, "NCT03412565", when="2026-01-16T00:00:00+00:00")
+
+    assert monitor.marked_profile(changed_trial, "NCT03412565")["unreviewed"] == 0
