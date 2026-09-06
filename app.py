@@ -8,12 +8,24 @@ monitor.py and storage.py, so a later move off Streamlit replaces this file alon
 
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
 import monitor
 import simulate
 import storage
-from display import SYNTHETIC, UNREVIEWED, render_field, show
+from display import (
+    DATE_FORMAT,
+    SYNTHETIC,
+    SYNTHETIC_MARK,
+    UNREVIEWED,
+    changed_fields,
+    changed_on,
+    phase_label,
+    render_field,
+    show,
+    status_label,
+)
 
 st.set_page_config(page_title="Trial Change Monitor", layout="wide")
 
@@ -100,35 +112,89 @@ with st.sidebar.expander("🧪 Developer tools — synthetic data", expanded=Tru
         st.success(f"Deleted {removed} synthetic row{'' if removed == 1 else 's'}.")
 
 # --- watchlist
+#
+# One line per trial, so the whole watchlist is read without opening anything:
+# what identifies the study, then what moved on it and when. Selecting a line
+# opens that trial's profile underneath.
 
-st.subheader(f"Watchlist ({len(trials)})")
+rows = monitor.watchlist(conn)
 
-if not trials:
+st.subheader(f"Watchlist ({len(rows)})")
+
+if not rows:
     st.info("Nothing monitored yet. Paste an NCT ID above to begin.")
-
-for trial in trials:
-    nct = trial["nct_id"]
-    marked = monitor.marked_profile(conn, nct)
-    profile = marked["profile"]
-    unreviewed = marked["unreviewed"]
-    badge = f"{SYNTHETIC} · " if storage.is_synthetic(conn, nct) else ""
-    # A trial carrying changes nobody has read yet says so on its closed row,
-    # so the watchlist is read at a glance without opening anything.
-    flag = f" · {UNREVIEWED} {monitor.fields_moved(unreviewed)}" if unreviewed else ""
-    header = (
-        f"{badge}**{nct}** · {show(profile.get('leadSponsor'))} · "
-        f"{show(profile.get('overallStatus'))} — {show(profile.get('briefTitle'))}{flag}"
+else:
+    table = pd.DataFrame(
+        [
+            {
+                # Identity first, then the study, then what moved. Two senses
+                # of "status" end up near each other, so both are named for
+                # what they are.
+                "NCT ID": f"{SYNTHETIC_MARK} {r['nct_id']}" if r["synthetic"] else r["nct_id"],
+                "Sponsor": show(r["sponsor"]),
+                "Official title": show(r["title"]),
+                "Phase": phase_label(r["phases"]),
+                "Conditions": show(r["conditions"]),
+                "Interventions": show(r["interventions"]),
+                "Trial status": status_label(r["status"]),
+                "What changed": changed_fields(r),
+                "Changed on": changed_on(r),
+            }
+            for r in rows
+        ]
     )
-    with st.expander(header):
+    event = st.dataframe(
+        table,
+        key="watchlist",
+        hide_index=True,
+        width="stretch",
+        on_select="rerun",
+        selection_mode="single-row",
+        column_config={
+            "NCT ID": st.column_config.TextColumn(width="small"),
+            "Official title": st.column_config.TextColumn(width="large"),
+            "Phase": st.column_config.TextColumn(width="small"),
+            # The two reference columns are the ones given up when the table
+            # runs out of room: a drug list rarely moves and is one click away,
+            # whereas a cut-off "What changed" is the column the page exists
+            # for. So the news gets the width and these truncate first.
+            "Conditions": st.column_config.TextColumn(width="small"),
+            "Interventions": st.column_config.TextColumn(width="small"),
+            "Trial status": st.column_config.TextColumn(width="small"),
+            "What changed": st.column_config.TextColumn(
+                width="large",
+                help="The fields that moved the last time this trial changed, "
+                f"highest-signal first. {UNREVIEWED} means nobody has reviewed it "
+                f"yet; {SYNTHETIC_MARK} marks a simulated change. Select the row "
+                "for the values.",
+            ),
+            "Changed on": st.column_config.DateColumn(
+                width="medium",
+                format=DATE_FORMAT,
+                help="The date that change was detected.",
+            ),
+        },
+    )
+    st.caption("Select a row to open its profile. Click a header to sort.")
+
+    picked = event.selection.rows
+    if picked:
+        trial = rows[picked[0]]
+        nct = trial["nct_id"]
+        marked = monitor.marked_profile(conn, nct)
+
+        st.divider()
+        badge = f"{SYNTHETIC} · " if trial["synthetic"] else ""
+        st.markdown(f"### {badge}{nct} — {show(trial['title'])}")
         st.caption(
             f"Last checked {show(trial['last_checked'])} · "
             f"last reviewed {show(trial['last_reviewed'])}"
         )
-        if unreviewed and st.button("Mark as reviewed", key=f"review_{nct}"):
+        if marked["unreviewed"] and st.button("Mark as reviewed", key=f"review_{nct}"):
             monitor.review(conn, nct)
             st.rerun()
-        for row in marked["rows"]:
-            st.markdown(render_field(row))
+        for field in marked["rows"]:
+            st.markdown(render_field(field))
 
 # --- feed
 

@@ -20,8 +20,9 @@ streamlit run app.py
 ```
 
 Paste an NCT ID (e.g. `NCT03412565`) to start monitoring a trial. The app fetches it,
-records a baseline of its current state, and lists it on the watchlist; expanding a row
-shows every monitored field. State lives in a local SQLite file, `monitor.db`, which is
+records a baseline of its current state, and adds it to the watchlist: one line per
+trial, carrying what identifies the study alongside what last moved on it and when.
+Selecting a line opens that trial's full profile underneath. State lives in a local SQLite file, `monitor.db`, which is
 git-ignored. Set `MONITOR_DB` to point somewhere else.
 
 Run the tests with `python -m pytest`. They drive the app and the monitor through an

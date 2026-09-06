@@ -25,6 +25,29 @@ def app(tmp_path, monkeypatch):
     return AppTest.from_file(APP, default_timeout=30)
 
 
+def watchlist(app) -> list[dict]:
+    """The rendered watchlist table, one dict per line."""
+    return app.dataframe[0].value.to_dict("records")
+
+
+def open_profile(app, index: int = 0):
+    """Select a watchlist line so its profile renders below the table.
+
+    The harness clears the table's selection at the start of every run, so the
+    selection is set once for the run that opens the profile and again for
+    whatever run follows, which is how a control inside the profile stays
+    clickable.
+    """
+
+    def hold():
+        app.session_state["watchlist"] = {"selection": {"rows": [index], "columns": []}}
+
+    hold()
+    app.run()
+    hold()
+    return app
+
+
 def test_the_page_renders_an_empty_watchlist(app):
     app.run()
 
@@ -33,28 +56,52 @@ def test_the_page_renders_an_empty_watchlist(app):
     assert any("Nothing monitored yet" in info.value for info in app.info)
 
 
-def test_a_watched_trial_renders_with_its_headline_facts(app, fetcher):
+def test_a_watched_trial_gets_one_line_carrying_what_identifies_the_study(app, fetcher):
     monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
 
     app.run()
 
     assert not app.exception
-    labels = " ".join(exp.label for exp in app.expander)
-    assert "NCT03412565" in labels
-    assert "Janssen Research & Development, LLC" in labels
-    assert "COMPLETED" in labels
+    lines = watchlist(app)
+    assert len(lines) == 1
+    assert lines[0]["NCT ID"] == "NCT03412565"
+    assert lines[0]["Sponsor"] == "Janssen Research & Development, LLC"
+    assert lines[0]["Trial status"] == "Completed"
+    assert lines[0]["Official title"]
+    assert lines[0]["Phase"] == "Phase 2"
+    assert lines[0]["Conditions"]
+    assert lines[0]["Interventions"]
 
 
-def test_the_expanded_row_shows_every_monitored_field(app, fetcher):
+def test_a_trial_that_has_never_changed_says_so_on_its_line(app, fetcher):
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+
+    app.run()
+
+    line = watchlist(app)[0]
+    assert line["What changed"] == display.EMPTY
+    assert line["Changed on"] is None
+
+
+def test_the_selected_row_shows_every_monitored_field(app, fetcher):
     conn = storage.connect()
     monitor.add(conn, "NCT03412565", fetch=fetcher)
     expected = monitor.profile_of(conn, "NCT03412565")
 
     app.run()
+    open_profile(app)
 
     rendered = " ".join(m.value for m in app.markdown)
     missing = [k for k in expected if display.label(k) not in rendered]
     assert not missing
+
+
+def test_no_profile_is_shown_until_a_row_is_selected(app, fetcher):
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+
+    app.run()
+
+    assert "Enrollment" not in " ".join(m.value for m in app.markdown)
 
 
 def test_the_feed_shows_the_started_monitoring_entry(app, fetcher):
@@ -141,9 +188,8 @@ def test_simulated_data_is_badged_wherever_it_appears(app, fetcher, monkeypatch)
     app.run()
     app.button(key="simulate").click().run()
 
-    # Badged on the watchlist row while the stored profile is the fabricated one.
-    row = [exp.label for exp in app.expander if "NCT03412565" in exp.label]
-    assert row and display.SYNTHETIC in row[0]
+    # Badged on the watchlist line while the stored profile is the fabricated one.
+    assert display.SYNTHETIC_MARK in watchlist(app)[0]["NCT ID"]
 
     app.button(key="check_all").click().run()
 
@@ -163,9 +209,9 @@ def test_deleting_synthetic_data_clears_it_from_the_page(app, fetcher, monkeypat
     assert not app.exception
     rendered = " ".join(m.value for m in app.markdown)
     assert "fields changed" not in rendered
-    assert display.SYNTHETIC not in rendered
+    assert display.SYNTHETIC_MARK not in rendered
     # The trial itself is real, and stays.
-    assert any("NCT03412565" in exp.label for exp in app.expander)
+    assert watchlist(app)[0]["NCT ID"] == "NCT03412565"
 
 
 def test_simulating_is_offered_only_once_a_trial_is_watched(app):
@@ -187,6 +233,7 @@ def test_a_changed_trial_shows_the_moved_field_highlighted_in_its_profile(
     app.run()
     app.button(key="simulate").click().run()
     app.button(key="check_all").click().run()
+    open_profile(app)
 
     assert not app.exception
     rendered = " ".join(m.value for m in app.markdown)
@@ -196,10 +243,11 @@ def test_a_changed_trial_shows_the_moved_field_highlighted_in_its_profile(
     assert "Previously" in rendered
 
 
-def test_an_unchanged_trial_expands_to_a_plain_profile(app, fetcher):
+def test_an_unchanged_trial_opens_to_a_plain_profile(app, fetcher):
     monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
 
     app.run()
+    open_profile(app)
 
     assert not app.exception
     rendered = " ".join(m.value for m in app.markdown)
@@ -226,6 +274,8 @@ def highlighted(app) -> bool:
 
 
 def test_a_trial_with_no_unreviewed_changes_offers_no_review_control(live):
+    open_profile(live)
+
     assert not [b for b in live.button if b.key == "review_NCT03412565"]
 
 
@@ -241,17 +291,32 @@ def test_the_whole_loop_from_adding_to_reviewing_and_changing_again_is_walkable(
     assert any("Now monitoring NCT03412565" in msg.value for msg in app.success)
 
     app.button(key="check_all").click().run()
-    assert not highlighted(app)
+    assert watchlist(app)[0]["What changed"] == display.EMPTY
 
     app.button(key="simulate").click().run()
     app.button(key="check_all").click().run()
+
+    # What moved is read off the table itself, before anything is opened.
+    line = watchlist(app)[0]
+    assert display.UNREVIEWED in line["What changed"]
+    assert "Enrollment" in line["What changed"]
+    assert line["Changed on"] is not None
+
+    open_profile(app)
     assert highlighted(app)
 
     app.button(key="review_NCT03412565").click().run()
+    open_profile(app)
     assert not highlighted(app)
+
+    # Read, but not forgotten: the names stay on the line, the bell clears.
+    line = watchlist(app)[0]
+    assert "Enrollment" in line["What changed"]
+    assert display.UNREVIEWED not in line["What changed"]
 
     app.button(key="simulate").click().run()
     app.button(key="check_all").click().run()
+    open_profile(app)
 
     assert not app.exception
     assert highlighted(app)
@@ -262,6 +327,7 @@ def test_reviewing_marks_the_feed_entry_as_read_without_removing_it(live):
     live.button(key="check_all").click().run()
     assert "unreviewed" in " ".join(m.value for m in live.markdown)
 
+    open_profile(live)
     live.button(key="review_NCT03412565").click().run()
 
     rendered = " ".join(m.value for m in live.markdown)

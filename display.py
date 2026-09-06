@@ -5,13 +5,16 @@ Kept out of the Streamlit page so they can be tested without running the app.
 
 from __future__ import annotations
 
+import datetime
 import re
 
 EMPTY = "—"
 
 # Shown against anything the simulator caused, so nobody in a demo mistakes
-# fabricated data for the registry's.
-SYNTHETIC = "🧪 SYNTHETIC"
+# fabricated data for the registry's. The mark alone is used where a cell is
+# too narrow to spell it out.
+SYNTHETIC_MARK = "🧪"
+SYNTHETIC = f"{SYNTHETIC_MARK} SYNTHETIC"
 
 
 def label(key: str) -> str:
@@ -68,3 +71,76 @@ def render_field(row: dict) -> str:
         else f":{HIGHLIGHT}[**{name}**]"
     )
     return f"{heading}{badge}  \n{value}  \n_Previously {show(row['previous'])}_"
+
+
+# --- the watchlist table
+#
+# One line per trial, so every cell is a single short string. Pure functions
+# over a row from monitor.watchlist, kept here so the table's wording can be
+# tested without running Streamlit.
+
+# How many field names one cell shows before the rest collapse into "+n more".
+# Three fits the column at a normal window width; the names arrive high-signal
+# first, so what falls under the fold is always the least urgent of them.
+CHANGE_CAP = 3
+
+# A momentJS pattern, applied client-side by the date column. The month is
+# spelled out: an all-numeric date has to be decoded before it can be read, and
+# a spelled month cannot be misread as a day.
+DATE_FORMAT = "DD MMMM YYYY"
+
+PHASE_NAMES = {"NA": "N/A", "EARLY_PHASE1": "Early Phase 1"}
+
+
+def phase_label(phases) -> str:
+    """Registry phase codes as the phases a reader knows. PHASE2 -> 'Phase 2'."""
+    if not phases:
+        return EMPTY
+    return "/".join(
+        PHASE_NAMES.get(p, str(p).replace("PHASE", "Phase ")) for p in phases
+    )
+
+
+def status_label(status) -> str:
+    """A registry status code as a sentence. ACTIVE_NOT_RECRUITING -> readable."""
+    if not status:
+        return EMPTY
+    return status.replace("_", " ").capitalize()
+
+
+def changed_fields(row: dict, cap: int = CHANGE_CAP) -> str:
+    """The names of the fields that last moved on a trial, for one table cell.
+
+    Names only: the from-and-to values make a single row informative but a
+    column of them unscannable, and they are one click away in the profile
+    below. A trial that has never changed says so rather than rendering blank.
+
+    An unreviewed change is prefixed with the bell, so "changed last Tuesday"
+    and "changed and nobody has read it" stay distinguishable in one column;
+    a simulated one carries the flask.
+    """
+    change = row["change"]
+    if change is None:
+        return EMPTY
+
+    names = [label(f) for f in change["fields"]]
+    shown = ", ".join(names[:cap])
+    hidden = len(names) - cap
+    if hidden > 0:
+        shown += f" +{hidden} more"
+
+    prefix = f"{UNREVIEWED} " if row["unreviewed"] else ""
+    fake = f" {SYNTHETIC_MARK}" if change["synthetic"] else ""
+    return f"{prefix}{shown}{fake}"
+
+
+def changed_on(row: dict) -> datetime.date | None:
+    """The date that change was detected, as a date so the column sorts by time.
+
+    A column of formatted date strings sorts alphabetically, which puts April
+    before September before anything at all in 2025. Date only, not time: the
+    stored stamps record when somebody pressed Check, not when the sponsor
+    edited the record, so a time would be false precision.
+    """
+    change = row["change"]
+    return datetime.date.fromisoformat(change["at"][:10]) if change else None

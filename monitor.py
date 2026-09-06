@@ -301,6 +301,65 @@ def marked_profile(conn: sqlite3.Connection, nct_id: str) -> dict:
     }
 
 
+def last_change(conn: sqlite3.Connection, nct_id: str) -> dict | None:
+    """What moved the last time this trial changed, or None if it never has.
+
+    One check can move several fields at once, so "the last change" is every
+    field sharing the newest detection time, not just the newest recorded row.
+    Fields are ordered high-signal first, so a caller showing only the first
+    few of them never drops a slipped completion date in favour of a typo fix.
+
+    Reviewed or not: the watchlist answers "what has changed on this trial",
+    and a change does not stop having happened once somebody has read it. How
+    much is still unread is a separate question, answered by marked_profile.
+    """
+    changes = storage.list_changes(conn, nct_id)
+    if not changes:
+        return None
+
+    newest = changes[0]["detected_at"]
+    detected = [c for c in changes if c["detected_at"] == newest]
+    return {
+        "at": newest,
+        "fields": diff.by_signal(dict.fromkeys(c["field"] for c in detected)),
+        # A detection is simulated if any part of it was.
+        "synthetic": any(c["synthetic"] for c in detected),
+    }
+
+
+def watchlist(conn: sqlite3.Connection) -> list[dict]:
+    """One row per watched trial: what identifies it, and what last moved on it.
+
+    The whole of the watchlist table, derived here rather than in the page, so
+    the table can be tested without running Streamlit and a later move off
+    Streamlit rewrites only the rendering.
+    """
+    rows = []
+    for trial in storage.list_trials(conn):
+        nct = trial["nct_id"]
+        profile = profile_of(conn, nct) or {}
+        rows.append(
+            {
+                "nct_id": nct,
+                "sponsor": profile.get("leadSponsor"),
+                # The official title names the study; the brief title is the
+                # fallback for a record that carries only one of them.
+                "title": profile.get("officialTitle") or profile.get("briefTitle"),
+                "phases": profile.get("phases") or [],
+                "conditions": profile.get("conditions") or [],
+                # The registry repeats an intervention once per arm it appears
+                # in; dict.fromkeys dedupes while keeping the registry's order.
+                "interventions": list(dict.fromkeys(profile.get("interventions") or [])),
+                "status": profile.get("overallStatus"),
+                "last_checked": trial["last_checked"],
+                "last_reviewed": trial["last_reviewed"],
+                "unreviewed": storage.count_unreviewed(conn, nct),
+                "synthetic": storage.is_synthetic(conn, nct),
+                "change": last_change(conn, nct),
+            }
+        )
+    return rows
+
 def review(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> int:
     """Mark a trial's outstanding changes as read, clearing its highlighting.
 

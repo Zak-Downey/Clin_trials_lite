@@ -55,6 +55,16 @@ HIGH_SIGNAL = (
 )
 
 
+def by_signal(fields) -> list[str]:
+    """Field names ordered high-signal first, each group keeping its own order.
+
+    Owned here because HIGH_SIGNAL is: a caller showing only the first few of a
+    long list must be able to trust that a slipped completion date is not the
+    one it drops.
+    """
+    return sorted(fields, key=lambda f: f not in HIGH_SIGNAL)
+
+
 def _latest_unreviewed(changes: list[dict]) -> dict[str, dict]:
     """The latest change per field that has not yet been reviewed.
 

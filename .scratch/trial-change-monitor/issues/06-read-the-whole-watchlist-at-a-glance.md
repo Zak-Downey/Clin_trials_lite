@@ -13,20 +13,20 @@ Two columns carry the news:
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] The watchlist renders as one table with one line per trial, replacing the per-trial expanders
-- [ ] Each line shows NCT ID, lead sponsor, official title, phase, conditions, interventions and recruitment status, in that order
-- [ ] Interventions repeated once per arm by the registry appear once
-- [ ] A "What changed" column lists the field names that moved at the trial's most recent detection time, high-signal fields first, capped with a "+n more" overflow
-- [ ] Field names remain visible after the trial is marked reviewed; only the unreviewed marker clears
-- [ ] A trial carrying unreviewed changes is distinguishable from one whose changes have all been reviewed
-- [ ] A change made by the simulator is marked as synthetic on the row
-- [ ] A trial that has never changed is unambiguous rather than blank-looking
-- [ ] A "Changed on" column shows the detection date with the month spelled out, and sorts chronologically
-- [ ] Sorting by any column, including the two change columns, works from the table header
-- [ ] Selecting a row opens that trial's full profile below the table, with existing highlighting and the "Mark as reviewed" action intact
-- [ ] Marking a trial reviewed from the opened profile still clears its highlighting in the same interaction
-- [ ] "What changed" shows its full cap of field names without truncation at a normal window width; a long interventions list truncates before it does
-- [ ] The walkable loop still runs end to end: add a trial, check, simulate a change, check, read what moved from the table alone, open the row, review it
-- [ ] Tests cover the two new derived columns without running Streamlit: field selection and ordering, the overflow cap, the reviewed and synthetic markers, the never-changed case, and the date format
+- [x] The watchlist renders as one table with one line per trial, replacing the per-trial expanders
+- [x] Each line shows NCT ID, lead sponsor, official title, phase, conditions, interventions and recruitment status, in that order
+- [x] Interventions repeated once per arm by the registry appear once
+- [x] A "What changed" column lists the field names that moved at the trial's most recent detection time, high-signal fields first, capped with a "+n more" overflow
+- [x] Field names remain visible after the trial is marked reviewed; only the unreviewed marker clears
+- [x] A trial carrying unreviewed changes is distinguishable from one whose changes have all been reviewed
+- [x] A change made by the simulator is marked as synthetic on the row
+- [x] A trial that has never changed is unambiguous rather than blank-looking
+- [x] A "Changed on" column shows the detection date with the month spelled out, and sorts chronologically
+- [x] Sorting by any column, including the two change columns, works from the table header
+- [x] Selecting a row opens that trial's full profile below the table, with existing highlighting and the "Mark as reviewed" action intact
+- [x] Marking a trial reviewed from the opened profile still clears its highlighting in the same interaction
+- [x] "What changed" shows its full cap of field names without truncation at a normal window width; a long interventions list truncates before it does
+- [x] The walkable loop still runs end to end: add a trial, check, simulate a change, check, read what moved from the table alone, open the row, review it
+- [x] Tests cover the two new derived columns without running Streamlit: field selection and ordering, the overflow cap, the reviewed and synthetic markers, the never-changed case, and the date format
