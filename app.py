@@ -56,10 +56,15 @@ with st.sidebar.expander("🧪 Developer tools — synthetic data", expanded=Tru
         removed = storage.delete_synthetic(conn)
         st.success(f"Deleted {removed} synthetic row{'' if removed == 1 else 's'}.")
 
+# Along the top, the way a browser puts its tabs: there are two pages and they
+# are read left to right, so a full-height sidebar rail spends a lot of the
+# window on a choice between two things. The sidebar is left to the simulator.
+#
 # The watchlist is what the reader comes back to, so it is where they land.
 st.navigation(
     [
         st.Page("views/watchlist.py", title="Watchlist", icon="📋", default=True),
         st.Page("views/search.py", title="Search", icon="🔍"),
-    ]
+    ],
+    position="top",
 ).run()
