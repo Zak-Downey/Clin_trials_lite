@@ -64,32 +64,126 @@ def _fetch_record(nct: str, fetch) -> dict:
     return record
 
 
+# --- named lists
+#
+# A list is what the reader chooses between; a trial belongs to as many of them
+# as cover it. Storage owns the rows, and this layer owns the two refusals the
+# reader can actually do something about: an unnamed list, and a name taken.
+
+
+def _clean_name(name: str) -> str:
+    cleaned = name.strip()
+    if not cleaned:
+        raise MonitorError("Give the list a name.")
+    return cleaned
+
+
+def create_list(conn: sqlite3.Connection, name: str, when: str | None = None) -> int:
+    """Make a new named list and return its id."""
+    cleaned = _clean_name(name)
+    try:
+        return storage.create_list(conn, cleaned, when)
+    except sqlite3.IntegrityError as exc:
+        raise MonitorError(f"There is already a list called “{cleaned}”.") from exc
+
+
+def rename_list(conn: sqlite3.Connection, list_id: int, name: str) -> None:
+    """Give a list a different name, keeping everything in it."""
+    cleaned = _clean_name(name)
+    try:
+        storage.rename_list(conn, list_id, cleaned)
+    except sqlite3.IntegrityError as exc:
+        raise MonitorError(f"There is already a list called “{cleaned}”.") from exc
+
+
+def delete_list(conn: sqlite3.Connection, list_id: int) -> None:
+    """Remove a list, and stop monitoring whatever no other list still holds."""
+    held = [t["nct_id"] for t in storage.list_trials(conn, list_id)]
+    storage.delete_list(conn, list_id)
+    for nct in held:
+        _forget_if_unlisted(conn, nct)
+
+
+def _forget_if_unlisted(conn: sqlite3.Connection, nct_id: str) -> None:
+    """A trial in no list is nobody's business, so it stops being monitored."""
+    if not storage.lists_holding(conn, nct_id):
+        storage.delete_trial(conn, nct_id)
+
+
+def _default_list(conn: sqlite3.Connection) -> int:
+    """The list a caller that named none means: the oldest one there is.
+
+    A fresh database always has one, but the reader can delete the last list
+    while the app is running, so that is answered rather than raised.
+    """
+    lists = storage.list_lists(conn)
+    if not lists:
+        raise MonitorError("There are no lists. Make one before adding a trial.")
+    return lists[0]["id"]
+
+
 def add(
     conn: sqlite3.Connection,
     nct_id: str,
+    list_id: int | None = None,
     fetch=None,
     when: str | None = None,
 ) -> str:
-    """Start monitoring a trial, recording a baseline snapshot of its state.
+    """Put a trial in a list, monitoring it from now if it isn't already.
 
-    Records the baseline only: adding a trial must not report its monitored
-    fields as changes. Returns the normalised NCT ID.
+    A trial monitored under another list *joins* this one: it is not re-fetched
+    and its history is not restarted, because that history is the point of
+    having monitored it. A trial new to the app records a baseline snapshot
+    only, so adding it never reports its monitored fields as changes.
 
-    Raises MonitorError -- leaving stored state untouched -- if the ID is
-    malformed, unknown to the registry, or the registry can't be reached.
+    Returns the normalised NCT ID. Raises MonitorError -- leaving stored state
+    untouched -- if the ID is malformed, already in this list, unknown to the
+    registry, or the registry can't be reached.
     """
     nct = normalise(nct_id)
+    target = _default_list(conn) if list_id is None else list_id
 
-    if storage.get_trial(conn, nct) is not None:
-        raise MonitorError(f"{nct} is already on the watchlist.")
-
-    record = _fetch_record(nct, fetch)
+    if storage.is_member(conn, target, nct):
+        name = storage.get_list(conn, target)["name"]
+        raise MonitorError(f"{nct} is already in “{name}”.")
 
     stamp = when or storage.now()
-    storage.add_trial(conn, nct, stamp)
-    storage.add_snapshot(conn, nct, record, stamp)
-    storage.mark_checked(conn, nct, stamp)
+    if storage.get_trial(conn, nct) is None:
+        record = _fetch_record(nct, fetch)
+        storage.add_trial(conn, nct, stamp)
+        storage.add_snapshot(conn, nct, record, stamp)
+        storage.mark_checked(conn, nct, stamp)
+
+    storage.add_member(conn, target, nct, stamp)
     return nct
+
+
+def add_to_new_list(
+    conn: sqlite3.Connection,
+    nct_id: str,
+    name: str,
+    fetch=None,
+    when: str | None = None,
+) -> tuple[str, int]:
+    """Make a list and put a trial in it, as one act. Returns the ID and the list.
+
+    Either both happen or neither does: a list made for a trial that then failed
+    to arrive would be an empty list nobody asked for, so it goes back.
+    """
+    nct = normalise(nct_id)
+    made = create_list(conn, name, when)
+    try:
+        return add(conn, nct, made, fetch=fetch, when=when), made
+    except MonitorError:
+        delete_list(conn, made)
+        raise
+
+
+def remove(conn: sqlite3.Connection, nct_id: str, list_id: int) -> None:
+    """Take a trial out of one list, leaving any other list holding it alone."""
+    nct = normalise(nct_id)
+    storage.remove_member(conn, list_id, nct)
+    _forget_if_unlisted(conn, nct)
 
 
 def _last_updated(record: dict | None) -> str | None:
@@ -188,18 +282,22 @@ def check(
 
 def check_all(
     conn: sqlite3.Connection,
+    list_id: int | None = None,
     fetch=None,
     when: str | None = None,
     pause: float = PAUSE,
 ) -> Iterator[dict]:
-    """Re-check every watched trial, yielding one result as each finishes.
+    """Re-check watched trials, yielding one result as each finishes.
+
+    Everything monitored, or only what one named list holds -- the reader is
+    looking at one list, so that is what "check all" means to them.
 
     Yielding rather than returning a list lets the page show progress while the
     run is still going. Trials are taken one at a time with a pause between
     them, and a trial that fails is reported as its own result rather than
     ending the run.
     """
-    for index, trial in enumerate(storage.list_trials(conn)):
+    for index, trial in enumerate(storage.list_trials(conn, list_id)):
         if index:
             time.sleep(pause)
         nct = trial["nct_id"]
@@ -244,13 +342,18 @@ def profile_of(conn: sqlite3.Connection, nct_id: str) -> dict | None:
     return medical_affairs.profile(snapshot["record"]) if snapshot else None
 
 
-def feed(conn: sqlite3.Connection) -> list[dict]:
+def feed(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:
     """Events for the activity feed, most recent first.
 
     The feed names trials, not fields: every field that moved in one check of
     one trial collapses into a single entry, so a sponsor revising fifteen
     fields at once doesn't bury everything else.
+
+    Narrowed to one list when asked, so the feed under a list is about the
+    trials in it rather than about everything the app watches.
     """
+    watched = storage.list_trials(conn, list_id)
+    shown = {t["nct_id"] for t in watched}
     events = [
         {
             "at": t["monitoring_began"],
@@ -260,11 +363,13 @@ def feed(conn: sqlite3.Connection) -> list[dict]:
             "synthetic": False,
             "reviewed": True,
         }
-        for t in storage.list_trials(conn)
+        for t in watched
     ]
 
     detections: dict[tuple[str, str], list[dict]] = {}
     for change in storage.list_changes(conn):
+        if change["nct_id"] not in shown:
+            continue
         detections.setdefault((change["nct_id"], change["detected_at"]), []).append(change)
 
     for (nct, at), changes in detections.items():
@@ -327,15 +432,17 @@ def last_change(conn: sqlite3.Connection, nct_id: str) -> dict | None:
     }
 
 
-def watchlist(conn: sqlite3.Connection) -> list[dict]:
+def watchlist(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:
     """One row per watched trial: what identifies it, and what last moved on it.
+
+    Everything monitored, or only what one named list holds.
 
     The whole of the watchlist table, derived here rather than in the page, so
     the table can be tested without running Streamlit and a later move off
     Streamlit rewrites only the rendering.
     """
     rows = []
-    for trial in storage.list_trials(conn):
+    for trial in storage.list_trials(conn, list_id):
         nct = trial["nct_id"]
         profile = profile_of(conn, nct) or {}
         rows.append(

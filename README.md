@@ -19,11 +19,19 @@ machine, see below), `pandas` (only for `to_frame()` / `--csv`), and `streamlit`
 streamlit run app.py
 ```
 
-Paste an NCT ID (e.g. `NCT03412565`) to start monitoring a trial. The app fetches it,
-records a baseline of its current state, and adds it to the watchlist: one line per
-trial, carrying what identifies the study alongside what last moved on it and when.
-Selecting a line opens that trial's full profile underneath. State lives in a local SQLite file, `monitor.db`, which is
-git-ignored. Set `MONITOR_DB` to point somewhere else.
+Two pages. On **Search**, paste an NCT ID (e.g. `NCT03412565`) and choose which named
+watchlist it joins; the app fetches it and records a baseline of its current state. On
+**Watchlist**, pick a list and read it: one line per trial, carrying what identifies the
+study alongside what last moved on it and when, and selecting a line opens that trial's
+full profile underneath.
+
+Lists are how somebody covering two therapy areas keeps myeloma apart from lung. A trial
+can sit in several at once, and taking it out of one leaves the others alone; a trial in
+no list at all stops being monitored. A database written before lists existed opens with
+everything it already had in one default list.
+
+State lives in a local SQLite file, `monitor.db`, which is git-ignored. Set `MONITOR_DB`
+to point somewhere else.
 
 Run the tests with `python -m pytest`. They drive the app and the monitor through an
 injectable fetcher and never touch the network.

@@ -63,7 +63,7 @@ def test_a_lowercase_id_is_accepted_and_normalised(conn, fetcher):
 def test_adding_the_same_trial_twice_does_not_duplicate_it(conn, fetcher):
     monitor.add(conn, "NCT03412565", fetch=fetcher)
 
-    with pytest.raises(monitor.MonitorError, match="already on the watchlist"):
+    with pytest.raises(monitor.MonitorError, match="already in"):
         monitor.add(conn, "NCT03412565", fetch=fetcher)
 
     assert len(storage.list_trials(conn)) == 1

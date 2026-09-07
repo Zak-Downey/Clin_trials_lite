@@ -19,15 +19,15 @@ The list and its membership are storage's business, and which trials a list hold
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The app has a Watchlist page and a Search page, navigable from the sidebar, and the browser lands on the watchlist
-- [ ] A named list can be created, renamed, and deleted, and two lists cannot share a name
-- [ ] The watchlist page shows one named list at a time, chosen at the top, and its table, opened profile, and activity feed all narrow to that list
-- [ ] The paste-an-NCT-ID box lives on the Search page and names the list the trial joins
-- [ ] A trial can belong to several lists at once, and removing it from one leaves it in the others
-- [ ] A trial belonging to no list is no longer monitored
-- [ ] A database that predates lists opens with everything it already monitored in a single default list, with no re-adding
-- [ ] "Check all" and "Mark as reviewed" behave as they do today, and a change detected on a trial in two lists is visible from both
-- [ ] The walkable loop still runs end to end: create a list, add a trial to it, check, simulate a change, check, read what moved, open the row, read the cards, review it
-- [ ] Tests cover lists and membership without running Streamlit: creating and renaming, the duplicate-name refusal, a trial in two lists, removal from one leaving the other, and the migration of a pre-lists database
+- [x] The app has a Watchlist page and a Search page, navigable from the sidebar, and the browser lands on the watchlist
+- [x] A named list can be created, renamed, and deleted, and two lists cannot share a name
+- [x] The watchlist page shows one named list at a time, chosen at the top, and its table, opened profile, and activity feed all narrow to that list
+- [x] The paste-an-NCT-ID box lives on the Search page and names the list the trial joins
+- [x] A trial can belong to several lists at once, and removing it from one leaves it in the others
+- [x] A trial belonging to no list is no longer monitored
+- [x] A database that predates lists opens with everything it already monitored in a single default list, with no re-adding
+- [x] "Check all" and "Mark as reviewed" behave as they do today, and a change detected on a trial in two lists is visible from both
+- [x] The walkable loop still runs end to end: create a list, add a trial to it, check, simulate a change, check, read what moved, open the row, read the cards, review it
+- [x] Tests cover lists and membership without running Streamlit: creating and renaming, the duplicate-name refusal, a trial in two lists, removal from one leaving the other, and the migration of a pre-lists database

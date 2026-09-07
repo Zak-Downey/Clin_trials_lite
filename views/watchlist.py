@@ -1,0 +1,209 @@
+"""The Watchlist page: one named list at a time.
+
+Which list is showing is chosen at the top, and the table, the profile that
+opens under it, and the activity feed all narrow to it, so somebody covering two
+therapy areas never reads half another indication's business. Naming the lists
+lives here too, beside the control that chooses between them; filling them is
+the Search page's job.
+"""
+
+from __future__ import annotations
+
+import pandas as pd
+import streamlit as st
+
+import monitor
+import storage
+from display import (
+    DATE_FORMAT,
+    SYNTHETIC,
+    SYNTHETIC_MARK,
+    UNREVIEWED,
+    changed_fields,
+    changed_on,
+    group_fields,
+    phase_label,
+    render_card,
+    show,
+    status_label,
+)
+from views.pickers import choose, names
+
+# How wide the dossier is dealt. Three cards fit a laptop window without any of
+# them growing so narrow that a drug list wraps to one word a line.
+CARD_COLUMNS = 3
+
+conn = storage.connect()
+
+# --- which list is showing
+
+picker, _ = st.columns([2, 3], vertical_alignment="bottom")
+chosen = choose(picker, conn, "Watchlist", "chosen_list")
+chosen_name = names(conn)[chosen]
+
+with st.expander("Manage lists"):
+    fresh = st.text_input("New list", placeholder="Myeloma — Janssen", key="new_list")
+    if st.button("Create list", key="create_list"):
+        try:
+            monitor.create_list(conn, fresh)
+            st.rerun()
+        except monitor.MonitorError as exc:
+            st.error(str(exc))
+
+    renamed = st.text_input("Rename this list", value=chosen_name, key=f"rename_{chosen}")
+    rename, delete = st.columns(2)
+    if rename.button("Rename", key="rename_list", width="stretch"):
+        try:
+            monitor.rename_list(conn, chosen, renamed)
+            st.rerun()
+        except monitor.MonitorError as exc:
+            st.error(str(exc))
+    # Deleting the list stops monitoring whatever no other list still holds, so
+    # it is said out loud rather than left to be discovered.
+    delete.caption("Deleting a list stops monitoring any trial no other list holds.")
+    if delete.button("Delete this list", key="delete_list", width="stretch"):
+        monitor.delete_list(conn, chosen)
+        st.rerun()
+
+# --- check for changes
+
+trials = storage.list_trials(conn, chosen)
+
+if trials:
+    if st.button("Check all", key="check_all", type="primary"):
+        total = len(trials)
+        progress = st.progress(0.0, text="Checking…")
+        results = []
+        for done, result in enumerate(monitor.check_all(conn, chosen), start=1):
+            progress.progress(
+                done / total, text=f"Checked {result['nct_id']} ({done} of {total})"
+            )
+            results.append(result)
+        progress.empty()
+
+        summary = monitor.summarise(results)
+        if summary["level"] == "success":
+            st.success(summary["message"])
+        else:
+            st.warning(summary["message"])
+        for result in summary["updated"]:
+            badge = f" · {SYNTHETIC}" if storage.is_synthetic(conn, result["nct_id"]) else ""
+            st.markdown(f"**{result['nct_id']}** — {result['detail']}{badge}")
+        for result in summary["failed"]:
+            st.error(f"{result['nct_id']} — {result['detail']}")
+
+# --- watchlist
+#
+# One line per trial, so the whole list is read without opening anything: what
+# identifies the study, then what moved on it and when. Selecting a line opens
+# that trial's profile underneath.
+
+rows = monitor.watchlist(conn, chosen)
+
+st.subheader(f"{chosen_name} ({len(rows)})")
+
+if not rows:
+    st.info("Nothing in this list yet. Add a trial from the Search page.")
+else:
+    table = pd.DataFrame(
+        [
+            {
+                # Identity first, then the study, then what moved. Two senses
+                # of "status" end up near each other, so both are named for
+                # what they are.
+                "NCT ID": f"{SYNTHETIC_MARK} {r['nct_id']}" if r["synthetic"] else r["nct_id"],
+                "Sponsor": show(r["sponsor"]),
+                "Official title": show(r["title"]),
+                "Phase": phase_label(r["phases"]),
+                "Conditions": show(r["conditions"]),
+                "Interventions": show(r["interventions"]),
+                "Trial status": status_label(r["status"]),
+                "What changed": changed_fields(r),
+                "Changed on": changed_on(r),
+            }
+            for r in rows
+        ]
+    )
+    event = st.dataframe(
+        table,
+        key="watchlist",
+        hide_index=True,
+        width="stretch",
+        on_select="rerun",
+        selection_mode="single-row",
+        column_config={
+            "NCT ID": st.column_config.TextColumn(width="small"),
+            "Official title": st.column_config.TextColumn(width="large"),
+            "Phase": st.column_config.TextColumn(width="small"),
+            # The two reference columns are the ones given up when the table
+            # runs out of room: a drug list rarely moves and is one click away,
+            # whereas a cut-off "What changed" is the column the page exists
+            # for. So the news gets the width and these truncate first.
+            "Conditions": st.column_config.TextColumn(width="small"),
+            "Interventions": st.column_config.TextColumn(width="small"),
+            "Trial status": st.column_config.TextColumn(width="small"),
+            "What changed": st.column_config.TextColumn(
+                width="large",
+                help="The fields that moved the last time this trial changed, "
+                f"highest-signal first. {UNREVIEWED} means nobody has reviewed it "
+                f"yet; {SYNTHETIC_MARK} marks a simulated change. Select the row "
+                "for the values.",
+            ),
+            "Changed on": st.column_config.DateColumn(
+                width="medium",
+                format=DATE_FORMAT,
+                help="The date that change was detected.",
+            ),
+        },
+    )
+    st.caption("Select a row to open its profile. Click a header to sort.")
+
+    picked = event.selection.rows
+    if picked:
+        trial = rows[picked[0]]
+        nct = trial["nct_id"]
+        marked = monitor.marked_profile(conn, nct)
+
+        st.divider()
+        badge = f"{SYNTHETIC} · " if trial["synthetic"] else ""
+        st.markdown(f"### {badge}{nct} — {show(trial['title'])}")
+        st.caption(
+            f"Last checked {show(trial['last_checked'])} · "
+            f"last reviewed {show(trial['last_reviewed'])}"
+        )
+        # Which other lists hold it, because taking it out of this one leaves
+        # those alone and the reader should know that before pressing remove.
+        elsewhere = [
+            row["name"] for row in storage.lists_holding(conn, nct) if row["id"] != chosen
+        ]
+        if elsewhere:
+            st.caption(f"Also in {', '.join(elsewhere)}.")
+
+        review, drop, _ = st.columns([1, 1, 3])
+        if marked["unreviewed"] and review.button(
+            "Mark as reviewed", key=f"review_{nct}", width="stretch"
+        ):
+            monitor.review(conn, nct)
+            st.rerun()
+        if drop.button("Remove from this list", key=f"remove_{nct}", width="stretch"):
+            monitor.remove(conn, nct, chosen)
+            st.rerun()
+        # The profile as a dossier: titled cards dealt across the page, each
+        # one card-sized markdown block, so the whole study reads without
+        # scrolling. Which fields belong to which card lives in display.py.
+        columns = st.columns(CARD_COLUMNS, gap="medium")
+        for index, (title, card) in enumerate(group_fields(marked["rows"])):
+            with columns[index % CARD_COLUMNS], st.container(border=True):
+                st.markdown(render_card(title, card))
+
+# --- feed
+
+st.subheader("Activity")
+
+events = monitor.feed(conn, chosen)
+if not events:
+    st.caption("No activity yet.")
+for event in events:
+    badge = f" · {SYNTHETIC}" if event["synthetic"] else ""
+    state = "" if event["reviewed"] else f" · {UNREVIEWED} unreviewed"
+    st.markdown(f"`{event['at']}` — **{event['nct_id']}** — {event['kind']}{state}{badge}")

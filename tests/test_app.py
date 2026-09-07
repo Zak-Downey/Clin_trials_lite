@@ -1,7 +1,8 @@
-"""The page itself, driven through Streamlit's app-test harness.
+"""The pages themselves, driven through Streamlit's app-test harness.
 
-The database is seeded through the fetching seam first, so rendering the page
-never touches the network.
+The app is two pages, so a test that adds a trial stands on the Search page and
+a test that reads one stands on the Watchlist. The database is seeded through
+the fetching seam first, so rendering a page never touches the network.
 """
 
 from __future__ import annotations
@@ -17,12 +18,24 @@ import monitor
 import storage
 
 APP = str(pathlib.Path(__file__).resolve().parent.parent / "app.py")
+WATCHLIST = "views/watchlist.py"
+
+
+SEARCH = "views/search.py"
 
 
 @pytest.fixture
 def app(tmp_path, monkeypatch):
     monkeypatch.setattr(storage, "DB_PATH", str(tmp_path / "app.db"))
     return AppTest.from_file(APP, default_timeout=30)
+
+
+def add_trial(app, nct_id: str):
+    """Add a trial the way the analyst does: from the Search page."""
+    app.switch_page(SEARCH).run()
+    app.text_input(key="nct_id").set_value(nct_id)
+    app.button[0].click().run()
+    return app
 
 
 def watchlist(app) -> list[dict]:
@@ -53,7 +66,7 @@ def test_the_page_renders_an_empty_watchlist(app):
 
     assert not app.exception
     assert "Trial Change Monitor" in app.title[0].value
-    assert any("Nothing monitored yet" in info.value for info in app.info)
+    assert any("Nothing in this list yet" in info.value for info in app.info)
 
 
 def test_a_watched_trial_gets_one_line_carrying_what_identifies_the_study(app, fetcher):
@@ -165,6 +178,7 @@ def test_the_feed_shows_the_started_monitoring_entry(app, fetcher):
 
 def test_an_empty_submission_is_reported_inline(app):
     app.run()
+    app.switch_page(SEARCH).run()
     app.button[0].click().run()
 
     assert not app.exception
@@ -336,10 +350,10 @@ def test_the_whole_loop_from_adding_to_reviewing_and_changing_again_is_walkable(
     monkeypatch.setattr(monitor, "_default_fetch", fetcher)
     app.run()
 
-    app.text_input[0].set_value("NCT03412565")
-    app.button[0].click().run()
+    add_trial(app, "NCT03412565")
     assert any("Now monitoring NCT03412565" in msg.value for msg in app.success)
 
+    app.switch_page(WATCHLIST).run()
     app.button(key="check_all").click().run()
     assert watchlist(app)[0]["What changed"] == display.EMPTY
 
@@ -383,3 +397,210 @@ def test_reviewing_marks_the_feed_entry_as_read_without_removing_it(live):
     rendered = " ".join(m.value for m in live.markdown)
     assert "3 fields changed" in rendered
     assert "unreviewed" not in rendered
+
+
+# --- two pages, and one named list at a time
+
+
+def named(app, name: str) -> int:
+    """Create a list from the Watchlist page and return its id."""
+    app.switch_page(WATCHLIST).run()
+    app.text_input(key="new_list").set_value(name).run()
+    app.button(key="create_list").click().run()
+    return storage.find_list(storage.connect(), name)["id"]
+
+
+def showing(app, list_id: int):
+    """Stand on the Watchlist page with that list chosen."""
+    app.switch_page(WATCHLIST).run()
+    app.selectbox(key="chosen_list").set_value(list_id).run()
+    return app
+
+
+def test_the_browser_lands_on_the_watchlist(app):
+    app.run()
+
+    assert not app.exception
+    # The list picker is the watchlist page; the paste box is the other one.
+    assert app.selectbox(key="chosen_list").value == storage.list_lists(storage.connect())[0]["id"]
+    assert not [t for t in app.text_input if t.key == "nct_id"]
+
+
+def test_the_search_page_is_where_a_trial_is_added(app):
+    app.run()
+    app.switch_page(SEARCH).run()
+
+    assert not app.exception
+    assert app.text_input(key="nct_id") is not None
+    # And the watchlist no longer carries the paste box.
+    app.switch_page(WATCHLIST).run()
+    assert not [t for t in app.text_input if t.key == "nct_id"]
+
+
+def test_a_created_list_can_be_chosen_and_shows_only_its_own_trials(app, fetcher):
+    app.run()
+    lung = named(app, "Lung")
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)  # the default list
+
+    showing(app, lung)
+
+    assert not app.exception
+    assert any("Lung (0)" in sub.value for sub in app.subheader)
+    assert not app.dataframe
+
+
+def test_two_lists_cannot_share_a_name_on_the_page(app):
+    app.run()
+    named(app, "Lung")
+
+    app.text_input(key="new_list").set_value("Lung").run()
+    app.button(key="create_list").click().run()
+
+    assert any("already a list" in err.value for err in app.error)
+
+
+def test_renaming_a_list_keeps_what_it_holds(app, fetcher):
+    app.run()
+    lung = named(app, "Lung")
+    monitor.add(storage.connect(), "NCT03412565", lung, fetch=fetcher)
+    showing(app, lung)
+
+    app.text_input(key=f"rename_{lung}").set_value("Lung — AZ").run()
+    app.button(key="rename_list").click().run()
+
+    assert not app.exception
+    assert any("Lung — AZ (1)" in sub.value for sub in app.subheader)
+
+
+def test_a_trial_in_two_lists_is_readable_from_both_and_leaves_one_when_removed(app, fetcher):
+    conn = storage.connect()
+    app.run()
+    lung = named(app, "Lung")
+    myeloma = named(app, "Myeloma")
+    monitor.add(conn, "NCT03412565", lung, fetch=fetcher)
+    monitor.add(conn, "NCT03412565", myeloma, fetch=fetcher)
+
+    for chosen in (lung, myeloma):
+        showing(app, chosen)
+        assert watchlist(app)[0]["NCT ID"] == "NCT03412565"
+
+    showing(app, myeloma)
+    open_profile(app)
+    app.button(key="remove_NCT03412565").click().run()
+
+    assert not app.exception
+    assert not app.dataframe
+    showing(app, lung)
+    assert watchlist(app)[0]["NCT ID"] == "NCT03412565"
+    assert storage.get_trial(conn, "NCT03412565") is not None
+
+
+def test_a_trial_removed_from_its_only_list_stops_being_monitored(app, fetcher):
+    conn = storage.connect()
+    app.run()
+    lung = named(app, "Lung")
+    monitor.add(conn, "NCT03412565", lung, fetch=fetcher)
+    showing(app, lung)
+
+    open_profile(app)
+    app.button(key="remove_NCT03412565").click().run()
+
+    assert not app.exception
+    assert storage.get_trial(conn, "NCT03412565") is None
+
+
+def test_adding_from_the_search_page_lands_in_the_chosen_list(app, fetcher, monkeypatch):
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    app.run()
+    lung = named(app, "Lung")
+
+    app.switch_page(SEARCH).run()
+    app.selectbox(key="destination_list").set_value(lung).run()
+    app.text_input(key="nct_id").set_value("NCT03412565")
+    app.button[0].click().run()
+
+    assert not app.exception
+    assert any("Lung" in msg.value for msg in app.success)
+    showing(app, lung)
+    assert watchlist(app)[0]["NCT ID"] == "NCT03412565"
+
+
+def test_the_search_page_can_name_a_new_list_as_it_adds(app, fetcher, monkeypatch):
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    app.run()
+    app.switch_page(SEARCH).run()
+
+    app.selectbox(key="destination_list").set_value("+ New list…").run()
+    app.text_input(key="new_list_name").set_value("Myeloma").run()
+    app.text_input(key="nct_id").set_value("NCT03412565")
+    app.button[0].click().run()
+
+    assert not app.exception
+    conn = storage.connect()
+    created = storage.find_list(conn, "Myeloma")
+    assert created is not None
+    assert [t["nct_id"] for t in storage.list_trials(conn, created["id"])] == ["NCT03412565"]
+
+
+def test_a_database_predating_lists_keeps_working(app, fetcher, tmp_path, monkeypatch):
+    """Nobody re-adds a trial: what was already monitored opens in one list."""
+    conn = storage.connect()
+    monitor.add(conn, "NCT03412565", fetch=fetcher)
+    conn.execute("DELETE FROM list_members")
+    conn.execute("DELETE FROM lists")
+    conn.commit()
+
+    app.run()
+
+    assert not app.exception
+    assert watchlist(app)[0]["NCT ID"] == "NCT03412565"
+
+
+def test_the_whole_loop_through_a_named_list_is_walkable(app, fetcher, monkeypatch):
+    """Create a list, fill it from the Search page, then read it."""
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    app.run()
+
+    myeloma = named(app, "Myeloma")
+
+    app.switch_page(SEARCH).run()
+    app.selectbox(key="destination_list").set_value(myeloma).run()
+    app.text_input(key="nct_id").set_value("NCT03412565")
+    app.button[0].click().run()
+
+    showing(app, myeloma)
+    app.button(key="check_all").click().run()
+    assert watchlist(app)[0]["What changed"] == display.EMPTY
+
+    app.button(key="simulate").click().run()
+    app.button(key="check_all").click().run()
+
+    line = watchlist(app)[0]
+    assert display.UNREVIEWED in line["What changed"]
+
+    open_profile(app)
+    assert highlighted(app)
+
+    app.button(key="review_NCT03412565").click().run()
+    open_profile(app)
+
+    assert not app.exception
+    assert not highlighted(app)
+    assert "Enrollment" in watchlist(app)[0]["What changed"]
+    assert display.UNREVIEWED not in watchlist(app)[0]["What changed"]
+
+
+def test_deleting_the_last_list_leaves_a_stand_in_rather_than_an_empty_page(app, fetcher):
+    """The page always shows a list, so there always has to be one to show."""
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.add(conn, "NCT03412565", only, fetch=fetcher)
+
+    app.button(key="delete_list").click().run()
+
+    assert not app.exception
+    assert len(storage.list_lists(conn)) == 1
+    # The trial went with the list, because nothing else was holding it.
+    assert storage.get_trial(conn, "NCT03412565") is None
+    assert any("Nothing in this list yet" in info.value for info in app.info)
