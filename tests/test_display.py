@@ -55,7 +55,7 @@ def row():
 
 
 def test_an_unchanged_field_renders_plainly(row):
-    rendered = display.render_field(row(field="officialTitle", value="A study of things"))
+    rendered = display.field_line(row(field="officialTitle", value="A study of things"))
 
     assert "Official title" in rendered
     assert "A study of things" in rendered
@@ -64,13 +64,13 @@ def test_an_unchanged_field_renders_plainly(row):
 
 
 def test_an_unchanged_high_signal_field_is_not_highlighted(row):
-    rendered = display.render_field(row(high_signal=True))
+    rendered = display.field_line(row(high_signal=True))
 
     assert display.HIGHLIGHT_HIGH_SIGNAL not in rendered
 
 
 def test_a_changed_field_is_highlighted_and_shows_both_values(row):
-    rendered = display.render_field(row(changed=True, previous=350))
+    rendered = display.field_line(row(changed=True, previous=350))
 
     assert display.HIGHLIGHT in rendered
     assert "265" in rendered
@@ -78,17 +78,24 @@ def test_a_changed_field_is_highlighted_and_shows_both_values(row):
 
 
 def test_a_changed_high_signal_field_is_more_prominent_than_an_ordinary_one(row):
-    ordinary = display.render_field(row(field="acronym", value="X", changed=True, previous="Y"))
-    high = display.render_field(row(changed=True, previous=350, high_signal=True))
+    ordinary = display.field_line(row(field="acronym", value="X", changed=True, previous="Y"))
+    high = display.field_line(row(changed=True, previous=350, high_signal=True))
 
     assert display.HIGHLIGHT_HIGH_SIGNAL in high
     assert display.HIGHLIGHT_HIGH_SIGNAL not in ordinary
-    assert high.startswith("#")
-    assert not ordinary.startswith("#")
+    assert display.HIGHLIGHT in ordinary
+
+
+def test_a_field_reads_as_one_line_with_its_label_beside_its_value(row):
+    """The density of the dossier: a label above its value is a wasted line."""
+    rendered = display.field_line(row(field="enrollment", value=265))
+
+    assert len(rendered.splitlines()) == 1
+    assert rendered.index("Enrollment") < rendered.index("265")
 
 
 def test_a_previously_empty_field_shows_its_emptiness_explicitly(row):
-    rendered = display.render_field(
+    rendered = display.field_line(
         row(field="whyStopped", value="Slow accrual", changed=True, previous=None)
     )
 
@@ -96,14 +103,17 @@ def test_a_previously_empty_field_shows_its_emptiness_explicitly(row):
     assert "Slow accrual" in rendered
 
 
-def test_a_synthetic_change_is_badged_on_the_field(row):
-    rendered = display.render_field(row(changed=True, previous=350, synthetic=True))
+def test_a_synthetic_change_is_marked_on_the_field(row):
+    """The mark alone: a card line is too narrow to spell the word out."""
+    fake = display.field_line(row(changed=True, previous=350, synthetic=True))
+    real = display.field_line(row(changed=True, previous=350))
 
-    assert display.SYNTHETIC in rendered
+    assert display.SYNTHETIC_MARK in fake
+    assert display.SYNTHETIC_MARK not in real
 
 
 def test_a_results_url_renders_as_a_link(row):
-    rendered = display.render_field(
+    rendered = display.field_line(
         row(field="resultsUrl", value="https://clinicaltrials.gov/study/NCT1?tab=results")
     )
 
@@ -111,7 +121,7 @@ def test_a_results_url_renders_as_a_link(row):
 
 
 def test_no_elapsed_time_is_calculated_for_a_date_change(row):
-    rendered = display.render_field(
+    rendered = display.field_line(
         row(field="completionDate", value="2024-04-18", changed=True,
             previous="2023-04-18", high_signal=True)
     )
@@ -228,3 +238,79 @@ def test_registry_phase_codes_render_as_readable_phases(phases, expected):
 )
 def test_registry_status_codes_render_as_readable_statuses(status, expected):
     assert display.status_label(status) == expected
+
+
+# --- the dossier: the profile's fields dealt into cards
+
+
+@pytest.fixture
+def profile_rows(row):
+    """Marked rows for a whole profile, as the comparison hands them over."""
+
+    def build(fields, **marks):
+        return [row(field=f, value=f"value of {f}", **marks) for f in fields]
+
+    return build
+
+
+def test_every_profile_field_lands_in_exactly_one_card(profile_rows, record):
+    import medical_affairs
+
+    fields = list(medical_affairs.profile(record))
+    cards = display.group_fields(profile_rows(fields))
+
+    dealt = [r["field"] for _, rows in cards for r in rows]
+    assert sorted(dealt) == sorted(fields)
+    # In a named card, not swept into the fallback.
+    assert display.OTHER not in [title for title, _ in cards]
+
+
+def test_the_cards_arrive_in_a_fixed_order(profile_rows):
+    """The reader learns where the dates are, so they must not move."""
+    fields = ["completionDate", "nctId", "hasResults", "leadSponsor"]
+    titles = [title for title, _ in display.group_fields(profile_rows(fields))]
+
+    assert titles == ["Identity", "Sponsor", "Status and dates", "Results"]
+
+
+def test_an_unrecognised_field_falls_into_a_card_rather_than_vanishing(profile_rows):
+    cards = display.group_fields(profile_rows(["nctId", "somethingAddedLater"]))
+
+    assert cards[-1][0] == display.OTHER
+    assert [r["field"] for r in cards[-1][1]] == ["somethingAddedLater"]
+
+
+def test_a_card_with_none_of_its_fields_present_is_not_rendered(profile_rows):
+    titles = [title for title, _ in display.group_fields(profile_rows(["nctId"]))]
+
+    assert titles == ["Identity"]
+
+
+def test_a_card_is_one_block_holding_every_field_it_was_given(profile_rows):
+    """One block is the density win: Streamlit puts a margin around each one."""
+    card = display.render_card("Identity", profile_rows(["nctId", "acronym"]))
+
+    assert "IDENTITY" in card
+    assert "Nct id" in card
+    assert "Acronym" in card
+    # A markdown line break, not a paragraph: one block, three lines in it.
+    assert card.count("  \n") == 2
+
+
+def test_a_card_holding_unreviewed_changes_says_how_many_in_its_title(row):
+    rows = [
+        row(field="enrollment", changed=True, previous=350),
+        row(field="completionDate", value="2027-01-01", changed=True, previous="2026-01-01"),
+        row(field="acronym", value="X"),
+    ]
+    title = display.card_title("Design and scale", rows)
+
+    assert display.UNREVIEWED in title
+    assert "2" in title
+
+
+def test_a_card_with_nothing_unreviewed_carries_no_count(row):
+    title = display.card_title("Identity", [row(field="acronym", value="X")])
+
+    assert display.UNREVIEWED not in title
+    assert "IDENTITY" in title

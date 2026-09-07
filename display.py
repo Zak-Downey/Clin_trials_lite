@@ -36,8 +36,7 @@ def show(value) -> str:
 
 
 # Streamlit's own colour directives, so the highlight is markdown rather than
-# injected HTML. High-signal moves get the louder colour and a heading, so a
-# slipped completion date does not look like a typo fix in the official title.
+# injected HTML. Which of the two a move gets is decided in field_line.
 HIGHLIGHT = "orange-background"
 HIGHLIGHT_HIGH_SIGNAL = "red-background"
 
@@ -47,12 +46,16 @@ RESULTS_LINK = "View results on ClinicalTrials.gov"
 UNREVIEWED = "🔔"
 
 
-def render_field(row: dict) -> str:
-    """One marked-up profile row, as the markdown the page renders.
+def field_line(row: dict) -> str:
+    """One marked-up profile row, as a single line of the card holding it.
+
+    Label beside value rather than above it: the profile's vertical white was
+    one Streamlit block per field, and a card only reads compactly if a field
+    costs one line rather than two.
 
     Kept here rather than in the page so what a highlight looks like can be
-    tested without running Streamlit. Dates are shown as they are: the direction
-    of a move is the intelligence, and no arithmetic is done on it.
+    tested without running Streamlit. Dates are shown as they are: the
+    direction of a move is the intelligence, and no arithmetic is done on it.
     """
     name = label(row["field"])
 
@@ -62,15 +65,97 @@ def render_field(row: dict) -> str:
         value = show(row["value"])
 
     if not row["changed"]:
-        return f"**{name}**  \n{value}"
+        return f"**{name}** · {value}"
 
-    badge = f" · {SYNTHETIC}" if row["synthetic"] else ""
-    heading = (
-        f"#### :{HIGHLIGHT_HIGH_SIGNAL}[{name}]"
-        if row["high_signal"]
-        else f":{HIGHLIGHT}[**{name}**]"
+    # The louder colour is reserved for a high-signal move, so a slipped
+    # completion date does not look like a typo fix in the official title.
+    colour = HIGHLIGHT_HIGH_SIGNAL if row["high_signal"] else HIGHLIGHT
+    # The mark alone: a card is a third of the page wide.
+    fake = f" {SYNTHETIC_MARK}" if row["synthetic"] else ""
+    return (
+        f":{colour}[**{name}**]{fake} · {value}  \n"
+        f"&nbsp;&nbsp;&nbsp;&nbsp;:gray[_Previously {show(row['previous'])}_]"
     )
-    return f"{heading}{badge}  \n{value}  \n_Previously {show(row['previous'])}_"
+
+
+# --- the dossier
+#
+# The profile is 41 fields, which in one column is several screens of mostly
+# white. Dealt into titled cards across the page, each card answering one
+# question about the study, the whole profile fits on roughly one screen and a
+# reader after the dates goes straight to the card called that.
+
+# Where each profile field belongs. Ordered: the cards are dealt in this order
+# every time, so the reader learns where to look rather than re-reading titles.
+#
+# This restates a grouping medical_affairs.profile already implies, and it does
+# so on purpose: the order fields are gathered in is a question about the
+# registry, while the order they are read in is a question about the page, and
+# the two are free to disagree. A field added there and not here still appears,
+# under OTHER.
+CARDS = [
+    ("Identity", ("nctId", "briefTitle", "officialTitle", "acronym", "orgStudyId",
+                  "secondaryIds")),
+    ("Sponsor", ("leadSponsor", "sponsorClass", "collaborators", "responsibleParty")),
+    ("Status and dates", ("overallStatus", "whyStopped", "startDate", "startDateType",
+                          "primaryCompletionDate", "primaryCompletionDateType",
+                          "completionDate", "completionDateType", "studyFirstPostDate",
+                          "resultsFirstPostDate", "lastUpdatePostDate")),
+    ("Drugs and arms", ("interventions", "interventionTypes", "armGroups",
+                        "drugMeshTerms")),
+    ("Disease and eligibility", ("conditions", "conditionMeshTerms", "sex",
+                                 "minimumAge")),
+    ("Design and scale", ("studyType", "phases", "enrollment", "enrollmentType",
+                          "allocation", "primaryPurpose", "masking")),
+    ("Endpoints", ("primaryOutcomes", "primaryOutcomeTimeFrames",
+                   "secondaryOutcomeCount")),
+    ("Results", ("hasResults", "resultsUrl")),
+]
+
+# Where a field the grouping does not recognise goes. A field added to the
+# monitored profile later must show up somewhere rather than silently
+# disappearing off the page.
+OTHER = "Other"
+
+
+def group_fields(rows: list[dict]) -> list[tuple[str, list[dict]]]:
+    """Marked profile rows dealt into the cards, in the order the cards are read.
+
+    A card with none of its fields present is left out, so a profile that
+    stops carrying results does not leave a titled empty box behind.
+    """
+    remaining = {row["field"]: row for row in rows}
+
+    cards = []
+    for title, fields in CARDS:
+        held = [remaining.pop(f) for f in fields if f in remaining]
+        if held:
+            cards.append((title, held))
+
+    if remaining:
+        cards.append((OTHER, list(remaining.values())))
+    return cards
+
+
+def card_title(title: str, rows: list[dict]) -> str:
+    """A card's heading, carrying how much inside it is still unread.
+
+    A card can be scanned past, so the count is what stops a change hiding in
+    one the reader's eye skipped.
+    """
+    unreviewed = sum(1 for row in rows if row["changed"])
+    bell = f" {UNREVIEWED}{unreviewed}" if unreviewed else ""
+    return f"**{title.upper()}**{bell}"
+
+
+def render_card(title: str, rows: list[dict]) -> str:
+    """A whole card as the single markdown block the page renders.
+
+    One block, not one per field: Streamlit puts a margin around every block it
+    draws, so rendering a card field by field would reproduce the vertical
+    white this layout exists to remove.
+    """
+    return "  \n".join([card_title(title, rows)] + [field_line(row) for row in rows])
 
 
 # --- the watchlist table

@@ -21,13 +21,18 @@ from display import (
     UNREVIEWED,
     changed_fields,
     changed_on,
+    group_fields,
     phase_label,
-    render_field,
+    render_card,
     show,
     status_label,
 )
 
 st.set_page_config(page_title="Trial Change Monitor", layout="wide")
+
+# How wide the dossier is dealt. Three cards fit a laptop window without any of
+# them growing so narrow that a drug list wraps to one word a line.
+CARD_COLUMNS = 3
 
 conn = storage.connect()
 
@@ -193,8 +198,13 @@ else:
         if marked["unreviewed"] and st.button("Mark as reviewed", key=f"review_{nct}"):
             monitor.review(conn, nct)
             st.rerun()
-        for field in marked["rows"]:
-            st.markdown(render_field(field))
+        # The profile as a dossier: titled cards dealt across the page, each
+        # one card-sized markdown block, so the whole study reads without
+        # scrolling. Which fields belong to which card lives in display.py.
+        columns = st.columns(CARD_COLUMNS, gap="medium")
+        for index, (title, card) in enumerate(group_fields(marked["rows"])):
+            with columns[index % CARD_COLUMNS], st.container(border=True):
+                st.markdown(render_card(title, card))
 
 # --- feed
 

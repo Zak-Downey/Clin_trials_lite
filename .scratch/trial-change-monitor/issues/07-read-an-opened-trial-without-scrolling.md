@@ -42,16 +42,16 @@ GROUPS = [
 
 **Blocked by:** 06
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] An opened trial's profile renders as titled cards laid out across three columns, replacing the single vertical stack
-- [ ] Every field the profile carries appears exactly once; a field outside the named groups appears in an "Other" card rather than vanishing
-- [ ] A card's fields are rendered as one block, with each field's label and value on the same line
-- [ ] A changed field is still highlighted, with the louder treatment reserved for high-signal fields
-- [ ] A changed field still shows the value it moved from, and a simulated change is still marked synthetic
-- [ ] A card whose fields include unreviewed changes says how many, in its title
-- [ ] The results link still renders as a link, not as a bare URL
-- [ ] A field with no value still reads as empty rather than looking like a rendering fault
-- [ ] The header, the last-checked and last-reviewed line, and the "Mark as reviewed" button are unchanged, and reviewing still clears the highlighting in the same interaction
-- [ ] The walkable loop still runs end to end: add a trial, check, simulate a change, check, read what moved from the watchlist table, open the row, read the cards, review it
-- [ ] Tests cover the grouping without running Streamlit: every field lands in exactly one card, the card order is fixed, an unknown field falls into "Other", and a group with no fields present is not rendered
+- [x] An opened trial's profile renders as titled cards laid out across three columns, replacing the single vertical stack
+- [x] Every field the profile carries appears exactly once; a field outside the named groups appears in an "Other" card rather than vanishing
+- [x] A card's fields are rendered as one block, with each field's label and value on the same line
+- [x] A changed field is still highlighted, with the louder treatment reserved for high-signal fields
+- [x] A changed field still shows the value it moved from, and a simulated change is still marked synthetic
+- [x] A card whose fields include unreviewed changes says how many, in its title
+- [x] The results link still renders as a link, not as a bare URL
+- [x] A field with no value still reads as empty rather than looking like a rendering fault
+- [x] The header, the last-checked and last-reviewed line, and the "Mark as reviewed" button are unchanged, and reviewing still clears the highlighting in the same interaction
+- [x] The walkable loop still runs end to end: add a trial, check, simulate a change, check, read what moved from the watchlist table, open the row, read the cards, review it
+- [x] Tests cover the grouping without running Streamlit: every field lands in exactly one card, the card order is fixed, an unknown field falls into "Other", and a group with no fields present is not rendered

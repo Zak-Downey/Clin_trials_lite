@@ -96,6 +96,56 @@ def test_the_selected_row_shows_every_monitored_field(app, fetcher):
     assert not missing
 
 
+def test_an_opened_trial_reads_as_titled_cards(app, fetcher):
+    """The dossier: every card the profile fills is on the page, titled."""
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+
+    app.run()
+    open_profile(app)
+
+    assert not app.exception
+    rendered = " ".join(m.value for m in app.markdown)
+    for title, _ in display.CARDS:
+        assert title.upper() in rendered
+
+
+def test_each_card_costs_the_page_a_single_block(app, fetcher):
+    """The density win. A card drawn field by field would be as tall as the
+    stack it replaces, because Streamlit margins every block it draws."""
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+
+    app.run()
+    open_profile(app)
+
+    titles = [t.upper() for t, _ in display.CARDS]
+    cards = [m.value for m in app.markdown if m.value.startswith(tuple(f"**{t}" for t in titles))]
+    assert len(cards) == len(titles)
+    # Every field of the profile is inside one of those blocks, not beside them.
+    fields = monitor.profile_of(storage.connect(), "NCT03412565")
+    dossier = " ".join(cards)
+    assert not [k for k in fields if display.label(k) not in dossier]
+
+
+def test_reviewing_clears_the_counts_from_the_card_titles(app, fetcher, monkeypatch):
+    """The bell counts what is unread, not what has ever moved."""
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+
+    app.run()
+    app.button(key="simulate").click().run()
+    app.button(key="check_all").click().run()
+    open_profile(app)
+    assert display.UNREVIEWED in " ".join(m.value for m in app.markdown)
+
+    app.button(key="review_NCT03412565").click().run()
+    open_profile(app)
+
+    assert not app.exception
+    titles = [m.value for m in app.markdown if m.value.startswith("**")]
+    assert titles
+    assert not [t for t in titles if display.UNREVIEWED in t]
+
+
 def test_no_profile_is_shown_until_a_row_is_selected(app, fetcher):
     monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
 
