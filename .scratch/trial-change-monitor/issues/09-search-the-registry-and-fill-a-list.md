@@ -16,15 +16,15 @@ The four axes map onto the registry API as `query.cond`, `query.intr`, `query.sp
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The Search page offers condition, intervention, sponsor, and phase, any of which may be left blank, and searching with all four blank is refused rather than returning the whole registry
-- [ ] Results arrive as a table carrying NCT ID, official title, sponsor, phase, status, conditions, and interventions
-- [ ] Several rows can be selected at once, and the destination list is chosen after selecting, from the existing lists or as a new name
-- [ ] Adding puts every selected trial in that list and starts monitoring anything not already monitored
-- [ ] A trial already monitored under another list joins this one without re-fetching it or losing its history
-- [ ] A result already in the chosen list is shown as already there rather than added twice
-- [ ] The result count is shown, and a capped result set says it is capped
-- [ ] A search that matches nothing says so plainly, and a registry that is unreachable reports the failure rather than showing an empty table
-- [ ] The walkable loop still runs end to end: search for a condition and sponsor, select several results, add them to a new named list, open that list on the watchlist page, check, and read what moved
-- [ ] Tests cover the search without touching the network: the four fields becoming registry query parameters, a study becoming a result row, and the blank-search refusal
+- [x] The Search page offers condition, intervention, sponsor, and phase, any of which may be left blank, and searching with all four blank is refused rather than returning the whole registry
+- [x] Results arrive as a table carrying NCT ID, official title, sponsor, phase, status, conditions, and interventions
+- [x] Several rows can be selected at once, and the destination list is chosen after selecting, from the existing lists or as a new name
+- [x] Adding puts every selected trial in that list and starts monitoring anything not already monitored
+- [x] A trial already monitored under another list joins this one without re-fetching it or losing its history
+- [x] A result already in the chosen list is shown as already there rather than added twice
+- [x] The result count is shown, and a capped result set says it is capped
+- [x] A search that matches nothing says so plainly, and a registry that is unreachable reports the failure rather than showing an empty table
+- [x] The walkable loop still runs end to end: search for a condition and sponsor, select several results, add them to a new named list, open that list on the watchlist page, check, and read what moved
+- [x] Tests cover the search without touching the network: the four fields becoming registry query parameters, a study becoming a result row, and the blank-search refusal

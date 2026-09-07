@@ -158,11 +158,15 @@ def render_card(title: str, rows: list[dict]) -> str:
     return "  \n".join([card_title(title, rows)] + [field_line(row) for row in rows])
 
 
-# --- the watchlist table
+# --- the study tables
 #
 # One line per trial, so every cell is a single short string. Pure functions
 # over a row from monitor.watchlist, kept here so the table's wording can be
 # tested without running Streamlit.
+#
+# Two tables are drawn from this: the watchlist, and the search results that
+# fill it. They share the columns below so a result reads as the line it is
+# about to become, rather than as a different view of the same study.
 
 # How many field names one cell shows before the rest collapse into "+n more".
 # Three fits the column at a normal window width; the names arrive high-signal
@@ -229,3 +233,40 @@ def changed_on(row: dict) -> datetime.date | None:
     """
     change = row["change"]
     return datetime.date.fromisoformat(change["at"][:10]) if change else None
+
+
+def study_line(row: dict) -> dict:
+    """What identifies one study, as the cells of its table line.
+
+    The columns the watchlist and the search results have in common, in the
+    order both read them: identity, then the study, then where it stands. Each
+    table adds its own columns around these -- the watchlist what moved, the
+    search nothing -- but neither restates them.
+    """
+    return {
+        "NCT ID": row["nct_id"],
+        "Sponsor": show(row["sponsor"]),
+        "Official title": show(row["title"]),
+        "Phase": phase_label(row["phases"]),
+        "Conditions": show(row["conditions"]),
+        "Interventions": show(row["interventions"]),
+        "Trial status": status_label(row["status"]),
+    }
+
+
+# How wide each shared column is dealt. Named widths rather than Streamlit
+# column objects, so this module stays runnable without Streamlit and both
+# pages lay the same columns out the same way.
+#
+# The two reference columns are the ones given up when a table runs out of
+# room: a drug list rarely moves and is one click away, whereas a cut-off
+# "What changed" is the column the watchlist exists for. So the news gets the
+# width and these truncate first.
+COLUMN_WIDTHS = {
+    "NCT ID": "small",
+    "Official title": "large",
+    "Phase": "small",
+    "Conditions": "small",
+    "Interventions": "small",
+    "Trial status": "small",
+}

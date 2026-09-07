@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import copy
 import sqlite3
-import urllib.error
 
 import pytest
 
@@ -279,19 +278,3 @@ def test_adding_without_naming_a_list_says_so_when_there_are_none(conn, fetcher)
 
     with pytest.raises(monitor.MonitorError, match="no lists"):
         monitor.add(conn, "NCT03412565", fetch=fetcher)
-
-
-def test_a_list_made_for_a_trial_that_never_arrives_goes_back(conn, make_fetcher):
-    failing = make_fetcher(failures={"NCT03412565": urllib.error.URLError("down")})
-
-    with pytest.raises(monitor.MonitorError):
-        monitor.add_to_new_list(conn, "NCT03412565", "Myeloma", fetch=failing)
-
-    assert storage.find_list(conn, "Myeloma") is None
-
-
-def test_making_a_list_as_a_trial_is_added_puts_the_trial_in_it(conn, fetcher):
-    added, made = monitor.add_to_new_list(conn, "NCT03412565", "Myeloma", fetch=fetcher)
-
-    assert added == "NCT03412565"
-    assert [t["nct_id"] for t in storage.list_trials(conn, made)] == ["NCT03412565"]

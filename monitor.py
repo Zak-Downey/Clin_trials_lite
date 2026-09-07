@@ -158,25 +158,127 @@ def add(
     return nct
 
 
+def add_many(
+    conn: sqlite3.Connection,
+    nct_ids,
+    list_id: int | None = None,
+    fetch=None,
+    when: str | None = None,
+) -> dict:
+    """Put several trials in a list, reporting on each rather than stopping.
+
+    A search returns a screenful at a time, and one unreachable study must not
+    cost the reader the other nine, so every trial is attempted and the outcome
+    is a summary: which were added, which the list already held, and which
+    failed and why.
+
+    Being already in the list is an outcome here rather than the refusal a
+    single add raises: adding twenty results of which three are already watched
+    is an ordinary thing to do, not a mistake to be corrected.
+    """
+    target = _default_list(conn) if list_id is None else list_id
+
+    added: list[str] = []
+    already: list[str] = []
+    failed: list[dict] = []
+    for nct_id in nct_ids:
+        try:
+            nct = normalise(nct_id)
+            if storage.is_member(conn, target, nct):
+                already.append(nct)
+            else:
+                added.append(add(conn, nct, target, fetch=fetch, when=when))
+        except MonitorError as exc:
+            failed.append({"nct_id": str(nct_id).strip(), "detail": str(exc)})
+
+    return {"added": added, "already": already, "failed": failed, "list_id": target}
+
+
 def add_to_new_list(
     conn: sqlite3.Connection,
-    nct_id: str,
+    nct_ids,
     name: str,
     fetch=None,
     when: str | None = None,
-) -> tuple[str, int]:
-    """Make a list and put a trial in it, as one act. Returns the ID and the list.
+) -> tuple[dict, int]:
+    """Make a list and fill it, as one act. Returns the outcome and the list.
 
-    Either both happen or neither does: a list made for a trial that then failed
-    to arrive would be an empty list nobody asked for, so it goes back.
+    A list nothing at all landed in is a list nobody asked for, so it goes back
+    and the failure is raised. A list that partly filled is kept: the reader
+    asked for it by name, and what did arrive is in it.
     """
-    nct = normalise(nct_id)
-    made = create_list(conn, name, when)
-    try:
-        return add(conn, nct, made, fetch=fetch, when=when), made
-    except MonitorError:
+    cleaned = _clean_name(name)
+    made = create_list(conn, cleaned, when)
+    outcome = add_many(conn, nct_ids, made, fetch=fetch, when=when)
+    if not outcome["added"] and not outcome["already"]:
         delete_list(conn, made)
-        raise
+        raise MonitorError(_why_nothing_landed(outcome, cleaned))
+    return outcome, made
+
+
+def _why_nothing_landed(outcome: dict, list_name: str) -> str:
+    """Why a list that was asked for is going back, in one line.
+
+    The first failure, which in a run where every trial failed is almost always
+    the whole story, and a count so the reader knows the rest went the same way
+    rather than thinking one NCT ID was the whole of it.
+    """
+    failed = outcome["failed"]
+    if not failed:
+        return f"Nothing was given to put in “{list_name}”."
+    if len(failed) == 1:
+        return failed[0]["detail"]
+    return f"{failed[0]['detail']} None of the {len(failed)} trials could be added."
+
+
+def summarise_search(found: dict) -> str:
+    """What a completed search found, in one line above the table.
+
+    A capped set says so: a search matching thousands must not read as though
+    it matched forty. A search matching nothing says that plainly, because an
+    empty table on its own looks like a fault.
+    """
+    rows = found["rows"]
+    if not rows:
+        return "Nothing matched. Widen the search."
+    if found["capped"]:
+        return f"Showing the first {len(rows)} matches of more."
+    noun = "match" if len(rows) == 1 else "matches"
+    return f"{len(rows)} {noun}."
+
+
+def summarise_adds(outcome: dict, list_name: str) -> dict:
+    """Turn a bulk add into the lines the analyst reads, worded once here.
+
+    A run with a failure in it is never plain good news, for the same reason a
+    check run isn't: an outage must not read as "all done".
+    """
+    added, already, failed = outcome["added"], outcome["already"], outcome["failed"]
+
+    # One trial is named, several are counted: somebody who pasted a single ID
+    # wants that ID confirmed back, and somebody who ticked twenty rows wants a
+    # number rather than twenty NCT IDs in a sentence.
+    parts = []
+    if added:
+        which = added[0] if len(added) == 1 else f"{len(added)} trials"
+        parts.append(f"Now monitoring {which} in “{list_name}”.")
+    if already:
+        which = f"{already[0]} was" if len(already) == 1 else f"{len(already)} were"
+        # Named when it stands alone, because a refusal has to say which list
+        # it is talking about; "there" is unambiguous once the line before it
+        # has named the list.
+        where = "there" if added else f"in “{list_name}”"
+        parts.append(f"{which} already {where}.")
+
+    if failed:
+        parts.append(f"{len(failed)} could not be added.")
+        level = "warning"
+    elif added:
+        level = "success"
+    else:
+        level = "warning"
+
+    return {"level": level, "message": " ".join(parts), "failed": failed}
 
 
 def remove(conn: sqlite3.Connection, nct_id: str, list_id: int) -> None:
@@ -184,6 +286,87 @@ def remove(conn: sqlite3.Connection, nct_id: str, list_id: int) -> None:
     nct = normalise(nct_id)
     storage.remove_member(conn, list_id, nct)
     _forget_if_unlisted(conn, nct)
+
+
+# --- searching the registry
+#
+# The way onto a list for somebody who does not know the NCT numbers yet. What
+# comes back is described in exactly the columns the watchlist uses, because
+# the results table is read as the list it feeds and the two must not drift.
+
+# How many results one search shows. Enough that a real query is answered in
+# one screenful, few enough that the reader is choosing rather than wading; a
+# search matching more than this says so, so a cap never reads as a total.
+RESULT_CAP = 40
+
+# The phases a search can name, in the order a reader expects them offered.
+# Re-stated here rather than reached for in the client, because which phases
+# can be searched on is part of what search() offers its caller.
+PHASES = ctgov.PHASE_CODES
+
+
+def _default_find(**params) -> list[dict]:
+    return ctgov.find(**params)
+
+
+def _identity(profile: dict) -> dict:
+    """What identifies a study, in the columns a table shows it in.
+
+    Shared by the watchlist and by search results: a result is judged on the
+    same facts a watched trial is listed by, so both are derived here once.
+    """
+    return {
+        "sponsor": profile.get("leadSponsor"),
+        # The official title names the study; the brief title is the fallback
+        # for a record that carries only one of them.
+        "title": profile.get("officialTitle") or profile.get("briefTitle"),
+        "phases": profile.get("phases") or [],
+        "conditions": profile.get("conditions") or [],
+        # The registry repeats an intervention once per arm it appears in;
+        # dict.fromkeys dedupes while keeping the registry's order.
+        "interventions": list(dict.fromkeys(profile.get("interventions") or [])),
+        "status": profile.get("overallStatus"),
+    }
+
+
+def search(
+    cond: str = "",
+    intr: str = "",
+    spons: str = "",
+    phases=(),
+    limit: int = RESULT_CAP,
+    find=None,
+) -> dict:
+    """Search the registry on condition, intervention, sponsor and phase.
+
+    Any axis may be left blank, but not all of them: a query with nothing in it
+    asks for the whole registry, which is never what the reader meant.
+
+    Returns the matching studies as rows, and whether there were more than the
+    cap allowed through -- so a search that matched thousands is not shown as
+    though it matched forty. Raises MonitorError if the registry can't be
+    reached, rather than returning an empty table an outage looks identical to.
+    """
+    if not any([cond.strip(), intr.strip(), spons.strip(), tuple(phases)]):
+        raise MonitorError(
+            "Fill in at least one of condition, intervention, sponsor or phase."
+        )
+
+    try:
+        # One more than the cap, which is how the cap is known to have bitten.
+        studies = (find or _default_find)(
+            cond=cond, intr=intr, spons=spons, phases=tuple(phases), limit=limit + 1
+        )
+    except urllib.error.URLError as exc:
+        raise MonitorError(f"Could not reach ClinicalTrials.gov: {exc.reason}") from exc
+    except Exception as exc:
+        raise MonitorError(f"The search failed: {exc}") from exc
+
+    rows = []
+    for study in studies[:limit]:
+        profile = medical_affairs.profile(study)
+        rows.append({"nct_id": profile["nctId"], **_identity(profile)})
+    return {"rows": rows, "capped": len(studies) > limit}
 
 
 def _last_updated(record: dict | None) -> str | None:
@@ -448,16 +631,7 @@ def watchlist(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict
         rows.append(
             {
                 "nct_id": nct,
-                "sponsor": profile.get("leadSponsor"),
-                # The official title names the study; the brief title is the
-                # fallback for a record that carries only one of them.
-                "title": profile.get("officialTitle") or profile.get("briefTitle"),
-                "phases": profile.get("phases") or [],
-                "conditions": profile.get("conditions") or [],
-                # The registry repeats an intervention once per arm it appears
-                # in; dict.fromkeys dedupes while keeping the registry's order.
-                "interventions": list(dict.fromkeys(profile.get("interventions") or [])),
-                "status": profile.get("overallStatus"),
+                **_identity(profile),
                 "last_checked": trial["last_checked"],
                 "last_reviewed": trial["last_reviewed"],
                 "unreviewed": storage.count_unreviewed(conn, nct),

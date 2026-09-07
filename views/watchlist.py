@@ -15,6 +15,7 @@ import streamlit as st
 import monitor
 import storage
 from display import (
+    COLUMN_WIDTHS,
     DATE_FORMAT,
     SYNTHETIC,
     SYNTHETIC_MARK,
@@ -22,10 +23,9 @@ from display import (
     changed_fields,
     changed_on,
     group_fields,
-    phase_label,
     render_card,
     show,
-    status_label,
+    study_line,
 )
 from views.pickers import choose, names
 
@@ -108,16 +108,11 @@ else:
     table = pd.DataFrame(
         [
             {
-                # Identity first, then the study, then what moved. Two senses
-                # of "status" end up near each other, so both are named for
-                # what they are.
+                # The columns the search results share, then what moved on top
+                # of them. A simulated trial is marked in the ID column, which
+                # is the one narrow enough to need the mark alone.
+                **study_line(r),
                 "NCT ID": f"{SYNTHETIC_MARK} {r['nct_id']}" if r["synthetic"] else r["nct_id"],
-                "Sponsor": show(r["sponsor"]),
-                "Official title": show(r["title"]),
-                "Phase": phase_label(r["phases"]),
-                "Conditions": show(r["conditions"]),
-                "Interventions": show(r["interventions"]),
-                "Trial status": status_label(r["status"]),
                 "What changed": changed_fields(r),
                 "Changed on": changed_on(r),
             }
@@ -132,16 +127,10 @@ else:
         on_select="rerun",
         selection_mode="single-row",
         column_config={
-            "NCT ID": st.column_config.TextColumn(width="small"),
-            "Official title": st.column_config.TextColumn(width="large"),
-            "Phase": st.column_config.TextColumn(width="small"),
-            # The two reference columns are the ones given up when the table
-            # runs out of room: a drug list rarely moves and is one click away,
-            # whereas a cut-off "What changed" is the column the page exists
-            # for. So the news gets the width and these truncate first.
-            "Conditions": st.column_config.TextColumn(width="small"),
-            "Interventions": st.column_config.TextColumn(width="small"),
-            "Trial status": st.column_config.TextColumn(width="small"),
+            **{
+                name: st.column_config.TextColumn(width=width)
+                for name, width in COLUMN_WIDTHS.items()
+            },
             "What changed": st.column_config.TextColumn(
                 width="large",
                 help="The fields that moved the last time this trial changed, "

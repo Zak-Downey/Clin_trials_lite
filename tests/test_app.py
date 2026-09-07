@@ -7,6 +7,7 @@ the fetching seam first, so rendering a page never touches the network.
 
 from __future__ import annotations
 
+import copy
 import pathlib
 import urllib.error
 
@@ -30,11 +31,23 @@ def app(tmp_path, monkeypatch):
     return AppTest.from_file(APP, default_timeout=30)
 
 
+def press(app, label: str):
+    """Click a button by the words on it.
+
+    Forms submit buttons take no key, and the Search page now has three
+    buttons, so addressing them by position would break the moment one moves.
+    """
+    for button in app.button:
+        if button.label == label:
+            return button.click()
+    raise AssertionError(f"no button labelled {label!r}")
+
+
 def add_trial(app, nct_id: str):
     """Add a trial the way the analyst does: from the Search page."""
     app.switch_page(SEARCH).run()
     app.text_input(key="nct_id").set_value(nct_id)
-    app.button[0].click().run()
+    press(app, "Start monitoring").run()
     return app
 
 
@@ -179,7 +192,7 @@ def test_the_feed_shows_the_started_monitoring_entry(app, fetcher):
 def test_an_empty_submission_is_reported_inline(app):
     app.run()
     app.switch_page(SEARCH).run()
-    app.button[0].click().run()
+    press(app, "Start monitoring").run()
 
     assert not app.exception
     assert any("Paste an NCT ID" in err.value for err in app.error)
@@ -517,7 +530,7 @@ def test_adding_from_the_search_page_lands_in_the_chosen_list(app, fetcher, monk
     app.switch_page(SEARCH).run()
     app.selectbox(key="destination_list").set_value(lung).run()
     app.text_input(key="nct_id").set_value("NCT03412565")
-    app.button[0].click().run()
+    press(app, "Start monitoring").run()
 
     assert not app.exception
     assert any("Lung" in msg.value for msg in app.success)
@@ -531,9 +544,9 @@ def test_the_search_page_can_name_a_new_list_as_it_adds(app, fetcher, monkeypatc
     app.switch_page(SEARCH).run()
 
     app.selectbox(key="destination_list").set_value("+ New list…").run()
-    app.text_input(key="new_list_name").set_value("Myeloma").run()
+    app.text_input(key="destination_list_name").set_value("Myeloma").run()
     app.text_input(key="nct_id").set_value("NCT03412565")
-    app.button[0].click().run()
+    press(app, "Start monitoring").run()
 
     assert not app.exception
     conn = storage.connect()
@@ -566,7 +579,7 @@ def test_the_whole_loop_through_a_named_list_is_walkable(app, fetcher, monkeypat
     app.switch_page(SEARCH).run()
     app.selectbox(key="destination_list").set_value(myeloma).run()
     app.text_input(key="nct_id").set_value("NCT03412565")
-    app.button[0].click().run()
+    press(app, "Start monitoring").run()
 
     showing(app, myeloma)
     app.button(key="check_all").click().run()
@@ -604,3 +617,226 @@ def test_deleting_the_last_list_leaves_a_stand_in_rather_than_an_empty_page(app,
     # The trial went with the list, because nothing else was holding it.
     assert storage.get_trial(conn, "NCT03412565") is None
     assert any("Nothing in this list yet" in info.value for info in app.info)
+
+
+# --- searching the registry and filling a list
+#
+# The registry search is stubbed at monitor's own seam, so the page is driven
+# for real without a request leaving the machine.
+
+
+def stub_search(monkeypatch, studies=None, failure=None):
+    """Make the page's registry search return these studies, or fail."""
+
+    def find(**params):
+        if failure is not None:
+            raise failure
+        return list(studies or [])
+
+    monkeypatch.setattr(monitor, "_default_find", find)
+
+
+def other_study(record: dict, nct_id: str) -> dict:
+    """The captured record, standing in for a second study in a result set."""
+    copied = copy.deepcopy(record)
+    copied["protocolSection"]["identificationModule"]["nctId"] = nct_id
+    return copied
+
+
+def run_search(app, condition: str = "multiple myeloma"):
+    app.switch_page(SEARCH).run()
+    app.text_input(key="cond").set_value(condition)
+    press(app, "Search").run()
+    return app
+
+
+def tick(app, rows: list[int]):
+    """Tick result rows, the way the harness expresses a table selection.
+
+    Held across two runs for the same reason opening a profile is: the harness
+    clears a table's selection at the start of every run, so the control that
+    depends on it only stays live if the selection is set again afterwards.
+    """
+
+    def hold():
+        app.session_state["results"] = {"selection": {"rows": rows, "columns": []}}
+
+    hold()
+    app.run()
+    hold()
+    return app
+
+
+def test_the_search_page_offers_the_four_axes(app):
+    app.switch_page(SEARCH).run()
+
+    keys = {widget.key for widget in app.text_input}
+    assert {"cond", "intr", "spons"} <= keys
+    assert app.multiselect(key="phases") is not None
+
+
+def test_a_search_with_every_field_blank_is_refused_on_the_page(app, monkeypatch):
+    stub_search(monkeypatch, [])
+    app.switch_page(SEARCH).run()
+
+    press(app, "Search").run()
+
+    assert not app.exception
+    assert any("at least one" in err.value for err in app.error)
+
+
+def test_results_arrive_as_a_table_of_the_watchlist_columns(app, record, monkeypatch):
+    stub_search(monkeypatch, [record])
+
+    run_search(app)
+
+    assert not app.exception
+    shown = app.dataframe[0].value.to_dict("records")[0]
+    assert shown["NCT ID"] == "NCT03412565"
+    assert set(shown) == {
+        "NCT ID",
+        "Sponsor",
+        "Official title",
+        "Phase",
+        "Conditions",
+        "Interventions",
+        "Trial status",
+    }
+
+
+def test_a_search_matching_nothing_says_so(app, monkeypatch):
+    stub_search(monkeypatch, [])
+
+    run_search(app, "something nobody studies")
+
+    assert not app.exception
+    assert any("Nothing matched" in warn.value for warn in app.warning)
+
+
+def test_an_unreachable_registry_reports_the_failure(app, monkeypatch):
+    stub_search(monkeypatch, failure=urllib.error.URLError("down"))
+
+    run_search(app)
+
+    assert not app.exception
+    assert any("Could not reach" in err.value for err in app.error)
+    assert not app.dataframe
+
+
+def test_a_capped_result_set_says_it_is_capped(app, record, monkeypatch):
+    studies = [other_study(record, f"NCT1000{i:04d}") for i in range(monitor.RESULT_CAP + 1)]
+    stub_search(monkeypatch, studies)
+
+    run_search(app)
+
+    assert not app.exception
+    assert any("first" in cap.value and "of more" in cap.value for cap in app.caption)
+
+
+def test_selected_results_are_added_to_the_list_chosen_afterwards(
+    app, record, fetcher, monkeypatch
+):
+    stub_search(monkeypatch, [record, other_study(record, "NCT00000001")])
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    app.run()
+    lung = named(app, "Lung")
+
+    run_search(app)
+    app.selectbox(key="results_list").set_value(lung).run()
+    tick(app, [0, 1])
+    press(app, "Add selected").run()
+
+    assert not app.exception
+    held = {t["nct_id"] for t in storage.list_trials(storage.connect(), lung)}
+    assert held == {"NCT03412565", "NCT00000001"}
+
+
+def test_a_result_already_in_the_chosen_list_is_shown_as_already_there(
+    app, record, fetcher, monkeypatch
+):
+    stub_search(monkeypatch, [record])
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    app.run()
+    conn = storage.connect()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.add(conn, "NCT03412565", only, fetch=fetcher)
+
+    run_search(app)
+    tick(app, [0])
+    press(app, "Add selected").run()
+
+    assert not app.exception
+    assert any("already" in warn.value for warn in app.warning)
+    assert len(storage.list_trials(conn, only)) == 1
+
+
+def test_the_whole_search_loop_into_a_new_named_list_is_walkable(
+    app, record, fetcher, monkeypatch
+):
+    """Search, select several, file into a list named on the spot, then read it."""
+    stub_search(monkeypatch, [record, other_study(record, "NCT00000001")])
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    app.run()
+
+    run_search(app)
+    app.selectbox(key="results_list").set_value("+ New list…").run()
+    app.text_input(key="results_list_name").set_value("Myeloma — Janssen").run()
+    tick(app, [0, 1])
+    press(app, "Add selected").run()
+
+    assert not app.exception
+    made = storage.find_list(storage.connect(), "Myeloma — Janssen")
+    assert made is not None
+
+    showing(app, made["id"])
+    assert len(watchlist(app)) == 2
+
+    app.button(key="check_all").click().run()
+    assert not app.exception
+    assert watchlist(app)[0]["What changed"] == display.EMPTY
+
+    app.button(key="simulate").click().run()
+    app.button(key="check_all").click().run()
+
+    assert display.UNREVIEWED in watchlist(app)[0]["What changed"]
+
+
+def test_a_narrower_second_search_does_not_carry_the_old_selection(
+    app, record, fetcher, monkeypatch
+):
+    """Row numbers mean a different study once the results behind them change.
+
+    The selection is held across the search the way a browser holds it -- the
+    client sends it back with every rerun -- because that is the only way the
+    stale row number reaches the code that reads it.
+    """
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    stub_search(
+        monkeypatch,
+        [record, other_study(record, "NCT00000001"), other_study(record, "NCT00000002")],
+    )
+    run_search(app)
+    tick(app, [2])
+
+    stub_search(monkeypatch, [other_study(record, "NCT00000009")])
+    app.text_input(key="cond").set_value("something narrower")
+    app.session_state["results"] = {"selection": {"rows": [2], "columns": []}}
+    press(app, "Search").run()
+
+    assert not app.exception
+    assert any("0 selected" in cap.value for cap in app.caption)
+
+
+def test_pasting_a_trial_the_list_already_holds_names_the_list(app, fetcher, monkeypatch):
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.add(conn, "NCT03412565", only, fetch=fetcher)
+
+    add_trial(app, "NCT03412565")
+
+    assert not app.exception
+    said = " ".join(msg.value for msg in app.warning)
+    assert "NCT03412565 was already in" in said
+    assert storage.get_list(conn, only)["name"] in said

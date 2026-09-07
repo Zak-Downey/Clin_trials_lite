@@ -55,6 +55,22 @@ def version() -> dict:
     return _get("/version", {})
 
 
+def _collect(params: dict, limit: int) -> list[dict]:
+    """Studies matching `params`, following pagination until `limit` are collected."""
+    studies: list[dict] = []
+    token = None
+    while len(studies) < limit:
+        page = _get(
+            "/studies",
+            {**params, "pageSize": min(1000, limit - len(studies)), "pageToken": token},
+        )
+        studies.extend(page.get("studies", []))
+        token = page.get("nextPageToken")
+        if not token:
+            break
+    return studies[:limit]
+
+
 def search(
     cond: str | None = None,
     term: str | None = None,
@@ -71,26 +87,71 @@ def search(
     extra -- any other API param, e.g. filter_overallStatus="RECRUITING"
              (underscores become dots: query_locn -> query.locn)
     """
-    params = {
-        "query.cond": cond,
-        "query.term": term,
-        "query.intr": intr,
-        "fields": ",".join(fields) if fields else None,
-        **{k.replace("_", "."): v for k, v in extra.items()},
-    }
+    return _collect(
+        {
+            "query.cond": cond,
+            "query.term": term,
+            "query.intr": intr,
+            "fields": ",".join(fields) if fields else None,
+            **{k.replace("_", "."): v for k, v in extra.items()},
+        },
+        limit,
+    )
 
-    studies: list[dict] = []
-    token = None
-    while len(studies) < limit:
-        page = _get(
-            "/studies",
-            {**params, "pageSize": min(1000, limit - len(studies)), "pageToken": token},
-        )
-        studies.extend(page.get("studies", []))
-        token = page.get("nextPageToken")
-        if not token:
-            break
-    return studies[:limit]
+
+# --- the four axes a competitor search is built on
+#
+# Condition, intervention, sponsor and phase: what somebody covering a therapy
+# area actually names when they describe the studies they want to watch. Three
+# of them are plain query parameters; phase is not, and has to go through the
+# advanced filter, which is why the four are assembled here rather than at each
+# call site.
+
+# The API's phase codes, in the order a reader expects to see them offered.
+PHASE_CODES = ["EARLY_PHASE1", "PHASE1", "PHASE2", "PHASE3", "PHASE4", "NA"]
+
+
+def search_params(
+    cond: str | None = None,
+    intr: str | None = None,
+    spons: str | None = None,
+    phases=(),
+) -> dict:
+    """The four search axes as the v2 API's own query parameters.
+
+    A blank axis is left out altogether rather than sent empty, so an empty box
+    does not narrow the search to studies whose condition is the empty string.
+    An empty result therefore means the reader filled nothing in, which is the
+    one query that must not be run.
+    """
+    params = {}
+    for key, value in (
+        ("query.cond", cond),
+        ("query.intr", intr),
+        ("query.spons", spons),
+    ):
+        if (value or "").strip():
+            params[key] = value.strip()
+    if phases:
+        # Phase has no query parameter of its own; AREA[Phase] is how the
+        # advanced filter expresses "any one of these".
+        params["filter.advanced"] = "AREA[Phase](" + " OR ".join(phases) + ")"
+    return params
+
+
+def find(
+    cond: str | None = None,
+    intr: str | None = None,
+    spons: str | None = None,
+    phases=(),
+    limit: int = 50,
+) -> list[dict]:
+    """Full study records matching the four axes.
+
+    Whole records, not a field subset: what comes back is turned into the same
+    profile a monitored trial gets, so the same code reads both.
+    """
+    return _collect(search_params(cond, intr, spons, phases), limit)
 
 
 def count(cond: str | None = None, term: str | None = None, **extra) -> int:
