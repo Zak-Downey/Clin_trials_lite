@@ -107,6 +107,85 @@ def test_a_record_stating_no_revision_date_is_not_called_revised(conn, record, m
     assert result["detail"] == "No changes."
 
 
+# --- eligibility criteria
+
+
+def amended(record: dict, criteria: str = "Inclusion Criteria:\n* Aged 12 or over") -> dict:
+    """A copy of a record whose eligibility criteria have been rewritten."""
+    moved = bumped(copy.deepcopy(record))
+    moved["protocolSection"]["eligibilityModule"]["eligibilityCriteria"] = criteria
+    return moved
+
+
+def test_an_amended_eligibility_criteria_is_detected(watched, record, make_fetcher):
+    """A sponsor widening or narrowing who can enter the study."""
+    fetch = make_fetcher({"NCT03412565": amended(record)})
+
+    result = monitor.check(watched, "NCT03412565", fetch=fetch)
+
+    assert result["outcome"] == "updated"
+    assert "eligibilityCriteria" in [
+        c["field"] for c in storage.list_changes(watched, "NCT03412565")
+    ]
+
+
+def test_the_amended_criteria_are_marked_up_on_the_profile(watched, record, make_fetcher):
+    monitor.check(watched, "NCT03412565", fetch=make_fetcher({"NCT03412565": amended(record)}))
+
+    rows = {r["field"]: r for r in monitor.marked_profile(watched, "NCT03412565")["rows"]}
+
+    assert rows["eligibilityCriteria"]["changed"] is True
+    assert rows["eligibilityCriteria"]["high_signal"] is True
+
+
+def test_monitoring_a_further_field_does_not_report_watched_trials_as_changed(
+    watched, fetcher
+):
+    """Snapshots keep the raw registry record, so a field added to the profile
+    is derived on both sides of the comparison rather than appearing from
+    nowhere on the next check."""
+    ordinary = monitor.check(watched, "NCT03412565", fetch=fetcher)
+    every_field = monitor.check(watched, "NCT03412565", fetch=fetcher, force=True)
+
+    assert ordinary["outcome"] == "unchanged"
+    assert every_field["outcome"] == "unchanged"
+    assert storage.list_changes(watched, "NCT03412565") == []
+
+
+# --- a date becoming actual
+
+
+def test_a_date_becoming_actual_reads_as_one_entry_not_two(conn, record, make_fetcher):
+    """Both fields are recorded, because both moved; what the analyst reads is
+    the date, said once, with the type it moved from beside it."""
+    pending = copy.deepcopy(record)
+    dates = pending["protocolSection"]["statusModule"]["primaryCompletionDateStruct"]
+    dates["date"], dates["type"] = "2020-06-30", "ESTIMATED"
+    monitor.add(conn, "NCT03412565", fetch=make_fetcher(default=pending))
+
+    monitor.check(conn, "NCT03412565", fetch=make_fetcher({"NCT03412565": bumped(record)}))
+
+    assert monitor.last_change(conn, "NCT03412565")["fields"] == ["primaryCompletionDate"]
+    changed = [
+        r for r in monitor.marked_profile(conn, "NCT03412565")["rows"] if r["changed"]
+    ]
+    assert [r["field"] for r in changed] == ["primaryCompletionDate"]
+    assert changed[0]["previous_qualifier"] == "ESTIMATED"
+
+
+def test_the_feed_counts_a_date_becoming_actual_as_one_field(watched, record, make_fetcher):
+    """The feed counts what the change column names, so the same event is not
+    one entry in one place and two in the other."""
+    settled = bumped(copy.deepcopy(record))
+    dates = settled["protocolSection"]["statusModule"]["completionDateStruct"]
+    dates["date"], dates["type"] = "2024-09-30", "ESTIMATED"
+
+    monitor.check(watched, "NCT03412565", fetch=make_fetcher({"NCT03412565": settled}))
+
+    [entry] = [e for e in monitor.feed(watched) if "changed" in e["kind"]]
+    assert entry["kind"] == "1 field changed"
+
+
 # --- forcing a full comparison
 
 

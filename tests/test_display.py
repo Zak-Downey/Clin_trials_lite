@@ -41,7 +41,8 @@ def row():
     """One marked-up profile row, shaped as the comparison hands it over."""
 
     def build(field="enrollment", value=265, changed=False, previous=None,
-              high_signal=False, synthetic=False):
+              high_signal=False, synthetic=False, qualifier=None,
+              previous_qualifier=None):
         return {
             "field": field,
             "value": value,
@@ -49,6 +50,10 @@ def row():
             "previous": previous,
             "high_signal": high_signal,
             "synthetic": synthetic,
+            # Whether the registry calls the value estimated or actual, for the
+            # fields that state it; None for every other field.
+            "qualifier": qualifier,
+            "previous_qualifier": previous_qualifier,
         }
 
     return build
@@ -280,9 +285,12 @@ def profile_rows(row):
 
 
 def test_every_profile_field_lands_in_exactly_one_card(profile_rows, record):
+    import diff
     import medical_affairs
 
-    fields = list(medical_affairs.profile(record))
+    # Every field the marked-up rows carry: a qualifier is folded into the
+    # value it qualifies before the cards are dealt, so it is never one of them.
+    fields = [f for f in medical_affairs.profile(record) if f not in diff.QUALIFIES]
     cards = display.group_fields(profile_rows(fields))
 
     dealt = [r["field"] for _, rows in cards for r in rows]
@@ -340,3 +348,124 @@ def test_a_card_with_nothing_unreviewed_carries_no_count(row):
 
     assert display.UNREVIEWED not in title
     assert "IDENTITY" in title
+
+
+# --- a value and whether the registry calls it estimated or actual
+
+
+def test_a_date_is_shown_beside_whether_it_is_estimated_or_actual(row):
+    rendered = display.field_line(
+        row(field="completionDate", value="2024-04-18", qualifier="ACTUAL")
+    )
+
+    assert "2024-04-18" in rendered
+    assert "Actual" in rendered
+
+
+def test_a_date_becoming_actual_reads_as_one_entry_alongside_its_value(row):
+    """One event, not a date move and an unexplained type move beside it."""
+    rendered = display.field_line(
+        row(
+            field="primaryCompletionDate",
+            value="2024-04-18",
+            qualifier="ACTUAL",
+            previous="2024-04-18",
+            previous_qualifier="ESTIMATED",
+            changed=True,
+            high_signal=True,
+        )
+    )
+
+    assert "Estimated" in rendered
+    assert "Actual" in rendered
+    assert rendered.count("Previously") == 1
+    assert "Primary completion date type" not in rendered
+
+
+def test_a_field_with_no_type_to_state_is_rendered_as_it_always_was(row):
+    assert display.field_line(row(field="acronym", value="PLEIADES")) == (
+        "**Acronym** · PLEIADES"
+    )
+
+
+# --- eligibility criteria
+#
+# Forty lines of bullets in a card a third of the page wide, so what is shown
+# is an excerpt and the exact wording is one registry link away.
+
+
+@pytest.fixture
+def criteria() -> str:
+    return "Inclusion Criteria:\n\n" + "\n".join(
+        f"* Documented multiple myeloma, condition {n}" for n in range(40)
+    )
+
+
+def test_the_criteria_render_as_a_short_single_line_excerpt(row, criteria):
+    rendered = display.field_line(row(field="eligibilityCriteria", value=criteria))
+
+    assert len(rendered.splitlines()) == 1
+    assert len(rendered) < len(criteria)
+    assert "Inclusion Criteria:" in rendered
+    assert rendered.endswith("…")  # cut off, rather than running on
+
+
+def test_short_criteria_are_not_cut(row):
+    rendered = display.field_line(
+        row(field="eligibilityCriteria", value="Inclusion Criteria: aged 18 or over")
+    )
+
+    assert "aged 18 or over" in rendered
+    assert "…" not in rendered
+
+
+def test_the_excerpt_drops_the_registrys_bullet_markers(criteria):
+    """A bulleted list inside a one-block card reads as emphasis, not bullets."""
+    assert "*" not in display.excerpt(criteria)
+    assert "Documented multiple myeloma" in display.excerpt(criteria)
+
+
+def test_a_study_stating_no_criteria_is_not_given_a_link_to_them(row):
+    """Nothing to follow the link to, so it renders as any empty field does."""
+    rendered = display.field_line(
+        row(field="eligibilityCriteria", value=None), nct_id="NCT03412565"
+    )
+
+    assert display.EMPTY in rendered
+    assert display.CRITERIA_LINK not in rendered
+
+
+def test_the_full_criteria_are_one_registry_link_away(row, criteria):
+    rendered = display.field_line(
+        row(field="eligibilityCriteria", value=criteria), nct_id="NCT03412565"
+    )
+
+    assert "](https://clinicaltrials.gov/study/NCT03412565)" in rendered
+
+
+def test_an_amendment_says_the_criteria_moved_rather_than_printing_both(row, criteria):
+    """A full before-and-after would swamp the card and every other change on
+    the page with it."""
+    rendered = display.field_line(
+        row(
+            field="eligibilityCriteria",
+            value=criteria,
+            changed=True,
+            previous=criteria.replace("multiple myeloma", "smouldering myeloma"),
+            high_signal=True,
+        )
+    )
+
+    assert display.HIGHLIGHT_HIGH_SIGNAL in rendered
+    assert display.AMENDED in rendered
+    assert "smouldering myeloma" not in rendered
+    assert len(rendered) < len(criteria)
+
+
+def test_an_amendment_does_not_grow_the_card_it_sits_in(row, criteria):
+    plain = display.field_line(row(field="eligibilityCriteria", value=criteria))
+    amended = display.field_line(
+        row(field="eligibilityCriteria", value=criteria, changed=True, previous="x")
+    )
+
+    assert len(amended.splitlines()) == len(plain.splitlines()) + 1

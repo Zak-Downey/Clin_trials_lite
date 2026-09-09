@@ -52,7 +52,37 @@ HIGH_SIGNAL = (
     "armGroups",
     "interventions",
     "hasResults",
+    # A moved endpoint, a trial that changed phase, and an amended eligible
+    # population are each read as competitor intelligence ahead of an edit to
+    # the intervention wording, so none of them is what the watchlist's
+    # overflow drops.
+    "primaryOutcomes",
+    "phases",
+    "eligibilityCriteria",
 )
+
+
+# A value and the registry's word for whether it is estimated or actual. The
+# pair is one fact: a primary completion date going from estimated to actual is
+# the single most informative thing that can happen to that field, and reported
+# as a date move plus an unrelated type move it reads as neither. So the
+# qualifier is folded into the value it qualifies wherever a change is named.
+QUALIFIED_BY = {
+    "startDate": "startDateType",
+    "primaryCompletionDate": "primaryCompletionDateType",
+    "completionDate": "completionDateType",
+    "enrollment": "enrollmentType",
+}
+QUALIFIES = {qualifier: value for value, qualifier in QUALIFIED_BY.items()}
+
+
+def fold_qualifiers(fields) -> list[str]:
+    """Field names with each qualifier named as the value it qualifies.
+
+    Order is kept, and a qualifier that moved alongside its own value adds no
+    second name: the two are one entry.
+    """
+    return list(dict.fromkeys(QUALIFIES.get(field, field) for field in fields))
 
 
 def by_signal(fields) -> list[str]:
@@ -100,21 +130,48 @@ def annotate(profile: dict, changes: list[dict]) -> list[dict]:
     A row is "changed" when it carries a move not yet reviewed, so a highlight
     means "new since you last looked" rather than "moved at some point": a
     reviewed move leaves its row plain, though the record of it remains.
+
+    A field the registry qualifies as estimated or actual is one row, carrying
+    the qualifier and the one it moved from, rather than two rows of which the
+    second explains nothing on its own.
     """
     latest = _latest_unreviewed(changes)
-    rows = []
-    for field, value in profile.items():
+
+    def moved(field):
         # A field that is never reported as changed is never marked as one,
         # whatever happens to be recorded against it.
-        moved = None if field in EXCLUDED else latest.get(field)
+        if field is None or field in EXCLUDED:
+            return None
+        return latest.get(field)
+
+    rows = []
+    for field, value in profile.items():
+        # A qualifier has no row of its own: it is folded into the value it
+        # qualifies, which is the row above it in profile order.
+        if field in QUALIFIES:
+            continue
+
+        qualifier = QUALIFIED_BY.get(field)
+        stated = profile.get(qualifier) if qualifier else None
+        move, qualified_move = moved(field), moved(qualifier)
+
         rows.append(
             {
                 "field": field,
                 "value": value,
-                "changed": moved is not None,
-                "previous": moved["previous"] if moved else None,
+                "changed": bool(move or qualified_move),
+                # What the field moved from, which for a value whose qualifier
+                # alone moved is the value it still holds: the news there is
+                # the qualifier, and the value is the context for it.
+                "previous": move["previous"] if move else (value if qualified_move else None),
+                "qualifier": stated,
+                "previous_qualifier": (
+                    qualified_move["previous"] if qualified_move else stated
+                ),
                 "high_signal": field in HIGH_SIGNAL,
-                "synthetic": bool(moved and moved["synthetic"]),
+                "synthetic": any(
+                    m["synthetic"] for m in (move, qualified_move) if m
+                ),
             }
         )
     return rows

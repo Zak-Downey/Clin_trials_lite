@@ -103,6 +103,39 @@ def test_high_signal_fields_are_listed_before_ordinary_ones(watched):
     assert change["fields"][0] == "completionDate"
 
 
+def test_a_promoted_field_is_listed_before_an_ordinary_one(watched):
+    """An endpoint or an eligible population can matter more than an edit to
+    the intervention wording, so neither is what the overflow drops."""
+    at = "2026-09-05T10:00:00+00:00"
+    moved(watched, "NCT03412565", "officialTitle", at)
+    moved(watched, "NCT03412565", "eligibilityCriteria", at)
+    moved(watched, "NCT03412565", "primaryOutcomes", at)
+
+    change = monitor.last_change(watched, "NCT03412565")
+
+    assert set(change["fields"][:2]) == {"eligibilityCriteria", "primaryOutcomes"}
+    assert change["fields"][2] == "officialTitle"
+
+
+def test_a_date_and_its_type_moving_together_are_named_once(watched):
+    """One event -- a date becoming actual -- not two unrelated entries."""
+    at = "2026-09-05T10:00:00+00:00"
+    moved(watched, "NCT03412565", "primaryCompletionDate", at)
+    moved(watched, "NCT03412565", "primaryCompletionDateType", at)
+
+    change = monitor.last_change(watched, "NCT03412565")
+
+    assert change["fields"] == ["primaryCompletionDate"]
+
+
+def test_a_type_moving_on_its_own_is_named_as_its_value(watched):
+    moved(watched, "NCT03412565", "enrollmentType", "2026-09-05T10:00:00+00:00")
+
+    change = monitor.last_change(watched, "NCT03412565")
+
+    assert change["fields"] == ["enrollment"]
+
+
 def test_a_reviewed_change_is_still_reported_as_what_last_moved(watched):
     moved(watched, "NCT03412565", "enrollment", "2026-09-05T10:00:00+00:00")
     storage.mark_reviewed(watched, "NCT03412565")

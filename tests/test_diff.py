@@ -136,8 +136,11 @@ def change():
 def test_the_whole_profile_is_marked_up_not_only_what_moved(profile, change):
     rows = diff.annotate(profile, [change("enrollment", 350, 265)])
 
-    assert [r["field"] for r in rows] == list(profile)
-    assert [r["value"] for r in rows] == list(profile.values())
+    # Every field but a qualifier, which is folded into the value it qualifies
+    # rather than standing as a row of its own.
+    shown = [f for f in profile if f not in diff.QUALIFIES]
+    assert [r["field"] for r in rows] == shown
+    assert [r["value"] for r in rows] == [profile[f] for f in shown]
 
 
 def test_a_field_that_did_not_move_is_not_marked_changed(profile, change):
@@ -278,3 +281,143 @@ def test_reviewing_one_field_leaves_another_field_marked(profile, change):
 
     assert rows["enrollment"]["changed"] is False
     assert rows["overallStatus"]["changed"] is True
+
+
+# --- eligibility criteria
+#
+# The inclusion and exclusion list defines who can enter the study, so an
+# amendment widening or narrowing a competitor's target population is exactly
+# the kind of move this tool exists to catch.
+
+
+def test_an_amended_eligibility_criteria_is_reported(profile):
+    previous, current = changed(
+        profile, eligibilityCriteria="Inclusion Criteria:\n* Aged 18 or over"
+    )
+
+    [change] = diff.compare(previous, current)
+    assert change["field"] == "eligibilityCriteria"
+    assert change["previous"] == profile["eligibilityCriteria"]
+
+
+# --- what counts as high signal
+
+
+@pytest.mark.parametrize(
+    "field", ["primaryOutcomes", "phases", "eligibilityCriteria"]
+)
+def test_the_promoted_fields_carry_the_prominence_of_a_slipped_date(profile, field):
+    """A moved endpoint, phase or eligible population can matter more to
+    competitor monitoring than an edit to the intervention wording."""
+    rows = {r["field"]: r for r in diff.annotate(profile, [])}
+
+    assert rows[field]["high_signal"] is True
+
+
+def test_a_promoted_field_outranks_an_ordinary_one_in_the_order(profile):
+    """The overflow of the watchlist's change column drops the last names, so
+    a moved endpoint must never be the one dropped for a title typo."""
+    ordered = diff.by_signal(["officialTitle", "eligibilityCriteria", "acronym", "phases"])
+
+    assert ordered[:2] == ["eligibilityCriteria", "phases"]
+
+
+# --- a value and whether it is estimated or actual
+#
+# A primary completion date going from estimated to actual is one event, and
+# the single most informative thing that can happen to that field. Reported as
+# a date move and an unrelated type move, it reads as neither.
+
+
+def test_a_qualifier_gets_no_row_of_its_own(profile):
+    fields = [r["field"] for r in diff.annotate(profile, [])]
+
+    assert "primaryCompletionDateType" not in fields
+    assert "primaryCompletionDate" in fields
+
+
+def test_a_date_is_marked_up_beside_whether_it_is_estimated_or_actual(profile):
+    rows = {r["field"]: r for r in diff.annotate(profile, [])}
+
+    assert rows["primaryCompletionDate"]["qualifier"] == profile["primaryCompletionDateType"]
+
+
+def test_a_date_becoming_actual_marks_the_date_itself_as_moved(profile, change):
+    """The type moved and the date did not, yet the news is about the date."""
+    rows = {
+        r["field"]: r
+        for r in diff.annotate(
+            profile, [change("primaryCompletionDateType", "ESTIMATED", "ACTUAL")]
+        )
+    }
+    row = rows["primaryCompletionDate"]
+
+    assert row["changed"] is True
+    # The value it moved from is the value it still holds: only its type moved.
+    assert row["previous"] == profile["primaryCompletionDate"]
+    assert row["previous_qualifier"] == "ESTIMATED"
+
+
+def test_a_date_and_its_type_moving_together_are_one_marked_row(profile, change):
+    rows = [
+        r
+        for r in diff.annotate(
+            profile,
+            [
+                change("completionDate", "2024-04-18", "2024-09-30"),
+                change("completionDateType", "ESTIMATED", "ACTUAL"),
+            ],
+        )
+        if r["changed"]
+    ]
+
+    assert [r["field"] for r in rows] == ["completionDate"]
+    assert rows[0]["previous"] == "2024-04-18"
+    assert rows[0]["previous_qualifier"] == "ESTIMATED"
+
+
+def test_an_enrolment_figure_carries_its_type_the_same_way(profile, change):
+    rows = {
+        r["field"]: r
+        for r in diff.annotate(profile, [change("enrollmentType", "ESTIMATED", "ACTUAL")])
+    }
+
+    assert rows["enrollment"]["changed"] is True
+    assert rows["enrollment"]["previous_qualifier"] == "ESTIMATED"
+    assert "enrollmentType" not in rows
+
+
+def test_a_simulated_type_move_stays_flagged_on_the_row_it_folds_into(profile, change):
+    rows = {
+        r["field"]: r
+        for r in diff.annotate(
+            profile,
+            [change("completionDateType", "ESTIMATED", "ACTUAL", synthetic=True)],
+        )
+    }
+
+    assert rows["completionDate"]["synthetic"] is True
+
+
+def test_a_reviewed_type_move_leaves_the_row_it_folds_into_plain(profile, change):
+    rows = {
+        r["field"]: r
+        for r in diff.annotate(
+            profile,
+            [change("completionDateType", "ESTIMATED", "ACTUAL", reviewed=True)],
+        )
+    }
+
+    assert rows["completionDate"]["changed"] is False
+
+
+def test_a_type_named_alongside_its_value_is_folded_into_one_name():
+    assert diff.fold_qualifiers(["completionDate", "completionDateType"]) == ["completionDate"]
+
+
+def test_a_type_named_on_its_own_is_named_as_its_value():
+    assert diff.fold_qualifiers(["enrollmentType"]) == ["enrollment"]
+
+
+def test_folding_leaves_an_unqualified_field_alone():
+    assert diff.fold_qualifiers(["overallStatus", "acronym"]) == ["overallStatus", "acronym"]

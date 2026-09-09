@@ -86,6 +86,11 @@ def profile(study: dict) -> dict:
         # --- what disease
         "conditions": _dig(p, "conditionsModule", "conditions", default=[]),
         "conditionMeshTerms": [m["term"] for m in _dig(derived, "conditionBrowseModule", "meshes", default=[])],
+        # The inclusion and exclusion list, which defines who can enter the
+        # study: an amendment widening or narrowing it is a competitor moving
+        # its target population. Long free text, so the page shows an excerpt
+        # and links out for the wording.
+        "eligibilityCriteria": elig.get("eligibilityCriteria"),
         "sex": elig.get("sex"),
         "minimumAge": elig.get("minimumAge"),
         # --- design and scale

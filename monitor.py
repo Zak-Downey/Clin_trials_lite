@@ -620,7 +620,9 @@ def feed(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:
             {
                 "at": at,
                 "nct_id": nct,
-                "kind": fields_moved(len(changes)),
+                # Counted as the entry names it: a date and its type moving
+                # together are one event, not two fields.
+                "kind": fields_moved(len(diff.fold_qualifiers(c["field"] for c in changes))),
                 "synthetic": any(c["synthetic"] for c in changes),
                 "reviewed": all(c["reviewed"] for c in changes),
             }
@@ -660,7 +662,8 @@ def last_change(conn: sqlite3.Connection, nct_id: str) -> dict | None:
     Once everything has been read there is nothing outstanding, but "what has
     changed on this trial" stays a fair question, so it falls back to the
     newest check. Fields are ordered high-signal first, so a caller showing
-    only the first few never drops a slipped completion date for a typo fix.
+    only the first few never drops a slipped completion date, a moved endpoint
+    or an amended eligible population for a typo fix.
     How much is unread is a separate question, answered by marked_profile.
     """
     changes = storage.list_changes(conn, nct_id)
@@ -677,8 +680,10 @@ def last_change(conn: sqlite3.Connection, nct_id: str) -> dict | None:
         # dated as though it landed today.
         "at": max(c["detected_at"] for c in shown),
         # A field that moved twice is one entry: changes come newest first, so
-        # the first sighting of each name is its most recent move.
-        "fields": diff.by_signal(dict.fromkeys(c["field"] for c in shown)),
+        # the first sighting of each name is its most recent move. So is a date
+        # or an enrolment figure that moved between estimated and actual: the
+        # value and its type are folded into one name.
+        "fields": diff.by_signal(diff.fold_qualifiers(c["field"] for c in shown)),
         # A detection is simulated if any part of it was.
         "synthetic": any(c["synthetic"] for c in shown),
     }

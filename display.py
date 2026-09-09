@@ -45,8 +45,58 @@ RESULTS_LINK = "View results on ClinicalTrials.gov"
 # Marks what has moved since the analyst last said they had read it.
 UNREVIEWED = "🔔"
 
+# The eligibility criteria: the inclusion and exclusion list deciding who can
+# enter the study. Forty lines of bullets in a card a third of the page wide,
+# so the card carries an excerpt and the exact wording stays one registry link
+# away -- and an amendment is *said* rather than printed twice over, because a
+# full before-and-after would swamp the card and every other change beside it.
+CRITERIA = "eligibilityCriteria"
+CRITERIA_LINK = "Full criteria"
+AMENDED = "Amended — the wording is on the registry"
 
-def field_line(row: dict) -> str:
+# Where a study is read in full. Stated here rather than reached for in
+# medical_affairs, which owns the same root for the results link: this module
+# formats and nothing else, and importing the registry client to obtain one
+# string would put the network client behind every page that renders a label.
+STUDY_URL = "https://clinicaltrials.gov/study"
+
+# The markers the registry lists criteria with, which carry no meaning once the
+# list is one line.
+BULLETS = ("*", "-", "•")
+
+# How many characters of the criteria the excerpt carries. Enough to tell which population
+# the study is in, short enough that the field costs a line like any other.
+EXCERPT_CHARS = 180
+
+
+def excerpt(text, limit: int = EXCERPT_CHARS) -> str:
+    """Long free text as one short line, ending in an ellipsis when it is cut.
+
+    The registry's line breaks collapse to single spaces and its bullet markers
+    are dropped: a card is rendered as one markdown block, and a bulleted list
+    dropped into it would either break the block apart or be read as emphasis.
+    """
+    words = [w for w in str(text).split() if w not in BULLETS] if text else []
+    collapsed = " ".join(words)
+    if not collapsed:
+        return EMPTY
+    if len(collapsed) <= limit:
+        return collapsed
+    return collapsed[:limit].rstrip(" ,;:-*") + "…"
+
+
+def _qualified(value, qualifier) -> str:
+    """A value beside the registry's word for it: "2024-04-18 (Actual)".
+
+    Read together because they are one fact: a date going from estimated to
+    actual is the most informative thing that can happen to it, and neither
+    half of that says it alone.
+    """
+    shown = show(value)
+    return f"{shown} ({str(qualifier).capitalize()})" if qualifier else shown
+
+
+def field_line(row: dict, nct_id: str | None = None) -> str:
     """One marked-up profile row, as a single line of the card holding it.
 
     Label beside value rather than above it: the profile's vertical white was
@@ -56,13 +106,23 @@ def field_line(row: dict) -> str:
     Kept here rather than in the page so what a highlight looks like can be
     tested without running Streamlit. Dates are shown as they are: the
     direction of a move is the intelligence, and no arithmetic is done on it.
+
+    The trial is named only so the criteria can link out to their full wording;
+    every other field renders without it.
     """
     name = label(row["field"])
+    criteria = row["field"] == CRITERIA
 
-    if row["field"] == "resultsUrl" and row["value"]:
+    if criteria:
+        value = excerpt(row["value"])
+        # No link off an empty field: there is no wording on the registry to
+        # follow it to.
+        if nct_id and row["value"]:
+            value += f" [{CRITERIA_LINK}]({STUDY_URL}/{nct_id})"
+    elif row["field"] == "resultsUrl" and row["value"]:
         value = f"[{RESULTS_LINK}]({row['value']})"
     else:
-        value = show(row["value"])
+        value = _qualified(row["value"], row.get("qualifier"))
 
     if not row["changed"]:
         return f"**{name}** · {value}"
@@ -72,9 +132,16 @@ def field_line(row: dict) -> str:
     colour = HIGHLIGHT_HIGH_SIGNAL if row["high_signal"] else HIGHLIGHT
     # The mark alone: a card is a third of the page wide.
     fake = f" {SYNTHETIC_MARK}" if row["synthetic"] else ""
+    # The criteria state that they moved rather than repeating themselves at
+    # length; every other field is short enough to show what it moved from.
+    was = (
+        AMENDED
+        if criteria
+        else f"Previously {_qualified(row['previous'], row.get('previous_qualifier'))}"
+    )
     return (
         f":{colour}[**{name}**]{fake} · {value}  \n"
-        f"&nbsp;&nbsp;&nbsp;&nbsp;:gray[_Previously {show(row['previous'])}_]"
+        f"&nbsp;&nbsp;&nbsp;&nbsp;:gray[_{was}_]"
     )
 
 
@@ -88,6 +155,10 @@ def field_line(row: dict) -> str:
 # Where each profile field belongs. Ordered: the cards are dealt in this order
 # every time, so the reader learns where to look rather than re-reading titles.
 #
+# A field the registry qualifies as estimated or actual is listed once, under
+# the value's own name: the marked-up rows carry the qualifier folded into the
+# value, so a qualifier never arrives as a field of its own to be dealt.
+#
 # This restates a grouping medical_affairs.profile already implies, and it does
 # so on purpose: the order fields are gathered in is a question about the
 # registry, while the order they are read in is a question about the page, and
@@ -97,16 +168,16 @@ CARDS = [
     ("Identity", ("nctId", "briefTitle", "officialTitle", "acronym", "orgStudyId",
                   "secondaryIds")),
     ("Sponsor", ("leadSponsor", "sponsorClass", "collaborators", "responsibleParty")),
-    ("Status and dates", ("overallStatus", "whyStopped", "startDate", "startDateType",
-                          "primaryCompletionDate", "primaryCompletionDateType",
-                          "completionDate", "completionDateType", "studyFirstPostDate",
-                          "resultsFirstPostDate", "lastUpdatePostDate")),
+    ("Status and dates", ("overallStatus", "whyStopped", "startDate",
+                          "primaryCompletionDate", "completionDate",
+                          "studyFirstPostDate", "resultsFirstPostDate",
+                          "lastUpdatePostDate")),
     ("Drugs and arms", ("interventions", "interventionTypes", "armGroups",
                         "drugMeshTerms")),
     ("Disease and eligibility", ("conditions", "conditionMeshTerms", "sex",
-                                 "minimumAge")),
-    ("Design and scale", ("studyType", "phases", "enrollment", "enrollmentType",
-                          "allocation", "primaryPurpose", "masking")),
+                                 "minimumAge", "eligibilityCriteria")),
+    ("Design and scale", ("studyType", "phases", "enrollment", "allocation",
+                          "primaryPurpose", "masking")),
     ("Endpoints", ("primaryOutcomes", "primaryOutcomeTimeFrames",
                    "secondaryOutcomeCount")),
     ("Results", ("hasResults", "resultsUrl")),
@@ -148,14 +219,16 @@ def card_title(title: str, rows: list[dict]) -> str:
     return f"**{title.upper()}**{bell}"
 
 
-def render_card(title: str, rows: list[dict]) -> str:
+def render_card(title: str, rows: list[dict], nct_id: str | None = None) -> str:
     """A whole card as the single markdown block the page renders.
 
     One block, not one per field: Streamlit puts a margin around every block it
     draws, so rendering a card field by field would reproduce the vertical
     white this layout exists to remove.
     """
-    return "  \n".join([card_title(title, rows)] + [field_line(row) for row in rows])
+    return "  \n".join(
+        [card_title(title, rows)] + [field_line(row, nct_id) for row in rows]
+    )
 
 
 # --- the study tables

@@ -203,7 +203,7 @@ else:
         columns = st.columns(CARD_COLUMNS, gap="medium")
         for index, (title, card) in enumerate(group_fields(marked["rows"])):
             with columns[index % CARD_COLUMNS], st.container(border=True):
-                st.markdown(render_card(title, card))
+                st.markdown(render_card(title, card, nct))
 
 # --- feed
 

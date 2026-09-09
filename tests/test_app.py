@@ -14,6 +14,7 @@ import urllib.error
 import pytest
 from streamlit.testing.v1 import AppTest
 
+import diff
 import display
 import monitor
 import storage
@@ -119,8 +120,14 @@ def test_the_selected_row_shows_every_monitored_field(app, fetcher):
     open_profile(app)
 
     rendered = " ".join(m.value for m in app.markdown)
-    missing = [k for k in expected if display.label(k) not in rendered]
+    # Every field but a qualifier, which is read beside the value it qualifies
+    # -- "(Actual)" against the date -- rather than as a line of its own.
+    missing = [
+        k for k in expected
+        if k not in diff.QUALIFIES and display.label(k) not in rendered
+    ]
     assert not missing
+    assert "(Actual)" in rendered
 
 
 def test_an_opened_trial_reads_as_titled_cards(app, fetcher):
@@ -150,7 +157,10 @@ def test_each_card_costs_the_page_a_single_block(app, fetcher):
     # Every field of the profile is inside one of those blocks, not beside them.
     fields = monitor.profile_of(storage.connect(), "NCT03412565")
     dossier = " ".join(cards)
-    assert not [k for k in fields if display.label(k) not in dossier]
+    assert not [
+        k for k in fields
+        if k not in diff.QUALIFIES and display.label(k) not in dossier
+    ]
 
 
 def test_reviewing_clears_the_counts_from_the_card_titles(app, fetcher, monkeypatch):
