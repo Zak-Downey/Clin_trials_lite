@@ -106,7 +106,8 @@ def test_a_trial_that_has_never_changed_says_so_on_its_line(app, fetcher):
 
     line = watchlist(app)[0]
     assert line["What changed"] == display.EMPTY
-    assert line["Changed on"] is None
+    assert line["Registry updated"] is None
+    assert line["Detected"] is None
 
 
 def test_the_selected_row_shows_every_monitored_field(app, fetcher):
@@ -377,7 +378,9 @@ def test_the_whole_loop_from_adding_to_reviewing_and_changing_again_is_walkable(
     line = watchlist(app)[0]
     assert display.UNREVIEWED in line["What changed"]
     assert "Enrollment" in line["What changed"]
-    assert line["Changed on"] is not None
+    # When the sponsor revised the record, told apart from when we noticed.
+    assert line["Registry updated"] is not None
+    assert line["Detected"] is not None
 
     open_profile(app)
     assert highlighted(app)

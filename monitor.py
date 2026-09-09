@@ -412,18 +412,29 @@ def check(
     nct_id: str,
     fetch=None,
     when: str | None = None,
+    force: bool = False,
 ) -> dict:
     """Re-check one watched trial against the registry.
 
     The registry publishes its own last-updated date, so that is compared first:
     when it hasn't moved, nothing downstream of it can have moved either, and the
     trial is left alone but marked as checked. This keeps a check cheap as the
-    watchlist grows.
+    watchlist grows. It is also the one thing that goes stale silently: an edit
+    to which fields are monitored, or to how they are derived, invalidates every
+    stored profile without touching the registry's stamp. force=True compares
+    every field regardless, which is how a stored profile is re-derived.
 
-    Returns a result: nct_id, an outcome of "unchanged" or "updated", the number
-    of monitored fields that moved, and a detail line for the analyst. Raises
-    MonitorError if the trial isn't watched or the registry can't be reached,
-    leaving stored state untouched.
+    Returns a result: nct_id, an outcome, the number of monitored fields that
+    moved, and a detail line for the analyst. Three outcomes short of failure,
+    because "nobody edited the record" and "somebody edited a part of it we do
+    not watch" are different facts:
+
+        unchanged            the registry's own stamp has not moved
+        no_monitored_change  it has, but nothing monitored moved with it
+        updated              at least one monitored field moved
+
+    Raises MonitorError if the trial isn't watched or the registry can't be
+    reached, leaving stored state untouched.
     """
     nct = normalise(nct_id)
 
@@ -438,8 +449,9 @@ def check(
     previous = _last_updated(stored)
     current = _last_updated(record)
     # An absent stamp on either side is not evidence of sameness, so only a
-    # match between two real dates is allowed to short-circuit the comparison.
-    if previous is not None and previous == current:
+    # match between two real dates counts as the registry standing still.
+    revised = previous is None or previous != current
+    if not revised and not force:
         storage.mark_checked(conn, nct, stamp)
         return {"nct_id": nct, "outcome": "unchanged", "changes": 0, "detail": "No changes."}
 
@@ -452,15 +464,27 @@ def check(
         stamp,
         synthetic=bool(snapshot and snapshot["synthetic"]),
     )
-    storage.add_snapshot(conn, nct, record, stamp)
+    # A forced check that found nothing has re-fetched the same record the
+    # baseline already holds, so there is nothing new to keep.
+    if revised or moved:
+        storage.add_snapshot(conn, nct, record, stamp)
     storage.mark_checked(conn, nct, stamp)
 
-    detail = (
-        f"{fields_moved(moved)}."
-        if moved
-        else "The registry record has been revised, but no monitored field moved."
-    )
-    return {"nct_id": nct, "outcome": "updated", "changes": moved, "detail": detail}
+    if moved:
+        return {
+            "nct_id": nct,
+            "outcome": "updated",
+            "changes": moved,
+            "detail": f"{fields_moved(moved)}.",
+        }
+    if revised:
+        return {
+            "nct_id": nct,
+            "outcome": "no_monitored_change",
+            "changes": 0,
+            "detail": "The registry record has been revised, but no monitored field moved.",
+        }
+    return {"nct_id": nct, "outcome": "unchanged", "changes": 0, "detail": "No changes."}
 
 
 def check_all(
@@ -469,6 +493,7 @@ def check_all(
     fetch=None,
     when: str | None = None,
     pause: float = PAUSE,
+    force: bool = False,
 ) -> Iterator[dict]:
     """Re-check watched trials, yielding one result as each finishes.
 
@@ -485,7 +510,7 @@ def check_all(
             time.sleep(pause)
         nct = trial["nct_id"]
         try:
-            result = check(conn, nct, fetch=fetch, when=when)
+            result = check(conn, nct, fetch=fetch, when=when, force=force)
         except MonitorError as exc:
             result = {"nct_id": nct, "outcome": "error", "changes": 0, "detail": str(exc)}
         yield result
@@ -496,10 +521,20 @@ def summarise(results: list[dict]) -> dict:
 
     A run with a failure in it is never reported as plain good news: an outage
     must not be mistaken for "nothing changed".
+
+    A record revised outside what is monitored gets its own line rather than
+    being folded into either. It is not news the analyst must act on, so it is
+    not a warning; but it is not "nothing happened" either, because the sponsor
+    did edit the record.
     """
     failed = [r for r in results if r["outcome"] == "error"]
     updated = [r for r in results if r["outcome"] == "updated"]
+    unmonitored = [r for r in results if r["outcome"] == "no_monitored_change"]
     checked = len(results) - len(failed)
+    noun = "trial" if checked == 1 else "trials"
+    # Said the same way wherever it appears, so the two messages that can carry
+    # it read alike.
+    aside = f" {len(unmonitored)} revised, but no monitored field moved."
 
     if failed:
         message = (
@@ -508,15 +543,23 @@ def summarise(results: list[dict]) -> dict:
         )
         level = "warning"
     elif updated:
-        noun = "trial" if checked == 1 else "trials"
         message = f"Checked {checked} {noun}. {len(updated)} revised on the registry."
+        message += aside if unmonitored else ""
         level = "warning"
+    elif unmonitored:
+        message = f"Checked {checked} {noun}.{aside}"
+        level = "info"
     else:
-        noun = "trial" if checked == 1 else "trials"
         message = f"Checked {checked} {noun} — no changes."
         level = "success"
 
-    return {"level": level, "message": message, "updated": updated, "failed": failed}
+    return {
+        "level": level,
+        "message": message,
+        "updated": updated,
+        "unmonitored": unmonitored,
+        "failed": failed,
+    }
 
 
 def profile_of(conn: sqlite3.Connection, nct_id: str) -> dict | None:
@@ -590,28 +633,37 @@ def marked_profile(conn: sqlite3.Connection, nct_id: str) -> dict:
 
 
 def last_change(conn: sqlite3.Connection, nct_id: str) -> dict | None:
-    """What moved the last time this trial changed, or None if it never has.
+    """What is outstanding on this trial, or None if it has never changed.
 
-    One check can move several fields at once, so "the last change" is every
-    field sharing the newest detection time, not just the newest recorded row.
-    Fields are ordered high-signal first, so a caller showing only the first
-    few of them never drops a slipped completion date in favour of a typo fix.
+    Everything still awaiting review, however many checks those moves are
+    spread across. This is the column an analyst scans across thirty trials, so
+    reporting only the newest check would drop a completion date that slipped
+    on Monday the moment a title typo is corrected on Wednesday.
 
-    Reviewed or not: the watchlist answers "what has changed on this trial",
-    and a change does not stop having happened once somebody has read it. How
-    much is still unread is a separate question, answered by marked_profile.
+    Once everything has been read there is nothing outstanding, but "what has
+    changed on this trial" stays a fair question, so it falls back to the
+    newest check. Fields are ordered high-signal first, so a caller showing
+    only the first few never drops a slipped completion date for a typo fix.
+    How much is unread is a separate question, answered by marked_profile.
     """
     changes = storage.list_changes(conn, nct_id)
     if not changes:
         return None
 
-    newest = changes[0]["detected_at"]
-    detected = [c for c in changes if c["detected_at"] == newest]
+    shown = [c for c in changes if not c["reviewed"]]
+    if not shown:
+        newest = changes[0]["detected_at"]
+        shown = [c for c in changes if c["detected_at"] == newest]
+
     return {
-        "at": newest,
-        "fields": diff.by_signal(dict.fromkeys(c["field"] for c in detected)),
+        # The newest of the moves being named, so a column of old news is not
+        # dated as though it landed today.
+        "at": max(c["detected_at"] for c in shown),
+        # A field that moved twice is one entry: changes come newest first, so
+        # the first sighting of each name is its most recent move.
+        "fields": diff.by_signal(dict.fromkeys(c["field"] for c in shown)),
         # A detection is simulated if any part of it was.
-        "synthetic": any(c["synthetic"] for c in detected),
+        "synthetic": any(c["synthetic"] for c in shown),
     }
 
 
@@ -632,6 +684,10 @@ def watchlist(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict
             {
                 "nct_id": nct,
                 **_identity(profile),
+                # When the sponsor last revised the record, which is not when
+                # this tool noticed: a list checked weekly can meet a
+                # fortnight-old revision.
+                "registry_updated": profile.get("lastUpdatePostDate"),
                 "last_checked": trial["last_checked"],
                 "last_reviewed": trial["last_reviewed"],
                 "unreviewed": storage.count_unreviewed(conn, nct),

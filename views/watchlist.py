@@ -21,8 +21,9 @@ from display import (
     SYNTHETIC_MARK,
     UNREVIEWED,
     changed_fields,
-    changed_on,
+    detected_on,
     group_fields,
+    registry_updated,
     render_card,
     show,
     study_line,
@@ -70,11 +71,22 @@ with st.expander("Manage lists"):
 trials = storage.list_trials(conn, chosen)
 
 if trials:
-    if st.button("Check all", key="check_all", type="primary"):
+    check, force_column, _ = st.columns([1, 2, 2], vertical_alignment="center")
+    pressed = check.button("Check all", key="check_all", type="primary", width="stretch")
+    # The registry's own stamp normally makes a check cheap by ending it early.
+    # That is right for registry edits and wrong after the monitored profile
+    # itself changes, so the way past it is offered rather than hidden.
+    force = force_column.checkbox(
+        "Compare every field",
+        key="force_check",
+        help="Ignore the registry's last-updated date and compare every "
+        "monitored field. Slower; use it after what the tool monitors changes.",
+    )
+    if pressed:
         total = len(trials)
         progress = st.progress(0.0, text="Checking…")
         results = []
-        for done, result in enumerate(monitor.check_all(conn, chosen), start=1):
+        for done, result in enumerate(monitor.check_all(conn, chosen, force=force), start=1):
             progress.progress(
                 done / total, text=f"Checked {result['nct_id']} ({done} of {total})"
             )
@@ -82,10 +94,9 @@ if trials:
         progress.empty()
 
         summary = monitor.summarise(results)
-        if summary["level"] == "success":
-            st.success(summary["message"])
-        else:
-            st.warning(summary["message"])
+        {"success": st.success, "info": st.info, "warning": st.warning}[summary["level"]](
+            summary["message"]
+        )
         for result in summary["updated"]:
             badge = f" · {SYNTHETIC}" if storage.is_synthetic(conn, result["nct_id"]) else ""
             st.markdown(f"**{result['nct_id']}** — {result['detail']}{badge}")
@@ -114,7 +125,8 @@ else:
                 **study_line(r),
                 "NCT ID": f"{SYNTHETIC_MARK} {r['nct_id']}" if r["synthetic"] else r["nct_id"],
                 "What changed": changed_fields(r),
-                "Changed on": changed_on(r),
+                "Registry updated": registry_updated(r),
+                "Detected": detected_on(r),
             }
             for r in rows
         ]
@@ -133,15 +145,21 @@ else:
             },
             "What changed": st.column_config.TextColumn(
                 width="large",
-                help="The fields that moved the last time this trial changed, "
-                f"highest-signal first. {UNREVIEWED} means nobody has reviewed it "
-                f"yet; {SYNTHETIC_MARK} marks a simulated change. Select the row "
-                "for the values.",
+                help="Every field still awaiting review, highest-signal first, "
+                f"however many checks those moves are spread across. {UNREVIEWED} "
+                f"means nobody has reviewed it yet; {SYNTHETIC_MARK} marks a "
+                "simulated change. Select the row for the values.",
             ),
-            "Changed on": st.column_config.DateColumn(
+            "Registry updated": st.column_config.DateColumn(
                 width="medium",
                 format=DATE_FORMAT,
-                help="The date that change was detected.",
+                help="The date the sponsor revised the registry record.",
+            ),
+            "Detected": st.column_config.DateColumn(
+                width="medium",
+                format=DATE_FORMAT,
+                help="The date this tool noticed, which is the day somebody "
+                "pressed Check.",
             ),
         },
     )

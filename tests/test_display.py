@@ -139,18 +139,29 @@ def test_no_elapsed_time_is_calculated_for_a_date_change(row):
 def line():
     """One watchlist row, shaped as monitor.watchlist hands it over."""
 
-    def build(fields=(), at="2026-09-05T10:00:00+00:00", unreviewed=0, synthetic=False):
+    def build(
+        fields=(),
+        at="2026-09-05T10:00:00+00:00",
+        unreviewed=0,
+        synthetic=False,
+        registry_updated="2026-08-24",
+    ):
         change = (
             {"at": at, "fields": list(fields), "synthetic": synthetic} if fields else None
         )
-        return {"change": change, "unreviewed": unreviewed}
+        return {
+            "change": change,
+            "unreviewed": unreviewed,
+            "registry_updated": registry_updated,
+        }
 
     return build
 
 
 def test_a_trial_that_has_never_changed_says_so_rather_than_looking_blank(line):
     assert display.changed_fields(line()) == display.EMPTY
-    assert display.changed_on(line()) is None
+    assert display.detected_on(line()) is None
+    assert display.registry_updated(line()) is None
 
 
 def test_the_fields_that_moved_are_named_readably(line):
@@ -201,7 +212,22 @@ def test_a_simulated_change_is_marked_on_the_line(line):
 def test_the_date_is_a_real_date_so_the_column_sorts_chronologically(line):
     import datetime
 
-    assert display.changed_on(line(fields=["enrollment"])) == datetime.date(2026, 9, 5)
+    assert display.detected_on(line(fields=["enrollment"])) == datetime.date(2026, 9, 5)
+
+
+def test_when_the_sponsor_revised_is_told_apart_from_when_we_noticed(line):
+    """A list checked weekly must not show a fortnight-old revision as though
+    it landed this morning."""
+    import datetime
+
+    row = line(fields=["enrollment"])
+
+    assert display.registry_updated(row) == datetime.date(2026, 8, 24)
+    assert display.detected_on(row) == datetime.date(2026, 9, 5)
+
+
+def test_a_record_the_registry_gives_no_revision_date_for_renders_empty(line):
+    assert display.registry_updated(line(fields=["enrollment"], registry_updated=None)) is None
 
 
 def test_the_date_column_spells_the_month_out(line):

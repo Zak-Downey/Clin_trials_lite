@@ -223,16 +223,32 @@ def changed_fields(row: dict, cap: int = CHANGE_CAP) -> str:
     return f"{prefix}{shown}{fake}"
 
 
-def changed_on(row: dict) -> datetime.date | None:
-    """The date that change was detected, as a date so the column sorts by time.
+def _as_date(stamp) -> datetime.date | None:
+    """A stored stamp as a date, so a column of them sorts by time.
 
     A column of formatted date strings sorts alphabetically, which puts April
     before September before anything at all in 2025. Date only, not time: the
-    stored stamps record when somebody pressed Check, not when the sponsor
-    edited the record, so a time would be false precision.
+    stamps record a day's business, so a time would be false precision.
     """
+    return datetime.date.fromisoformat(stamp[:10]) if stamp else None
+
+
+def detected_on(row: dict) -> datetime.date | None:
+    """The day this tool noticed the change -- the day somebody pressed Check."""
     change = row["change"]
-    return datetime.date.fromisoformat(change["at"][:10]) if change else None
+    return _as_date(change["at"]) if change else None
+
+
+def registry_updated(row: dict) -> datetime.date | None:
+    """The day the sponsor revised the record, as the registry states it.
+
+    Read beside the detected date, and only meaningful beside it: a watchlist
+    checked weekly can show a fortnight-old revision as though it landed this
+    morning, and the pair is what tells those two apart. A trial that has never
+    changed has no revision to date, so it renders empty rather than dating the
+    record's own history.
+    """
+    return _as_date(row["registry_updated"]) if row["change"] else None
 
 
 def study_line(row: dict) -> dict:

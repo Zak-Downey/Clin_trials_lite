@@ -52,7 +52,7 @@ def test_a_moved_registry_stamp_stores_a_fresh_snapshot(watched, record, make_fe
 
     result = monitor.check(watched, "NCT03412565", fetch=fetch)
 
-    assert result["outcome"] == "updated"
+    assert result["outcome"] == "no_monitored_change"
     assert storage.count_snapshots(watched, "NCT03412565") == 2
     assert monitor.profile_of(watched, "NCT03412565")["lastUpdatePostDate"] == "2026-01-15"
 
@@ -74,6 +74,71 @@ def test_last_checked_updates_when_the_record_moved(watched, record, make_fetche
 
     trial = storage.get_trial(watched, "NCT03412565")
     assert trial["last_checked"] == "2026-02-02T09:00:00+00:00"
+
+
+# --- a revision that moved nothing monitored
+
+
+def test_a_revision_outside_what_is_monitored_is_not_reported_as_untouched(
+    watched, record, make_fetcher
+):
+    """Two different facts, told apart: nobody edited the record, and somebody
+    edited a part of it this tool has chosen not to watch."""
+    fetch = make_fetcher({"NCT03412565": bumped(record)})
+
+    result = monitor.check(watched, "NCT03412565", fetch=fetch)
+
+    assert result["outcome"] == "no_monitored_change"
+    assert result["changes"] == 0
+    assert "no monitored field moved" in result["detail"]
+
+
+# --- forcing a full comparison
+
+
+def test_a_forced_check_compares_every_field_despite_an_untouched_stamp(
+    watched, record, make_fetcher
+):
+    """After the monitored profile's extraction changes, every stored profile
+    is stale and the registry's stamp will never say so."""
+    edited = copy.deepcopy(record)
+    edited["protocolSection"]["designModule"]["enrollmentInfo"]["count"] = 999
+
+    result = monitor.check(watched, "NCT03412565", fetch=make_fetcher(default=edited), force=True)
+
+    assert result["outcome"] == "updated"
+    assert result["changes"] == 1
+    assert [c["field"] for c in storage.list_changes(watched, "NCT03412565")] == ["enrollment"]
+
+
+def test_an_unforced_check_of_the_same_record_finds_nothing(watched, record, make_fetcher):
+    edited = copy.deepcopy(record)
+    edited["protocolSection"]["designModule"]["enrollmentInfo"]["count"] = 999
+
+    result = monitor.check(watched, "NCT03412565", fetch=make_fetcher(default=edited))
+
+    assert result["outcome"] == "unchanged"
+    assert storage.list_changes(watched, "NCT03412565") == []
+
+
+def test_a_forced_check_that_finds_nothing_says_the_registry_was_untouched(watched, fetcher):
+    result = monitor.check(watched, "NCT03412565", fetch=fetcher, force=True)
+
+    assert result["outcome"] == "unchanged"
+    assert result["detail"] == "No changes."
+
+
+def test_a_forced_run_forces_every_trial_in_it(conn, record, fetcher, make_fetcher):
+    monitor.add(conn, "NCT03412565", fetch=fetcher, when="2026-01-01T00:00:00+00:00")
+    monitor.add(conn, "NCT00000001", fetch=fetcher, when="2026-01-02T00:00:00+00:00")
+    edited = copy.deepcopy(record)
+    edited["protocolSection"]["designModule"]["enrollmentInfo"]["count"] = 999
+
+    results = list(
+        monitor.check_all(conn, fetch=make_fetcher(default=edited), pause=0, force=True)
+    )
+
+    assert [r["outcome"] for r in results] == ["updated", "updated"]
 
 
 def test_checking_a_trial_that_is_not_watched_is_refused(conn, fetcher):
@@ -152,6 +217,23 @@ def test_a_clean_run_is_reported_as_no_changes():
     assert summary["message"] == "Checked 1 trial — no changes."
 
 
+def test_a_revision_outside_what_is_monitored_reaches_the_end_of_run_summary():
+    results = [
+        {"nct_id": "NCT00000001", "outcome": "unchanged", "detail": "No changes."},
+        {
+            "nct_id": "NCT00000002",
+            "outcome": "no_monitored_change",
+            "detail": "The registry record has been revised, but no monitored field moved.",
+        },
+    ]
+
+    summary = monitor.summarise(results)
+
+    assert summary["level"] == "info"
+    assert "no monitored field moved" in summary["message"]
+    assert [r["nct_id"] for r in summary["unmonitored"]] == ["NCT00000002"]
+
+
 def test_a_run_with_a_failure_is_never_reported_as_good_news():
     results = [
         {"nct_id": "NCT00000001", "outcome": "unchanged", "detail": "No changes."},
@@ -174,7 +256,9 @@ def test_a_revised_record_is_not_reported_by_its_last_updated_date(watched, reco
     result = monitor.check(watched, "NCT03412565", fetch=fetch)
 
     assert "2026-03-03" not in result["detail"]
-    assert monitor.summarise([result])["level"] == "warning"
+    # Still reported -- just not as a monitored field having moved.
+    assert result["outcome"] == "no_monitored_change"
+    assert "no changes" not in monitor.summarise([result])["message"]
 
 
 # --- the marked-up profile the page reads

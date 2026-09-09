@@ -50,13 +50,46 @@ def test_every_field_from_the_newest_detection_is_reported_not_only_one(watched)
     assert change["at"] == "2026-09-05T10:00:00+00:00"
 
 
-def test_an_earlier_detection_is_not_mixed_into_the_latest_one(watched):
+def test_an_unread_field_from_an_earlier_check_is_still_reported(watched):
+    """The column is what an analyst scans, so it names everything outstanding.
+
+    A completion date that slipped on Monday must not drop out of the column
+    when a title typo is corrected on Wednesday.
+    """
+    moved(watched, "NCT03412565", "completionDate", "2026-08-01T10:00:00+00:00")
+    moved(watched, "NCT03412565", "officialTitle", "2026-09-05T10:00:00+00:00")
+
+    change = monitor.last_change(watched, "NCT03412565")
+
+    assert set(change["fields"]) == {"completionDate", "officialTitle"}
+    # The newest of the moves shown, so the column's date is not stale.
+    assert change["at"] == "2026-09-05T10:00:00+00:00"
+
+
+def test_a_field_read_earlier_drops_out_once_something_newer_is_outstanding(watched):
     moved(watched, "NCT03412565", "overallStatus", "2026-08-01T10:00:00+00:00")
+    storage.mark_reviewed(watched, "NCT03412565")
     moved(watched, "NCT03412565", "enrollment", "2026-09-05T10:00:00+00:00")
 
     change = monitor.last_change(watched, "NCT03412565")
 
     assert change["fields"] == ["enrollment"]
+
+
+def test_the_same_field_moving_twice_is_named_once(watched):
+    moved(watched, "NCT03412565", "enrollment", "2026-08-01T10:00:00+00:00")
+    moved(watched, "NCT03412565", "enrollment", "2026-09-05T10:00:00+00:00")
+
+    assert monitor.last_change(watched, "NCT03412565")["fields"] == ["enrollment"]
+
+
+def test_outstanding_fields_are_still_ordered_high_signal_first(watched):
+    moved(watched, "NCT03412565", "acronym", "2026-08-01T10:00:00+00:00")
+    moved(watched, "NCT03412565", "completionDate", "2026-09-05T10:00:00+00:00")
+
+    change = monitor.last_change(watched, "NCT03412565")
+
+    assert change["fields"][0] == "completionDate"
 
 
 def test_high_signal_fields_are_listed_before_ordinary_ones(watched):
@@ -77,6 +110,19 @@ def test_a_reviewed_change_is_still_reported_as_what_last_moved(watched):
     change = monitor.last_change(watched, "NCT03412565")
 
     assert change["fields"] == ["enrollment"]
+
+
+def test_once_everything_is_read_only_the_newest_check_is_reported(watched):
+    """"What has changed on this trial" stays a fair question once the news is
+    old, so a fully reviewed trial falls back to naming its last move."""
+    moved(watched, "NCT03412565", "overallStatus", "2026-08-01T10:00:00+00:00")
+    moved(watched, "NCT03412565", "enrollment", "2026-09-05T10:00:00+00:00")
+    storage.mark_reviewed(watched, "NCT03412565")
+
+    change = monitor.last_change(watched, "NCT03412565")
+
+    assert change["fields"] == ["enrollment"]
+    assert change["at"] == "2026-09-05T10:00:00+00:00"
 
 
 def test_a_simulated_detection_is_reported_as_simulated(watched):
@@ -148,3 +194,8 @@ def test_a_row_carries_what_last_moved_on_that_trial(watched):
 
 def test_a_row_for_a_trial_that_has_never_changed_carries_no_change(watched):
     assert monitor.watchlist(watched)[0]["change"] is None
+
+
+def test_a_row_carries_the_registrys_own_revision_date(watched):
+    """When the sponsor revised the record, which is not when we noticed."""
+    assert monitor.watchlist(watched)[0]["registry_updated"] == "2025-04-29"
