@@ -20,7 +20,7 @@ import streamlit as st
 
 import monitor
 import storage
-from display import COLUMN_WIDTHS, phase_label, study_line
+from display import COLUMN_WIDTHS, phase_label, search_line, study_line
 from views.pickers import choose, names
 
 NEW = "+ New list…"
@@ -29,6 +29,11 @@ NEW = "+ New list…"
 # re-running the query on every click would hit the registry for something the
 # reader has already been shown.
 FOUND = "search_results"
+
+# The query those results came from, kept beside them so a search saved to a
+# list is the one that produced the rows on screen -- not whatever has since
+# been typed into the boxes without pressing Search.
+QUERY = "search_query"
 
 # The results table, whose selection Streamlit keeps under the same key.
 RESULTS = "results"
@@ -66,6 +71,15 @@ def report(outcome: dict, target: int) -> None:
         st.error(f"{failure['nct_id']} — {failure['detail']}")
 
 
+def remember_for(list_id: int) -> None:
+    """Point a list at the search that produced the rows on screen."""
+    query = monitor.remember_search(conn, list_id, st.session_state[QUERY])
+    st.info(
+        f"“{names(conn)[list_id]}” is now watching for new trials matching "
+        f"{search_line(query)}."
+    )
+
+
 # --- the query
 
 st.subheader("Search ClinicalTrials.gov")
@@ -93,6 +107,7 @@ if searched:
     try:
         with st.spinner("Searching ClinicalTrials.gov…"):
             st.session_state[FOUND] = monitor.search(cond, intr, spons, phases)
+            st.session_state[QUERY] = monitor.as_query(cond, intr, spons, phases)
     except monitor.MonitorError as exc:
         st.error(str(exc))
 
@@ -121,11 +136,30 @@ elif found is not None:
 
     selected = [rows[i]["nct_id"] for i in results.selection.rows]
     picked, fresh = destination("results_list")
+    # A list is a therapy area, not a bag of trial numbers, so the query that
+    # filled it can stay with it: every later check re-runs the search and
+    # offers back whatever has appeared since. Both ways of doing that are
+    # offered here, beside the rows the query matched, because this is the
+    # moment the reader can see it is the right query.
+    #
+    # The tick-box is for the list being filled right now, including one being
+    # named on the spot, which has no id to point at until the add has made it.
+    # The button beside it is for a list that already exists -- which is how a
+    # remembered search is *changed*, without having to add a trial to do it.
+    remember = st.checkbox(
+        f"Save this as the list's {monitor.REMEMBERED_SEARCH}",
+        key="remember_search",
+        help="The list re-runs this search whenever it is checked, and offers "
+        "back anything matching it that the list does not already hold. "
+        "Nothing joins the list until you adopt it.",
+    )
     st.caption(f"{len(selected)} selected.")
-    if st.button(
+    adding, saving, _ = st.columns([1, 1, 3], vertical_alignment="bottom")
+    if adding.button(
         "Add selected",
         key="add_selected",
         type="primary",
+        width="stretch",
         disabled=not selected or (picked == NEW and not fresh.strip()),
     ):
         with st.spinner(f"Fetching {len(selected)} trials from ClinicalTrials.gov…"):
@@ -135,6 +169,19 @@ elif found is not None:
                 st.error(str(exc))
             else:
                 report(outcome, target)
+                if remember:
+                    remember_for(target)
+    if saving.button(
+        f"Save the {monitor.REMEMBERED_SEARCH} only",
+        key="save_search",
+        width="stretch",
+        # A list that does not exist yet cannot be pointed at anything; naming
+        # one is what the add is for.
+        disabled=picked == NEW,
+        help="Point this list at the search above without adding anything, "
+        "replacing whatever it was watching for before.",
+    ):
+        remember_for(picked)
 
 # --- one at a time
 

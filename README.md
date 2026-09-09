@@ -35,6 +35,16 @@ can sit in several at once, and taking it out of one leaves the others alone; a 
 no list at all stops being monitored. A database written before lists existed opens with
 everything it already had in one default list.
 
+A list can also carry a **remembered search** — tick *Save this as the list's remembered
+search* as you file the results, or press *Save the remembered search only* to point an
+existing list at a new query without adding anything. Every later check re-runs that
+search and offers back whatever matches it that the list does not already hold, as a **new
+trial found**: the same feed and the same bell a changed field gets, reported separately
+because a competitor *starting* something is different news from a competitor revising
+something. Nothing joins the list until you adopt it, and a trial you dismiss is never
+offered again. Forget the search under *Manage lists* and the list behaves exactly as it
+did before.
+
 State lives in a local SQLite file, `monitor.db`, which is git-ignored. Set `MONITOR_DB`
 to point somewhere else.
 

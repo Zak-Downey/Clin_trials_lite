@@ -13,7 +13,7 @@ Two columns carry the news:
 
 **Blocked by:** 05
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] The watchlist renders as one table with one line per trial, replacing the per-trial expanders
 - [x] Each line shows NCT ID, lead sponsor, official title, phase, conditions, interventions and recruitment status, in that order

@@ -8,7 +8,7 @@ Against NCT03412565 — a completed trial last updated in April 2025 — "nothin
 
 **Blocked by:** 01
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] A single control re-checks every trial on the watchlist
 - [x] Progress is visible to the analyst while the check runs

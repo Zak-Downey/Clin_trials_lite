@@ -10,16 +10,16 @@ A list's remembered search can be changed or cleared. A list with no remembered 
 
 **Blocked by:** 10 (both change what a check run reports and how the run is summarised)
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] A search that fills a list can be saved to that list, and the list shows what it is watching for
-- [ ] Checking a list with a remembered search also re-runs that search
-- [ ] A matching trial not already in the list is reported as a new trial found, distinctly from a changed field
-- [ ] A found trial appears in the feed with the same unreviewed marking as a change
-- [ ] A found trial is not added to the list until it is adopted
-- [ ] Adopting a found trial records its baseline and adds it, exactly as adding from search does
-- [ ] A dismissed trial is not offered again for that list
-- [ ] A trial already in the list is not reported as found
-- [ ] A list's remembered search can be changed or cleared, and a list without one behaves as it does today
-- [ ] A failed search does not abort the rest of the check run, and is reported honestly rather than as "nothing new"
-- [ ] Tests cover: a found trial, an already-present trial not being reported, adoption recording a baseline, dismissal persisting, and a failing search mid-run
+- [x] A search that fills a list can be saved to that list, and the list shows what it is watching for
+- [x] Checking a list with a remembered search also re-runs that search
+- [x] A matching trial not already in the list is reported as a new trial found, distinctly from a changed field
+- [x] A found trial appears in the feed with the same unreviewed marking as a change
+- [x] A found trial is not added to the list until it is adopted
+- [x] Adopting a found trial records its baseline and adds it, exactly as adding from search does
+- [x] A dismissed trial is not offered again for that list
+- [x] A trial already in the list is not reported as found
+- [x] A list's remembered search can be changed or cleared, and a list without one behaves as it does today
+- [x] A failed search does not abort the rest of the check run, and is reported honestly rather than as "nothing new"
+- [x] Tests cover: a found trial, an already-present trial not being reported, adoption recording a baseline, dismissal persisting, and a failing search mid-run

@@ -8,7 +8,7 @@ Simulating a further change and re-checking must re-highlight the trial, closing
 
 **Blocked by:** 04
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] Each trial carrying unreviewed changes offers a way to mark it reviewed
 - [x] Marking a trial reviewed clears its highlighting

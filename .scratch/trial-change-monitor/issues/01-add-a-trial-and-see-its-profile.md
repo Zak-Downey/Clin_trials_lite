@@ -8,7 +8,7 @@ Adding a trial records the baseline only — it must not report the trial's fort
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] The app starts with one command and serves a page locally
 - [x] An NCT ID can be pasted to begin monitoring a trial

@@ -329,6 +329,58 @@ def _identity(profile: dict) -> dict:
     }
 
 
+# What a query with nothing in it is answered with. A search naming no axis at
+# all asks for the whole registry, which is never what the reader meant.
+NOTHING_ASKED = "Fill in at least one of condition, intervention, sponsor or phase."
+
+# The axes a query is made of, named once so nothing has to re-list them.
+SEARCH_AXES = ("cond", "intr", "spons", "phases")
+
+
+def as_query(cond: str = "", intr: str = "", spons: str = "", phases=()) -> dict:
+    """A search as the four axes it was typed on, tidied.
+
+    One shape for a query wherever one travels: run now from the search form,
+    or stored against a list and run again on every check. Kept as the axes
+    rather than as registry parameters, because it is also read back to the
+    analyst as what their list is watching for.
+    """
+    return {
+        "cond": cond.strip(),
+        "intr": intr.strip(),
+        "spons": spons.strip(),
+        "phases": list(phases),
+    }
+
+
+def _asks_nothing(query: dict) -> bool:
+    return not any(query[axis] for axis in SEARCH_AXES)
+
+
+def _matches(query: dict, limit: int, find=None) -> tuple[list[dict], bool]:
+    """The studies a query matches, capped, and whether the cap bit.
+
+    Whole registry records, so the caller can derive the same profile a
+    monitored trial gets. Raises MonitorError if the registry can't be reached,
+    rather than returning an empty result an outage looks identical to.
+    """
+    try:
+        # One more than the cap, which is how the cap is known to have bitten.
+        studies = (find or _default_find)(
+            cond=query["cond"],
+            intr=query["intr"],
+            spons=query["spons"],
+            phases=tuple(query["phases"]),
+            limit=limit + 1,
+        )
+    except urllib.error.URLError as exc:
+        raise MonitorError(f"Could not reach ClinicalTrials.gov: {exc.reason}") from exc
+    except Exception as exc:
+        raise MonitorError(f"The search failed: {exc}") from exc
+
+    return studies[:limit], len(studies) > limit
+
+
 def search(
     cond: str = "",
     intr: str = "",
@@ -339,34 +391,211 @@ def search(
 ) -> dict:
     """Search the registry on condition, intervention, sponsor and phase.
 
-    Any axis may be left blank, but not all of them: a query with nothing in it
-    asks for the whole registry, which is never what the reader meant.
+    Any axis may be left blank, but not all of them.
 
     Returns the matching studies as rows, and whether there were more than the
     cap allowed through -- so a search that matched thousands is not shown as
     though it matched forty. Raises MonitorError if the registry can't be
     reached, rather than returning an empty table an outage looks identical to.
     """
-    if not any([cond.strip(), intr.strip(), spons.strip(), tuple(phases)]):
-        raise MonitorError(
-            "Fill in at least one of condition, intervention, sponsor or phase."
-        )
+    query = as_query(cond, intr, spons, phases)
+    if _asks_nothing(query):
+        raise MonitorError(NOTHING_ASKED)
 
-    try:
-        # One more than the cap, which is how the cap is known to have bitten.
-        studies = (find or _default_find)(
-            cond=cond, intr=intr, spons=spons, phases=tuple(phases), limit=limit + 1
-        )
-    except urllib.error.URLError as exc:
-        raise MonitorError(f"Could not reach ClinicalTrials.gov: {exc.reason}") from exc
-    except Exception as exc:
-        raise MonitorError(f"The search failed: {exc}") from exc
-
+    studies, capped = _matches(query, limit, find)
     rows = []
-    for study in studies[:limit]:
+    for study in studies:
         profile = medical_affairs.profile(study)
         rows.append({"nct_id": profile["nctId"], **_identity(profile)})
-    return {"rows": rows, "capped": len(studies) > limit}
+    return {"rows": rows, "capped": capped}
+
+
+# --- a list's remembered search
+#
+# A list named "Myeloma — Janssen" is a therapy area, not a bag of trial
+# numbers, so it can remember the search that filled it and re-run that search
+# on every check. It is the only way a competitor *registering* something is
+# noticed at all: without it the tool never looks at anything but the records
+# it already holds.
+
+# What the thing is called wherever the analyst is told about it, on either
+# page and in the run summary. Owned here for the same reason fields_moved is:
+# three screens describing one feature in three nouns is three features to
+# whoever is reading them.
+REMEMBERED_SEARCH = "remembered search"
+
+
+def remember_search(conn: sqlite3.Connection, list_id: int, query: dict) -> dict:
+    """Give a list the search it re-runs whenever it is checked.
+
+    Takes the query whole, as as_query built it, rather than the four axes
+    again: the caller already has one, and passing the parts would let a query
+    be assembled two ways.
+    """
+    if _asks_nothing(query):
+        raise MonitorError(NOTHING_ASKED)
+    stored = as_query(**query)
+    storage.set_list_search(conn, list_id, stored)
+    return stored
+
+
+def forget_search(conn: sqlite3.Connection, list_id: int) -> None:
+    """Stop watching for new trials. The list behaves as lists did before."""
+    storage.set_list_search(conn, list_id, None)
+
+
+def remembered_search(conn: sqlite3.Connection, list_id: int | None) -> dict | None:
+    """The search a list remembers, or None if it remembers none.
+
+    None for "everything monitored" too, which is a view across lists rather
+    than a list, and so has no query of its own to re-run.
+    """
+    if list_id is None:
+        return None
+    return storage.get_list_search(conn, list_id)
+
+
+def trials_found(count: int) -> str:
+    """How many trials a remembered search turned up, in the analyst's words.
+
+    One phrase, owned here, so the run summary and the feed never drift apart
+    on how a find is described -- the same reason fields_moved exists.
+    """
+    return f"{count} new trial{'' if count == 1 else 's'} found"
+
+
+def find_new(
+    conn: sqlite3.Connection, list_id: int, find=None, when: str | None = None
+) -> dict | None:
+    """Re-run a list's remembered search and put anything new on offer.
+
+    Returns None for a list remembering no search. Otherwise a result shaped
+    like a check's, so one run reports both kinds of news the same way:
+
+        found          at least one matching trial the list has never seen
+        nothing_found  the search ran and turned up nothing to offer
+        error          the search could not be run, which is a different fact
+
+    A match the list already holds is not news, and neither is one already
+    offered: an adopted trial is a member by then, and a dismissed one was
+    turned down for good.
+
+    What is found is recorded as *offered*, never added. A loose query would
+    otherwise quietly balloon a list with studies nobody judged relevant, and
+    that judgement is the whole value of a curated watchlist.
+    """
+    query = remembered_search(conn, list_id)
+    if query is None:
+        return None
+
+    try:
+        studies, capped = _matches(query, RESULT_CAP, find)
+    except MonitorError as exc:
+        # Reported rather than raised: one unreachable search must not cost the
+        # analyst the rest of the run, and it must not read as "nothing new".
+        return {"kind": "search", "outcome": "error", "found": [], "detail": str(exc)}
+
+    stamp = when or storage.now()
+    found = []
+    for study in studies:
+        try:
+            # Normalised the way a pasted ID is, so what is stored here and
+            # what dismiss and adopt look up are the same string. A record
+            # whose ID is not shaped like one is skipped rather than offered:
+            # there is nothing the analyst could adopt.
+            nct = normalise(medical_affairs.profile(study).get("nctId") or "")
+        except MonitorError:
+            continue
+        if storage.is_member(conn, list_id, nct) or storage.has_been_found(
+            conn, list_id, nct
+        ):
+            continue
+        storage.add_found(conn, list_id, nct, study, stamp)
+        found.append(nct)
+
+    # A capped search says so, for the reason search() says it: a query
+    # matching thousands must not report itself as having seen everything, or
+    # "nothing new" is a claim the tool never actually checked.
+    aside = f" The search matched more than {RESULT_CAP}; narrow it." if capped else ""
+
+    if found:
+        return {
+            "kind": "search",
+            "outcome": "found",
+            "found": found,
+            "detail": f"{trials_found(len(found))}.{aside}",
+        }
+    return {
+        "kind": "search",
+        "outcome": "nothing_found",
+        "found": [],
+        "detail": f"Nothing new matched.{aside}",
+    }
+
+
+def found_trials(conn: sqlite3.Connection, list_id: int) -> list[dict]:
+    """Trials on offer to a list, described the way its own lines are.
+
+    The columns the watchlist and the search results share: the analyst is
+    deciding whether a study belongs in the list, and they decide that on the
+    facts a study is listed by rather than on an NCT number.
+    """
+    rows = []
+    for offer in storage.list_found(conn, list_id):
+        profile = medical_affairs.profile(offer["record"])
+        rows.append(
+            {
+                "nct_id": offer["nct_id"],
+                **_identity(profile),
+                "found_at": offer["found_at"],
+            }
+        )
+    return rows
+
+
+def adopt(
+    conn: sqlite3.Connection,
+    list_id: int,
+    nct_id: str,
+    fetch=None,
+    when: str | None = None,
+) -> str:
+    """Take a found trial into the list, exactly as adding it from search does.
+
+    Its baseline is recorded from a fresh fetch rather than from the record the
+    search happened to return: that baseline is what the next check compares
+    against, and it should be as current as the moment the analyst said yes.
+
+    A trial that could not be fetched stays on offer, so the answer to a
+    momentary outage is to press the button again.
+    """
+    nct = add(conn, nct_id, list_id, fetch=fetch, when=when)
+    storage.delete_found(conn, list_id, nct)
+    return nct
+
+
+def adopt_many(
+    conn: sqlite3.Connection,
+    list_id: int,
+    nct_ids,
+    fetch=None,
+    when: str | None = None,
+) -> dict:
+    """Take several found trials into the list, reporting on each.
+
+    A search offers a screenful at once and they are judged as a batch, so one
+    unreachable study must not cost the analyst the other nine. Summarised by
+    summarise_adds, like any other bulk add.
+    """
+    outcome = add_many(conn, nct_ids, list_id, fetch=fetch, when=when)
+    for nct in outcome["added"] + outcome["already"]:
+        storage.delete_found(conn, list_id, nct)
+    return outcome
+
+
+def dismiss(conn: sqlite3.Connection, list_id: int, nct_id: str) -> None:
+    """Turn a found trial down. It is never offered to this list again."""
+    storage.dismiss_found(conn, list_id, normalise(nct_id))
 
 
 def _last_updated(record: dict | None) -> str | None:
@@ -413,7 +642,13 @@ def _unchanged(nct: str) -> dict:
     Reached two ways -- the registry's stamp ended the check early, or a full
     comparison found nothing -- and said the same way by both.
     """
-    return {"nct_id": nct, "outcome": "unchanged", "changes": 0, "detail": "No changes."}
+    return {
+        "kind": "trial",
+        "nct_id": nct,
+        "outcome": "unchanged",
+        "changes": 0,
+        "detail": "No changes.",
+    }
 
 
 def check(
@@ -433,8 +668,10 @@ def check(
     stored profile without touching the registry's stamp. force=True compares
     every field regardless, which is how a stored profile is re-derived.
 
-    Returns a result: nct_id, an outcome, the number of monitored fields that
-    moved, and a detail line for the analyst. Three outcomes short of failure,
+    Returns a result: what kind of news it is, nct_id, an outcome, the number
+    of monitored fields that moved, and a detail line for the analyst. The kind
+    is always "trial" here; a run can also carry the other kind, a "search"
+    result from the list's remembered search. Three outcomes short of failure,
     because "nobody edited the record" and "somebody edited a part of it we do
     not watch" are different facts:
 
@@ -488,6 +725,7 @@ def check(
 
     if moved:
         return {
+            "kind": "trial",
             "nct_id": nct,
             "outcome": "updated",
             "changes": moved,
@@ -495,12 +733,23 @@ def check(
         }
     if revised:
         return {
+            "kind": "trial",
             "nct_id": nct,
             "outcome": "no_monitored_change",
             "changes": 0,
             "detail": "The registry record has been revised, but no monitored field moved.",
         }
     return _unchanged(nct)
+
+
+def check_size(conn: sqlite3.Connection, list_id: int | None = None) -> int:
+    """How many results a check run will yield, for the page's progress bar.
+
+    The trials, plus the one step a remembered search costs -- so a run whose
+    first result is a search does not report itself as more than done.
+    """
+    searching = remembered_search(conn, list_id) is not None
+    return len(storage.list_trials(conn, list_id)) + int(searching)
 
 
 def check_all(
@@ -510,17 +759,30 @@ def check_all(
     when: str | None = None,
     pause: float = PAUSE,
     force: bool = False,
+    find=None,
 ) -> Iterator[dict]:
-    """Re-check watched trials, yielding one result as each finishes.
+    """Check a list for news, yielding one result as each part finishes.
+
+    Two kinds of news, because "a competitor started something" and "a
+    competitor revised something" are different things to be told. A list
+    remembering a search is searched first, since a trial appearing is at least
+    as urgent as a date on one already watched slipping; then every trial it
+    holds is re-checked.
 
     Everything monitored, or only what one named list holds -- the reader is
-    looking at one list, so that is what "check all" means to them.
+    looking at one list, so that is what "check all" means to them. Everything
+    monitored has no remembered search of its own, so it checks trials alone.
 
     Yielding rather than returning a list lets the page show progress while the
     run is still going. Trials are taken one at a time with a pause between
-    them, and a trial that fails is reported as its own result rather than
-    ending the run.
+    them, and a trial that fails -- or a search that fails -- is reported as its
+    own result rather than ending the run.
     """
+    if list_id is not None:
+        found = find_new(conn, list_id, find=find, when=when)
+        if found is not None:
+            yield found
+
     for index, trial in enumerate(storage.list_trials(conn, list_id)):
         if index:
             time.sleep(pause)
@@ -528,7 +790,13 @@ def check_all(
         try:
             result = check(conn, nct, fetch=fetch, when=when, force=force)
         except MonitorError as exc:
-            result = {"nct_id": nct, "outcome": "error", "changes": 0, "detail": str(exc)}
+            result = {
+                "kind": "trial",
+                "nct_id": nct,
+                "outcome": "error",
+                "changes": 0,
+                "detail": str(exc),
+            }
         yield result
 
 
@@ -536,46 +804,72 @@ def summarise(results: list[dict]) -> dict:
     """Turn a completed run into the one line the analyst reads.
 
     A run with a failure in it is never reported as plain good news: an outage
-    must not be mistaken for "nothing changed".
+    must not be mistaken for "nothing changed", and a search that could not be
+    run must not be mistaken for "nothing new".
 
     A record revised outside what is monitored gets its own line rather than
     being folded into either. It is not news the analyst must act on, so it is
     not a warning; but it is not "nothing happened" either, because the sponsor
     did edit the record.
+
+    A trial found is said separately from a trial changed, in its own sentence,
+    because they are different news and a run can carry both.
     """
-    failed = [r for r in results if r["outcome"] == "error"]
-    updated = [r for r in results if r["outcome"] == "updated"]
-    unmonitored = [r for r in results if r["outcome"] == "no_monitored_change"]
-    checked = len(results) - len(failed)
+    searches = [r for r in results if r.get("kind") == "search"]
+    checks = [r for r in results if r.get("kind") != "search"]
+
+    failed = [r for r in checks if r["outcome"] == "error"]
+    updated = [r for r in checks if r["outcome"] == "updated"]
+    unmonitored = [r for r in checks if r["outcome"] == "no_monitored_change"]
+    found = [r for r in searches if r["outcome"] == "found"]
+    search_failed = [r for r in searches if r["outcome"] == "error"]
+
+    checked = len(checks) - len(failed)
     noun = "trial" if checked == 1 else "trials"
     # Said the same way wherever it appears, so the two messages that can carry
     # it read alike.
     aside = f" {len(unmonitored)} revised, but no monitored field moved."
 
+    level = "success"
+    parts = []
     if failed:
-        message = (
-            f"Checked {checked} of {len(results)} trials. "
+        parts.append(
+            f"Checked {checked} of {len(checks)} trials. "
             f"{len(failed)} could not be reached."
         )
         level = "warning"
     elif updated:
-        message = f"Checked {checked} {noun}. {len(updated)} revised on the registry."
+        parts.append(f"Checked {checked} {noun}. {len(updated)} revised on the registry.")
         if unmonitored:
-            message += aside
+            parts[-1] += aside
         level = "warning"
     elif unmonitored:
-        message = f"Checked {checked} {noun}.{aside}"
+        parts.append(f"Checked {checked} {noun}.{aside}")
         level = "info"
-    else:
-        message = f"Checked {checked} {noun} — no changes."
-        level = "success"
+    elif found or search_failed:
+        # "No changes" is a verdict on the whole run, and the whole run is not
+        # what it is a verdict on once a search found something or fell over.
+        parts.append(f"Checked {checked} {noun}, none changed.")
+    elif checks:
+        parts.append(f"Checked {checked} {noun} — no changes.")
+
+    if found:
+        parts.append(f"{trials_found(sum(len(r['found']) for r in found))}.")
+        level = "warning"
+    if search_failed:
+        parts.append(f"The {REMEMBERED_SEARCH} could not be run.")
+        level = "warning"
 
     return {
         "level": level,
-        "message": message,
+        # A list holding nothing and remembering nothing was still asked to
+        # check, and an empty line would read as the page having broken.
+        "message": " ".join(parts) or "There was nothing to check.",
         "updated": updated,
         "unmonitored": unmonitored,
         "failed": failed,
+        "found": found,
+        "search_failed": search_failed,
     }
 
 
@@ -594,6 +888,12 @@ def feed(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:
 
     Narrowed to one list when asked, so the feed under a list is about the
     trials in it rather than about everything the app watches.
+
+    A trial the list's remembered search turned up is an entry here too, with
+    the same unreviewed marking a change gets: it is news of the same list, and
+    it goes through the same review loop. It stops being unreviewed when the
+    analyst dismisses it; adopting it replaces the entry with the trial's own
+    "started monitoring".
     """
     watched = storage.list_trials(conn, list_id)
     shown = {t["nct_id"] for t in watched}
@@ -607,6 +907,20 @@ def feed(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:
             "reviewed": True,
         }
         for t in watched
+    ]
+
+    events += [
+        {
+            "at": offer["found_at"],
+            "nct_id": offer["nct_id"],
+            "kind": trials_found(1),
+            # Nothing the simulator writes; a find comes from the live registry.
+            "synthetic": False,
+            # Read once it has been turned down. An offer still waiting is the
+            # thing the bell is for.
+            "reviewed": offer["dismissed"],
+        }
+        for offer in storage.list_found(conn, list_id, dismissed=None)
     ]
 
     detections: dict[tuple[str, str], list[dict]] = {}

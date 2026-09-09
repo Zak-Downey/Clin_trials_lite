@@ -28,6 +28,7 @@ from display import (
     group_fields,
     registry_updated,
     render_card,
+    search_line,
     show,
     study_line,
 )
@@ -73,11 +74,29 @@ with st.expander("Manage lists"):
         monitor.delete_list(conn, chosen)
         st.rerun()
 
+    st.divider()
+    watching = monitor.remembered_search(conn, chosen)
+    if watching:
+        st.caption(
+            f"{monitor.REMEMBERED_SEARCH.capitalize()} — {search_line(watching)}"
+        )
+        if st.button("Forget this search", key="forget_search"):
+            monitor.forget_search(conn, chosen)
+            st.rerun()
+    else:
+        st.caption(
+            f"This list has no {monitor.REMEMBERED_SEARCH}, so it watches only "
+            "what it already holds. Save one to it from the Search page and "
+            "every check will re-run that search."
+        )
+
 # --- check for changes
 
 trials = storage.list_trials(conn, chosen)
 
-if trials:
+# A list remembering a search has something to check even while it is empty:
+# the search is how the first trial in a new therapy area is ever heard of.
+if trials or monitor.remembered_search(conn, chosen):
     check_column, force_column, _ = st.columns([1, 2, 2], vertical_alignment="center")
     pressed = check_column.button(
         "Check all", key="check_all", type="primary", width="stretch"
@@ -92,13 +111,18 @@ if trials:
         "monitored field. Slower; use it after what the tool monitors changes.",
     )
     if pressed:
-        total = len(trials)
+        # The remembered search costs the run a step of its own, so the bar is
+        # sized by what the run will actually yield rather than by the trials.
+        total = monitor.check_size(conn, chosen)
         progress = st.progress(0.0, text="Checking…")
         results = []
         for done, result in enumerate(monitor.check_all(conn, chosen, force=force), start=1):
-            progress.progress(
-                done / total, text=f"Checked {result['nct_id']} ({done} of {total})"
+            step = (
+                "Searched for new trials"
+                if result["kind"] == "search"
+                else f"Checked {result['nct_id']}"
             )
+            progress.progress(done / total, text=f"{step} ({done} of {total})")
             results.append(result)
         progress.empty()
 
@@ -106,11 +130,91 @@ if trials:
         {"success": st.success, "info": st.info, "warning": st.warning}[summary["level"]](
             summary["message"]
         )
+        # A trial appearing leads: it is the news the list would otherwise have
+        # missed entirely, and it is waiting on a decision below.
+        for result in summary["found"]:
+            # No pronoun: the detail already counts them, and "them" would be
+            # wrong the moment the count is one.
+            st.markdown(f"**{result['detail']}** Adopt or dismiss below.")
+        for result in summary["search_failed"]:
+            st.error(f"{monitor.REMEMBERED_SEARCH.capitalize()} — {result['detail']}")
         for result in summary["updated"]:
             badge = f" · {SYNTHETIC}" if storage.is_synthetic(conn, result["nct_id"]) else ""
             st.markdown(f"**{result['nct_id']}** — {result['detail']}{badge}")
         for result in summary["failed"]:
             st.error(f"{result['nct_id']} — {result['detail']}")
+
+# --- new trials found
+#
+# What the remembered search turned up and the list does not hold. Above the
+# list itself, because it is waiting on a decision the list cannot show: each
+# of these joins the list or leaves for good, and until one of those happens it
+# is neither watched nor gone.
+#
+# The same table the search results use, for the same reason: the analyst is
+# judging whether a study belongs here, and they judge it on the facts a study
+# is listed by.
+
+# Where the outcome of an adoption waits out the rerun that clears the table.
+ADOPTED = "adopted_outcome"
+
+reported = st.session_state.pop(ADOPTED, None)
+if reported:
+    summary = monitor.summarise_adds(reported, chosen_name)
+    (st.success if summary["level"] == "success" else st.warning)(summary["message"])
+    for failure in summary["failed"]:
+        st.error(f"{failure['nct_id']} — {failure['detail']}")
+
+offers = monitor.found_trials(conn, chosen)
+
+if offers:
+    st.subheader(f"New trials found ({len(offers)})")
+    st.caption(
+        f"Matched this list's {monitor.REMEMBERED_SEARCH} and are not in it "
+        "yet. Adopting one starts monitoring it from now; dismissing one means "
+        "it is not offered again."
+    )
+    offered = st.dataframe(
+        [study_line(r) for r in offers],
+        key="found",
+        hide_index=True,
+        width="stretch",
+        on_select="rerun",
+        selection_mode="multi-row",
+        column_config={
+            name: st.column_config.TextColumn(width=width)
+            for name, width in COLUMN_WIDTHS.items()
+        },
+    )
+    picked_offers = [offers[i]["nct_id"] for i in offered.selection.rows]
+    adopt_column, dismiss_column, _ = st.columns([1, 1, 3])
+    if adopt_column.button(
+        "Adopt selected",
+        key="adopt_found",
+        type="primary",
+        disabled=not picked_offers,
+        width="stretch",
+    ):
+        with st.spinner(
+            f"Fetching {len(picked_offers)} trials from ClinicalTrials.gov…"
+        ):
+            outcome = monitor.adopt_many(conn, chosen, picked_offers)
+        # Reported after the rerun rather than under a table that no longer
+        # holds what it is reporting on.
+        st.session_state[ADOPTED] = outcome
+        st.session_state.pop("found", None)
+        st.rerun()
+    if dismiss_column.button(
+        "Dismiss selected",
+        key="dismiss_found",
+        disabled=not picked_offers,
+        width="stretch",
+    ):
+        for nct in picked_offers:
+            monitor.dismiss(conn, chosen, nct)
+        st.session_state.pop("found", None)
+        st.rerun()
+
 
 # --- watchlist
 #

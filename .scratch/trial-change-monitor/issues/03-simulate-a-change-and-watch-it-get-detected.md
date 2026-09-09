@@ -12,7 +12,7 @@ Lists of values are compared by membership rather than order, since the registry
 
 **Blocked by:** 02
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] A visibly developer-only control can alter a trial's stored previous state
 - [x] The simulator alters stored history, never the incoming registry response

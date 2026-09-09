@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import pathlib
 import sys
@@ -63,3 +64,41 @@ def make_fetcher():
 def fetcher(record, make_fetcher):
     """A stub fetcher serving the captured NCT03412565 record for any ID."""
     return make_fetcher(default=record)
+
+
+@pytest.fixture
+def make_finder():
+    """Builds stub registry searches, standing in for the live service.
+
+    A finder returns the studies listed for it -- or raises -- and records the
+    arguments it was called with, so a test can assert what was asked for
+    without a request leaving the machine.
+    """
+
+    def build(studies=None, failure=None):
+        def find(**params):
+            find.calls.append(params)
+            if failure is not None:
+                raise failure
+            return list(studies or [])
+
+        find.calls = []
+        return find
+
+    return build
+
+
+@pytest.fixture
+def restyled():
+    """Stands the captured record in for another study, under a new NCT ID.
+
+    A result set or a second list needs more than one study in it, and the one
+    real record is the only one that carries every field a profile reads.
+    """
+
+    def build(record: dict, nct_id: str) -> dict:
+        copied = copy.deepcopy(record)
+        copied["protocolSection"]["identificationModule"]["nctId"] = nct_id
+        return copied
+
+    return build

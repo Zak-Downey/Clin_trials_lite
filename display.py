@@ -290,6 +290,27 @@ def phase_label(phases) -> str:
     )
 
 
+# What each axis of a search is called on the form, in the order it is typed
+# and read back. Phases are formatted rather than printed, so they come last
+# and separately. The axes themselves are monitor's list; these are the words.
+SEARCH_LABELS = (("cond", "Condition"), ("intr", "Intervention"), ("spons", "Sponsor"))
+
+
+def search_line(query: dict | None) -> str:
+    """What a list is watching for, as one line under its name.
+
+    Named axis by axis rather than as a query string: the analyst has to be
+    able to tell at a glance whether the list is still watching for the right
+    thing, and "multiple myeloma" alone does not say which box it was typed in.
+    """
+    if not query:
+        return EMPTY
+    parts = [f"{name} {query[key]}" for key, name in SEARCH_LABELS if query.get(key)]
+    if query.get("phases"):
+        parts.append(phase_label(query["phases"]))
+    return " · ".join(parts) or EMPTY
+
+
 def status_label(status) -> str:
     """A registry status code as a sentence. ACTIVE_NOT_RECRUITING -> readable."""
     if not status:

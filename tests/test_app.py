@@ -665,16 +665,19 @@ def run_search(app, condition: str = "multiple myeloma"):
     return app
 
 
-def tick(app, rows: list[int]):
-    """Tick result rows, the way the harness expresses a table selection.
+def tick(app, rows: list[int], table: str = "results"):
+    """Tick rows of a table, the way the harness expresses a selection.
 
     Held across two runs for the same reason opening a profile is: the harness
     clears a table's selection at the start of every run, so the control that
     depends on it only stays live if the selection is set again afterwards.
+
+    Two tables are ticked this way -- the search results, and the new trials a
+    remembered search found -- so which one is a parameter.
     """
 
     def hold():
-        app.session_state["results"] = {"selection": {"rows": rows, "columns": []}}
+        app.session_state[table] = {"selection": {"rows": rows, "columns": []}}
 
     hold()
     app.run()
@@ -932,3 +935,186 @@ def test_a_custom_range_that_excludes_the_change_reports_nothing(app, fetcher, m
 
     assert "No changes" in briefing_text(app)
     assert not [b for b in app.download_button if b.key == "briefing_csv"]
+
+
+# --- catching trials that appear
+#
+# The pages either end of the loop: a search saved to a list on the Search page,
+# and what that search turns up waiting to be adopted or dismissed on the
+# Watchlist.
+
+
+def test_a_search_can_be_saved_to_the_list_it_fills(app, record, fetcher, monkeypatch):
+    stub_search(monkeypatch, [record])
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+
+    run_search(app)
+    app.checkbox(key="remember_search").set_value(True).run()
+    tick(app, [0])
+    press(app, "Add selected").run()
+
+    assert not app.exception
+    assert monitor.remembered_search(conn, only)["cond"] == "multiple myeloma"
+
+
+def test_a_search_is_not_saved_unless_it_is_asked_for(app, record, fetcher, monkeypatch):
+    stub_search(monkeypatch, [record])
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+
+    run_search(app)
+    tick(app, [0])
+    press(app, "Add selected").run()
+
+    assert monitor.remembered_search(conn, only) is None
+
+
+def test_the_watchlist_says_what_the_list_is_watching_for(app, monkeypatch):
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.remember_search(
+        conn, only, monitor.as_query(cond="multiple myeloma", spons="Janssen")
+    )
+
+    showing(app, only)
+
+    said = " ".join(c.value for c in app.caption)
+    assert "multiple myeloma" in said
+    assert "Janssen" in said
+
+
+def test_a_remembered_search_can_be_cleared_from_the_page(app):
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.remember_search(conn, only, monitor.as_query(cond="multiple myeloma"))
+
+    showing(app, only)
+    app.button(key="forget_search").click().run()
+
+    assert not app.exception
+    assert monitor.remembered_search(conn, only) is None
+
+
+def test_checking_a_watching_list_offers_back_what_it_found(
+    app, record, fetcher, monkeypatch
+):
+    stub_search(monkeypatch, [other_study(record, "NCT00000001")])
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.add(conn, "NCT03412565", only, fetch=fetcher)
+    monitor.remember_search(conn, only, monitor.as_query(cond="multiple myeloma"))
+
+    showing(app, only)
+    app.button(key="check_all").click().run()
+
+    assert not app.exception
+    assert "1 new trial found" in " ".join(m.value for m in app.markdown)
+    # Offered, not added: the list is still the one trial it held.
+    assert len(watchlist(app)) == 1
+
+
+def test_adopting_a_found_trial_from_the_page_puts_it_in_the_list(
+    app, record, fetcher, monkeypatch
+):
+    stub_search(monkeypatch, [other_study(record, "NCT00000001")])
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.remember_search(conn, only, monitor.as_query(cond="multiple myeloma"))
+
+    showing(app, only)
+    app.button(key="check_all").click().run()
+    tick(app, [0], table="found")
+    press(app, "Adopt selected").run()
+
+    assert not app.exception
+    assert storage.is_member(conn, only, "NCT00000001")
+    assert [line["NCT ID"] for line in watchlist(app)] == ["NCT00000001"]
+
+
+def test_dismissing_a_found_trial_from_the_page_takes_it_off_offer(
+    app, record, fetcher, monkeypatch
+):
+    stub_search(monkeypatch, [other_study(record, "NCT00000001")])
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.remember_search(conn, only, monitor.as_query(cond="multiple myeloma"))
+
+    showing(app, only)
+    app.button(key="check_all").click().run()
+    tick(app, [0], table="found")
+    press(app, "Dismiss selected").run()
+
+    assert not app.exception
+    assert monitor.found_trials(conn, only) == []
+    assert not storage.is_member(conn, only, "NCT00000001")
+
+
+def test_an_empty_list_that_is_watching_can_still_be_checked(
+    app, record, fetcher, monkeypatch
+):
+    """The search is how the first trial in a new therapy area is heard of."""
+    stub_search(monkeypatch, [other_study(record, "NCT00000001")])
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.remember_search(conn, only, monitor.as_query(cond="multiple myeloma"))
+
+    showing(app, only)
+    app.button(key="check_all").click().run()
+
+    assert not app.exception
+    assert [r["nct_id"] for r in monitor.found_trials(conn, only)] == ["NCT00000001"]
+
+
+def test_a_failing_saved_search_is_said_out_loud_on_the_page(
+    app, fetcher, monkeypatch
+):
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.add(conn, "NCT03412565", only, fetch=fetcher)
+    monitor.remember_search(conn, only, monitor.as_query(cond="multiple myeloma"))
+    stub_search(monkeypatch, failure=urllib.error.URLError("registry down"))
+
+    showing(app, only)
+    app.button(key="check_all").click().run()
+
+    assert not app.exception
+    assert any(monitor.REMEMBERED_SEARCH in err.value.lower() for err in app.error)
+    assert "no changes" not in " ".join(w.value for w in app.warning)
+
+
+def test_a_lists_remembered_search_can_be_repointed_without_adding_a_trial(
+    app, record, fetcher, monkeypatch
+):
+    """Changing what a list watches for is its own act: an analyst narrowing a
+    query that was too loose is not also asking to add the rows it returned."""
+    stub_search(monkeypatch, [record])
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.remember_search(conn, only, monitor.as_query(cond="lung cancer"))
+
+    run_search(app, "multiple myeloma")
+    press(app, f"Save the {monitor.REMEMBERED_SEARCH} only").run()
+
+    assert not app.exception
+    assert monitor.remembered_search(conn, only)["cond"] == "multiple myeloma"
+    # Nothing was added: the button says what it does.
+    assert storage.list_trials(conn, only) == []

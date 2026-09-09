@@ -10,7 +10,7 @@ Not every change carries the same weight. A slipped primary completion date and 
 
 **Blocked by:** 03
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] Expanding a changed trial shows its full monitored profile, not only the changed fields
 - [x] Changed fields are visually highlighted within that profile

@@ -2,12 +2,17 @@
 
 Owns the schema and every read and write. Nothing else in the app touches SQL.
 
-Five tables:
-  lists        -- one row per named watchlist
+Six tables:
+  lists        -- one row per named watchlist, and the search it remembers
   list_members -- which trials a list holds
+  found        -- trials a list's remembered search turned up, awaiting a verdict
   trials       -- one row per watched trial
   snapshots    -- one row per fetch, holding the raw registry record
   changes      -- one row per field that moved
+
+A found trial is deliberately not a row in `trials`: it is a study offered to
+the analyst, not one being monitored, and it becomes the second only when they
+adopt it.
 
 Membership is its own table rather than a column on the trial, because someone
 covering two overlapping indications sees the same study in both lists and
@@ -34,10 +39,13 @@ DB_PATH = os.environ.get("MONITOR_DB", "monitor.db")
 DEFAULT_LIST = "My watchlist"
 
 SCHEMA = """
+-- `search` holds the query the list re-runs on every check, as the four axes
+-- it was typed on, or NULL for a list watching only what it already holds.
 CREATE TABLE IF NOT EXISTS lists (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     name    TEXT NOT NULL,
-    created TEXT NOT NULL
+    created TEXT NOT NULL,
+    search  TEXT
 );
 
 -- The name is how the reader tells two lists apart, so the database enforces
@@ -52,6 +60,21 @@ CREATE TABLE IF NOT EXISTS list_members (
 );
 
 CREATE INDEX IF NOT EXISTS members_by_trial ON list_members(nct_id);
+
+-- Trials a list's remembered search matched that the list does not hold. The
+-- record found is kept so the offer can be read on the same facts a watched
+-- trial is listed by without going back to the registry. A dismissed row stays
+-- rather than being deleted: it is what stops the trial being offered again.
+CREATE TABLE IF NOT EXISTS found (
+    list_id   INTEGER NOT NULL REFERENCES lists(id),
+    nct_id    TEXT NOT NULL,
+    record    TEXT NOT NULL,
+    found_at  TEXT NOT NULL,
+    dismissed INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (list_id, nct_id)
+);
+
+CREATE INDEX IF NOT EXISTS found_by_list ON found(list_id, found_at);
 
 CREATE TABLE IF NOT EXISTS trials (
     nct_id          TEXT PRIMARY KEY,
@@ -92,7 +115,10 @@ def now() -> str:
 
 # Columns added to the schema after databases existed in the wild. CREATE TABLE
 # IF NOT EXISTS leaves an older table as it was, so they are added on connect.
-LATE_COLUMNS = (("changes", "reviewed", "INTEGER NOT NULL DEFAULT 0"),)
+LATE_COLUMNS = (
+    ("changes", "reviewed", "INTEGER NOT NULL DEFAULT 0"),
+    ("lists", "search", "TEXT"),
+)
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
@@ -181,10 +207,29 @@ def rename_list(conn: sqlite3.Connection, list_id: int, name: str) -> None:
 
 
 def delete_list(conn: sqlite3.Connection, list_id: int) -> None:
-    """Remove a list and its membership rows. The trials themselves stay."""
+    """Remove a list, its membership rows and anything it had on offer.
+
+    The trials themselves stay: another list may hold them.
+    """
     conn.execute("DELETE FROM list_members WHERE list_id = ?", (list_id,))
+    conn.execute("DELETE FROM found WHERE list_id = ?", (list_id,))
     conn.execute("DELETE FROM lists WHERE id = ?", (list_id,))
     conn.commit()
+
+
+def set_list_search(conn: sqlite3.Connection, list_id: int, search: dict | None) -> None:
+    """Give a list the search it re-runs on every check, or take it away."""
+    conn.execute(
+        "UPDATE lists SET search = ? WHERE id = ?",
+        (json.dumps(search) if search else None, list_id),
+    )
+    conn.commit()
+
+
+def get_list_search(conn: sqlite3.Connection, list_id: int) -> dict | None:
+    """The search a list remembers, or None if it remembers none."""
+    row = conn.execute("SELECT search FROM lists WHERE id = ?", (list_id,)).fetchone()
+    return json.loads(row["search"]) if row and row["search"] else None
 
 
 # --- membership
@@ -225,6 +270,104 @@ def lists_holding(conn: sqlite3.Connection, nct_id: str) -> list[sqlite3.Row]:
         " WHERE list_members.nct_id = ? ORDER BY lists.id",
         (nct_id,),
     ).fetchall()
+
+
+# --- found trials
+#
+# A study a list's remembered search matched and the list does not hold. It sits
+# here until the analyst adopts it -- at which point it becomes an ordinary
+# watched trial -- or dismisses it, which leaves the row behind, flagged, so the
+# same study is never offered to that list twice.
+
+
+def add_found(
+    conn: sqlite3.Connection,
+    list_id: int,
+    nct_id: str,
+    record: dict,
+    when: str | None = None,
+) -> None:
+    """Offer a trial to a list. One already offered is left exactly as it was.
+
+    Left as it was rather than refreshed: the row carries when the study was
+    first seen and whether it has already been turned down, and re-running the
+    search must not reset either.
+    """
+    conn.execute(
+        "INSERT OR IGNORE INTO found (list_id, nct_id, record, found_at)"
+        " VALUES (?, ?, ?, ?)",
+        (list_id, nct_id, json.dumps(strip_results(record)), when or now()),
+    )
+    conn.commit()
+
+
+def has_been_found(conn: sqlite3.Connection, list_id: int, nct_id: str) -> bool:
+    """Whether this list has already been offered this trial, dismissed or not."""
+    return (
+        conn.execute(
+            "SELECT 1 FROM found WHERE list_id = ? AND nct_id = ?", (list_id, nct_id)
+        ).fetchone()
+        is not None
+    )
+
+
+def _found(row: sqlite3.Row) -> dict:
+    return {
+        "list_id": row["list_id"],
+        "nct_id": row["nct_id"],
+        "record": json.loads(row["record"]),
+        "found_at": row["found_at"],
+        "dismissed": bool(row["dismissed"]),
+    }
+
+
+def list_found(
+    conn: sqlite3.Connection, list_id: int | None = None, dismissed: bool | None = False
+) -> list[dict]:
+    """Trials on offer, oldest first. One list's, or every list's.
+
+    `dismissed` selects which verdicts to include: False for what is still
+    waiting, True for what has been turned down, None for both.
+    """
+    where, params = [], []
+    if list_id is not None:
+        where.append("list_id = ?")
+        params.append(list_id)
+    if dismissed is not None:
+        where.append("dismissed = ?")
+        params.append(int(dismissed))
+    clause = f" WHERE {' AND '.join(where)}" if where else ""
+    rows = conn.execute(
+        f"SELECT * FROM found{clause} ORDER BY found_at, nct_id", params
+    ).fetchall()
+    return [_found(row) for row in rows]
+
+
+def dismiss_found(conn: sqlite3.Connection, list_id: int, nct_id: str) -> None:
+    """Turn an offered trial down. The row stays, so it is not offered again."""
+    conn.execute(
+        "UPDATE found SET dismissed = 1 WHERE list_id = ? AND nct_id = ?",
+        (list_id, nct_id),
+    )
+    conn.commit()
+
+
+def delete_found(conn: sqlite3.Connection, list_id: int, nct_id: str) -> None:
+    """Take a trial off offer, because it is now in the list.
+
+    Deleted rather than flagged: membership itself is what keeps the search
+    from offering it again, and a row here would be a second, staler record of
+    the same fact.
+
+    So a trial adopted and later taken out of the list is offered afresh the
+    next time the search matches it, which is right: removing it says it does
+    not belong in the list today, not that it should never be raised again.
+    Saying that is what dismissing is for, and a dismissed row is kept.
+    """
+    conn.execute(
+        "DELETE FROM found WHERE list_id = ? AND nct_id = ?", (list_id, nct_id)
+    )
+    conn.commit()
 
 
 # --- trials

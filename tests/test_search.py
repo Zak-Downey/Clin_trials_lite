@@ -9,7 +9,6 @@ way the single-trial fetch already is.
 
 from __future__ import annotations
 
-import copy
 import urllib.error
 
 import pytest
@@ -17,35 +16,6 @@ import pytest
 import ctgov
 import monitor
 import storage
-
-
-@pytest.fixture
-def make_finder():
-    """Builds stub registry searches, standing in for the live service.
-
-    A finder returns the studies listed for it -- or raises -- and records the
-    arguments it was called with, so a test can assert what was asked for
-    without a request leaving the machine.
-    """
-
-    def build(studies=None, failure=None):
-        def find(**params):
-            find.calls.append(params)
-            if failure is not None:
-                raise failure
-            return list(studies or [])
-
-        find.calls = []
-        return find
-
-    return build
-
-
-def restyled(record: dict, nct_id: str) -> dict:
-    """The captured record, standing in for another study in a result set."""
-    copied = copy.deepcopy(record)
-    copied["protocolSection"]["identificationModule"]["nctId"] = nct_id
-    return copied
 
 
 # --- the four fields becoming registry query parameters
@@ -134,7 +104,7 @@ def test_a_result_set_under_the_cap_is_not_called_capped(record, make_finder):
     assert found["capped"] is False
 
 
-def test_a_result_set_at_the_cap_says_it_is_capped(record, make_finder):
+def test_a_result_set_at_the_cap_says_it_is_capped(record, make_finder, restyled):
     studies = [restyled(record, f"NCT0000000{i}") for i in range(4)]
 
     found = monitor.search(cond="myeloma", limit=3, find=make_finder(studies))
@@ -153,7 +123,9 @@ def test_an_unreachable_registry_is_reported_rather_than_showing_an_empty_table(
 # --- filing several results into a list
 
 
-def test_several_trials_are_added_to_the_chosen_list_at_once(conn, record, make_fetcher):
+def test_several_trials_are_added_to_the_chosen_list_at_once(
+    conn, record, make_fetcher, restyled
+):
     myeloma = monitor.create_list(conn, "Myeloma")
     fetcher = make_fetcher(
         records={"NCT00000001": restyled(record, "NCT00000001")}, default=record
@@ -205,7 +177,9 @@ def test_one_trial_failing_does_not_stop_the_rest_being_added(conn, record, make
     assert [t["nct_id"] for t in storage.list_trials(conn, myeloma)] == ["NCT03412565"]
 
 
-def test_results_can_be_filed_into_a_list_named_on_the_spot(conn, record, make_fetcher):
+def test_results_can_be_filed_into_a_list_named_on_the_spot(
+    conn, record, make_fetcher, restyled
+):
     fetcher = make_fetcher(
         records={"NCT00000001": restyled(record, "NCT00000001")}, default=record
     )
