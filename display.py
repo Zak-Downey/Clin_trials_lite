@@ -198,15 +198,17 @@ def status_label(status) -> str:
 
 
 def changed_fields(row: dict, cap: int = CHANGE_CAP) -> str:
-    """The names of the fields that last moved on a trial, for one table cell.
+    """The names of the fields outstanding on a trial, for one table cell.
 
-    Names only: the from-and-to values make a single row informative but a
-    column of them unscannable, and they are one click away in the profile
-    below. A trial that has never changed says so rather than rendering blank.
+    What is outstanding, not what moved most recently -- monitor.last_change
+    decides which those are, and they can span several checks. Names only: the
+    from-and-to values make a single row informative but a column of them
+    unscannable, and they are one click away in the profile below. A trial that
+    has never changed says so rather than rendering blank.
 
-    An unreviewed change is prefixed with the bell, so "changed last Tuesday"
-    and "changed and nobody has read it" stay distinguishable in one column;
-    a simulated one carries the flask.
+    A row with anything unread is prefixed with the bell, so "this trial has
+    changed" and "nobody has read it" stay distinguishable in one column; a
+    simulated change carries the flask.
     """
     change = row["change"]
     if change is None:
@@ -247,6 +249,12 @@ def registry_updated(row: dict) -> datetime.date | None:
     morning, and the pair is what tells those two apart. A trial that has never
     changed has no revision to date, so it renders empty rather than dating the
     record's own history.
+
+    It is the registry's newest stamp, not a stamp stored per change: nothing
+    records which revision each field moved in. So on a trial with older moves
+    still outstanding this dates the latest revision rather than each of them,
+    which is why a check that changes nothing monitored leaves the stored
+    record alone rather than advancing the stamp past the news beside it.
     """
     return _as_date(row["registry_updated"]) if row["change"] else None
 

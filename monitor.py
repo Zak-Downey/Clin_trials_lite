@@ -407,6 +407,15 @@ def _record_changes(
     return len(moved)
 
 
+def _unchanged(nct: str) -> dict:
+    """The result of a check that found the trial standing still.
+
+    Reached two ways -- the registry's stamp ended the check early, or a full
+    comparison found nothing -- and said the same way by both.
+    """
+    return {"nct_id": nct, "outcome": "unchanged", "changes": 0, "detail": "No changes."}
+
+
 def check(
     conn: sqlite3.Connection,
     nct_id: str,
@@ -429,7 +438,8 @@ def check(
     because "nobody edited the record" and "somebody edited a part of it we do
     not watch" are different facts:
 
-        unchanged            the registry's own stamp has not moved
+        unchanged            the registry's own stamp has not moved, or the
+                             record does not state one and nothing moved
         no_monitored_change  it has, but nothing monitored moved with it
         updated              at least one monitored field moved
 
@@ -448,12 +458,16 @@ def check(
     stored = snapshot["record"] if snapshot else None
     previous = _last_updated(stored)
     current = _last_updated(record)
-    # An absent stamp on either side is not evidence of sameness, so only a
-    # match between two real dates counts as the registry standing still.
-    revised = previous is None or previous != current
-    if not revised and not force:
+    # An absent stamp on either side is evidence of nothing: not that the
+    # record stood still, and not that it was revised either. So both readings
+    # of the stamp need two real dates, and a record without them is compared
+    # in full and then reported as plainly unchanged.
+    stated = previous is not None and current is not None
+    unmoved = stated and previous == current
+    revised = stated and previous != current
+    if unmoved and not force:
         storage.mark_checked(conn, nct, stamp)
-        return {"nct_id": nct, "outcome": "unchanged", "changes": 0, "detail": "No changes."}
+        return _unchanged(nct)
 
     # A change found against simulated history is itself simulated.
     moved = _record_changes(
@@ -464,8 +478,10 @@ def check(
         stamp,
         synthetic=bool(snapshot and snapshot["synthetic"]),
     )
-    # A forced check that found nothing has re-fetched the same record the
-    # baseline already holds, so there is nothing new to keep.
+    # A forced check that found nothing has re-fetched the record the baseline
+    # already holds, so there is nothing new to keep. Storing it anyway would
+    # grow a snapshot per forced check and, worse, advance the stored registry
+    # stamp past the change the watchlist is still reporting.
     if revised or moved:
         storage.add_snapshot(conn, nct, record, stamp)
     storage.mark_checked(conn, nct, stamp)
@@ -484,7 +500,7 @@ def check(
             "changes": 0,
             "detail": "The registry record has been revised, but no monitored field moved.",
         }
-    return {"nct_id": nct, "outcome": "unchanged", "changes": 0, "detail": "No changes."}
+    return _unchanged(nct)
 
 
 def check_all(
@@ -544,7 +560,8 @@ def summarise(results: list[dict]) -> dict:
         level = "warning"
     elif updated:
         message = f"Checked {checked} {noun}. {len(updated)} revised on the registry."
-        message += aside if unmonitored else ""
+        if unmonitored:
+            message += aside
         level = "warning"
     elif unmonitored:
         message = f"Checked {checked} {noun}.{aside}"
@@ -668,9 +685,14 @@ def last_change(conn: sqlite3.Connection, nct_id: str) -> dict | None:
 
 
 def watchlist(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:
-    """One row per watched trial: what identifies it, and what last moved on it.
+    """One row per watched trial: what identifies it, and what is outstanding.
 
     Everything monitored, or only what one named list holds.
+
+    Two dates travel with each row and are read as a pair: when the sponsor
+    revised the record, and when this tool noticed. Only the second is the
+    row's own history; the first is the registry's, taken from the newest
+    stored snapshot.
 
     The whole of the watchlist table, derived here rather than in the page, so
     the table can be tested without running Streamlit and a later move off

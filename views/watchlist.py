@@ -71,8 +71,10 @@ with st.expander("Manage lists"):
 trials = storage.list_trials(conn, chosen)
 
 if trials:
-    check, force_column, _ = st.columns([1, 2, 2], vertical_alignment="center")
-    pressed = check.button("Check all", key="check_all", type="primary", width="stretch")
+    check_column, force_column, _ = st.columns([1, 2, 2], vertical_alignment="center")
+    pressed = check_column.button(
+        "Check all", key="check_all", type="primary", width="stretch"
+    )
     # The registry's own stamp normally makes a check cheap by ending it early.
     # That is right for registry edits and wrong after the monitored profile
     # itself changes, so the way past it is offered rather than hidden.

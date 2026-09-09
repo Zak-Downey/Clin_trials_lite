@@ -93,6 +93,20 @@ def test_a_revision_outside_what_is_monitored_is_not_reported_as_untouched(
     assert "no monitored field moved" in result["detail"]
 
 
+def test_a_record_stating_no_revision_date_is_not_called_revised(conn, record, make_fetcher):
+    """An absent stamp is evidence of nothing. Saying "the sponsor revised
+    this" on the strength of a missing date would be an invented fact."""
+    silent = copy.deepcopy(record)
+    del silent["protocolSection"]["statusModule"]["lastUpdatePostDateStruct"]
+    fetch = make_fetcher(default=silent)
+    monitor.add(conn, "NCT03412565", fetch=fetch, when="2026-01-01T00:00:00+00:00")
+
+    result = monitor.check(conn, "NCT03412565", fetch=fetch)
+
+    assert result["outcome"] == "unchanged"
+    assert result["detail"] == "No changes."
+
+
 # --- forcing a full comparison
 
 
