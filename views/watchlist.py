@@ -9,9 +9,12 @@ the Search page's job.
 
 from __future__ import annotations
 
+import datetime
+
 import pandas as pd
 import streamlit as st
 
+import briefing
 import monitor
 import storage
 from display import (
@@ -33,6 +36,10 @@ from views.pickers import choose, names
 # How wide the dossier is dealt. Three cards fit a laptop window without any of
 # them growing so narrow that a drug list wraps to one word a line.
 CARD_COLUMNS = 3
+
+# How far back a custom range opens before the reader moves either end. A month
+# is the window a briefing is usually written over.
+CUSTOM_DAYS = 30
 
 conn = storage.connect()
 
@@ -204,6 +211,58 @@ else:
         for index, (title, card) in enumerate(group_fields(marked["rows"])):
             with columns[index % CARD_COLUMNS], st.container(border=True):
                 st.markdown(render_card(title, card, nct))
+
+# --- the briefing
+#
+# The last mile out of this tool. Everything a line of an email needs is already
+# stored, so it leaves as text to paste and as a file to open rather than being
+# retyped off the table above. What the summary says lives in briefing.py; this
+# is only the range control and the two ways out.
+
+st.subheader("Change summary")
+st.caption(
+    "Everything the list moved by in a chosen window, reviewed or not, "
+    "highest-signal fields first. Copy it into a briefing, or take the file."
+)
+
+period = st.radio(
+    "Period",
+    briefing.PRESETS,
+    horizontal=True,
+    key="briefing_period",
+    label_visibility="collapsed",
+)
+
+span = briefing.preset_range(period)
+if span is None:
+    today = datetime.date.today()
+    picked = st.date_input(
+        "Dates",
+        value=(today - datetime.timedelta(days=CUSTOM_DAYS), today),
+        key="briefing_dates",
+        label_visibility="collapsed",
+    )
+    # Streamlit hands back one date while the reader is still choosing the
+    # second, which is a half-picked range rather than a one-day one.
+    span = tuple(picked) if len(picked) == 2 else None
+
+if span is None:
+    st.caption("Pick the day the range ends.")
+else:
+    reported = briefing.summarise(conn, chosen, *span)
+    # st.code carries its own copy button, which is the whole point of this
+    # form: the text has to reach an email without being reformatted on the way.
+    st.code(briefing.as_text(reported), language=None)
+
+    spreadsheet = briefing.as_csv(reported)
+    if spreadsheet:
+        st.download_button(
+            "Download CSV",
+            spreadsheet,
+            file_name=briefing.filename(reported),
+            mime="text/csv",
+            key="briefing_csv",
+        )
 
 # --- feed
 

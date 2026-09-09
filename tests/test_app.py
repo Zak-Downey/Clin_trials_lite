@@ -8,12 +8,14 @@ the fetching seam first, so rendering a page never touches the network.
 from __future__ import annotations
 
 import copy
+import datetime
 import pathlib
 import urllib.error
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
+import briefing
 import diff
 import display
 import monitor
@@ -853,3 +855,80 @@ def test_pasting_a_trial_the_list_already_holds_names_the_list(app, fetcher, mon
     said = " ".join(msg.value for msg in app.warning)
     assert "NCT03412565 was already in" in said
     assert storage.get_list(conn, only)["name"] in said
+
+
+# --- getting the finding out
+
+
+def briefing_text(app) -> str:
+    """The copyable summary, which the page renders as its only code block."""
+    return app.code[0].value
+
+
+def test_the_summary_names_the_list_and_covers_this_week_by_default(app, fetcher):
+    add_trial(app, "NCT03412565")
+
+    app.switch_page(WATCHLIST).run()
+
+    assert app.radio(key="briefing_period").value == briefing.THIS_WEEK
+    assert storage.DEFAULT_LIST in briefing_text(app)
+
+
+def test_a_range_with_nothing_in_it_says_so_and_offers_no_file(app, fetcher):
+    add_trial(app, "NCT03412565")
+
+    app.switch_page(WATCHLIST).run()
+
+    assert "No changes" in briefing_text(app)
+    assert not [b for b in app.download_button if b.key == "briefing_csv"]
+
+
+def test_a_detected_change_reaches_the_summary_and_the_file(app, fetcher, monkeypatch):
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+
+    app.run()
+    app.button(key="simulate").click().run()
+    app.button(key="check_all").click().run()
+
+    text = briefing_text(app)
+    assert "NCT03412565" in text
+    assert display.STUDY_URL in text
+    # Fabricated, and marked as such in the thing that leaves the tool.
+    assert display.SYNTHETIC in text
+
+    # The file itself is offered from the same summary; what is in it is
+    # tested in test_briefing, since the harness holds the button and not its
+    # bytes.
+    download = next(b for b in app.download_button if b.key == "briefing_csv")
+    assert download.label == "Download CSV"
+
+
+def test_a_half_picked_custom_range_asks_for_the_second_date(app, fetcher):
+    add_trial(app, "NCT03412565")
+    app.switch_page(WATCHLIST).run()
+
+    app.radio(key="briefing_period").set_value(briefing.CUSTOM).run()
+    app.date_input(key="briefing_dates").set_value(datetime.date(2026, 3, 1)).run()
+
+    assert not app.code
+    assert "Pick the day the range ends." in " ".join(c.value for c in app.caption)
+
+
+def test_a_custom_range_that_excludes_the_change_reports_nothing(app, fetcher, monkeypatch):
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+
+    app.run()
+    app.button(key="simulate").click().run()
+    app.button(key="check_all").click().run()
+    assert "NCT03412565" in briefing_text(app)
+
+    # A fortnight that ended before the check ran holds none of it.
+    app.radio(key="briefing_period").set_value(briefing.CUSTOM).run()
+    app.date_input(key="briefing_dates").set_value(
+        (datetime.date(2020, 1, 1), datetime.date(2020, 1, 14))
+    ).run()
+
+    assert "No changes" in briefing_text(app)
+    assert not [b for b in app.download_button if b.key == "briefing_csv"]

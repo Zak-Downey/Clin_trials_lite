@@ -317,19 +317,52 @@ def add_snapshot(
     conn.commit()
 
 
+def _snapshot(row: sqlite3.Row | None) -> dict | None:
+    """A stored snapshot row as the record and how it came to be written."""
+    if row is None:
+        return None
+    return {"record": json.loads(row["record"]), "synthetic": bool(row["synthetic"])}
+
+
 def latest_snapshot(conn: sqlite3.Connection, nct_id: str) -> dict | None:
     """A trial's most recently stored state, or None if it was never fetched.
 
     Returns the record together with whether it was written by the simulator,
     since a change found against a simulated baseline is itself simulated.
+
+    The newest row rather than the newest stamp: the simulator writes a
+    rewound past, and what the next check compares against is the last thing
+    stored, not the latest moment recorded.
     """
-    row = conn.execute(
-        "SELECT * FROM snapshots WHERE nct_id = ? ORDER BY id DESC LIMIT 1",
-        (nct_id,),
-    ).fetchone()
-    if row is None:
-        return None
-    return {"record": json.loads(row["record"]), "synthetic": bool(row["synthetic"])}
+    return _snapshot(
+        conn.execute(
+            "SELECT * FROM snapshots WHERE nct_id = ? ORDER BY id DESC LIMIT 1",
+            (nct_id,),
+        ).fetchone()
+    )
+
+
+def snapshot_at(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> dict | None:
+    """The trial's stored state as of a moment: the newest fetched by then.
+
+    A check writes its snapshot and its change rows under one stamp, so this
+    answers "what did the record say when this was detected" -- which is what
+    dates a change by the sponsor's own revision rather than by whatever the
+    trial says today.
+
+    Ordered by the stamp rather than by the row's id, because the stamp is
+    passed in: a snapshot written for an earlier moment than the one before it
+    is ordered by the moment it records.
+    """
+    if when is None:
+        return latest_snapshot(conn, nct_id)
+    return _snapshot(
+        conn.execute(
+            "SELECT * FROM snapshots WHERE nct_id = ? AND fetched_at <= ?"
+            " ORDER BY fetched_at DESC, id DESC LIMIT 1",
+            (nct_id, when),
+        ).fetchone()
+    )
 
 
 def count_snapshots(conn: sqlite3.Connection, nct_id: str) -> int:

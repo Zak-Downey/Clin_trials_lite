@@ -69,6 +69,16 @@ BULLETS = ("*", "-", "•")
 EXCERPT_CHARS = 180
 
 
+def collapse(text) -> str:
+    """Free text as a single line, or "" if there is nothing in it.
+
+    The registry writes criteria as a bulleted block; a line of a briefing and a
+    cell of a CSV are both one line, so the breaks close up and the markers go.
+    """
+    words = [w for w in str(text).split() if w not in BULLETS] if text else []
+    return " ".join(words)
+
+
 def excerpt(text, limit: int = EXCERPT_CHARS) -> str:
     """Long free text as one short line, ending in an ellipsis when it is cut.
 
@@ -76,8 +86,7 @@ def excerpt(text, limit: int = EXCERPT_CHARS) -> str:
     are dropped: a card is rendered as one markdown block, and a bulleted list
     dropped into it would either break the block apart or be read as emphasis.
     """
-    words = [w for w in str(text).split() if w not in BULLETS] if text else []
-    collapsed = " ".join(words)
+    collapsed = collapse(text)
     if not collapsed:
         return EMPTY
     if len(collapsed) <= limit:
@@ -85,7 +94,7 @@ def excerpt(text, limit: int = EXCERPT_CHARS) -> str:
     return collapsed[:limit].rstrip(" ,;:-*") + "…"
 
 
-def _qualified(value, qualifier) -> str:
+def qualified(value, qualifier) -> str:
     """A value beside the registry's word for it: "2024-04-18 (Actual)".
 
     Read together because they are one fact: a date going from estimated to
@@ -94,6 +103,24 @@ def _qualified(value, qualifier) -> str:
     """
     shown = show(value)
     return f"{shown} ({str(qualifier).capitalize()})" if qualifier else shown
+
+
+def long_date(value) -> str:
+    """A stored stamp as a reader's date: "2026-03-01" -> "1 March 2026".
+
+    The month is spelled out for the same reason the table spells it: a briefing
+    is read by whoever it was pasted to, and 03/01 is a different day to them.
+    A registry date stating only a month, and anything else unparseable, is
+    passed through as it stands rather than guessed at.
+    """
+    if not value:
+        return EMPTY
+    text = str(value)[:10]
+    try:
+        day = datetime.date.fromisoformat(text)
+    except ValueError:
+        return text
+    return f"{day.day} {day:%B %Y}"
 
 
 def field_line(row: dict, nct_id: str | None = None) -> str:
@@ -122,7 +149,7 @@ def field_line(row: dict, nct_id: str | None = None) -> str:
     elif row["field"] == "resultsUrl" and row["value"]:
         value = f"[{RESULTS_LINK}]({row['value']})"
     else:
-        value = _qualified(row["value"], row.get("qualifier"))
+        value = qualified(row["value"], row.get("qualifier"))
 
     if not row["changed"]:
         return f"**{name}** · {value}"
@@ -137,7 +164,7 @@ def field_line(row: dict, nct_id: str | None = None) -> str:
     was = (
         AMENDED
         if criteria
-        else f"Previously {_qualified(row['previous'], row.get('previous_qualifier'))}"
+        else f"Previously {qualified(row['previous'], row.get('previous_qualifier'))}"
     )
     return (
         f":{colour}[**{name}**]{fake} · {value}  \n"

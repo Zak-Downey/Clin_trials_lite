@@ -421,3 +421,41 @@ def test_a_type_named_on_its_own_is_named_as_its_value():
 
 def test_folding_leaves_an_unqualified_field_alone():
     assert diff.fold_qualifiers(["overallStatus", "acronym"]) == ["overallStatus", "acronym"]
+
+
+# --- the same folding, for a caller holding changes rather than a profile
+
+
+def test_a_value_and_its_qualifier_moving_together_fold_into_one_move(change, profile):
+    folded = diff.fold_moves(
+        [
+            change("completionDate", "2024-04-18", "2025-04-18"),
+            change("completionDateType", "ESTIMATED", "ACTUAL"),
+        ],
+        profile,
+    )
+
+    assert [m["field"] for m in folded] == ["completionDate"]
+    assert folded[0]["previous_qualifier"] == "ESTIMATED"
+    assert folded[0]["qualifier"] == "ACTUAL"
+
+
+def test_a_qualifier_that_moved_alone_is_reported_under_its_value(change, profile):
+    folded = diff.fold_moves([change("completionDateType", "ESTIMATED", "ACTUAL")], profile)
+
+    assert [m["field"] for m in folded] == ["completionDate"]
+    # The value did not move, and stands as the context for the word about it.
+    assert folded[0]["previous"] == folded[0]["current"] == profile["completionDate"]
+
+
+def test_an_unqualified_field_folds_into_itself(change, profile):
+    folded = diff.fold_moves([change("overallStatus", "RECRUITING", "TERMINATED")], profile)
+
+    assert [m["field"] for m in folded] == ["overallStatus"]
+    assert (folded[0]["previous"], folded[0]["current"]) == ("RECRUITING", "TERMINATED")
+
+
+def test_a_folded_move_carries_the_change_it_came_from(change, profile):
+    recorded = change("overallStatus", "RECRUITING", "TERMINATED", synthetic=True)
+
+    assert diff.fold_moves([recorded], profile)[0]["change"] is recorded

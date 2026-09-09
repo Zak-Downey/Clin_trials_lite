@@ -85,6 +85,66 @@ def fold_qualifiers(fields) -> list[str]:
     return list(dict.fromkeys(QUALIFIES.get(field, field) for field in fields))
 
 
+def high_signal(field: str) -> bool:
+    """Whether this field's movement is the kind the team acts on."""
+    return field in HIGH_SIGNAL
+
+
+def fold_moves(changes, profile: dict | None = None) -> list[dict]:
+    """Recorded changes as the moves that name them, each qualifier folded in.
+
+    The counterpart of annotate for a caller holding changes rather than a whole
+    profile: the same rule that a value and the registry's word for it are one
+    fact, applied where there is no profile row to hang it on.
+
+    A qualifier that moved beside its own value adds no move of its own. One
+    that moved alone is reported under the value it qualifies -- "now Actual"
+    names nothing by itself -- with that value read off the profile, where it
+    still stands unchanged.
+
+    Owned here, beside the two maps that decide it, so a field the registry
+    starts qualifying is one edit rather than one per caller. Each move carries
+    the change row it came from, so a caller adds its own facts without this
+    module learning what they are.
+    """
+    profile = profile or {}
+    moved = {change["field"]: change for change in changes}
+
+    folded = []
+    for field, change in moved.items():
+        qualified = QUALIFIES.get(field)
+        if qualified:
+            if qualified in moved:
+                continue
+            standing = profile.get(qualified)
+            folded.append(
+                {
+                    "field": qualified,
+                    "previous": standing,
+                    "current": standing,
+                    "previous_qualifier": change["previous"],
+                    "qualifier": change["current"],
+                    "change": change,
+                }
+            )
+            continue
+
+        qualifier = QUALIFIED_BY.get(field)
+        alongside = moved.get(qualifier) if qualifier else None
+        stated = profile.get(qualifier) if qualifier else None
+        folded.append(
+            {
+                "field": field,
+                "previous": change["previous"],
+                "current": change["current"],
+                "previous_qualifier": alongside["previous"] if alongside else stated,
+                "qualifier": alongside["current"] if alongside else stated,
+                "change": change,
+            }
+        )
+    return folded
+
+
 def by_signal(fields) -> list[str]:
     """Field names ordered high-signal first, each group keeping its own order.
 
@@ -92,7 +152,7 @@ def by_signal(fields) -> list[str]:
     long list must be able to trust that a slipped completion date is not the
     one it drops.
     """
-    return sorted(fields, key=lambda f: f not in HIGH_SIGNAL)
+    return sorted(fields, key=lambda f: not high_signal(f))
 
 
 def _latest_unreviewed(changes: list[dict]) -> dict[str, dict]:
@@ -168,7 +228,7 @@ def annotate(profile: dict, changes: list[dict]) -> list[dict]:
                 "previous_qualifier": (
                     qualified_move["previous"] if qualified_move else stated
                 ),
-                "high_signal": field in HIGH_SIGNAL,
+                "high_signal": high_signal(field),
                 "synthetic": any(
                     m["synthetic"] for m in (move, qualified_move) if m
                 ),
