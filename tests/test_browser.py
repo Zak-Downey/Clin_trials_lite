@@ -1,4 +1,4 @@
-"""Reaching the registry from inside the browser.
+"""Running inside the browser: reaching the registry, and pausing between calls.
 
 When the app runs as WebAssembly there is no socket layer underneath it: the
 page has to ask the browser to make the request. What must survive the move is
@@ -8,6 +8,7 @@ an analyst reads those sentences rather than a stack trace.
 
 So the browser's own request object is the seam, stubbed here the way the
 fetching seam is stubbed elsewhere: nothing in this file touches the network.
+And nothing in it waits, either -- the clock is a seam for the same reason.
 """
 
 from __future__ import annotations
@@ -209,17 +210,16 @@ def test_a_search_against_an_unreachable_registry_still_reads_as_could_not_reach
 # --- pausing, where there is no sleep to do it
 #
 # Working through a watchlist puts a deliberate gap between registry calls
-# because the registry is a free public service. Whether `time.sleep` waits at
-# all under WebAssembly is a property of that runtime, not of this code -- and
-# if it stopped, a fifty-trial list would become fifty back-to-back requests
-# from every visitor, with nothing failing to say so. These say the gap is the
-# app's own, and is real in both places.
+# because the registry is a free public service. `browser.wait` carries the
+# reason; what these hold to is that the gap is the app's own and is real in
+# both places -- because the way it could be lost is silently, with the call
+# still there and still made.
 
 
 class FakeClock:
     """A monotonic clock that only moves when it is read."""
 
-    def __init__(self, step=0.1):
+    def __init__(self, step):
         self.now = 0.0
         self.step = step
         self.reads = 0

@@ -40,7 +40,24 @@ was not available -- it needs the page served with cross-origin-isolation header
 GitHub Pages does not send.
 
 `browser.py` grows past being only a transport, and its docstring says so now: it is the
-module that knows the app is running in a browser.
+module that knows the app is running in a browser. The README's list of what differs in the
+browser said "two things and nothing else is", so it now says three.
+
+The same stlite harness that disproved the premise measured the replacement: with
+`IN_BROWSER` on, `browser.wait(0.5)` took 0.5s inside stlite's worker, so the spin is known
+to hold there and `time.monotonic()` is known to advance. That is criterion 1's mechanism
+observed rather than inferred.
+
+The cost is stated in `_spin` rather than left for someone to discover: spinning burns a
+core where sleeping yielded it, so a fifty-trial list spends around twenty-five seconds of
+somebody's CPU, and on a phone that is battery and heat. Worth it for the gap the registry
+is owed; a reason to spend it only on pacing.
+
+One thing found and deliberately not fixed here: `check_all` paces the trial loop only. A
+list with a remembered search fires that search and then the first trial fetch with no gap
+between them, and a single `check()` can make more than one call. It is two requests, not
+fifty, so it is not this ticket's defect -- but "the watchlist paces itself" is true of the
+trial-to-trial gap and not yet of the whole run.
 
 Tests patch `IN_BROWSER` and a fake monotonic clock, so the browser pause is asserted to
 actually wait without the suite waiting for it, and the check-run test now watches

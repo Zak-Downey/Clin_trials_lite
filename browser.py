@@ -87,19 +87,25 @@ def get_json(url: str, timeout: float = 30, request=None) -> dict:
 def _spin(seconds: float) -> None:
     """Wait by watching the clock, which is the one way to wait that is ours.
 
-    There are no threads to block under WebAssembly. `time.sleep` does hold
-    for its full duration on the runtime the app ships on today -- measured,
-    not assumed -- but only because the C library underneath it busy-waits on
-    the worker; on the main thread the same call returns at once. That is an
-    implementation detail of somebody else's build, and it is not the kind of
-    thing to stake a courtesy to a public registry on: it would fail silently,
-    with the call still there and still made, which is the worst shape a
-    missing pause can take.
+    `time.sleep` does hold for its full duration on the runtime the app ships
+    on today -- measured, not assumed -- but only because the C library
+    underneath it busy-waits on the worker stlite runs Python in; on the main
+    thread the same call returns at once. That is an implementation detail of
+    somebody else's build, and it is not the kind of thing to stake a courtesy
+    to a public registry on: it would fail silently, with the call still there
+    and still made, which is the worst shape a missing pause can take.
 
-    So the waiting is done here, where a test can see it. The alternative that
+    So the waiting is done here, where a test can see it, and it is done by
+    watching the clock because that is the only way left. The alternative that
     would block properly (`Atomics.wait` on shared memory) needs the page
     served with cross-origin-isolation headers, which a static host does not
-    give us. Half a second of a worker spinning is a cheap price.
+    send.
+
+    The cost is real and worth stating: this burns a core rather than yielding
+    it, so a fifty-trial watchlist spends around twenty-five seconds spinning
+    on the visitor's machine, and on a phone that is battery and heat. It buys
+    the registry the gap it is owed, which is the trade being made -- but it is
+    the reason to spend this only on pacing, and never as a general sleep.
     """
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:

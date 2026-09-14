@@ -23,9 +23,9 @@ NCT_ID = re.compile(r"^NCT\d{8}$")
 # Seconds to wait between trials when working through the watchlist. The
 # registry is a free public service; a burst of back-to-back requests is rude.
 #
-# Waited through `browser.wait` rather than `time.sleep`, because the app also
-# runs as WebAssembly, where whether sleeping waits at all is a property of the
-# runtime rather than of this code.
+# Waited through `browser.wait` rather than `time.sleep`, which is where the
+# reason lives: the app also runs as WebAssembly, and the pause has to be ours
+# there rather than the runtime's.
 PAUSE = 0.5
 
 
