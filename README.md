@@ -107,6 +107,37 @@ Three things are different in the browser and nothing else is:
 The first load pulls down a Python runtime and its libraries, which takes the better
 part of a minute, so the page says it is starting up until the app is on screen.
 
+## Published to GitHub Pages
+
+Pushing to `main` or `master` builds the site and publishes it, through
+`.github/workflows/deploy.yml`. There is no manual build step and nothing to remember:
+the published app is whatever was last committed. The workflow runs `build_site.py` and
+uploads only what it wrote, so the same list that governs a local build governs the
+public one. It needs no secret, token or account — the only credential involved is the
+one GitHub mints for the run itself.
+
+Two things cannot be done from the code, and somebody has to do them once, in the
+repository's **Settings → Pages**:
+
+1. **Turn Pages on and set its source to *GitHub Actions***, not to a branch. Until that
+   is done the workflow runs green and publishes nothing, which is the failure worth
+   knowing about because it does not look like one.
+2. **Check which branch you actually push to.** This repository records `main` as its
+   default branch and is developed on `master`, and the workflow watches both, because a
+   workflow watching only the wrong one of those publishes nothing and says nothing.
+   `master` is the branch the site is published from today. If both branches ever carry
+   work, the live site is whichever was pushed last — so if they diverge, narrow the
+   `branches:` list to the one you mean. If you push to a third name, add it, or nothing
+   will ever publish.
+
+The site is then live at `https://<owner>.github.io/<repo>/`, and the Actions tab shows
+the run and the URL it deployed to. **Run workflow** on the *Publish the site* workflow
+publishes on demand, without inventing a commit to trigger one.
+
+It is worth repeating the local checks against the real URL once it is up — search the
+registry, add a trial, refresh the page and confirm the watchlist is still there —
+because the deployed thing is what people use.
+
 ## From the command line
 
 ```bash

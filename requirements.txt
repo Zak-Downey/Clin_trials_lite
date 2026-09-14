@@ -10,3 +10,7 @@ pandas
 # The monitoring app's view layer, and the test framework.
 streamlit
 pytest
+
+# Only for the test that reads the publishing workflow (.github/workflows/deploy.yml)
+# and holds it to building the site rather than copying the repository.
+pyyaml

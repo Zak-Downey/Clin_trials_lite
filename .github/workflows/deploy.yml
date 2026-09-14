@@ -1,0 +1,71 @@
+# Publish the Trial Change Monitor to GitHub Pages.
+#
+# The app runs entirely in the visitor's browser, so there is nothing to deploy
+# but a page and the Python modules it mounts. `build_site.py` assembles those
+# from the list the page itself names -- run here rather than reimplemented,
+# because the repository also holds a working database, the internal specs and
+# issues, the tests and the simulator, and a workflow that copied the checkout
+# would publish all of it. A file nobody names is a file nobody ships.
+#
+# Two things this cannot do for itself, and a person has to do once, at
+# Settings -> Pages: turn Pages on, and set its source to GitHub Actions. Until
+# then this workflow runs green and publishes nothing. See the README.
+#
+# It watches both `main` and `master`: the repository records `main` as its
+# default and is developed on `master`, and a workflow watching only the wrong
+# one of those does nothing at all, which looks exactly like a quiet repository.
+
+name: Publish the site
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+# Nothing here is granted at the top, so each job asks for only what it does:
+# the build reads the repository, and the deploy writes to Pages. `id-token` is
+# how the deploy proves to Pages that it is this run -- no secret, token or
+# account of ours is involved anywhere.
+permissions: {}
+
+# One publication at a time. A second push while a deploy is running waits for
+# it rather than cancelling it: a cancelled deploy can leave Pages halfway
+# through replacing the site, and the newer run publishes the newer commit a
+# minute later anyway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # No dependencies to install: build_site.py is stdlib-only, and the app's
+      # own libraries come from stlite in the visitor's browser, not from here.
+      - name: Assemble the site
+        run: python build_site.py site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
