@@ -141,8 +141,8 @@ def test_checking_a_list_re_runs_its_remembered_search(conn, watching, make_find
 
 
 def test_a_match_the_list_does_not_hold_is_reported_as_found(
-    conn, watching, record, make_finder
-, restyled):
+    conn, watching, record, make_finder, restyled
+):
     finder = make_finder([restyled(record, "NCT99999999")])
 
     results = run(conn, watching, find=finder)
@@ -152,8 +152,8 @@ def test_a_match_the_list_does_not_hold_is_reported_as_found(
 
 
 def test_a_found_trial_is_reported_apart_from_a_changed_field(
-    conn, watching, record, fetcher, make_finder
-, restyled):
+    conn, watching, record, fetcher, make_finder, restyled
+):
     """Two kinds of news: a competitor started something, or revised something."""
     monitor.add(conn, "NCT03412565", watching, fetch=fetcher)
     finder = make_finder([restyled(record, "NCT99999999")])
@@ -173,8 +173,8 @@ def test_a_found_trial_is_not_added_to_the_list(
 
 
 def test_a_found_trial_carries_what_identifies_the_study(
-    conn, watching, record, make_finder
-, restyled):
+    conn, watching, record, make_finder, restyled
+):
     """Offered on the same facts a watched trial is listed by, or the analyst
     is being asked to judge an NCT number."""
     run(conn, watching, find=make_finder([restyled(record, "NCT99999999")]))
@@ -201,8 +201,8 @@ def test_a_trial_already_in_the_list_is_not_reported_as_found(
 
 
 def test_a_trial_already_offered_is_not_offered_twice(
-    conn, watching, record, make_finder
-, restyled):
+    conn, watching, record, make_finder, restyled
+):
     finder = make_finder([restyled(record, "NCT99999999")])
 
     run(conn, watching, find=finder)
@@ -228,8 +228,8 @@ def test_a_trial_watched_under_another_list_is_still_offered_here(
 
 
 def test_a_found_trial_appears_in_the_feed_unreviewed(
-    conn, watching, record, make_finder
-, restyled):
+    conn, watching, record, make_finder, restyled
+):
     run(conn, watching, find=make_finder([restyled(record, "NCT99999999")]))
 
     events = [e for e in monitor.feed(conn, watching) if e["nct_id"] == "NCT99999999"]
@@ -240,8 +240,8 @@ def test_a_found_trial_appears_in_the_feed_unreviewed(
 
 
 def test_a_dismissed_trial_stops_being_unreviewed_in_the_feed(
-    conn, watching, record, make_finder
-, restyled):
+    conn, watching, record, make_finder, restyled
+):
     run(conn, watching, find=make_finder([restyled(record, "NCT99999999")]))
 
     monitor.dismiss(conn, watching, "NCT99999999")
@@ -254,8 +254,8 @@ def test_a_dismissed_trial_stops_being_unreviewed_in_the_feed(
 
 
 def test_adopting_a_found_trial_records_its_baseline_and_adds_it(
-    conn, watching, record, fetcher, make_finder
-, restyled):
+    conn, watching, record, fetcher, make_finder, restyled
+):
     run(conn, watching, find=make_finder([restyled(record, "NCT99999999")]))
 
     monitor.adopt(conn, watching, "NCT99999999", fetch=fetcher)
@@ -268,8 +268,8 @@ def test_adopting_a_found_trial_records_its_baseline_and_adds_it(
 
 
 def test_an_adopted_trial_is_no_longer_offered(
-    conn, watching, record, fetcher, make_finder
-, restyled):
+    conn, watching, record, fetcher, make_finder, restyled
+):
     finder = make_finder([restyled(record, "NCT99999999")])
     run(conn, watching, find=finder)
 
@@ -282,8 +282,8 @@ def test_an_adopted_trial_is_no_longer_offered(
 
 
 def test_a_trial_that_could_not_be_fetched_stays_on_offer(
-    conn, watching, record, make_finder, make_fetcher
-, restyled):
+    conn, watching, record, make_finder, make_fetcher, restyled
+):
     run(conn, watching, find=make_finder([restyled(record, "NCT99999999")]))
     broken = make_fetcher(failures={"NCT99999999": urllib.error.URLError("down")})
 
@@ -306,8 +306,8 @@ def test_a_dismissed_trial_is_not_offered_again(
 
 
 def test_several_found_trials_are_adopted_in_one_go(
-    conn, watching, record, fetcher, make_finder
-, restyled):
+    conn, watching, record, fetcher, make_finder, restyled
+):
     finder = make_finder(
         [restyled(record, "NCT99999999"), restyled(record, "NCT88888888")]
     )
@@ -381,8 +381,8 @@ def test_an_uncapped_search_does_not_nag_about_narrowing(
 
 
 def test_a_run_that_found_a_trial_is_not_summarised_as_no_changes(
-    conn, watching, record, fetcher, make_finder
-, restyled):
+    conn, watching, record, fetcher, make_finder, restyled
+):
     monitor.add(conn, "NCT03412565", watching, fetch=fetcher)
     finder = make_finder([record, restyled(record, "NCT99999999")])
 
