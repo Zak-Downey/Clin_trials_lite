@@ -72,6 +72,37 @@ to point somewhere else.
 Run the tests with `python -m pytest`. They drive the app and the monitor through an
 injectable fetcher and never touch the network.
 
+## In a browser, with no Python installed
+
+The same app also runs as a static page, with its Python compiled to WebAssembly by
+[stlite](https://stlite.net) and executed in the visitor's own browser. There is no
+server behind it: the page talks to ClinicalTrials.gov directly, which is possible
+because the v2 API answers cross-origin requests.
+
+```bash
+python build_site.py            # assemble site/
+python -m http.server -d site   # then open http://localhost:8000
+```
+
+`web/index.html` names, one at a time, the modules it mounts, and `build_site.py` copies
+exactly those. Nothing else travels — not the working database, the tests, the internal
+notes under `.scratch/`, or the simulator. A file nobody names is a file nobody ships.
+
+Two things are different in the browser and nothing else is:
+
+- **The transport.** There are no sockets, so `browser.py` asks the browser to make the
+  request. It raises the same `urllib` errors the socket transport does, so a missing
+  study still reads *"NCT99999999 was not found on ClinicalTrials.gov"* and an
+  unreachable registry still reads *"Could not reach ClinicalTrials.gov"* — the two
+  sentences an analyst needs to tell apart.
+- **Streamlit's version.** stlite carries Streamlit 1.50 where this repository develops
+  against 1.63, so the stlite version is pinned in `web/index.html` rather than floating.
+  The app's top page navigation works there; `sqlite3` is not in WebAssembly's standard
+  library and is fetched as a package.
+
+The first load pulls down a Python runtime and its libraries, which takes the better
+part of a minute, so the page says it is starting up until the app is on screen.
+
 ## From the command line
 
 ```bash

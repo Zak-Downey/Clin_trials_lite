@@ -5,3 +5,6 @@ venv/
 *.csv
 *.db
 .pytest_cache/
+
+# The built site, assembled by build_site.py.
+site/

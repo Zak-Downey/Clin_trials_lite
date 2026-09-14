@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>Trial Change Monitor</title>
+    <meta
+      name="description"
+      content="Watch competitors' ClinicalTrials.gov records and see what moves."
+    />
+
+    <!--
+      stlite runs the app's Python as WebAssembly in the visitor's own browser:
+      no server, no account, no database anybody else can read.
+
+      The version is pinned rather than floating, because it is what decides
+      which Streamlit the app runs on -- 0.90.12 carries Streamlit 1.50, where
+      the repository develops against 1.63. An upgrade is a deliberate act with
+      the app re-checked against it, not something a visitor's refresh does.
+    -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@stlite/browser@0.90.12/build/stlite.css" />
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        font-family:
+          "Source Sans Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      /*
+        The first load fetches a Python runtime and its libraries -- tens of
+        megabytes, and the better part of a minute on an ordinary connection.
+        A blank page for that long reads as a broken one, so the visitor is
+        told what is happening until the app itself is on screen.
+      */
+      #booting {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        background: #fff;
+        color: #31333f;
+        text-align: center;
+        padding: 1rem;
+        z-index: 10;
+      }
+
+      #booting h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 0;
+      }
+
+      #booting p {
+        margin: 0;
+        max-width: 28rem;
+        color: #555867;
+      }
+
+      #booting .spinner {
+        width: 2rem;
+        height: 2rem;
+        border: 3px solid #e6e6e9;
+        border-top-color: #ff4b4b;
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="booting">
+      <div class="spinner"></div>
+      <h1>Trial Change Monitor</h1>
+      <p>
+        Starting up. The app runs entirely in this browser, so the first visit
+        downloads it -- this takes a moment, and is quicker next time.
+      </p>
+      <noscript>
+        <p>This app is JavaScript and WebAssembly running in your browser. Please enable JavaScript.</p>
+      </noscript>
+    </div>
+
+    <div id="root"></div>
+
+    <script type="module">
+      import { mount } from "https://cdn.jsdelivr.net/npm/@stlite/browser@0.90.12/build/stlite.js";
+
+      /*
+        What gets published, named one file at a time.
+
+        Everything listed here is fetched from this site rather than pasted
+        into the page, so the app that runs is the code in the repository. The
+        list is explicit because this directory becomes a public URL and the
+        repository also holds a working database of somebody's monitoring, the
+        internal specs and issues, the test suite, and the simulator that
+        fabricates trial movements. Naming what goes in means a file nobody
+        named is a file nobody ships.
+
+        The build reads this list to decide what to copy, so a module added to
+        the app has to be added here too -- and until it is, the app says so
+        loudly by failing to import it.
+      */
+      const sources = [
+        "app.py",
+        "briefing.py",
+        "browser.py",
+        "ctgov.py",
+        "diff.py",
+        "display.py",
+        "medical_affairs.py",
+        "monitor.py",
+        "storage.py",
+        "views/pickers.py",
+        "views/search.py",
+        "views/watchlist.py",
+      ];
+
+      const files = {};
+      for (const source of sources) {
+        files[source] = { url: `./${source}` };
+      }
+
+      mount(
+        {
+          entrypoint: "app.py",
+          // Streamlit and everything it needs -- pandas included -- come
+          // with stlite itself. `sqlite3` is the exception: WebAssembly
+          // leaves it out of the standard library, and the watchlist is a
+          // SQLite database, so it is fetched as a package like any other.
+          requirements: ["sqlite3"],
+          files,
+          streamlitConfig: {
+            // A visitor is not deploying or editing this app, so the developer
+            // menu has nothing to offer them.
+            "client.toolbarMode": "viewer",
+          },
+        },
+        document.getElementById("root"),
+      );
+
+      /*
+        Hand over to the app once it has drawn something. Streamlit's own view
+        container appearing is the first moment there is anything to look at;
+        the timer is the fallback, so a visitor is never left staring at a
+        loading message that outlives whatever went wrong behind it.
+      */
+      const booting = document.getElementById("booting");
+      const done = () => booting.remove();
+
+      const watching = new MutationObserver(() => {
+        if (document.querySelector('[data-testid="stAppViewContainer"]')) {
+          watching.disconnect();
+          done();
+        }
+      });
+      watching.observe(document.body, { childList: true, subtree: true });
+      setTimeout(() => {
+        watching.disconnect();
+        done();
+      }, 120000);
+    </script>
+  </body>
+</html>

@@ -12,14 +12,46 @@ Verifiable without deploying anything: serve the page locally and search.
 
 **Blocked by:** 01 (while the app depends on the simulator, the published bundle is forced to carry it)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The app loads and renders in a browser from a locally served static page, with no Python installed
-- [ ] A search on a condition returns real results from ClinicalTrials.gov, proving the browser can reach the registry directly
-- [ ] An NCT ID that does not exist produces the same readable "was not found" message as it does locally
-- [ ] A registry that cannot be reached produces the same readable message as it does locally, distinct from the above
-- [ ] Only an explicit list of modules is mounted; the working database, tests, internal notes and the simulator are not among them
-- [ ] Page navigation works, in its current placement or the documented fallback
-- [ ] The page tells the visitor it is loading rather than showing blank space
-- [ ] The app still runs locally under Streamlit exactly as before, from the same entry point
-- [ ] The full test suite passes
+- [x] The app loads and renders in a browser from a locally served static page, with no Python installed
+- [x] A search on a condition returns real results from ClinicalTrials.gov, proving the browser can reach the registry directly
+- [x] An NCT ID that does not exist produces the same readable "was not found" message as it does locally
+- [x] A registry that cannot be reached produces the same readable message as it does locally, distinct from the above
+- [x] Only an explicit list of modules is mounted; the working database, tests, internal notes and the simulator are not among them
+- [x] Page navigation works, in its current placement or the documented fallback
+- [x] The page tells the visitor it is loading rather than showing blank space
+- [x] The app still runs locally under Streamlit exactly as before, from the same entry point
+- [x] The full test suite passes
+
+## Comments
+
+Both of the things the ticket asked to confirm rather than assume were checked against
+the real thing -- the site served locally, driven in Chrome:
+
+- **Top navigation is supported on Streamlit 1.50.** `position="top"` has been in
+  Streamlit since 1.46, and the two page chips render along the top in the browser build
+  exactly as they do locally. The sidebar fallback was not needed.
+- **The first load needs a loading message and now has one.** The page shows one from the
+  first paint and hands over when Streamlit's own view container appears, with a timer
+  behind it so a visitor is never left reading a loading message that outlived whatever
+  went wrong.
+
+Two things WebAssembly leaves out of the standard library turned up only by running it:
+`sqlite3`, which the watchlist needs and which is now fetched as a package, and `ssl`,
+which the browser build no longer imports at all.
+
+The registry was driven live from the browser: a search on *multiple myeloma* returned
+real studies, `NCT99999999` produced "NCT99999999 was not found on ClinicalTrials.gov",
+and a blocked connection produced "Could not reach ClinicalTrials.gov" -- both the same
+sentences the local build produces for the same inputs.
+
+Assembling the site is `build_site.py`, which copies exactly the modules `web/index.html`
+names and nothing else. Ticket 05 has the workflow that runs it; the list it reads is
+already the explicit one that ticket asks for.
+
+The README gains a section on building and serving the site, because shipping
+`build_site.py` undocumented would be worse. It is not ticket 06's section and does not
+try to be: where the app is published, and the plain statement that watchlists live in
+the visitor's browser alone, are still 06's to write, and 06 should expect to rewrite
+this section rather than find it done.
