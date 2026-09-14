@@ -7,9 +7,11 @@ the fetching seam first, so rendering a page never touches the network.
 
 from __future__ import annotations
 
+import builtins
 import copy
 import datetime
 import pathlib
+import sys
 import urllib.error
 
 import pytest
@@ -19,6 +21,7 @@ import briefing
 import diff
 import display
 import monitor
+import simulate
 import storage
 
 APP = str(pathlib.Path(__file__).resolve().parent.parent / "app.py")
@@ -52,6 +55,27 @@ def add_trial(app, nct_id: str):
     app.text_input(key="nct_id").set_value(nct_id)
     press(app, "Start monitoring").run()
     return app
+
+
+def refusing_import(name: str, real):
+    """An `__import__` that denies one module, as an uninstalled one would."""
+
+    def blocked(module, *args, **kwargs):
+        if module == name:
+            raise ModuleNotFoundError(f"No module named {name!r}")
+        return real(module, *args, **kwargs)
+
+    return blocked
+
+
+def rewind(nct_id: str):
+    """Fabricate a difference for the next check to find.
+
+    The app no longer offers this; the simulator stays in the repository as the
+    way a developer demonstrates the alerting path, so a test that needs a
+    change to have happened reaches for it directly.
+    """
+    simulate.rewind(storage.connect(), nct_id)
 
 
 def watchlist(app) -> list[dict]:
@@ -171,7 +195,7 @@ def test_reviewing_clears_the_counts_from_the_card_titles(app, fetcher, monkeypa
     monkeypatch.setattr(monitor, "_default_fetch", fetcher)
 
     app.run()
-    app.button(key="simulate").click().run()
+    rewind("NCT03412565")
     app.button(key="check_all").click().run()
     open_profile(app)
     assert display.UNREVIEWED in " ".join(m.value for m in app.markdown)
@@ -245,17 +269,57 @@ def test_an_empty_watchlist_offers_no_check_control(app):
     assert not [b for b in app.button if b.label == "Check all"]
 
 
-# --- the developer-only simulator
+# --- no developer tooling on screen
 
 
-def test_the_developer_tools_are_labelled_as_synthetic(app, fetcher):
+def test_the_app_carries_no_developer_tools(app, fetcher):
+    """Nothing on the page offers to fabricate a change.
+
+    The simulator is a developer's instrument: offered to a reader, it invites
+    them to manufacture intelligence and then read it back as a sponsor's move.
+    """
     monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
 
     app.run()
 
-    labels = " ".join(exp.label for exp in app.expander).lower()
-    assert "developer" in labels
-    assert "synthetic" in labels
+    assert not app.exception
+    # Everything the page puts in words: the panel was an expander holding a
+    # caption and two buttons, so a sweep of those four plus the markdown is
+    # the whole of where any of it could survive.
+    rendered = " ".join(
+        [exp.label for exp in app.expander]
+        + [m.value for m in app.markdown]
+        + [c.value for c in app.caption]
+        + [b.label for b in app.button]
+    ).lower()
+    assert "developer" not in rendered
+    # The stem, so that "simulate", "simulating" and "simulated" are all caught.
+    assert "simulat" not in rendered
+    assert "synthetic" not in rendered
+
+
+def test_the_app_runs_without_the_simulator_present(app, fetcher, monkeypatch):
+    """The app opens on a machine where the simulator is not installed.
+
+    The guard intercepts the `import` statement, so what it demonstrates is
+    that nothing on this render path imports the module -- which is what the
+    deployment needs, since the simulator is not going to be published with it.
+    """
+    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+    monkeypatch.delitem(sys.modules, "simulate", raising=False)
+    monkeypatch.setattr(
+        builtins,
+        "__import__",
+        refusing_import("simulate", builtins.__import__),
+    )
+
+    app.run()
+
+    assert not app.exception
+    assert watchlist(app)[0]["NCT ID"] == "NCT03412565"
+
+
+# --- simulated data, badged wherever it surfaces
 
 
 def test_simulating_a_change_and_checking_shows_it_in_the_feed(app, fetcher, monkeypatch):
@@ -263,7 +327,7 @@ def test_simulating_a_change_and_checking_shows_it_in_the_feed(app, fetcher, mon
     monkeypatch.setattr(monitor, "_default_fetch", fetcher)
 
     app.run()
-    app.button(key="simulate").click().run()
+    rewind("NCT03412565")
     app.button(key="check_all").click().run()
 
     assert not app.exception
@@ -276,7 +340,8 @@ def test_simulated_data_is_badged_wherever_it_appears(app, fetcher, monkeypatch)
     monkeypatch.setattr(monitor, "_default_fetch", fetcher)
 
     app.run()
-    app.button(key="simulate").click().run()
+    rewind("NCT03412565")
+    app.run()
 
     # Badged on the watchlist line while the stored profile is the fabricated one.
     assert display.SYNTHETIC_MARK in watchlist(app)[0]["NCT ID"]
@@ -285,30 +350,6 @@ def test_simulated_data_is_badged_wherever_it_appears(app, fetcher, monkeypatch)
 
     # And on the feed entry for the change it caused.
     assert display.SYNTHETIC in " ".join(m.value for m in app.markdown)
-
-
-def test_deleting_synthetic_data_clears_it_from_the_page(app, fetcher, monkeypatch):
-    monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
-    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
-
-    app.run()
-    app.button(key="simulate").click().run()
-    app.button(key="check_all").click().run()
-    app.button(key="delete_synthetic").click().run()
-
-    assert not app.exception
-    rendered = " ".join(m.value for m in app.markdown)
-    assert "fields changed" not in rendered
-    assert display.SYNTHETIC_MARK not in rendered
-    # The trial itself is real, and stays.
-    assert watchlist(app)[0]["NCT ID"] == "NCT03412565"
-
-
-def test_simulating_is_offered_only_once_a_trial_is_watched(app):
-    app.run()
-
-    assert not app.exception
-    assert not [b for b in app.button if b.key == "simulate"]
 
 
 # --- seeing what moved
@@ -321,7 +362,7 @@ def test_a_changed_trial_shows_the_moved_field_highlighted_in_its_profile(
     monkeypatch.setattr(monitor, "_default_fetch", fetcher)
 
     app.run()
-    app.button(key="simulate").click().run()
+    rewind("NCT03412565")
     app.button(key="check_all").click().run()
     open_profile(app)
 
@@ -383,7 +424,7 @@ def test_the_whole_loop_from_adding_to_reviewing_and_changing_again_is_walkable(
     app.button(key="check_all").click().run()
     assert watchlist(app)[0]["What changed"] == display.EMPTY
 
-    app.button(key="simulate").click().run()
+    rewind("NCT03412565")
     app.button(key="check_all").click().run()
 
     # What moved is read off the table itself, before anything is opened.
@@ -406,7 +447,7 @@ def test_the_whole_loop_from_adding_to_reviewing_and_changing_again_is_walkable(
     assert "Enrollment" in line["What changed"]
     assert display.UNREVIEWED not in line["What changed"]
 
-    app.button(key="simulate").click().run()
+    rewind("NCT03412565")
     app.button(key="check_all").click().run()
     open_profile(app)
 
@@ -415,7 +456,7 @@ def test_the_whole_loop_from_adding_to_reviewing_and_changing_again_is_walkable(
 
 
 def test_reviewing_marks_the_feed_entry_as_read_without_removing_it(live):
-    live.button(key="simulate").click().run()
+    rewind("NCT03412565")
     live.button(key="check_all").click().run()
     assert "unreviewed" in " ".join(m.value for m in live.markdown)
 
@@ -600,7 +641,7 @@ def test_the_whole_loop_through_a_named_list_is_walkable(app, fetcher, monkeypat
     app.button(key="check_all").click().run()
     assert watchlist(app)[0]["What changed"] == display.EMPTY
 
-    app.button(key="simulate").click().run()
+    rewind("NCT03412565")
     app.button(key="check_all").click().run()
 
     line = watchlist(app)[0]
@@ -813,7 +854,7 @@ def test_the_whole_search_loop_into_a_new_named_list_is_walkable(
     assert not app.exception
     assert watchlist(app)[0]["What changed"] == display.EMPTY
 
-    app.button(key="simulate").click().run()
+    rewind(watchlist(app)[0]["NCT ID"])
     app.button(key="check_all").click().run()
 
     assert display.UNREVIEWED in watchlist(app)[0]["What changed"]
@@ -891,7 +932,7 @@ def test_a_detected_change_reaches_the_summary_and_the_file(app, fetcher, monkey
     monkeypatch.setattr(monitor, "_default_fetch", fetcher)
 
     app.run()
-    app.button(key="simulate").click().run()
+    rewind("NCT03412565")
     app.button(key="check_all").click().run()
 
     text = briefing_text(app)
@@ -923,7 +964,7 @@ def test_a_custom_range_that_excludes_the_change_reports_nothing(app, fetcher, m
     monkeypatch.setattr(monitor, "_default_fetch", fetcher)
 
     app.run()
-    app.button(key="simulate").click().run()
+    rewind("NCT03412565")
     app.button(key="check_all").click().run()
     assert "NCT03412565" in briefing_text(app)
 
