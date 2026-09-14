@@ -1118,3 +1118,179 @@ def test_a_lists_remembered_search_can_be_repointed_without_adding_a_trial(
     assert monitor.remembered_search(conn, only)["cond"] == "multiple myeloma"
     # Nothing was added: the button says what it does.
     assert storage.list_trials(conn, only) == []
+
+
+# --- narrowing a search on the page
+#
+# Sponsor class, status and start date, driven through the form the way the
+# analyst drives them. What matters here is not the registry expression --
+# test_search.py owns that -- but that what is ticked on screen is what gets
+# asked for, and that a narrowed search still travels onto a list.
+
+
+def test_the_search_page_offers_the_three_narrowing_axes(app):
+    """And offers the codes in the order the client justifies at length.
+
+    Commercial sponsors first, statuses in lifecycle order: nothing else pins
+    either, and both are reasoned about in comments rather than enforced.
+    """
+    app.switch_page(SEARCH).run()
+
+    assert not app.exception
+    # The options as the analyst reads them: words, in the offered order, and
+    # never the registry's own codes.
+    assert app.multiselect(key="sponsor_types").options == [
+        display.sponsor_type_label([code]) for code in monitor.SPONSOR_CLASSES
+    ]
+    assert app.multiselect(key="statuses").options == [
+        display.status_label(code) for code in monitor.STATUSES
+    ]
+    assert app.multiselect(key="sponsor_types").options[0] == "Industry"
+    assert app.multiselect(key="statuses").options[:2] == [
+        "Not yet recruiting",
+        "Recruiting",
+    ]
+    assert app.date_input(key="started_from").value is None
+    assert app.date_input(key="started_to").value is None
+
+
+def test_a_date_box_starts_empty_rather_than_at_today(app):
+    """A pre-filled date box is a filter nobody asked for."""
+    app.switch_page(SEARCH).run()
+
+    assert app.date_input(key="started_from").value is None
+    assert app.date_input(key="started_to").value is None
+
+
+def test_what_is_ticked_on_the_form_is_what_gets_asked_for(
+    app, record, make_finder, monkeypatch
+):
+    finder = make_finder([record])
+    monkeypatch.setattr(monitor, "_default_find", finder)
+    app.switch_page(SEARCH).run()
+
+    app.text_input(key="cond").set_value("chronic lymphocytic leukemia")
+    app.multiselect(key="sponsor_types").set_value(["INDUSTRY"])
+    app.multiselect(key="statuses").set_value(["RECRUITING"])
+    app.date_input(key="started_from").set_value(datetime.date(2024, 1, 1))
+    press(app, "Search").run()
+
+    assert not app.exception
+    asked = finder.calls[0]
+    assert asked["sponsor_types"] == ("INDUSTRY",)
+    assert asked["statuses"] == ("RECRUITING",)
+    assert asked["started_from"] == "2024-01-01"
+    assert asked["started_to"] == ""
+
+
+def test_a_search_naming_only_the_narrowing_axes_is_refused_on_the_page(
+    app, make_finder, monkeypatch
+):
+    finder = make_finder([])
+    monkeypatch.setattr(monitor, "_default_find", finder)
+    app.switch_page(SEARCH).run()
+
+    app.multiselect(key="sponsor_types").set_value(["INDUSTRY"])
+    app.date_input(key="started_from").set_value(datetime.date(2024, 1, 1))
+    press(app, "Search").run()
+
+    assert not app.exception
+    assert any("at least one" in err.value for err in app.error)
+    assert finder.calls == []
+
+
+def test_a_narrowed_search_is_remembered_and_read_back_in_words(
+    app, record, fetcher, make_finder, monkeypatch
+):
+    """The whole loop: narrow it, save it to a list, read what the list watches."""
+    monkeypatch.setattr(monitor, "_default_find", make_finder([record]))
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+
+    app.switch_page(SEARCH).run()
+    app.text_input(key="cond").set_value("chronic lymphocytic leukemia")
+    app.multiselect(key="sponsor_types").set_value(["INDUSTRY"])
+    app.multiselect(key="statuses").set_value(["RECRUITING"])
+    app.date_input(key="started_from").set_value(datetime.date(2024, 1, 1))
+    press(app, "Search").run()
+    app.checkbox(key="remember_search").set_value(True).run()
+    tick(app, [0])
+    press(app, "Add selected").run()
+
+    assert not app.exception
+    saved = monitor.remembered_search(conn, only)
+    assert saved["sponsor_types"] == ["INDUSTRY"]
+    assert saved["statuses"] == ["RECRUITING"]
+    assert saved["started_from"] == "2024-01-01"
+
+    # And the analyst can see what it is watching for, in their own words.
+    showing(app, only)
+    said = " ".join(cap.value for cap in app.caption)
+    assert "Sponsor type Industry" in said
+    assert "Status Recruiting" in said
+    assert "started on or after 1 January 2024" in said
+
+
+def test_a_remembered_narrowed_search_is_re_run_with_its_narrowing(
+    app, record, fetcher, make_finder, monkeypatch
+):
+    """A saved search has to reach the registry narrowed, not just saved that way."""
+    monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    conn = storage.connect()
+    app.run()
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.remember_search(
+        conn,
+        only,
+        monitor.as_query(
+            cond="chronic lymphocytic leukemia",
+            sponsor_types=["INDUSTRY"],
+            statuses=["RECRUITING"],
+            started_from="2024-01-01",
+        ),
+    )
+    finder = make_finder([])
+    monkeypatch.setattr(monitor, "_default_find", finder)
+
+    showing(app, only)
+    app.button(key="check_all").click().run()
+
+    assert not app.exception
+    asked = finder.calls[0]
+    assert asked["sponsor_types"] == ("INDUSTRY",)
+    assert asked["statuses"] == ("RECRUITING",)
+    assert asked["started_from"] == "2024-01-01"
+
+
+def test_the_upper_date_box_reaches_the_registry_too(app, record, make_finder, monkeypatch):
+    """The closing end of the window, which nothing else drives from the form."""
+    finder = make_finder([record])
+    monkeypatch.setattr(monitor, "_default_find", finder)
+    app.switch_page(SEARCH).run()
+
+    app.text_input(key="cond").set_value("cll")
+    app.date_input(key="started_to").set_value(datetime.date(2024, 12, 31))
+    press(app, "Search").run()
+
+    assert not app.exception
+    assert finder.calls[0]["started_to"] == "2024-12-31"
+    assert finder.calls[0]["started_from"] == ""
+
+
+def test_a_window_that_ends_before_it_starts_is_said_out_loud_on_the_page(
+    app, make_finder, monkeypatch
+):
+    finder = make_finder([])
+    monkeypatch.setattr(monitor, "_default_find", finder)
+    app.switch_page(SEARCH).run()
+
+    app.text_input(key="cond").set_value("cll")
+    app.date_input(key="started_from").set_value(datetime.date(2025, 1, 1))
+    app.date_input(key="started_to").set_value(datetime.date(2024, 1, 1))
+    press(app, "Search").run()
+
+    assert not app.exception
+    assert any("ends before it begins" in err.value for err in app.error)
+    assert finder.calls == []

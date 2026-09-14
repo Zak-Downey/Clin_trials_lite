@@ -26,6 +26,26 @@ on the spot — so one search can be split across two lists. Below it, an NCT ID
 (e.g. `NCT03412565`) for the study whose number you already have. Either way the app
 fetches each trial and records a baseline of its current state.
 
+A second row of controls narrows what comes back rather than describing it. **Sponsor
+type** is the registry's classification of the *lead* sponsor — a different question
+from typing a sponsor's name, which finds one company rather than every company like
+them. **Status** is where the study has got to, in lifecycle order. **Started on or
+after / on or before** is a window on the study start date, either end of which may be
+left blank; a study with no start date on record falls outside any window. All three
+combine with each other and with the four above: on "chronic lymphocytic leukemia",
+industry-sponsored and recruiting and started since 2024 takes 2,614 records down to 44.
+
+None of the three asks a question on its own — a class, a status and a date window say
+*which* studies of a kind you want, not which kind — so a search still has to name one
+of condition, intervention, sponsor or phase.
+
+One caveat worth knowing, because it is a property of the registry rather than of this
+tool. A study is classified by its lead sponsor only. When a company funds a trial that
+an academic centre runs, the company is a *collaborator* and the study is classed under
+`OTHER` — offered here as *Other (incl. academic)*. So *Industry* is not the whole of
+commercial activity: for CLL it returns 725 studies, and a further 326 with an industry
+collaborator sit under *Other*. Tick both to see all of it.
+
 On **Watchlist**, pick a list and read it: one line per trial, carrying what identifies
 the study alongside what last moved on it and when, and selecting a line opens that
 trial's full profile underneath.
@@ -37,13 +57,14 @@ everything it already had in one default list.
 
 A list can also carry a **remembered search** — tick *Save this as the list's remembered
 search* as you file the results, or press *Save the remembered search only* to point an
-existing list at a new query without adding anything. Every later check re-runs that
-search and offers back whatever matches it that the list does not already hold, as a **new
-trial found**: the same feed and the same bell a changed field gets, reported separately
-because a competitor *starting* something is different news from a competitor revising
-something. Nothing joins the list until you adopt it, and a trial you dismiss is never
-offered again. Forget the search under *Manage lists* and the list behaves exactly as it
-did before.
+existing list at a new query without adding anything. The narrowing axes are saved with
+it, and read back under *Manage lists* in words rather than registry codes. Every later
+check re-runs that search and offers back whatever matches it that the list does not
+already hold, as a **new trial found**: the same feed and the same bell a changed field
+gets, reported separately because a competitor *starting* something is different news
+from a competitor revising something. Nothing joins the list until you adopt it, and a
+trial you dismiss is never offered again. Forget the search under *Manage lists* and the
+list behaves exactly as it did before.
 
 State lives in a local SQLite file, `monitor.db`, which is git-ignored. Set `MONITOR_DB`
 to point somewhere else.

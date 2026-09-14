@@ -58,12 +58,9 @@ def test_a_search_can_be_remembered_against_a_list(conn, myeloma):
         monitor.as_query(cond="multiple myeloma", spons="Janssen", phases=("PHASE3",)),
     )
 
-    assert monitor.remembered_search(conn, myeloma) == {
-        "cond": "multiple myeloma",
-        "intr": "",
-        "spons": "Janssen",
-        "phases": ["PHASE3"],
-    }
+    assert monitor.remembered_search(conn, myeloma) == monitor.as_query(
+        cond="multiple myeloma", spons="Janssen", phases=("PHASE3",)
+    )
 
 
 def test_a_list_remembers_nothing_until_it_is_told_to(conn, myeloma):
@@ -405,3 +402,66 @@ def test_a_quiet_run_still_reads_as_nothing_happened(
 
     assert summary["level"] == "success"
     assert "no changes" in summary["message"]
+
+
+# --- a query stored before the narrowing axes existed
+#
+# The only route that reaches a query with keys genuinely missing: written to
+# the database in the shape an older version stored, then read back and run.
+
+
+def test_a_search_stored_before_the_narrowing_axes_existed_still_runs(
+    conn, myeloma, record, make_finder
+):
+    """It must not refuse itself, and must not acquire a filter nobody asked for."""
+    storage.set_list_search(
+        conn, myeloma, {"cond": "multiple myeloma", "intr": "", "spons": "", "phases": []}
+    )
+    finder = make_finder([record])
+
+    results = run(conn, myeloma, find=finder)
+
+    assert searches(results)[0]["outcome"] == "found"
+    asked = finder.calls[0]
+    assert asked["cond"] == "multiple myeloma"
+    assert asked["sponsor_types"] == ()
+    assert asked["statuses"] == ()
+    assert asked["started_from"] == ""
+
+
+def test_a_search_stored_before_the_narrowing_axes_reads_back_as_what_it_was(
+    conn, myeloma
+):
+    storage.set_list_search(
+        conn, myeloma, {"cond": "multiple myeloma", "intr": "", "spons": "", "phases": []}
+    )
+
+    assert display.search_line(monitor.remembered_search(conn, myeloma)) == (
+        "Condition multiple myeloma"
+    )
+
+
+def test_a_remembered_search_of_only_narrowing_axes_is_refused(conn, myeloma):
+    """The *Save the remembered search only* button's own path.
+
+    It has its own refusal, so a query the search form would not run must not
+    be storable against a list by the button beside it.
+    """
+    with pytest.raises(monitor.MonitorError, match="at least one"):
+        monitor.remember_search(
+            conn, myeloma, monitor.as_query(sponsor_types=["INDUSTRY"], statuses=["RECRUITING"])
+        )
+
+    assert monitor.remembered_search(conn, myeloma) is None
+
+
+def test_a_remembered_search_with_an_inverted_window_is_refused(conn, myeloma):
+    with pytest.raises(monitor.MonitorError, match="ends before"):
+        monitor.remember_search(
+            conn,
+            myeloma,
+            monitor.as_query(cond="multiple myeloma", started_from="2025-01-01",
+                             started_to="2024-01-01"),
+        )
+
+    assert monitor.remembered_search(conn, myeloma) is None

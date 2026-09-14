@@ -1,9 +1,14 @@
 """The Search page: where trials are found and filed into a named list.
 
-Two ways in, in the order they are reached for. A query on the four axes
-somebody actually describes a competitor's programme by -- condition,
-intervention, sponsor, phase -- fills a list in one sitting; the NCT ID box
-below it is for the study whose number is already in hand.
+Two ways in, in the order they are reached for. A query fills a list in one
+sitting; the NCT ID box below it is for the study whose number is already in
+hand.
+
+The query is two rows, and which row a control is on is the point. The top row
+names what somebody describes a competitor's programme by -- condition,
+intervention, sponsor, phase. The bottom row narrows that to the studies worth
+reading -- sponsor class, status, when it started -- and is reached for only
+when the top row returns more than a screenful.
 
 The destination is chosen *after* the results are selected, not before. That is
 the point of the layout rather than an accident of it: it is what lets one
@@ -20,7 +25,16 @@ import streamlit as st
 
 import monitor
 import storage
-from display import COLUMN_WIDTHS, phase_label, search_line, study_line
+from display import (
+    AXIS_NAMES,
+    COLUMN_WIDTHS,
+    INPUT_DATE_FORMAT,
+    phase_label,
+    search_line,
+    sponsor_type_label,
+    status_label,
+    study_line,
+)
 from views.pickers import choose, names
 
 NEW = "+ New list…"
@@ -39,6 +53,15 @@ QUERY = "search_query"
 RESULTS = "results"
 
 conn = storage.connect()
+
+
+def as_iso(day) -> str:
+    """A date box's value as the registry and a stored query both want it.
+
+    Empty when the box is empty, which is how an open end of the window says
+    that it is open.
+    """
+    return day.isoformat() if day else ""
 
 
 def destination(key: str, label: str = "Add to"):
@@ -84,17 +107,79 @@ def remember_for(list_id: int) -> None:
 
 st.subheader("Search ClinicalTrials.gov")
 
+# Two rows, and which row a control is on is the point: the top row names what
+# kind of study is wanted, the bottom row narrows it to the ones worth reading.
+# An analyst fills the top row every time and the bottom one when forty results
+# are too many, so the order they are read in is the order they are reached for.
 with st.form("search"):
-    cond_col, intr_col, spons_col, phase_col, go_col = st.columns(
+    cond_col, intr_col, spons_col, phase_col = st.columns(
+        [2, 2, 2, 2], vertical_alignment="bottom"
+    )
+    cond = cond_col.text_input(
+        AXIS_NAMES["cond"], placeholder="multiple myeloma", key="cond"
+    )
+    intr = intr_col.text_input(
+        AXIS_NAMES["intr"], placeholder="daratumumab", key="intr"
+    )
+    spons = spons_col.text_input(AXIS_NAMES["spons"], placeholder="Janssen", key="spons")
+    phases = phase_col.multiselect(
+        AXIS_NAMES["phases"],
+        monitor.PHASES,
+        format_func=lambda code: phase_label([code]),
+        key="phases",
+    )
+
+    type_col, status_col, from_col, to_col, go_col = st.columns(
         [2, 2, 2, 2, 1], vertical_alignment="bottom"
     )
-    cond = cond_col.text_input("Condition", placeholder="multiple myeloma", key="cond")
-    intr = intr_col.text_input("Intervention", placeholder="daratumumab", key="intr")
-    spons = spons_col.text_input("Sponsor", placeholder="Janssen", key="spons")
-    phases = phase_col.multiselect(
-        "Phase", monitor.PHASES, format_func=lambda code: phase_label([code]), key="phases"
+    # Sponsor *class*, not sponsor name: the box above finds Janssen, this one
+    # finds every company like them, which is the competitor question.
+    sponsor_types = type_col.multiselect(
+        AXIS_NAMES["sponsor_types"],
+        monitor.SPONSOR_CLASSES,
+        format_func=lambda code: sponsor_type_label([code]),
+        key="sponsor_types",
+        help="How the registry classifies the *lead* sponsor. Industry is the "
+        "commercial sponsors — but a company funding somebody else's trial is "
+        "a collaborator on it, and that study is classed by its lead sponsor, "
+        "so it sits under Other instead.",
+    )
+    statuses = status_col.multiselect(
+        AXIS_NAMES["statuses"],
+        monitor.STATUSES,
+        format_func=status_label,
+        key="statuses",
+        help="Where the study has got to.",
+    )
+    # Either end may be left empty, so both start as None rather than as today:
+    # a date box pre-filled with today's date is a filter nobody asked for.
+    started_from = from_col.date_input(
+        AXIS_NAMES["started_from"], value=None, key="started_from", format=INPUT_DATE_FORMAT
+    )
+    started_to = to_col.date_input(
+        AXIS_NAMES["started_to"], value=None, key="started_to", format=INPUT_DATE_FORMAT
+    )
+    st.caption(
+        "A study with no start date on record is not in a date window. "
+        "Leave both boxes empty to include it."
     )
     searched = go_col.form_submit_button("Search", type="primary", width="stretch")
+
+# Built once, and the one that is run is the one that is stored. Assembling it
+# twice -- once to run, once to save -- is how the saved search comes to differ
+# from the rows on screen, which is the drift QUERY exists to prevent.
+typed = monitor.as_query(
+    cond,
+    intr,
+    spons,
+    phases,
+    sponsor_types,
+    statuses,
+    # The registry takes its dates as ISO strings and so does a stored query,
+    # so a date box's own type is normalised here, at the edge it enters by.
+    as_iso(started_from),
+    as_iso(started_to),
+)
 
 if searched:
     # Cleared first, so a failed search never leaves the previous result set on
@@ -106,8 +191,8 @@ if searched:
     st.session_state.pop(RESULTS, None)
     try:
         with st.spinner("Searching ClinicalTrials.gov…"):
-            st.session_state[FOUND] = monitor.search(cond, intr, spons, phases)
-            st.session_state[QUERY] = monitor.as_query(cond, intr, spons, phases)
+            st.session_state[FOUND] = monitor.search(**typed)
+            st.session_state[QUERY] = typed
     except monitor.MonitorError as exc:
         st.error(str(exc))
 

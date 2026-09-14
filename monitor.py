@@ -299,10 +299,12 @@ def remove(conn: sqlite3.Connection, nct_id: str, list_id: int) -> None:
 # search matching more than this says so, so a cap never reads as a total.
 RESULT_CAP = 40
 
-# The phases a search can name, in the order a reader expects them offered.
-# Re-stated here rather than reached for in the client, because which phases
+# The codes a search can be narrowed by, in the order a reader expects them
+# offered. Re-stated here rather than reached for in the client, because what
 # can be searched on is part of what search() offers its caller.
 PHASES = ctgov.PHASE_CODES
+SPONSOR_CLASSES = ctgov.SPONSOR_CLASSES
+STATUSES = ctgov.STATUS_CODES
 
 
 def _default_find(**params) -> list[dict]:
@@ -333,12 +335,45 @@ def _identity(profile: dict) -> dict:
 # all asks for the whole registry, which is never what the reader meant.
 NOTHING_ASKED = "Fill in at least one of condition, intervention, sponsor or phase."
 
-# The axes a query is made of, named once so nothing has to re-list them.
-SEARCH_AXES = ("cond", "intr", "spons", "phases")
+# The axes that name what kind of study is wanted. One of these is what makes a
+# query a query, which is why the refusal above lists exactly them.
+NAMING_AXES = ("cond", "intr", "spons", "phases")
+
+# The axes that narrow what those named: which sponsors, how far along, and
+# started when. A class, a status and a date window cannot name a programme on
+# their own -- "industry, recruiting, since January" is the whole registry --
+# so they never satisfy the refusal, however many of them are set.
+NARROWING_AXES = ("sponsor_types", "statuses", "started_from", "started_to")
+
+# What each axis is when nobody set it. Spelled out per axis rather than
+# guessed from the name, because the two kinds are not interchangeable: a text
+# axis that defaults to an empty tuple is handed to the client as a tuple where
+# a string is declared, and it is only the client's own tidying that has been
+# hiding it.
+EMPTY_AXES = {
+    "cond": "",
+    "intr": "",
+    "spons": "",
+    "phases": (),
+    "sponsor_types": (),
+    "statuses": (),
+    "started_from": "",
+    "started_to": "",
+}
+assert set(EMPTY_AXES) == set(NAMING_AXES + NARROWING_AXES)
 
 
-def as_query(cond: str = "", intr: str = "", spons: str = "", phases=()) -> dict:
-    """A search as the four axes it was typed on, tidied.
+def as_query(
+    cond: str = "",
+    intr: str = "",
+    spons: str = "",
+    phases=(),
+    sponsor_types=(),
+    statuses=(),
+    started_from: str = "",
+    started_to: str = "",
+) -> dict:
+    """A search as the axes it was typed on, tidied.
 
     One shape for a query wherever one travels: run now from the search form,
     or stored against a list and run again on every check. Kept as the axes
@@ -350,11 +385,46 @@ def as_query(cond: str = "", intr: str = "", spons: str = "", phases=()) -> dict
         "intr": intr.strip(),
         "spons": spons.strip(),
         "phases": list(phases),
+        "sponsor_types": list(sponsor_types),
+        "statuses": list(statuses),
+        "started_from": (started_from or "").strip(),
+        "started_to": (started_to or "").strip(),
     }
 
 
+def _axis(query: dict, name: str):
+    """One axis of a query, whatever shape the query was stored in.
+
+    A search saved before an axis existed simply has no key for it, and has to
+    go on meaning what it meant: an axis nobody set is an axis that does not
+    narrow.
+    """
+    return query.get(name) or EMPTY_AXES[name]
+
+
 def _asks_nothing(query: dict) -> bool:
-    return not any(query[axis] for axis in SEARCH_AXES)
+    return not any(_axis(query, axis) for axis in NAMING_AXES)
+
+
+def _refuse_unanswerable(query: dict) -> None:
+    """Raise on a query no result could honestly answer.
+
+    Both refusals live here because both apply wherever a query does -- run
+    from the form now, or saved to a list and re-run on every check -- and a
+    query rejected in one of those places must not be accepted in the other.
+    """
+    if _asks_nothing(query):
+        raise MonitorError(NOTHING_ASKED)
+    # The registry answers an inverted range with zero studies, which is
+    # exactly what a genuine miss looks like: the analyst would be told
+    # "nothing found" about a window that could never have found anything.
+    # Which way round the dates belong is theirs to say, so both are named.
+    start, end = _axis(query, "started_from"), _axis(query, "started_to")
+    if start and end and start > end:
+        raise MonitorError(
+            f"The start-date window ends before it begins ({start} to {end}). "
+            "Swap the two dates."
+        )
 
 
 def _matches(query: dict, limit: int, find=None) -> tuple[list[dict], bool]:
@@ -367,10 +437,14 @@ def _matches(query: dict, limit: int, find=None) -> tuple[list[dict], bool]:
     try:
         # One more than the cap, which is how the cap is known to have bitten.
         studies = (find or _default_find)(
-            cond=query["cond"],
-            intr=query["intr"],
-            spons=query["spons"],
-            phases=tuple(query["phases"]),
+            cond=_axis(query, "cond"),
+            intr=_axis(query, "intr"),
+            spons=_axis(query, "spons"),
+            phases=tuple(_axis(query, "phases")),
+            sponsor_types=tuple(_axis(query, "sponsor_types")),
+            statuses=tuple(_axis(query, "statuses")),
+            started_from=_axis(query, "started_from"),
+            started_to=_axis(query, "started_to"),
             limit=limit + 1,
         )
     except urllib.error.URLError as exc:
@@ -386,21 +460,29 @@ def search(
     intr: str = "",
     spons: str = "",
     phases=(),
+    sponsor_types=(),
+    statuses=(),
+    started_from: str = "",
+    started_to: str = "",
     limit: int = RESULT_CAP,
     find=None,
 ) -> dict:
-    """Search the registry on condition, intervention, sponsor and phase.
+    """Search the registry on the axes a competitor programme is described by.
 
-    Any axis may be left blank, but not all of them.
+    Condition, intervention, sponsor and phase name what is wanted; sponsor
+    class, status and a start-date window narrow it. Any axis may be left
+    blank, but a query that names none of the first four is refused: the other
+    three only narrow, and narrowing the whole registry is not a search.
 
     Returns the matching studies as rows, and whether there were more than the
     cap allowed through -- so a search that matched thousands is not shown as
     though it matched forty. Raises MonitorError if the registry can't be
     reached, rather than returning an empty table an outage looks identical to.
     """
-    query = as_query(cond, intr, spons, phases)
-    if _asks_nothing(query):
-        raise MonitorError(NOTHING_ASKED)
+    query = as_query(
+        cond, intr, spons, phases, sponsor_types, statuses, started_from, started_to
+    )
+    _refuse_unanswerable(query)
 
     studies, capped = _matches(query, limit, find)
     rows = []
@@ -432,8 +514,7 @@ def remember_search(conn: sqlite3.Connection, list_id: int, query: dict) -> dict
     again: the caller already has one, and passing the parts would let a query
     be assembled two ways.
     """
-    if _asks_nothing(query):
-        raise MonitorError(NOTHING_ASKED)
+    _refuse_unanswerable(query)
     stored = as_query(**query)
     storage.set_list_search(conn, list_id, stored)
     return stored

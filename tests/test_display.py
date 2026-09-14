@@ -469,3 +469,88 @@ def test_an_amendment_does_not_grow_the_card_it_sits_in(row, criteria):
     )
 
     assert len(amended.splitlines()) == len(plain.splitlines()) + 1
+
+
+# --- the narrowing axes read back
+#
+# A list's remembered search is the one place an analyst checks whether it is
+# still watching for the right thing, so a sponsor class has to read as a kind
+# of organisation and a date window as a sentence -- never as the registry's
+# own codes.
+
+
+def test_a_sponsor_class_reads_as_a_kind_of_organisation():
+    assert display.sponsor_type_label(["INDUSTRY"]) == "Industry"
+    # Not "Academic or other": a company funding an academic centre's trial is
+    # a collaborator on it and lands in OTHER, so the bucket is mixed and the
+    # label must not promise that the companies are all in Industry.
+    assert display.sponsor_type_label(["OTHER"]) == "Other (incl. academic)"
+    assert display.sponsor_type_label(["OTHER_GOV"]) == "Other government"
+
+
+def test_several_sponsor_classes_read_as_a_list():
+    assert display.sponsor_type_label(["INDUSTRY", "NIH"]) == "Industry/NIH"
+
+
+def test_a_start_window_reads_as_a_sentence():
+    assert display.started_label("2024-01-01", "2024-12-31") == (
+        "started 1 January 2024 to 31 December 2024"
+    )
+
+
+def test_a_start_window_open_at_one_end_says_which_end():
+    assert display.started_label("2024-01-01", "") == "started on or after 1 January 2024"
+    assert display.started_label("", "2024-12-31") == "started on or before 31 December 2024"
+
+
+def test_no_start_window_reads_as_nothing_at_all():
+    assert display.started_label("", "") == ""
+
+
+def test_a_search_line_names_every_axis_that_was_set():
+    line = display.search_line(
+        {
+            "cond": "cll",
+            "intr": "",
+            "spons": "",
+            "phases": ["PHASE3"],
+            "sponsor_types": ["INDUSTRY"],
+            "statuses": ["RECRUITING"],
+            "started_from": "2024-01-01",
+            "started_to": "",
+        }
+    )
+
+    assert line == (
+        "Condition cll · Phase 3 · Sponsor type Industry · Status Recruiting · "
+        "started on or after 1 January 2024"
+    )
+
+
+def test_a_search_line_for_a_query_stored_before_the_narrowing_axes_still_reads():
+    """The four-key shape a list saved under ticket 13 still has to render."""
+    line = display.search_line(
+        {"cond": "cll", "intr": "", "spons": "Janssen", "phases": ["PHASE3"]}
+    )
+
+    assert line == "Condition cll · Sponsor Janssen · Phase 3"
+
+
+def test_a_coded_axis_is_named_so_a_bare_code_word_is_not_ambiguous():
+    """"Network" alone does not say which box it was typed in."""
+    assert display.search_line({"cond": "cll", "sponsor_types": ["NETWORK"]}) == (
+        "Condition cll · Sponsor type Network"
+    )
+    assert display.search_line({"cond": "cll", "statuses": ["UNKNOWN"]}) == (
+        "Condition cll · Status Unknown"
+    )
+
+
+def test_a_date_reads_the_same_in_a_search_line_as_in_a_briefing():
+    """One prose date format, or the two screens spell the same day differently."""
+    assert display.long_date("2024-01-01") in display.started_label("2024-01-01", "")
+
+
+def test_a_registry_code_nobody_gave_a_word_to_still_renders():
+    """A class the registry adds tomorrow must not render as a blank."""
+    assert display.sponsor_type_label(["AMBIG"]) == "Ambig"

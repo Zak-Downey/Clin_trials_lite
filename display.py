@@ -278,6 +278,11 @@ CHANGE_CAP = 3
 # a spelled month cannot be misread as a day.
 DATE_FORMAT = "DD MMMM YYYY"
 
+# How a date box is typed into. Streamlit's date_input takes only a handful of
+# orders and the table's spelled-out month is not one of them, so this is the
+# nearest unambiguous form -- day first, the way it is written here.
+INPUT_DATE_FORMAT = "DD/MM/YYYY"
+
 PHASE_NAMES = {"NA": "N/A", "EARLY_PHASE1": "Early Phase 1"}
 
 
@@ -290,10 +295,98 @@ def phase_label(phases) -> str:
     )
 
 
-# What each axis of a search is called on the form, in the order it is typed
-# and read back. Phases are formatted rather than printed, so they come last
-# and separately. The axes themselves are monitor's list; these are the words.
-SEARCH_LABELS = (("cond", "Condition"), ("intr", "Intervention"), ("spons", "Sponsor"))
+# What each axis of a search is called, in the order it is typed and read back.
+# One place, read by both the form that asks and the line that says what a list
+# is watching for, so the screen an analyst types into cannot come to disagree
+# with the screen that tells them what they typed. The axes themselves are
+# monitor's list; these are the words.
+AXIS_NAMES = {
+    "cond": "Condition",
+    "intr": "Intervention",
+    "spons": "Sponsor",
+    "phases": "Phase",
+    "sponsor_types": "Sponsor type",
+    "statuses": "Status",
+    "started_from": "Started on or after",
+    "started_to": "Started on or before",
+}
+
+# How a coded axis is turned into words. An axis absent here is free text and
+# is printed as typed.
+AXIS_FORMATS = {
+    "phases": lambda codes: phase_label(codes),
+    "sponsor_types": lambda codes: sponsor_type_label(codes),
+    "statuses": lambda codes: statuses_label(codes),
+}
+
+# Axes whose value already contains its own label: "Phase 3" needs no "Phase"
+# in front of it, and the date window reads as a sentence of its own.
+SELF_NAMING = ("phases", "started_from", "started_to")
+
+# The order the axes are read back in, which is the order they are typed.
+READ_BACK_ORDER = ("cond", "intr", "spons", "phases", "sponsor_types", "statuses")
+
+# The registry's sponsor classes as the kinds of organisation they stand for.
+#
+# INDUSTRY is the commercial sponsors, and it is the lead sponsor's class only:
+# a company funding somebody else's trial is a *collaborator* on it and is
+# classed wherever the lead sponsor sits, which for an academic centre is
+# OTHER. So OTHER is not "the ones that are not companies" and must not be
+# labelled as though it were -- it is a mixed bucket, and saying so is the
+# difference between a filter the analyst can trust and one that quietly drops
+# a third of the commercial activity in their indication.
+SPONSOR_TYPE_NAMES = {
+    "INDUSTRY": "Industry",
+    "OTHER": "Other (incl. academic)",
+    "NIH": "NIH",
+    "FED": "US federal",
+    "OTHER_GOV": "Other government",
+    "NETWORK": "Network",
+    "INDIV": "Individual",
+}
+
+# The separator between codes of one axis, owned here so the three code axes
+# cannot come to disagree about it.
+CODES_JOIN = "/"
+
+
+def _codes_label(codes, names: dict | None = None) -> str:
+    """Several registry codes of one axis, as the words a reader knows."""
+    if not codes:
+        return EMPTY
+    named = names or {}
+    return CODES_JOIN.join(named.get(c, humanise(c)) for c in codes)
+
+
+def sponsor_type_label(classes) -> str:
+    """Registry sponsor classes as the kinds of organisation a reader knows."""
+    return _codes_label(classes, SPONSOR_TYPE_NAMES)
+
+
+def statuses_label(statuses) -> str:
+    """Several registry statuses, as one phrase. The plural of status_label."""
+    return _codes_label(statuses)
+
+
+def started_label(started_from: str, started_to: str) -> str:
+    """A start-date window as the sentence an analyst would say it in.
+
+    Empty when neither end is set, rather than the EMPTY dash the other labels
+    use: this one is a clause in a longer line, and an unset window should drop
+    out of that line altogether rather than appear in it as a blank.
+
+    Both bounds are inclusive, and said so: "on or after" rather than "since",
+    because a window ending on the last of the month must not read as though it
+    stopped the day before.
+    """
+    start, end = (started_from or "").strip(), (started_to or "").strip()
+    if start and end:
+        return f"started {long_date(start)} to {long_date(end)}"
+    if start:
+        return f"started on or after {long_date(start)}"
+    if end:
+        return f"started on or before {long_date(end)}"
+    return ""
 
 
 def search_line(query: dict | None) -> str:
@@ -302,20 +395,42 @@ def search_line(query: dict | None) -> str:
     Named axis by axis rather than as a query string: the analyst has to be
     able to tell at a glance whether the list is still watching for the right
     thing, and "multiple myeloma" alone does not say which box it was typed in.
+
+    Read with `.get`, because a search stored before an axis existed simply has
+    no key for it and still has to render as the search it was.
     """
     if not query:
         return EMPTY
-    parts = [f"{name} {query[key]}" for key, name in SEARCH_LABELS if query.get(key)]
-    if query.get("phases"):
-        parts.append(phase_label(query["phases"]))
+    parts = []
+    for key in READ_BACK_ORDER:
+        value = query.get(key)
+        if not value:
+            continue
+        shown = AXIS_FORMATS[key](value) if key in AXIS_FORMATS else value
+        # Named unless the value names itself. A bare "Network" or "Unknown"
+        # does not say which box it was typed in, which is the whole reason
+        # this line is built axis by axis rather than as a query string.
+        parts.append(shown if key in SELF_NAMING else f"{AXIS_NAMES[key]} {shown}")
+    window = started_label(query.get("started_from", ""), query.get("started_to", ""))
+    if window:
+        parts.append(window)
     return " · ".join(parts) or EMPTY
 
 
+def humanise(code) -> str:
+    """A registry code as a readable word. ACTIVE_NOT_RECRUITING -> readable.
+
+    The fallback for every code axis: enough for a code whose words are its own
+    meaning, and the reason a code the registry adds tomorrow still renders.
+    """
+    return str(code).replace("_", " ").capitalize()
+
+
 def status_label(status) -> str:
-    """A registry status code as a sentence. ACTIVE_NOT_RECRUITING -> readable."""
+    """A registry status code as a sentence."""
     if not status:
         return EMPTY
-    return status.replace("_", " ").capitalize()
+    return humanise(status)
 
 
 def changed_fields(row: dict, cap: int = CHANGE_CAP) -> str:
