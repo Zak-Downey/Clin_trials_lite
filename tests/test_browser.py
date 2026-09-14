@@ -204,3 +204,65 @@ def test_a_search_against_an_unreachable_registry_still_reads_as_could_not_reach
 
     with pytest.raises(monitor.MonitorError, match="Could not reach ClinicalTrials.gov"):
         monitor.search(cond="multiple myeloma")
+
+
+# --- pausing, where there is no sleep to do it
+#
+# Working through a watchlist puts a deliberate gap between registry calls
+# because the registry is a free public service. Whether `time.sleep` waits at
+# all under WebAssembly is a property of that runtime, not of this code -- and
+# if it stopped, a fifty-trial list would become fifty back-to-back requests
+# from every visitor, with nothing failing to say so. These say the gap is the
+# app's own, and is real in both places.
+
+
+class FakeClock:
+    """A monotonic clock that only moves when it is read."""
+
+    def __init__(self, step=0.1):
+        self.now = 0.0
+        self.step = step
+        self.reads = 0
+
+    def __call__(self):
+        self.reads += 1
+        now = self.now
+        self.now += self.step
+        return now
+
+
+def test_locally_the_pause_is_the_standard_librarys_own_sleep(monkeypatch):
+    """Nothing changes off the browser: a real sleep costs nothing to wait in."""
+    monkeypatch.setattr(browser, "IN_BROWSER", False)
+    slept = []
+    monkeypatch.setattr(browser.time, "sleep", slept.append)
+
+    browser.wait(0.5)
+
+    assert slept == [0.5]
+
+
+def test_in_the_browser_the_pause_actually_takes_the_time_asked_for(monkeypatch):
+    monkeypatch.setattr(browser, "IN_BROWSER", True)
+    # Whatever the runtime's own sleep does, the pause here must be this
+    # module's doing -- otherwise there is nothing for a test to hold on to.
+    monkeypatch.setattr(browser.time, "sleep", lambda seconds: pytest.fail("the pause must be ours"))
+    clock = FakeClock(step=0.1)
+    monkeypatch.setattr(browser.time, "monotonic", clock)
+
+    browser.wait(0.5)
+
+    # It read the clock until half a second had passed, rather than returning
+    # on the first read the way `time.sleep` does under WebAssembly.
+    assert clock.now >= 0.5
+
+
+def test_a_pause_of_nothing_returns_at_once_in_the_browser(monkeypatch):
+    """Tests pass `pause=0` to mean "no waiting", and must not spin instead."""
+    monkeypatch.setattr(browser, "IN_BROWSER", True)
+    clock = FakeClock(step=0.0)
+    monkeypatch.setattr(browser.time, "monotonic", clock)
+
+    browser.wait(0)
+
+    assert clock.reads <= 2

@@ -8,9 +8,41 @@ The pause needs to become a real one in the browser while staying exactly as it 
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Checking a multi-trial watchlist in the browser genuinely spaces its requests rather than issuing them back to back
-- [ ] The pause is unchanged when running locally
-- [ ] The reason the pause exists remains legible in the code
-- [ ] The full test suite passes, without the tests being slowed by real waiting
+- [x] Checking a multi-trial watchlist in the browser genuinely spaces its requests rather than issuing them back to back
+- [x] The pause is unchanged when running locally
+- [x] The reason the pause exists remains legible in the code
+- [x] The full test suite passes, without the tests being slowed by real waiting
+
+## Comments
+
+Done, but the premise it was written on turned out not to hold, and that is the more
+useful half of this ticket.
+
+The pause was measured on the runtime the app actually ships on -- stlite 0.90.12, loading
+the real `browser.py` and timing it from inside a running Streamlit script. `time.sleep(0.5)`
+took 0.51s there. It is not a no-op. stlite runs Python in a web worker, and the C library
+underneath busy-waits on a worker thread; the "sleep does nothing" behaviour is the
+main-thread one, which is not where this app's Python runs. So the fifty back-to-back
+requests were not happening.
+
+What is true is that nothing in the app was making that pause happen. It held because of
+how somebody else's build of the C library implements one call, with no test touching it
+and nothing that would say so if an stlite upgrade changed it -- and the failure would be
+silent, with the call still there and still made. On a public URL that is worth not
+depending on, so the work was done anyway, on that reason rather than the stated one.
+
+`browser.wait` is the pause now: `time.sleep` locally, and in the browser an explicit spin
+on `time.monotonic()` until the deadline passes. `monitor.check_all` calls it instead of
+sleeping directly. `Atomics.wait` on shared memory is the proper way to block a worker and
+was not available -- it needs the page served with cross-origin-isolation headers, which
+GitHub Pages does not send.
+
+`browser.py` grows past being only a transport, and its docstring says so now: it is the
+module that knows the app is running in a browser.
+
+Tests patch `IN_BROWSER` and a fake monotonic clock, so the browser pause is asserted to
+actually wait without the suite waiting for it, and the check-run test now watches
+`browser.wait` rather than `time.sleep` -- a return to a bare sleep fails it. Full suite:
+417 passing.

@@ -1,10 +1,10 @@
-"""Reaching ClinicalTrials.gov from inside a browser.
+"""Running inside a browser: reaching the registry, and waiting between calls.
 
 The app is published as a static page that runs its Python as WebAssembly,
 where there are no sockets and no certificate store: the only way out is to
 ask the browser to make the request on the page's behalf.
 
-This module is that transport, and it exists to keep one promise. Every
+Most of this module is that transport, and it exists to keep one promise. Every
 registry call in the app funnels through `ctgov._get`, and everything above it
 reads failure in the vocabulary `urllib` raises -- a 404 becomes "was not found
 on ClinicalTrials.gov", an unreachable host becomes "Could not reach
@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 import urllib.error
 
 # WebAssembly is what Python calls the platform it compiles to for the browser,
@@ -81,3 +82,39 @@ def get_json(url: str, timeout: float = 30, request=None) -> dict:
     if status >= 400:
         raise urllib.error.HTTPError(url, status, str(call.statusText), None, None)
     return json.loads(call.responseText)
+
+
+def _spin(seconds: float) -> None:
+    """Wait by watching the clock, which is the one way to wait that is ours.
+
+    There are no threads to block under WebAssembly. `time.sleep` does hold
+    for its full duration on the runtime the app ships on today -- measured,
+    not assumed -- but only because the C library underneath it busy-waits on
+    the worker; on the main thread the same call returns at once. That is an
+    implementation detail of somebody else's build, and it is not the kind of
+    thing to stake a courtesy to a public registry on: it would fail silently,
+    with the call still there and still made, which is the worst shape a
+    missing pause can take.
+
+    So the waiting is done here, where a test can see it. The alternative that
+    would block properly (`Atomics.wait` on shared memory) needs the page
+    served with cross-origin-isolation headers, which a static host does not
+    give us. Half a second of a worker spinning is a cheap price.
+    """
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        pass
+
+
+def wait(seconds: float) -> None:
+    """Pause for `seconds`, wherever the app is running.
+
+    Callers pace themselves against ClinicalTrials.gov through here rather
+    than through `time.sleep`, so that the pause is the app's own in the
+    browser as well as locally. Published, the app is not one analyst's
+    machine making these requests -- it is every visitor's.
+    """
+    if IN_BROWSER:
+        _spin(seconds)
+    else:
+        time.sleep(seconds)

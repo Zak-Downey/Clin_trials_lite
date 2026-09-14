@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import re
 import sqlite3
-import time
 import urllib.error
 from collections.abc import Iterator
 
+import browser
 import ctgov
 import diff
 import medical_affairs
@@ -22,6 +22,10 @@ NCT_ID = re.compile(r"^NCT\d{8}$")
 
 # Seconds to wait between trials when working through the watchlist. The
 # registry is a free public service; a burst of back-to-back requests is rude.
+#
+# Waited through `browser.wait` rather than `time.sleep`, because the app also
+# runs as WebAssembly, where whether sleeping waits at all is a property of the
+# runtime rather than of this code.
 PAUSE = 0.5
 
 
@@ -866,7 +870,7 @@ def check_all(
 
     for index, trial in enumerate(storage.list_trials(conn, list_id)):
         if index:
-            time.sleep(pause)
+            browser.wait(pause)
         nct = trial["nct_id"]
         try:
             result = check(conn, nct, fetch=fetch, when=when, force=force)

@@ -285,7 +285,10 @@ def test_trials_are_checked_one_at_a_time_with_a_pause_between(conn, fetcher, mo
     monitor.add(conn, "NCT03412565", fetch=fetcher, when="2026-01-01T00:00:00+00:00")
     monitor.add(conn, "NCT00000001", fetch=fetcher, when="2026-01-02T00:00:00+00:00")
     pauses = []
-    monkeypatch.setattr(monitor.time, "sleep", pauses.append)
+    # The pause goes through `browser.wait` rather than `time.sleep`, so that
+    # it waits under WebAssembly too. Patched there, so a run that went back to
+    # a bare sleep would record no pauses and fail here.
+    monkeypatch.setattr(monitor.browser, "wait", pauses.append)
 
     list(monitor.check_all(conn, fetch=fetcher))
 
