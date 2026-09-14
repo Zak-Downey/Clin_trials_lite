@@ -10,7 +10,7 @@ A list's remembered search can be changed or cleared. A list with no remembered 
 
 **Blocked by:** 10 (both change what a check run reports and how the run is summarised)
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] A search that fills a list can be saved to that list, and the list shows what it is watching for
 - [x] Checking a list with a remembered search also re-runs that search

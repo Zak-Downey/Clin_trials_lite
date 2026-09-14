@@ -16,7 +16,7 @@ The three travel with a query everywhere one already travels: run from the form 
 
 **Blocked by:** nothing (13 is in; this extends the query shape it stores)
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] A search can be narrowed to one or more sponsor classes, and industry is one tick
 - [x] A search can be narrowed to one or more trial statuses
