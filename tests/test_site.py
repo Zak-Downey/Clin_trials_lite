@@ -11,11 +11,16 @@ enough to run, and nothing beyond it.
 from __future__ import annotations
 
 import ast
+import importlib
+import os
 import pathlib
+import re
+from unittest import mock
 
 import pytest
 
 import build_site
+import storage
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -103,3 +108,100 @@ def test_the_built_modules_are_the_ones_in_the_repository(tmp_path):
 
     for source in build_site.published():
         assert (dest / source).read_bytes() == (ROOT / source).read_bytes()
+
+
+# --- where the watchlist is kept
+#
+# In the browser the app's filesystem is memory, and memory is gone on reload.
+# A monitor that forgets every trial on a stray refresh destroys the analyst's
+# work without ever admitting it, so the database is put in a directory backed
+# by the browser's own persistent store. The failure mode is the quiet kind --
+# everything looks right for a whole session and is gone the next morning --
+# which is why the wiring is asserted here rather than left to be noticed.
+#
+# Read from the page here rather than through build_site, which reads the same
+# file: what the build needs to know is which modules travel, and where the
+# database goes is no business of its. What these do borrow is its habit of
+# raising when the page does not say, because a page that stopped saying is the
+# thing being tested for and an empty answer would read as a passing one.
+
+PERSISTENT = re.compile(r"idbfsMountpoints:\s*\[(.*?)\]", re.DOTALL)
+DATABASE = re.compile(r'MONITOR_DB:\s*"([^"]+)"')
+
+PAGE = ROOT / "web" / "index.html"
+
+
+def _said(pattern: re.Pattern, what: str) -> str:
+    """What the page says, by one of the patterns above."""
+    said = pattern.search(PAGE.read_text(encoding="utf-8"))
+    if not said:
+        raise AssertionError(f"{PAGE} does not say {what}")
+    return said.group(1)
+
+
+def persistent_directories() -> list[str]:
+    """The directories the page asks the browser to keep across a reload."""
+    return build_site.QUOTED.findall(
+        _said(PERSISTENT, "which directories the browser should keep, so nothing"
+              " written in it would survive a reload")
+    )
+
+
+def database_path() -> str:
+    """Where the page tells the app to keep its database."""
+    return _said(DATABASE, "where the database goes")
+
+
+@pytest.fixture
+def opened_with():
+    """Where storage would open its database, for a given `MONITOR_DB`, or none.
+
+    It reads the location once, when it is imported, so the only way to ask is
+    to import it again -- and the only way to leave the rest of the suite alone
+    is to import it back afterwards.
+    """
+
+    def read(path: str | None) -> str:
+        with mock.patch.dict(os.environ):
+            # Only this one variable, so nothing else the environment carries
+            # is part of what is being asked.
+            os.environ.pop("MONITOR_DB", None)
+            if path is not None:
+                os.environ["MONITOR_DB"] = path
+            return importlib.reload(storage).DB_PATH
+
+    yield read
+    importlib.reload(storage)
+
+
+def test_the_page_asks_the_browser_to_keep_a_directory():
+    assert persistent_directories()
+
+
+def test_the_database_is_kept_inside_a_persistent_directory():
+    """The one that matters. A database a hair outside the mounted directory is
+    a working app for exactly as long as the tab stays open."""
+    kept = database_path()
+
+    assert any(
+        kept.startswith(f"{directory.rstrip('/')}/") for directory in persistent_directories()
+    ), f"{kept} is not inside any of {persistent_directories()}, so it will not survive a reload"
+
+
+def test_the_page_names_the_database_by_the_variable_storage_reads(opened_with):
+    """The page and the storage layer meet at one environment variable, and this
+    is what holds them to the same one: the path the page names is the path the
+    app opens.
+
+    What it cannot hold is the browser to the page. That the runtime honours
+    either setting was established by driving the built site, and a version of
+    stlite that quietly stopped would pass every test here.
+    """
+    kept = database_path()
+
+    assert opened_with(kept) == kept
+
+
+def test_the_app_still_opens_its_ordinary_database_file_locally(opened_with):
+    """Run under Streamlit with nothing set, the app is where it always was."""
+    assert opened_with(None) == "monitor.db"

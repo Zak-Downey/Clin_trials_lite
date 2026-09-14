@@ -141,6 +141,37 @@
           // SQLite database, so it is fetched as a package like any other.
           requirements: ["sqlite3"],
           files,
+          // Where the watchlist lives.
+          //
+          // Everything else the app writes sits in a filesystem made of memory,
+          // which the browser throws away on reload. A monitor that forgets
+          // every trial on a stray refresh would be worse than no monitor at
+          // all -- it is a thing you come back to -- so this one directory is
+          // mounted on the browser's own persistent store instead, and the
+          // database is put inside it.
+          //
+          // Nothing in the app changes for this. `storage.py` has always read
+          // its location from the environment, and locally, with nothing set,
+          // it still opens the ordinary `monitor.db` next to the code.
+          //
+          // Nothing has to ask for the write-out either, which was worth
+          // establishing rather than assuming: a file written here lands in
+          // memory first, and if it only reached the browser's store when
+          // somebody asked it to, the app would look right for a whole session
+          // and be empty the next morning. stlite reads the directory back out
+          // of the store before the app starts and writes it back every time a
+          // script run finishes -- and Streamlit runs the script on every
+          // interaction, so each commit is followed by a write-out without the
+          // app doing anything.
+          //
+          // What that write-out is, though, is the whole file: a tab syncs its
+          // own copy of the database over whatever is in the store. So this
+          // survives a refresh, a closed tab and a restarted machine, but two
+          // tabs of the app open at once are two copies drifting apart, and the
+          // one that acts last wins. One tab at a time, on one machine, with
+          // nothing leaving it -- which is the same bargain as no login.
+          idbfsMountpoints: ["/watchlist"],
+          env: { MONITOR_DB: "/watchlist/monitor.db" },
           streamlitConfig: {
             // A visitor is not deploying or editing this app, so the developer
             // menu has nothing to offer them.
