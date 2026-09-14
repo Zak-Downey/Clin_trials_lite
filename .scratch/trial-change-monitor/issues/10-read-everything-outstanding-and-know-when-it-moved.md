@@ -10,15 +10,15 @@ Finally, a check that finds the registry untouched and a check that finds the re
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] "What changed" names every field awaiting review, including fields that moved in earlier checks than the most recent one
-- [ ] A trial whose changes have all been reviewed still shows what last moved
-- [ ] Field names stay ordered high-signal first, so a slipped completion date is never the one hidden under the overflow
-- [ ] The watchlist carries separate "Registry updated" and "Detected" columns
-- [ ] Both date columns sort by time rather than alphabetically
-- [ ] A trial that has never changed renders both date columns as empty, not as an error
-- [ ] A forced full comparison is offered alongside "Check all" and ignores the last-updated short-circuit
-- [ ] A check finding the registry revised but no monitored field moved is reported differently from one finding the registry untouched
-- [ ] A trial that fails to fetch is still reported as a failure, and a run containing one still warns
-- [ ] Tests cover: outstanding fields spanning two detections, the fallback for a fully reviewed trial, a forced comparison bypassing the short-circuit, and the new outcome reaching the end-of-run summary
+- [x] "What changed" names every field awaiting review, including fields that moved in earlier checks than the most recent one
+- [x] A trial whose changes have all been reviewed still shows what last moved
+- [x] Field names stay ordered high-signal first, so a slipped completion date is never the one hidden under the overflow
+- [x] The watchlist carries separate "Registry updated" and "Detected" columns
+- [x] Both date columns sort by time rather than alphabetically
+- [x] A trial that has never changed renders both date columns as empty, not as an error
+- [x] A forced full comparison is offered alongside "Check all" and ignores the last-updated short-circuit
+- [x] A check finding the registry revised but no monitored field moved is reported differently from one finding the registry untouched
+- [x] A trial that fails to fetch is still reported as a failure, and a run containing one still warns
+- [x] Tests cover: outstanding fields spanning two detections, the fallback for a fully reviewed trial, a forced comparison bypassing the short-circuit, and the new outcome reaching the end-of-run summary

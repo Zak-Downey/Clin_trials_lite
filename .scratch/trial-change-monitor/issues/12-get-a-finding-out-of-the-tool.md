@@ -10,15 +10,15 @@ Anything simulated is marked as such in both, and stays marked — a briefing is
 
 **Blocked by:** 10 (the summary reports the registry date and the detection date separately, which 10 establishes)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A date range can be chosen, with sensible presets, and the summary covers only changes detected within it
-- [ ] The summary covers the current list, and says which list it is for
-- [ ] Each entry names the trial, the fields that moved, and both values for each
-- [ ] Each entry carries the registry-updated date, the detected date, and a link to the registry record
-- [ ] Fields are ordered high-signal first within each trial
-- [ ] Reviewed and unreviewed changes both appear
-- [ ] The same content is available as copyable text and as a CSV download
-- [ ] Simulated changes are marked in both forms
-- [ ] A range containing no changes says so rather than producing an empty file
-- [ ] Tests cover: range filtering at both boundaries, field ordering, the synthetic marking surviving into both forms, and an empty range
+- [x] A date range can be chosen, with sensible presets, and the summary covers only changes detected within it
+- [x] The summary covers the current list, and says which list it is for
+- [x] Each entry names the trial, the fields that moved, and both values for each
+- [x] Each entry carries the registry-updated date, the detected date, and a link to the registry record
+- [x] Fields are ordered high-signal first within each trial
+- [x] Reviewed and unreviewed changes both appear
+- [x] The same content is available as copyable text and as a CSV download
+- [x] Simulated changes are marked in both forms
+- [x] A range containing no changes says so rather than producing an empty file
+- [x] Tests cover: range filtering at both boundaries, field ordering, the synthetic marking surviving into both forms, and an empty range

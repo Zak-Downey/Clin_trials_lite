@@ -12,12 +12,12 @@ Third, a readability fix. The tool already monitors whether a date or an enrolme
 
 **Blocked by:** 10 (both reshape how a change is named in the watchlist column)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Eligibility criteria are part of the monitored profile and appear on the disease and eligibility card
-- [ ] An amendment to the criteria is detected as a change
-- [ ] The criteria render truncated, with the full text one registry link away, and an amendment does not swamp the card
-- [ ] Primary outcomes, phase and eligibility criteria carry the same prominence as the existing high-signal fields
-- [ ] A date or enrolment figure moving between estimated and actual reads as one entry alongside its value, not as a separate unexplained entry
-- [ ] Adding eligibility criteria to the profile does not report every already-monitored trial as changed on its next ordinary check
-- [ ] Tests cover: an eligibility amendment being detected, the truncated rendering, the new high-signal ordering, and an estimated-to-actual transition reading as one entry
+- [x] Eligibility criteria are part of the monitored profile and appear on the disease and eligibility card
+- [x] An amendment to the criteria is detected as a change
+- [x] The criteria render truncated, with the full text one registry link away, and an amendment does not swamp the card
+- [x] Primary outcomes, phase and eligibility criteria carry the same prominence as the existing high-signal fields
+- [x] A date or enrolment figure moving between estimated and actual reads as one entry alongside its value, not as a separate unexplained entry
+- [x] Adding eligibility criteria to the profile does not report every already-monitored trial as changed on its next ordinary check
+- [x] Tests cover: an eligibility amendment being detected, the truncated rendering, the new high-signal ordering, and an estimated-to-actual transition reading as one entry
