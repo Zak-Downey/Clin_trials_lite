@@ -16,7 +16,7 @@ Three facts were established before committing to this, and they are what make i
 
 - **ClinicalTrials.gov can be called from a browser.** The v2 API returns `access-control-allow-origin: *`, so the page talks to the registry directly with no proxy standing in for a backend. This was the make-or-break question: had it failed, a static deployment would have been impossible.
 - **The browser can keep a SQLite file.** stlite mounts IndexedDB-backed directories, so the database survives a refresh with no account attached to it.
-- **The app must live within Streamlit 1.50.** stlite bundles that version; the repo develops against 1.63.
+- **The app lives within whichever Streamlit stlite bundles.** The published app does not choose its own Streamlit; the version pinned in `web/index.html` decides it, and moving that pin moves the runtime. This began at stlite 0.90.12 and Streamlit 1.50; issue 09 moves it.
 
 ## What this costs
 

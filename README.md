@@ -99,10 +99,12 @@ Three things are different in the browser and nothing else is:
   between trials, and that wait is the app's own — `browser.wait` spins on the clock rather
   than calling `time.sleep`, because whether sleeping waits at all under WebAssembly is a
   property of the runtime and not something to rest a courtesy to a public registry on.
-- **Streamlit's version.** stlite carries Streamlit 1.50 where this repository develops
-  against 1.63, so the stlite version is pinned in `web/index.html` rather than floating.
-  The app's top page navigation works there; `sqlite3` is not in WebAssembly's standard
-  library and is fetched as a package.
+- **Streamlit's version.** The published app runs whichever Streamlit its stlite
+  carries, so the stlite version is pinned in `web/index.html` rather than floating:
+  1.9.1, carrying Streamlit 1.62 on Python 3.13. A local checkout is not pinned and
+  runs whatever its Python allows — Streamlit 1.62 needs Python 3.10, so a checkout on
+  3.9 gets 1.50 instead. The app's top page navigation works in both; `sqlite3` is not
+  in WebAssembly's standard library and is fetched as a package.
 
 The first load pulls down a Python runtime and its libraries, which takes the better
 part of a minute, so the page says it is starting up until the app is on screen.

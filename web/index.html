@@ -13,12 +13,17 @@
       stlite runs the app's Python as WebAssembly in the visitor's own browser:
       no server, no account, no database anybody else can read.
 
-      The version is pinned rather than floating, because it is what decides
-      which Streamlit the app runs on -- 0.90.12 carries Streamlit 1.50, where
-      the repository develops against 1.63. An upgrade is a deliberate act with
-      the app re-checked against it, not something a visitor's refresh does.
+      Both URLs below name a version of stlite, and they have to name the same
+      one: 1.9.1, which carries Streamlit 1.62 on Python 3.13.
+
+      A pin rather than a range, because that version is what decides the
+      runtime the app is executed by -- which Streamlit, which Python, which
+      build of every library underneath them. Moving it moves all of that
+      under whoever is using the app, which is a deliberate act and not
+      something a visitor's refresh should be able to do to them halfway
+      through a morning's monitoring.
     -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@stlite/browser@0.90.12/build/stlite.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@stlite/browser@1.9.1/build/stlite.css" />
 
     <style>
       html,
@@ -95,7 +100,7 @@
     <div id="root"></div>
 
     <script type="module">
-      import { mount } from "https://cdn.jsdelivr.net/npm/@stlite/browser@0.90.12/build/stlite.js";
+      import { mount } from "https://cdn.jsdelivr.net/npm/@stlite/browser@1.9.1/build/stlite.js";
 
       /*
         What gets published, named one file at a time.

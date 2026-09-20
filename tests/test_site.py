@@ -139,6 +139,14 @@ def _said(pattern: re.Pattern, what: str) -> str:
     return said.group(1)
 
 
+def _said_all(pattern: re.Pattern, what: str) -> list[str]:
+    """Every time the page says it, for the things it is expected to say twice."""
+    said = pattern.findall(PAGE.read_text(encoding="utf-8"))
+    if not said:
+        raise AssertionError(f"{PAGE} does not say {what}")
+    return said
+
+
 def persistent_directories() -> list[str]:
     """The directories the page asks the browser to keep across a reload."""
     return build_site.QUOTED.findall(
@@ -205,3 +213,44 @@ def test_the_page_names_the_database_by_the_variable_storage_reads(opened_with):
 def test_the_app_still_opens_its_ordinary_database_file_locally(opened_with):
     """Run under Streamlit with nothing set, the app is where it always was."""
     assert opened_with(None) == "monitor.db"
+
+
+# --- which Streamlit a visitor gets
+#
+# Two URLs load stlite -- a stylesheet and a module -- and the version in them
+# decides which Streamlit the app runs on. It is pinned rather than left to a
+# range so that an upgrade is a deliberate act: a range would let a visitor's
+# refresh move the runtime under them.
+#
+# Half an upgrade is the quiet failure. The stylesheet of one stlite over the
+# JavaScript of another loads and mostly works, and what it breaks it breaks in
+# the browser, where nothing here is watching.
+
+# Deliberately matches any version, pin or range: what the page loads is one
+# question and whether it pinned it is the next one.
+STLITE = re.compile(r"@stlite/browser@([^/\"]+)/")
+
+# A pin, as opposed to a range or a tag. `^1.9` and `latest` both resolve to
+# whatever is newest at the moment of the request.
+EXACT = re.compile(r"\d+\.\d+\.\d+")
+
+
+def stlite_versions() -> list[str]:
+    """Every stlite version the page loads, in the order it names them."""
+    return _said_all(STLITE, "where it loads stlite from")
+
+
+def test_the_page_loads_one_stlite_and_pins_it():
+    versions = stlite_versions()
+
+    assert len(versions) == 2, (
+        f"the page loads stlite from {len(versions)} place(s), not the stylesheet"
+        " and the module it needs"
+    )
+    assert len(set(versions)) == 1, (
+        f"the page's two halves of stlite are different releases: {versions}"
+    )
+    assert EXACT.fullmatch(versions[0]), (
+        f"{versions[0]!r} is a range or a tag, not a pin, so a refresh can change"
+        " the runtime under a visitor"
+    )
