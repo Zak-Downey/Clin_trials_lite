@@ -564,6 +564,28 @@ def test_renaming_a_list_keeps_what_it_holds(app, fetcher):
     assert any("Lung — AZ (1)" in sub.value for sub in app.subheader)
 
 
+def test_renaming_a_list_keeps_it_chosen_on_the_other_page(app):
+    """The Search page files into a list too, and picks it with the same control.
+
+    A rename happens on the Watchlist page, but it changes the words in every
+    picker, so the one the reader is not looking at is the one that loses its
+    choice quietly.
+    """
+    app.run()
+    lung = named(app, "Lung")
+    app.switch_page(SEARCH).run()
+    app.selectbox(key="destination_list").set_value(lung).run()
+
+    showing(app, lung)
+    app.text_input(key=f"rename_{lung}").set_value("Lung — AZ").run()
+    app.button(key="rename_list").click().run()
+
+    app.switch_page(SEARCH).run()
+
+    assert not app.exception
+    assert app.selectbox(key="destination_list").value == lung
+
+
 def test_a_trial_in_two_lists_is_readable_from_both_and_leaves_one_when_removed(app, fetcher):
     conn = storage.connect()
     app.run()
@@ -696,6 +718,46 @@ def test_deleting_the_last_list_leaves_a_stand_in_rather_than_an_empty_page(app,
     # The trial went with the list, because nothing else was holding it.
     assert storage.get_trial(conn, "NCT03412565") is None
     assert any("Nothing in this list yet" in info.value for info in app.info)
+
+
+def test_creating_a_list_leaves_the_reader_in_the_one_they_were_reading(app, fetcher):
+    """Making a list is not a decision to stop reading the current one.
+
+    Creating puts another name in the picker, which moves the same ground
+    under it that renaming does, and it used to lose the reader's place the
+    same way.
+    """
+    conn = storage.connect()
+    app.run()
+    lung = named(app, "Lung")
+    monitor.add(conn, "NCT03412565", lung, fetch=fetcher)
+    showing(app, lung)
+
+    app.text_input(key="new_list").set_value("Breast").run()
+    app.button(key="create_list").click().run()
+
+    assert not app.exception
+    assert app.selectbox(key="chosen_list").value == lung
+
+
+def test_deleting_the_list_being_read_falls_back_to_another(app, fetcher):
+    """A deleted list is not somewhere the page can go on standing.
+
+    The picker remembers what was chosen so a rename cannot displace it, and
+    this is the other side of that: what it remembers stops being selectable
+    the moment the list is gone.
+    """
+    conn = storage.connect()
+    app.run()
+    lung = named(app, "Lung")
+    monitor.add(conn, "NCT03412565", lung, fetch=fetcher)
+    showing(app, lung)
+
+    app.button(key="delete_list").click().run()
+
+    assert not app.exception
+    assert app.selectbox(key="chosen_list").value == storage.list_lists(conn)[0]["id"]
+    assert any(storage.DEFAULT_LIST in sub.value for sub in app.subheader)
 
 
 # --- searching the registry and filling a list
