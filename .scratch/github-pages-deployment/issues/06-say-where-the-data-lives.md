@@ -71,9 +71,9 @@ so the claim has been checked rather than assumed. The rest of what this ticket 
 down is about what happens to data that nobody can see happening, which is why it is
 written down at all.
 
-Those same checks are three of the four criteria still open on ticket 09, which is not
-updated here. The evidence is in this ticket and would close them; somebody should move
-it there rather than let it stop at whichever ticket happened to be open.
+Those same checks are three of ticket 09's criteria, and they have since been ticked and
+approved there. One run, recorded in two tickets because it answered something in each --
+not two runs.
 
 ### Not covered
 

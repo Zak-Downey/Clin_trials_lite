@@ -45,15 +45,15 @@ separate one — this ticket only moves the site.
 **Blocked by:** None, but do 08 first — its fix should be version-independent, and
 landing it after this one removes the only environment where its test can fail.
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] `web/index.html` pins one current stlite version, in both the stylesheet and the
       module import, and still pins rather than floats
-- [ ] A watchlist created on the published site before the upgrade opens, intact, after it
-- [ ] The published app loads, searches the registry, and keeps a watchlist across a
+- [ ] A watchlist created on the published site before the upgrade opens, intact, after it — **not run, and no longer runnable; see below**
+- [x] The published app loads, searches the registry, and keeps a watchlist across a
       refresh — checked in a browser at the live URL, not in a build directory
-- [ ] The watchlist table draws on first load, with nothing broken in the browser console
-- [ ] Renaming a list keeps the list on screen
+- [x] The watchlist table draws on first load, with nothing broken in the browser console
+- [x] Renaming a list keeps the list on screen
 - [x] The comment in `web/index.html` says which Streamlit the new pin carries, and why
       the pin is a pin
 - [x] The README and the feature spec no longer say the app must live within Streamlit 1.50
@@ -163,3 +163,36 @@ above rather than papered over.
 Whether to raise the local Python so the suite runs against what visitors run is still
 open. Three briefing tests remain unrunnable on Streamlit 1.50 for an unrelated reason
 (`AppTest` has no `download_button` accessor), and this ticket does not change that.
+
+### Checked and approved
+
+A human ran the browser checks on 2026-09-20 against
+https://zak-downey.github.io/Clin_trials_lite/ and approved them. The app loads, the
+watchlist table draws on first load with nothing broken in the console, a registry search
+returns results, a watchlist survives a refresh, and renaming a list keeps it on screen.
+
+The table drawing cleanly is the one this ticket most wanted to see. stlite 1.9.1 fixed a
+fault where a page that rendered a dataframe before the WebAssembly module had finished
+loading died outright, and the watchlist is a dataframe drawn first -- so the app was
+either winning that race by luck on 0.90.12 or not racing at all. It is not racing now.
+
+### The migration criterion was never run, and cannot be
+
+It stays unticked deliberately. Ticking it would record a check that did not happen.
+
+It asked that a watchlist written before the upgrade still open after it, and it could
+only ever be met in one order: create the watchlist on the live site while it still
+served 0.90.12, then push. The comment above says so. The push happened first -- the site
+has served 1.9.1 since `c77bd1f` -- so the "before" state the check needed no longer
+exists. Reverting the pin, republishing, creating a watchlist and re-upgrading would
+manufacture it, and that was judged not worth doing.
+
+What is known is narrower, and worth not confusing with it: a watchlist created on 1.9.1
+survives a refresh on 1.9.1. That is persistence, not migration. Nobody has shown that a
+database written by the older Python survives being read by the newer one, and on the
+evidence here nobody can. If a visitor who used the site before 2026-09-20 ever reports
+an empty watchlist, this is the first place to look rather than a surprise.
+
+### Done
+
+Closed on the approval above, with the migration check written off rather than met.
