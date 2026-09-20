@@ -11,9 +11,10 @@
 # Settings -> Pages: turn Pages on, and set its source to GitHub Actions. Until
 # then this workflow runs green and publishes nothing. See the README.
 #
-# It watches both `main` and `master`: the repository records `main` as its
-# default and is developed on `master`, and a workflow watching only the wrong
-# one of those does nothing at all, which looks exactly like a quiet repository.
+# It watches both `main` and `master`: `main` is the default branch and the one
+# the site is published from, and `master` is the name this repository went by
+# before it was renamed. A workflow watching only the wrong one of two names
+# does nothing at all, which looks exactly like a quiet repository.
 
 name: Publish the site
 

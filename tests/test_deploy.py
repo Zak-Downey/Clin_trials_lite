@@ -47,10 +47,11 @@ def built_into(workflow: dict) -> str:
 def test_the_workflow_watches_both_names_this_repository_goes_by(workflow):
     """The failure this guards against is the silent one.
 
-    The repository records `main` as its default branch and is developed on
-    `master`. A workflow watching only one of them does nothing at all on a
-    push to the other, which reads exactly like a repository nobody pushed to.
-    Watching both costs nothing and makes the mistake impossible.
+    `main` is this repository's default branch and the one the site is
+    published from; `master` is the name it went by before it was renamed. A
+    workflow watching only one of two names does nothing at all on a push to
+    the other, which reads exactly like a repository nobody pushed to. Watching
+    both costs nothing and makes the mistake impossible.
     """
     on = triggers(workflow)
 

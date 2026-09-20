@@ -8,9 +8,61 @@ Alongside it, an architecture decision record, following the one already in the 
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The README says where the app is published and how to run the site locally, including that it must be served rather than opened as a file
-- [ ] The README states plainly that watchlists live only in the visitor's browser, are not backed up, do not sync, and are lost if site data is cleared
-- [ ] An ADR records the decision to deploy as WebAssembly with browser-local storage, and follows the existing ADR's shape
-- [ ] The ADR states the trade-off accepted: no login, and therefore no sync, no backup, no sharing
+- [x] The README says where the app is published and how to run the site locally, including that it must be served rather than opened as a file
+- [x] The README states plainly that watchlists live only in the visitor's browser, are not backed up, do not sync, and are lost if site data is cleared
+- [x] An ADR records the decision to deploy as WebAssembly with browser-local storage, and follows the existing ADR's shape
+- [x] The ADR states the trade-off accepted: no login, and therefore no sync, no backup, no sharing
+
+## Comments
+
+Done. The README gains a *Where your watchlists live* section and `docs/adr/0002`
+records the decision behind it. Both are held to their promises by `tests/test_docs.py`,
+which is new: this repository already tested the README in `test_deploy.py`, and a
+documentation fact is the one kind this suite otherwise cannot catch going stale, since
+the app behaves identically whether or not anybody was ever warned.
+
+### Two claims were written wrong first, and both mattered
+
+Neither was caught by reading the prose back -- only by checking it against the code it
+describes, which is the habit this ticket is about.
+
+- The README said that opening the page as a file leaves the app "on its starting-up
+  message forever". It does not: `web/index.html` gives up after two minutes and removes
+  the overlay, so what you actually get is a blank page. The stated cause was off too --
+  a `file://` page is refused the stlite module it imports before it ever reaches the
+  app's own `.py` files.
+- The ADR said the browser build "changed no application code". True of `storage.py`,
+  which reads `MONITOR_DB` and needed nothing, but `browser.py` exists precisely because
+  the browser needed its own transport and its own pause between registry calls. The
+  claim is now scoped to where the data lives, which is all it was ever true of.
+
+### A test that passes is not the same as a test that checks
+
+Two assertions in the first draft of `test_docs.py` could not fail. One accepted
+`http.server`, which the README already contained at HEAD, as evidence that it explains
+why the page must be served. The other looked for the substring `sync` anywhere in the
+ADR, which is satisfied by the unrelated sentence about stlite syncing a directory to
+IndexedDB -- so deleting the *No sync* trade-off entirely would have left it green.
+
+Both now assert inside the section that owes the claim, and both were checked by deleting
+the sentence they guard and confirming that test, and only that test, fails.
+
+### Scope taken on deliberately
+
+The README's deployment section claimed the repository "is developed on `master`" and
+that `master` is what publishes. Ticket 05 renamed `master` -> `main`, and `main` is now
+the only branch on the remote, so that was false two paragraphs above the live URL this
+ticket required. Corrected here, along with the same stale claim in `deploy.yml`'s header
+comment and in a `test_deploy.py` docstring. The workflow still watches both names -- that
+is deliberate belt-and-braces and its test is unchanged.
+
+### Not covered
+
+Nothing here was checked in a browser. That opening `site/index.html` as a file fails, and
+that it fails the way now described, is reasoned from `web/index.html` and from what a
+browser permits a `file://` origin -- not observed. Three tests in `tests/test_app.py`
+fail on this machine before and after this change: `AppTest.download_button` does not
+exist in the Streamlit 1.50 that Python 3.9 pins here. That is the local environment gap
+ticket 09 raises, not a regression from this work.

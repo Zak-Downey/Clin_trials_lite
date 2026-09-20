@@ -84,6 +84,13 @@ python build_site.py            # assemble site/
 python -m http.server -d site   # then open http://localhost:8000
 ```
 
+It has to be *served*. Opening `site/index.html` by double-clicking it does not work,
+and fails in the way that wastes the most time: a page loaded from `file://` is not
+allowed to load the code it is made of — neither the stlite module it imports nor the
+app's own `.py` files — so you get the starting-up message, and then a blank page two
+minutes later when the page stops waiting for an app that was never going to arrive. Any
+static server will do; the line above is just the one that needs nothing installed.
+
 `web/index.html` names, one at a time, the modules it mounts, and `build_site.py` copies
 exactly those. Nothing else travels — not the working database, the tests, the internal
 notes under `.scratch/`, or the simulator. A file nobody names is a file nobody ships.
@@ -109,6 +116,35 @@ Three things are different in the browser and nothing else is:
 The first load pulls down a Python runtime and its libraries, which takes the better
 part of a minute, so the page says it is starting up until the app is on screen.
 
+## Where your watchlists live
+
+**In that browser alone.** There is no server and no account, so there is nowhere else
+for a watchlist to be. It is a SQLite database held in the browser's own storage, on the
+machine you are sitting at. That is what lets the tool ask nothing of you before you use
+it, and it has consequences worth knowing *before* you build up months of monitoring
+rather than after:
+
+- **Your watchlists are not backed up.** Nobody is holding a copy — not us, not GitHub.
+  If they go, there is nothing to restore them from.
+- **They do not follow you.** A list built on your desktop is not on your laptop, and is
+  not in a different browser on the same machine. Two machines means two unrelated sets
+  of lists.
+- **Clearing site data destroys them.** Your browser's *Clear browsing data* — and
+  anything that acts like it, such as a reset profile or a "clear cookies and site data
+  on close" setting — is a delete button for your monitoring. A private or incognito
+  window keeps nothing at all once it is closed.
+- **One tab at a time.** Each tab syncs its whole database over what is stored when it
+  finishes what it is doing, so two tabs open at once are two copies drifting apart and
+  the one that acts last wins.
+
+What survives is ordinary use: refreshing the page, closing the tab, quitting the
+browser, restarting the machine. Come back to the same browser and your lists are there.
+
+The reasoning behind this, and what it would take to change it, is recorded in
+[ADR 0002](docs/adr/0002-the-app-is-published-as-webassembly-with-browser-local-storage.md).
+Running the app locally instead (`streamlit run app.py`) keeps the same data in an
+ordinary `monitor.db` file you can copy, back up and move like any other file.
+
 ## Published to GitHub Pages
 
 Pushing to `main` or `master` builds the site and publishes it, through
@@ -124,17 +160,17 @@ repository's **Settings → Pages**:
 1. **Turn Pages on and set its source to *GitHub Actions***, not to a branch. Until that
    is done the workflow runs green and publishes nothing, which is the failure worth
    knowing about because it does not look like one.
-2. **Check which branch you actually push to.** This repository records `main` as its
-   default branch and is developed on `master`, and the workflow watches both, because a
-   workflow watching only the wrong one of those publishes nothing and says nothing.
-   `master` is the branch the site is published from today. If both branches ever carry
-   work, the live site is whichever was pushed last — so if they diverge, narrow the
-   `branches:` list to the one you mean. If you push to a third name, add it, or nothing
-   will ever publish.
+2. **Check which branch you actually push to.** `main` is this repository's default
+   branch and the one the site is published from today. The workflow also watches
+   `master`, the name this repository went by before it was renamed, because a workflow
+   watching only the wrong one of two names publishes nothing and says nothing — which
+   looks exactly like a repository nobody pushed to. If both names ever carry work, the
+   live site is whichever was pushed last, so narrow the `branches:` list to the one you
+   mean. If you push to a third name, add it, or nothing will ever publish.
 
-The site is then live at `https://<owner>.github.io/<repo>/`, and the Actions tab shows
-the run and the URL it deployed to. **Run workflow** on the *Publish the site* workflow
-publishes on demand, without inventing a commit to trigger one.
+The site is live at **<https://zak-downey.github.io/Clin_trials_lite/>**, and the
+Actions tab shows the run and the URL it deployed to. **Run workflow** on the *Publish
+the site* workflow publishes on demand, without inventing a commit to trigger one.
 
 It is worth repeating the local checks against the real URL once it is up — search the
 registry, add a trial, refresh the page and confirm the watchlist is still there —
