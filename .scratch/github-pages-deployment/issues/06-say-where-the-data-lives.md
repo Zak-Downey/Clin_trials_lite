@@ -58,11 +58,33 @@ ticket required. Corrected here, along with the same stale claim in `deploy.yml`
 comment and in a `test_deploy.py` docstring. The workflow still watches both names -- that
 is deliberate belt-and-braces and its test is unchanged.
 
+### Checked in a browser
+
+A human ran the live-site checks on 2026-09-20, against
+https://zak-downey.github.io/Clin_trials_lite/, and they passed: the app loads, the
+watchlist table draws with nothing broken in the console, a registry search returns
+results, a watchlist survives a refresh, and renaming a list keeps it on screen.
+
+That matters to this ticket for one criterion only. The README now prints that URL as
+the place the app lives, and a URL in a README is a claim about something that works --
+so the claim has been checked rather than assumed. The rest of what this ticket wrote
+down is about what happens to data that nobody can see happening, which is why it is
+written down at all.
+
+Those same checks are three of the four criteria still open on ticket 09, which is not
+updated here. The evidence is in this ticket and would close them; somebody should move
+it there rather than let it stop at whichever ticket happened to be open.
+
 ### Not covered
 
-Nothing here was checked in a browser. That opening `site/index.html` as a file fails, and
-that it fails the way now described, is reasoned from `web/index.html` and from what a
-browser permits a `file://` origin -- not observed. Three tests in `tests/test_app.py`
-fail on this machine before and after this change: `AppTest.download_button` does not
-exist in the Streamlit 1.50 that Python 3.9 pins here. That is the local environment gap
-ticket 09 raises, not a regression from this work.
+**The file check in the README is still reasoned, not observed.** That opening
+`site/index.html` as a file fails -- and that it fails the way now described, with the
+starting-up message replaced by a blank page after two minutes when the module load from
+a `null` origin is refused -- comes from reading `web/index.html` and from what a browser
+permits a `file://` origin. The site was built and served locally so the check could be
+run, and the served half worked; the file half was not among what was verified. It is the
+most likely sentence in this change to be wrong.
+
+Three tests in `tests/test_app.py` fail on this machine before and after this change:
+`AppTest.download_button` does not exist in the Streamlit 1.50 that Python 3.9 pins here.
+That is the local environment gap ticket 09 raises, not a regression from this work.
