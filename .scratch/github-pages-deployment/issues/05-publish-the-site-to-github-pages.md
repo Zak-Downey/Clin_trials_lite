@@ -10,10 +10,10 @@ Once it is live, the checks that mattered locally are worth repeating against th
 
 **Blocked by:** 02, 03
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] Pushing to the publishing branch builds and deploys the site with no manual steps
-- [ ] The app loads at its public URL, searches the registry, and keeps a watchlist across a refresh *(the page is live and serves the app; the two in-browser checks are still to be run by hand)*
+- [x] The app loads at its public URL, searches the registry, and keeps a watchlist across a refresh
 - [x] The published site contains no database file, no internal notes or specs, no tests and no simulator
 - [x] The site is assembled from an explicit list of files rather than a copied directory
 - [x] The build does not depend on any secret, token or account
@@ -115,3 +115,21 @@ searched the registry from it and refreshed to see a watchlist survive. That is 
 and a human, and it is the check that matters most, because it exercises the two things
 that were uncertain when this feature was specified -- a cross-origin call to the registry
 and an IndexedDB-backed database.
+
+## The check was run
+
+The last criterion is ticked because a human ran it, on 2026-09-20, against the live URL
+in a real browser: the app loaded, a registry search returned results, a watchlist was
+filled from them, and a refresh found the watchlist still there. Approved.
+
+That closes the two things this feature was uncertain about when it was specified, and it
+closes them the only way they could be closed -- neither is observable from a build
+directory or a test suite. The cross-origin call to ClinicalTrials.gov works from a page
+served off github.io, and the IndexedDB-backed database survives the page being torn down
+and rebuilt.
+
+The ticket is done. Worth knowing what this check did *not* cover, so nobody reads it as
+wider than it is: it exercised searching and persistence, not the rest of the app. A
+defect in list renaming has since been found that is present on this deployment (the
+published site runs Streamlit 1.50, where the repository was developed against 1.63) --
+that is its own ticket, not a reopening of this one.
