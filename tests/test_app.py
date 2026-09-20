@@ -37,6 +37,29 @@ def app(tmp_path, monkeypatch):
     return AppTest.from_file(APP, default_timeout=30)
 
 
+class Selected(dict):
+    """A table's selection, in the shape the widget really hands back.
+
+    Streamlit returns a table's selection as a dictionary that also answers to
+    attribute access, and the pages read it the documented way -- as
+    `event.selection.rows`. Writing a plain dictionary into session_state to
+    stand in for a selection gives back a plain dictionary, which does not,
+    so the harness wraps what it injects the way the widget would.
+    """
+
+    def __getattr__(self, name: str):
+        try:
+            item = self[name]
+        except KeyError as err:  # pragma: no cover -- a typo in a test
+            raise AttributeError(name) from err
+        return Selected(item) if isinstance(item, dict) else item
+
+
+def selection(rows: list[int]) -> Selected:
+    """What session_state holds for a table with `rows` ticked."""
+    return Selected({"selection": {"rows": rows, "columns": []}})
+
+
 def press(app, label: str):
     """Click a button by the words on it.
 
@@ -93,7 +116,7 @@ def open_profile(app, index: int = 0):
     """
 
     def hold():
-        app.session_state["watchlist"] = {"selection": {"rows": [index], "columns": []}}
+        app.session_state["watchlist"] = selection([index])
 
     hold()
     app.run()
@@ -718,7 +741,7 @@ def tick(app, rows: list[int], table: str = "results"):
     """
 
     def hold():
-        app.session_state[table] = {"selection": {"rows": rows, "columns": []}}
+        app.session_state[table] = selection(rows)
 
     hold()
     app.run()
@@ -879,7 +902,7 @@ def test_a_narrower_second_search_does_not_carry_the_old_selection(
 
     stub_search(monkeypatch, [other_study(record, "NCT00000009")])
     app.text_input(key="cond").set_value("something narrower")
-    app.session_state["results"] = {"selection": {"rows": [2], "columns": []}}
+    app.session_state["results"] = selection([2])
     press(app, "Search").run()
 
     assert not app.exception
