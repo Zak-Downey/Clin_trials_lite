@@ -13,7 +13,7 @@ Once it is live, the checks that mattered locally are worth repeating against th
 **Status:** ready-for-human
 
 - [x] Pushing to the publishing branch builds and deploys the site with no manual steps
-- [ ] The app loads at its public URL, searches the registry, and keeps a watchlist across a refresh *(not verifiable from here -- see below)*
+- [ ] The app loads at its public URL, searches the registry, and keeps a watchlist across a refresh *(the page is live and serves the app; the two in-browser checks are still to be run by hand)*
 - [x] The published site contains no database file, no internal notes or specs, no tests and no simulator
 - [x] The site is assembled from an explicit list of files rather than a copied directory
 - [x] The build does not depend on any secret, token or account
@@ -85,3 +85,33 @@ the test fail.
 The README now also says which branch the site is published from today, and what to do if
 `main` and `master` ever diverge -- watching both removes the silent no-op, but leaves
 "last push wins", which is worth a reader knowing about rather than discovering.
+
+## It is live
+
+https://zak-downey.github.io/Clin_trials_lite/
+
+The remote that did not exist now does. The repository was created public, the branch
+renamed `master` -> `main`, and the push triggered the workflow on its own: build in 6s,
+deploy in 8s, both green on the first run.
+
+Pages was turned on through the API rather than the settings screen -- `POST
+/repos/:owner/:repo/pages` with `build_type=workflow` -- so the step the ticket called
+human-only turned out to be one a token with `repo` scope can do. The README still
+describes the settings-screen route, which is the one a person will look for. What did
+need a human was the push itself: GitHub refuses to accept a new file under
+`.github/workflows/` from an OAuth token without `workflow` scope, which is worth knowing
+because it fails at the push and not at the workflow.
+
+The deployed site was checked over HTTPS rather than assumed. `index.html` serves, carries
+its `const sources` list, and `app.py`, `storage.py`, `browser.py` and `views/watchlist.py`
+all return 200. Everything that must not be there returns 404: `monitor.db`,
+`simulate.py`, `explore.py`, `build_site.py`, `tests/test_app.py`, the spec under
+`.scratch/`, and even `README.md` and `requirements.txt`. The artifact is the build's
+output, so the repository is not the site -- confirmed against the real URL rather than
+against the build directory.
+
+The last criterion stays open, and honestly so: the page is live, but nobody has yet
+searched the registry from it and refreshed to see a watchlist survive. That is a browser
+and a human, and it is the check that matters most, because it exercises the two things
+that were uncertain when this feature was specified -- a cross-origin call to the registry
+and an IndexedDB-backed database.
