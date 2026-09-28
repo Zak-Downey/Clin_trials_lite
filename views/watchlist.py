@@ -10,6 +10,7 @@ the Search page's job.
 from __future__ import annotations
 
 import datetime
+import os
 
 import pandas as pd
 import streamlit as st
@@ -43,6 +44,14 @@ CARD_COLUMNS = 3
 CUSTOM_DAYS = 30
 
 conn = storage.connect()
+
+# PROTOTYPE -- card change history. Only on when prototype_card_history.py
+# launched the app; the published site never mounts the module.
+PROTOTYPE = os.environ.get("CARD_HISTORY_PROTOTYPE") == "1"
+if PROTOTYPE:
+    from views import prototype_card_history
+
+    prototype_card_history.switcher()
 
 # --- which list is showing
 
@@ -311,10 +320,13 @@ else:
         # The profile as a dossier: titled cards dealt across the page, each
         # one card-sized markdown block, so the whole study reads without
         # scrolling. Which fields belong to which card lives in display.py.
-        columns = st.columns(CARD_COLUMNS, gap="medium")
-        for index, (title, card) in enumerate(group_fields(marked["rows"])):
-            with columns[index % CARD_COLUMNS], st.container(border=True):
-                st.markdown(render_card(title, card, nct))
+        if PROTOTYPE:
+            prototype_card_history.render(conn, nct, marked)
+        else:
+            columns = st.columns(CARD_COLUMNS, gap="medium")
+            for index, (title, card) in enumerate(group_fields(marked["rows"])):
+                with columns[index % CARD_COLUMNS], st.container(border=True):
+                    st.markdown(render_card(title, card, nct))
 
 # --- the briefing
 #
