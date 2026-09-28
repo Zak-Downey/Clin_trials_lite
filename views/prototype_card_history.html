@@ -1,0 +1,281 @@
+<title>Reviewed Change History</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --ink:#1b2130; --muted:#5d6678; --faint:#8a92a3; --line:#dde1e8;
+  --unread:#fde3c7; --unread-ink:#8a4300; --high:#fbd3d0; --high-ink:#9b1c14;
+  --seen:#dbe7fb; --seen-ink:#1d4f9c; --accent:#2f5bd3; --pill:#131722; --pill-ink:#f2f4f8; --pill-btn:#2b3140;
+  --sans:"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark; --bg:#12151c; --surface:#1a1f29; --ink:#e6e9ef; --muted:#a3abbb; --faint:#7a8396; --line:#2c3341;
+  --unread:#4a2d10; --unread-ink:#ffc68a; --high:#521d1a; --high-ink:#ffaaa3; --seen:#1b3050; --seen-ink:#a9c7ff;
+  --accent:#7ea2ff; --pill:#e9ecf2; --pill-ink:#141820; --pill-btn:#cfd4de;}}
+:root[data-theme="dark"]{
+  color-scheme:dark; --bg:#12151c; --surface:#1a1f29; --ink:#e6e9ef; --muted:#a3abbb; --faint:#7a8396; --line:#2c3341;
+  --unread:#4a2d10; --unread-ink:#ffc68a; --high:#521d1a; --high-ink:#ffaaa3; --seen:#1b3050; --seen-ink:#a9c7ff;
+  --accent:#7ea2ff; --pill:#e9ecf2; --pill-ink:#141820; --pill-btn:#cfd4de;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);padding-inline:16px;padding-block:24px 110px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font-size:22px;font-weight:600;margin:0;text-wrap:balance}
+.eyebrow{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.intro{color:var(--muted);max-width:68ch;margin:0}
+.trial{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;justify-content:space-between;border-top:1px solid var(--line);padding-top:18px}
+.trial h2{font-size:18px;font-weight:600;margin:0 0 2px}
+.trial h2 .id{font-family:var(--mono);font-weight:500}
+.meta{color:var(--muted);font-size:13px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:6px 12px;border-radius:6px}
+.btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.45;cursor:default;border-color:var(--line)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{color:var(--muted);font-size:13px;margin:0}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.split{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,1.15fr);gap:22px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.card h3{font:600 12px/1.4 var(--sans);letter-spacing:.07em;text-transform:uppercase;margin:0 0 4px;display:flex;gap:8px;align-items:baseline}
+.count{font:500 11px var(--mono);letter-spacing:0;color:var(--unread-ink)}
+.count.quiet{color:var(--faint)}
+.f{overflow-wrap:anywhere}
+.f b{font-weight:600}
+.hl{padding:0 4px;border-radius:3px;background:var(--unread);color:var(--unread-ink)}
+.hl.high{background:var(--high);color:var(--high-ink)}
+.hl.seen{background:var(--seen);color:var(--seen-ink)}
+.sub{display:block;padding-left:22px;color:var(--faint);font-size:12.5px;font-style:italic}
+.sub.trace{font-style:normal;font-family:var(--mono);font-size:11.5px}
+details{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
+summary{cursor:pointer;color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+.log{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.day{font:500 12px var(--mono);margin-top:6px;display:flex;gap:6px;align-items:center}
+.day:first-child{margin-top:0}
+.entry{font-size:13px;overflow-wrap:anywhere}
+.entry .mv{display:block;padding-left:20px;color:var(--faint);font-size:12.5px}
+.mark{display:inline-block;width:16px;font-size:12px}
+.mark.un{color:var(--unread-ink)} .mark.ok{color:var(--faint)}
+.empty{color:var(--faint);font-size:12.5px;margin-top:6px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--surface);flex-wrap:wrap}
+.seg button{border:0;background:none;color:var(--ink);padding:6px 12px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.lensbar{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.rail{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;padding:2px 9px;font-size:12px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.cardtag{color:var(--faint)}
+.hint{color:var(--faint);font:11.5px var(--mono);margin-top:6px}
+.switch{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:10;display:flex;align-items:center;gap:10px;background:var(--pill);color:var(--pill-ink);padding:6px 8px;border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.28);max-width:calc(100% - 32px)}
+.switch button{border:0;background:var(--pill-btn);color:var(--pill-ink);width:32px;height:32px;border-radius:50%}
+:root[data-theme="dark"] .switch button,.switch button{color:inherit}
+.switch .lbl{font:500 13px var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.switch .lbl small{opacity:.6;font-weight:400}
+@media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:1fr}.rail{position:static}}
+@media (max-width:600px){.grid,.grid.two{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <span class="eyebrow">Prototype · Trial Change Monitor · throwaway</span>
+    <h1>Keeping reviewed changes visible</h1>
+    <p class="intro">Once a trial is marked reviewed its cards go clean. These are four ways to still see what moved: the last change, recent changes, or a record for each card. Switch with the bar at the bottom or the ← → keys. The buttons work: mark the trial reviewed, then simulate another change to watch it re-highlight.</p>
+  </header>
+  <section class="trial">
+    <div>
+      <h2><span class="id" id="nct"></span> — <span id="ttl"></span></h2>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="review">Mark as reviewed</button>
+      <button class="btn" id="simulate">Simulate a change</button>
+      <button class="btn" id="reset">Reset</button>
+    </div>
+  </section>
+  <main id="view"></main>
+</div>
+
+<nav class="switch" aria-label="Prototype variant">
+  <button id="prev" aria-label="Previous variant">◀</button>
+  <span class="lbl" id="vlabel"></span>
+  <button id="next" aria-label="Next variant">▶</button>
+</nav>
+
+<script>
+const DATA = {"nct": "NCT03412565", "title": "A Study to Evaluate Subcutaneous Daratumumab in Combination With Standard Multiple Myeloma Treatment Regimens", "cards": [{"title": "Identity", "rows": [{"field": "nctId", "label": "Nct id", "value": "NCT03412565", "high": false}, {"field": "briefTitle", "label": "Brief title", "value": "A Study to Evaluate Subcutaneous Daratumumab in Combination With Standard Multiple Myeloma Treatment Regimens", "high": false}, {"field": "officialTitle", "label": "Official title", "value": "A Multicenter Phase 2 Study to Evaluate Subcutaneous Daratumumab in Combination With Standard Multiple Myeloma Treatment Regimens", "high": false}, {"field": "acronym", "label": "Acronym", "value": "\u2014", "high": false}, {"field": "orgStudyId", "label": "Org study id", "value": "CR108435", "high": false}, {"field": "secondaryIds", "label": "Secondary ids", "value": "2017-004203-41, 54767414MMY2040, 2017", "high": false}]}, {"title": "Sponsor", "rows": [{"field": "leadSponsor", "label": "Lead sponsor", "value": "Janssen Research & Development, LLC", "high": false}, {"field": "sponsorClass", "label": "Sponsor class", "value": "INDUSTRY", "high": false}, {"field": "collaborators", "label": "Collaborators", "value": "\u2014", "high": false}, {"field": "responsibleParty", "label": "Responsible party", "value": "SPONSOR", "high": false}]}, {"title": "Status and dates", "rows": [{"field": "overallStatus", "label": "Overall status", "value": "COMPLETED", "high": true}, {"field": "whyStopped", "label": "Why stopped", "value": "\u2014", "high": true}, {"field": "startDate", "label": "Start date", "value": "2018-04-26 (Actual)", "high": false}, {"field": "primaryCompletionDate", "label": "Primary completion date", "value": "2020-08-12 (Actual)", "high": true}, {"field": "completionDate", "label": "Completion date", "value": "2024-04-18 (Actual)", "high": true}, {"field": "studyFirstPostDate", "label": "Study first post date", "value": "2018-01-26", "high": false}, {"field": "resultsFirstPostDate", "label": "Results first post date", "value": "2022-01-12", "high": false}, {"field": "lastUpdatePostDate", "label": "Last update post date", "value": "2025-04-29", "high": false}]}, {"title": "Drugs and arms", "rows": [{"field": "interventions", "label": "Interventions", "value": "Daratumumab, Bortezomib, Lenalidomide, Dexamethasone, Melphalan, Prednisone, Carfilzomib", "high": true}, {"field": "interventionTypes", "label": "Intervention types", "value": "DRUG", "high": false}, {"field": "armGroups", "label": "Arm groups", "value": "Daratumumab(D)+Bortezomib+Lenalidomide+Dexamethasone (D-VRd), D + Bortezomib + Melphalan + Prednisone (D-VMP), Daratumumab + Lenalidomide + Dexamethasone (D-Rd), Daratumumab + Carfilzomib + Dexamethasone (D-Kd)", "high": true}, {"field": "drugMeshTerms", "label": "Drug mesh terms", "value": "daratumumab, Bortezomib, Lenalidomide, Dexamethasone, Melphalan, Prednisone, carfilzomib", "high": false}]}, {"title": "Disease and eligibility", "rows": [{"field": "conditions", "label": "Conditions", "value": "Multiple Myeloma", "high": false}, {"field": "conditionMeshTerms", "label": "Condition mesh terms", "value": "Multiple Myeloma", "high": false}, {"field": "sex", "label": "Sex", "value": "ALL", "high": false}, {"field": "minimumAge", "label": "Minimum age", "value": "18 Years", "high": false}, {"field": "eligibilityCriteria", "label": "Eligibility criteria", "value": "Inclusion Criteria: Multiple myeloma diagnosed according to the International Myeloma Working Group (IMWG) diagnostic criteria Measurable, secretory disease as defined by any of th\u2026", "high": true}]}, {"title": "Design and scale", "rows": [{"field": "studyType", "label": "Study type", "value": "INTERVENTIONAL", "high": false}, {"field": "phases", "label": "Phases", "value": "PHASE2", "high": true}, {"field": "enrollment", "label": "Enrollment", "value": "265 (Actual)", "high": true}, {"field": "allocation", "label": "Allocation", "value": "NON_RANDOMIZED", "high": false}, {"field": "primaryPurpose", "label": "Primary purpose", "value": "TREATMENT", "high": false}, {"field": "masking", "label": "Masking", "value": "NONE", "high": false}]}, {"title": "Endpoints", "rows": [{"field": "primaryOutcomes", "label": "Primary outcomes", "value": "D-VMP, D-Rd, and D-Kd Cohorts: Overall Response Rate (ORR), D-VRd Cohort: Percentage of Participants With Very Good Partial Response (VGPR) or Better Response", "high": true}, {"field": "primaryOutcomeTimeFrames", "label": "Primary outcome time frames", "value": "Up to 2 years 3 months, Up to 2 years and 3 months", "high": false}, {"field": "secondaryOutcomeCount", "label": "Secondary outcome count", "value": "9", "high": false}]}, {"title": "Results", "rows": [{"field": "hasResults", "label": "Has results", "value": "True", "high": true}, {"field": "resultsUrl", "label": "Results url", "value": "View results on ClinicalTrials.gov", "high": false}]}], "history": [{"row": "secondaryOutcomeCount", "card": "Endpoints", "what": "Secondary outcome count", "day": "2026-09-26", "reviewed": false, "prev": "8", "cur": "9", "qual": false}, {"row": "primaryOutcomeTimeFrames", "card": "Endpoints", "what": "Primary outcome time frames", "day": "2026-09-19", "reviewed": true, "prev": "Up to 2 years", "cur": "Up to 2 years 3 months, Up to 2 years and 3 mont\u2026", "qual": false}, {"row": "overallStatus", "card": "Status and dates", "what": "Overall status", "day": "2026-09-19", "reviewed": true, "prev": "Active not recruiting", "cur": "Completed", "qual": false}, {"row": "enrollment", "card": "Design and scale", "what": "Enrollment (type)", "day": "2026-08-20", "reviewed": true, "prev": "Estimated", "cur": "Actual", "qual": true}, {"row": "enrollment", "card": "Design and scale", "what": "Enrollment", "day": "2026-08-20", "reviewed": true, "prev": "280", "cur": "265", "qual": false}, {"row": "completionDate", "card": "Status and dates", "what": "Completion date (type)", "day": "2026-07-14", "reviewed": true, "prev": "Estimated", "cur": "Actual", "qual": true}, {"row": "completionDate", "card": "Status and dates", "what": "Completion date", "day": "2026-07-14", "reviewed": true, "prev": "2024-01-31", "cur": "2024-04-18", "qual": false}, {"row": "officialTitle", "card": "Identity", "what": "Official title", "day": "2026-06-02", "reviewed": true, "prev": "A Multicentre Phase 2 Study to Evaluate Subcutan\u2026", "cur": "A Multicenter Phase 2 Study to Evaluate Subcutan\u2026", "qual": false}, {"row": "enrollment", "card": "Design and scale", "what": "Enrollment", "day": "2026-06-02", "reviewed": true, "prev": "300", "cur": "280", "qual": false}]};
+// The seeded story is dated September 2026, so the windows are measured from
+// the day it was captured rather than from whenever this page is opened.
+const TODAY = "2026-09-28";
+const VARIANTS = [
+  {key:"A", name:"Trace", note:"Reviewed fields stay plain but keep a grey note of their last move. Unread moves are highlighted as today."},
+  {key:"B", name:"Card log", note:"Cards read clean once reviewed. Each card carries its own history, folded, with the count on the fold."},
+  {key:"C", name:"Lens", note:"One control widens what the dossier highlights. Orange or red is unread; blue with ✓ was already reviewed."},
+  {key:"D", name:"Timeline", note:"Clean cards, with every check listed down a rail beside them. Tap a card name to filter the rail."},
+];
+const LENSES = [["Unread",null],["7 days",7],["30 days",30],["90 days",90],["All",1e5]];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const long = d => { const [y,m,dd] = d.split("-"); return `${+dd} ${MONTHS[+m-1]} ${y}`; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const minus = (d,n) => { const t = new Date(d+"T00:00:00Z"); t.setUTCDate(t.getUTCDate()-n); return t.toISOString().slice(0,10); };
+
+let state, variant = 0, lens = "Unread", railCards = new Set();
+function fresh(){
+  state = {
+    cards: JSON.parse(JSON.stringify(DATA.cards)),
+    history: JSON.parse(JSON.stringify(DATA.history)),
+    lastReviewed: "2026-09-22", simulated: 0,
+  };
+}
+const SIMS = [
+  {row:"enrollment", card:"Design and scale", what:"Enrollment", prev:"265", cur:"258", value:"258 (Actual)"},
+  {row:"overallStatus", card:"Status and dates", what:"Overall status", prev:"Completed", cur:"Terminated", value:"TERMINATED"},
+  {row:"primaryCompletionDate", card:"Status and dates", what:"Primary completion date", prev:"2020-08-12", cur:"2020-09-30", value:"2020-09-30 (Actual)"},
+];
+
+// Which rows are highlighted, and with what "Previously" line, given a set of
+// changes treated as news. The newest check touching a row wins, and a value
+// and its estimated/actual type moving together read as one line.
+function marks(news){
+  const out = {};
+  for (const c of news){
+    const m = out[c.row];
+    if (!m) out[c.row] = {day:c.day, moves:[c]};
+    else if (m.day === c.day) m.moves.push(c);
+  }
+  for (const m of Object.values(out)) m.moves.sort((a,b) => a.qual - b.qual);
+  return out;
+}
+const unreadMarks = () => marks(state.history.filter(c => !c.reviewed));
+
+function line(row, mark, opts = {}){
+  let label = `<b>${esc(row.label)}</b>`;
+  if (mark){
+    const cls = opts.seen ? "hl seen" : row.high ? "hl high" : "hl";
+    label = `<span class="${cls}">${label}</span>${opts.seen ? " ✓" : ""}`;
+  }
+  let html = `<div class="f">${label} · ${esc(row.value)}`;
+  if (mark){
+    const was = row.field === "eligibilityCriteria" ? "Amended — the wording is on the registry"
+      : "Previously " + mark.moves.map(c => c.prev).join(" · ");
+    html += `<span class="sub">${esc(was)}</span>`;
+  }
+  if (opts.trace) html += `<span class="sub trace">✓ ${long(opts.trace.day)} · was ${esc(opts.trace.moves.map(c => c.prev).join(" · "))}</span>`;
+  return html + "</div>";
+}
+function head(title, count, quiet){
+  const c = count ? `<span class="count${quiet ? " quiet" : ""}">${quiet ? count + " in view" : "🔔" + count}</span>` : "";
+  return `<h3>${esc(title)}${c}</h3>`;
+}
+const unreadIn = (card, m) => card.rows.filter(r => m[r.field]).length;
+
+function logHtml(entries){
+  const days = [...new Set(entries.map(c => c.day))];
+  return days.map(d => {
+    const batch = entries.filter(c => c.day === d);
+    const un = batch.filter(c => !c.reviewed).length;
+    return `<div class="day">${long(d)} ${un ? `<span class="count">🔔${un}</span>` : `<span class="count quiet">✓</span>`}</div>` +
+      batch.map(c => `<div class="entry"><span class="mark ${c.reviewed ? "ok" : "un"}">${c.reviewed ? "✓" : "🔔"}</span>${opts.tag ? `<span class="cardtag">${esc(c.card)} › </span>` : ""}${esc(c.what)}${c.qual ? " (type)" : ""}<span class="mv">${esc(c.prev)} → ${esc(c.cur)}</span></div>`).join("");
+  }).join("");
+}
+let opts = {};
+
+function renderA(){
+  const um = unreadMarks(), last = marks(state.history);
+  return `<div class="grid">` + state.cards.map(card =>
+    `<div class="card">${head(card.title, unreadIn(card, um))}` +
+    card.rows.map(r => line(r, um[r.field], {trace: !um[r.field] ? last[r.field] : null})).join("") +
+    `</div>`).join("") + `</div>`;
+}
+function renderB(){
+  const um = unreadMarks();
+  return `<div class="grid">` + state.cards.map(card => {
+    const log = state.history.filter(c => c.card === card.title);
+    opts = {tag:false};
+    const fold = log.length
+      ? `<details><summary>History · ${log.length} · last ${long(log[0].day)}</summary><div class="log">${logHtml(log)}</div></details>`
+      : `<div class="empty">No changes since monitoring began.</div>`;
+    return `<div class="card">${head(card.title, unreadIn(card, um))}${card.rows.map(r => line(r, um[r.field])).join("")}${fold}</div>`;
+  }).join("") + `</div>`;
+}
+function renderC(){
+  const days = Object.fromEntries(LENSES)[lens];
+  const um = unreadMarks();
+  const news = days === null ? state.history.filter(c => !c.reviewed)
+    : state.history.filter(c => c.day >= minus(TODAY, days));
+  const m = marks(news);
+  const bar = `<div class="lensbar"><div class="seg" role="group" aria-label="Highlight changes">` +
+    LENSES.map(([l]) => `<button data-lens="${l}" aria-pressed="${l === lens}">${l}</button>`).join("") +
+    `</div><span class="note">${days === null ? "Highlighting only what is unread, as the app does today." : `${news.length} changes since ${long(minus(TODAY, days))}.`}</span></div>`;
+  return bar + `<div class="grid" style="margin-top:14px">` + state.cards.map(card => {
+    const n = card.rows.filter(r => m[r.field]).length;
+    return `<div class="card">${head(card.title, n, days !== null)}` +
+      card.rows.map(r => line(r, m[r.field], {seen: !!m[r.field] && !um[r.field]})).join("") + `</div>`;
+  }).join("") + `</div>`;
+}
+function renderD(){
+  const um = unreadMarks();
+  const cards = `<div class="grid two">` + state.cards.map(card => {
+    const n = state.history.filter(c => c.card === card.title).length;
+    return `<div class="card">${head(card.title, unreadIn(card, um))}${card.rows.map(r => line(r, um[r.field])).join("")}` +
+      (n ? `<div class="hint">🕘 ${n} past change${n > 1 ? "s" : ""} · see history</div>` : "") + `</div>`;
+  }).join("") + `</div>`;
+  const names = [...new Set(state.history.map(c => c.card))];
+  const shown = state.history.filter(c => !railCards.size || railCards.has(c.card));
+  opts = {tag:true};
+  const rail = `<aside class="rail"><h3 style="font:600 12px var(--sans);letter-spacing:.07em;text-transform:uppercase;margin:0">Change history</h3>` +
+    `<div class="chips">${names.map(n => `<button class="chip" data-card="${esc(n)}" aria-pressed="${railCards.has(n)}">${esc(n)}</button>`).join("")}</div>` +
+    `<div class="log">${shown.length ? logHtml(shown) : `<div class="empty">Nothing recorded.</div>`}</div></aside>`;
+  return `<div class="split"><div>${cards}</div>${rail}</div>`;
+}
+
+function render(){
+  const v = VARIANTS[variant];
+  const unread = state.history.filter(c => !c.reviewed).length;
+  document.getElementById("nct").textContent = DATA.nct;
+  document.getElementById("ttl").textContent = DATA.title;
+  document.getElementById("meta").textContent =
+    `Last reviewed ${long(state.lastReviewed)} · ${unread ? unread + " unread change" + (unread > 1 ? "s" : "") : "nothing unread"}`;
+  document.getElementById("review").disabled = !unread;
+  document.getElementById("simulate").disabled = state.simulated >= SIMS.length;
+  const body = {A:renderA, B:renderB, C:renderC, D:renderD}[v.key]();
+  document.getElementById("view").innerHTML = `<p class="note" style="margin-bottom:12px">${esc(v.note)}</p>` + body;
+  document.getElementById("vlabel").innerHTML = `${v.key} · ${v.name} <small>${variant + 1}/${VARIANTS.length}</small>`;
+}
+function go(step){
+  variant = (variant + step + VARIANTS.length) % VARIANTS.length;
+  history.replaceState(null, "", "#" + VARIANTS[variant].key.toLowerCase());
+  render();
+}
+
+document.getElementById("prev").onclick = () => go(-1);
+document.getElementById("next").onclick = () => go(1);
+document.addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("input,textarea,[contenteditable]")) return;
+  if (e.key === "ArrowLeft") { e.preventDefault(); go(-1); }
+  if (e.key === "ArrowRight") { e.preventDefault(); go(1); }
+});
+document.getElementById("review").onclick = () => {
+  state.history.forEach(c => c.reviewed = true);
+  state.lastReviewed = TODAY; render();
+};
+document.getElementById("simulate").onclick = () => {
+  const s = SIMS[state.simulated++];
+  state.history.unshift({row:s.row, card:s.card, what:s.what, day:TODAY, reviewed:false, prev:s.prev, cur:s.cur, qual:false});
+  for (const card of state.cards) for (const r of card.rows) if (r.field === s.row) r.value = s.value;
+  render();
+};
+document.getElementById("reset").onclick = () => { fresh(); lens = "Unread"; railCards.clear(); render(); };
+document.getElementById("view").addEventListener("click", e => {
+  const l = e.target.closest("[data-lens]");
+  if (l) { lens = l.dataset.lens; render(); return; }
+  const c = e.target.closest("[data-card]");
+  if (c) { const n = c.dataset.card; railCards.has(n) ? railCards.delete(n) : railCards.add(n); render(); }
+});
+
+fresh();
+const start = VARIANTS.findIndex(v => "#" + v.key.toLowerCase() === location.hash);
+variant = start < 0 ? 0 : start;
+render();
+</script>
