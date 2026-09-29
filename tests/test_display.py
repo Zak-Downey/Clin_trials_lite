@@ -554,3 +554,90 @@ def test_a_date_reads_the_same_in_a_search_line_as_in_a_briefing():
 def test_a_registry_code_nobody_gave_a_word_to_still_renders():
     """A class the registry adds tomorrow must not render as a blank."""
     assert display.sponsor_type_label(["AMBIG"]) == "Ambig"
+
+
+# --- a card's history
+
+
+def move(field="enrollment", previous=300, current=265, when="2026-09-05T10:00:00+00:00",
+         reviewed=True, synthetic=False, **qualifiers):
+    return {"field": field, "previous": previous, "current": current,
+            "detected_at": when, "reviewed": reviewed, "synthetic": synthetic, **qualifiers}
+
+
+def test_moves_are_filed_under_the_card_their_field_is_read_in():
+    moves = [move("enrollment"), move("overallStatus"), move("phases")]
+
+    cards = display.history_by_card(moves)
+
+    assert [m["field"] for m in cards["Design and scale"]] == ["enrollment", "phases"]
+    assert [m["field"] for m in cards["Status and dates"]] == ["overallStatus"]
+
+
+def test_a_field_no_card_claims_still_has_somewhere_to_be_read():
+    assert display.history_by_card([move("somethingNew")]) == {
+        display.OTHER: [move("somethingNew")]
+    }
+
+
+def test_the_fold_says_how_much_and_how_recent():
+    moves = [move(when="2026-09-19T10:00:00+00:00"), move(when="2026-06-02T10:00:00+00:00")]
+
+    assert display.history_label(moves) == "History · 2 · last 19 September 2026"
+
+
+def test_a_move_reads_from_what_it_was_to_what_it_became():
+    assert display.history_move(move(previous=300, current=265)) == "300 → 265"
+
+
+def test_a_move_carries_its_estimated_or_actual_type():
+    line = display.history_move(
+        move("completionDate", "2024-01-31", "2024-04-18",
+             previous_qualifier="ESTIMATED", qualifier="ACTUAL")
+    )
+
+    assert line == "2024-01-31 (Estimated) → 2024-04-18 (Actual)"
+
+
+def test_amended_criteria_are_said_rather_than_printed_twice():
+    assert display.history_move(move(display.CRITERIA, "old " * 200, "new " * 200)) == display.AMENDED
+
+
+def test_a_long_value_is_cut_to_fit_the_card():
+    line = display.history_move(move("armGroups", ["arm " * 40], ["other " * 40]))
+
+    before, after = line.split(" → ")
+    assert before.endswith("…") and after.endswith("…")
+    assert len(before) <= display.HISTORY_CHARS + 1
+
+
+def test_the_history_is_grouped_by_day_newest_first():
+    rendered = display.render_history([
+        move("overallStatus", when="2026-09-19T14:00:00+00:00"),
+        move("enrollment", when="2026-09-19T09:00:00+00:00"),
+        move("completionDate", when="2026-07-14T10:00:00+00:00"),
+    ])
+
+    assert rendered.index("19 September 2026") < rendered.index("14 July 2026")
+    assert rendered.count("19 September 2026") == 1
+
+
+def test_the_history_says_which_moves_are_unread_and_which_reviewed():
+    rendered = display.render_history([
+        move("secondaryOutcomeCount", reviewed=False),
+        move("enrollment", reviewed=True),
+    ])
+
+    assert f"{display.UNREVIEWED} Secondary outcome count" in rendered
+    assert f"{display.REVIEWED} Enrollment" in rendered
+
+
+def test_the_history_is_not_drawn_in_the_colours_that_mean_unread():
+    rendered = display.render_history([move(reviewed=False)])
+
+    assert display.HIGHLIGHT not in rendered
+    assert display.HIGHLIGHT_HIGH_SIGNAL not in rendered
+
+
+def test_a_simulated_move_is_marked_in_the_history():
+    assert display.SYNTHETIC_MARK in display.render_history([move(synthetic=True)])

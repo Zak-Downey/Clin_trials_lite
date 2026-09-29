@@ -232,3 +232,61 @@ def test_a_row_for_a_trial_that_has_never_changed_carries_no_change(watched):
 def test_a_row_carries_the_registrys_own_revision_date(watched):
     """When the sponsor revised the record, which is not when we noticed."""
     assert monitor.watchlist(watched)[0]["registry_updated"] == "2025-04-29"
+
+
+# --- a trial's whole history, read or not
+
+
+def test_a_trial_that_has_never_changed_has_no_history(watched):
+    assert monitor.history(watched, "NCT03412565") == []
+
+
+def test_reviewing_a_trial_keeps_its_history(watched):
+    """The highlighting clears; what it was highlighting stays readable."""
+    moved(watched, "NCT03412565", "enrollment", "2026-08-01T10:00:00+00:00", 300, 265)
+    monitor.review(watched, "NCT03412565")
+
+    [move] = monitor.history(watched, "NCT03412565")
+
+    assert move["field"] == "enrollment"
+    assert (move["previous"], move["current"]) == (300, 265)
+    assert move["reviewed"] is True
+
+
+def test_history_runs_newest_first_and_says_what_is_unread(watched):
+    moved(watched, "NCT03412565", "overallStatus", "2026-08-01T10:00:00+00:00")
+    monitor.review(watched, "NCT03412565")
+    moved(watched, "NCT03412565", "enrollment", "2026-09-05T10:00:00+00:00")
+
+    moves = monitor.history(watched, "NCT03412565")
+
+    assert [(m["field"], m["reviewed"]) for m in moves] == [
+        ("enrollment", False),
+        ("overallStatus", True),
+    ]
+
+
+def test_a_field_that_moved_twice_keeps_both_moves(watched):
+    moved(watched, "NCT03412565", "enrollment", "2026-08-01T10:00:00+00:00", 300, 280)
+    moved(watched, "NCT03412565", "enrollment", "2026-09-05T10:00:00+00:00", 280, 265)
+
+    moves = monitor.history(watched, "NCT03412565")
+
+    assert [(m["previous"], m["current"]) for m in moves] == [(280, 265), (300, 280)]
+
+
+def test_a_date_and_its_type_moving_in_one_check_are_one_move(watched):
+    when = "2026-09-05T10:00:00+00:00"
+    moved(watched, "NCT03412565", "completionDate", when, "2024-01-31", "2024-04-18")
+    moved(watched, "NCT03412565", "completionDateType", when, "ESTIMATED", "ACTUAL")
+
+    [move] = monitor.history(watched, "NCT03412565")
+
+    assert move["field"] == "completionDate"
+    assert (move["previous_qualifier"], move["qualifier"]) == ("ESTIMATED", "ACTUAL")
+
+
+def test_a_simulated_move_is_marked_in_the_history(watched):
+    moved(watched, "NCT03412565", "enrollment", "2026-09-05T10:00:00+00:00", synthetic=True)
+
+    assert monitor.history(watched, "NCT03412565")[0]["synthetic"] is True

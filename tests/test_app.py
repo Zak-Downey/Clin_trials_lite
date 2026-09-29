@@ -478,6 +478,25 @@ def test_the_whole_loop_from_adding_to_reviewing_and_changing_again_is_walkable(
     assert highlighted(app)
 
 
+def test_a_reviewed_card_keeps_its_history_one_fold_away(live):
+    """Reviewing clears the highlighting, not the record of what moved."""
+    rewind("NCT03412565")
+    live.button(key="check_all").click().run()
+    open_profile(live)
+    live.button(key="review_NCT03412565").click().run()
+    open_profile(live)
+
+    assert not live.exception
+    assert not highlighted(live)
+    folds = [e for e in live.expander if e.label.startswith("History")]
+    assert folds
+    logged = " ".join(m.value for fold in folds for m in fold.markdown)
+    assert f"{display.REVIEWED} Enrollment" in logged
+    assert display.UNREVIEWED not in logged
+    # The cards nothing has moved on say so rather than folding away nothing.
+    assert display.NO_HISTORY in [c.value for c in live.caption]
+
+
 def test_reviewing_marks_the_feed_entry_as_read_without_removing_it(live):
     rewind("NCT03412565")
     live.button(key="check_all").click().run()

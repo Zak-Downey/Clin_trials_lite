@@ -1088,6 +1088,37 @@ def last_change(conn: sqlite3.Connection, nct_id: str) -> dict | None:
     }
 
 
+def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+    """Every move ever recorded on a trial, newest first, read or not.
+
+    What a reviewed card still owes its reader: marking a trial reviewed clears
+    the highlighting, and this is where what it cleared can still be read.
+
+    Folded one check at a time, the way the briefing folds them, so a date that
+    moved and became actual in the same check is one move rather than two; a
+    type that moved alone is read against the record as it stood that day.
+    """
+    checks: dict[str, list[dict]] = {}
+    for change in storage.list_changes(conn, nct_id):
+        checks.setdefault(change["detected_at"], []).append(change)
+
+    moves = []
+    for when, found in checks.items():
+        snapshot = storage.snapshot_at(conn, nct_id, when)
+        profile = medical_affairs.profile(snapshot["record"]) if snapshot else {}
+        for folded in diff.fold_moves(found, profile):
+            change = folded.pop("change")
+            moves.append(
+                {
+                    **folded,
+                    "detected_at": when,
+                    "reviewed": change["reviewed"],
+                    "synthetic": change["synthetic"],
+                }
+            )
+    return moves
+
+
 def watchlist(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:
     """One row per watched trial: what identifies it, and what is outstanding.
 

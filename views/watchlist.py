@@ -20,14 +20,18 @@ import storage
 from display import (
     COLUMN_WIDTHS,
     DATE_FORMAT,
+    NO_HISTORY,
     SYNTHETIC,
     SYNTHETIC_MARK,
     UNREVIEWED,
     changed_fields,
     detected_on,
     group_fields,
+    history_by_card,
+    history_label,
     registry_updated,
     render_card,
+    render_history,
     search_line,
     show,
     study_line,
@@ -311,10 +315,20 @@ else:
         # The profile as a dossier: titled cards dealt across the page, each
         # one card-sized markdown block, so the whole study reads without
         # scrolling. Which fields belong to which card lives in display.py.
+        #
+        # Under each card, folded, everything that card has been through:
+        # reviewing clears the highlighting, not the record of what moved.
+        histories = history_by_card(monitor.history(conn, nct))
         columns = st.columns(CARD_COLUMNS, gap="medium")
         for index, (title, card) in enumerate(group_fields(marked["rows"])):
             with columns[index % CARD_COLUMNS], st.container(border=True):
                 st.markdown(render_card(title, card, nct))
+                moves = histories.get(title)
+                if moves:
+                    with st.expander(history_label(moves)):
+                        st.markdown(render_history(moves))
+                else:
+                    st.caption(NO_HISTORY)
 
 # --- the briefing
 #

@@ -50,6 +50,12 @@ On **Watchlist**, pick a list and read it: one line per trial, carrying what ide
 the study alongside what last moved on it and when, and selecting a line opens that
 trial's full profile underneath.
 
+A field that moved is highlighted until you press *Mark as reviewed*, which clears the
+highlighting and nothing else. Every card of the profile keeps its own **history**
+folded away underneath it: each move its fields have made since monitoring began, by
+day, marked read or unread, so a reviewed trial reads clean without its record going
+anywhere.
+
 Lists are how somebody covering two therapy areas keeps myeloma apart from lung. A trial
 can sit in several at once, and taking it out of one leaves the others alone; a trial in
 no list at all stops being monitored. A database written before lists existed opens with

@@ -258,6 +258,76 @@ def render_card(title: str, rows: list[dict], nct_id: str | None = None) -> str:
     )
 
 
+# --- a card's history
+#
+# Reviewing a trial clears its highlighting, which is right for "what is new"
+# and wrong for "what has this card been through". Each card therefore folds
+# its own record away underneath it: read, but one click from being read again.
+
+# Marks a move somebody has already reviewed, beside UNREVIEWED for one nobody has.
+REVIEWED = "✓"
+
+NO_HISTORY = "No changes since monitoring began."
+
+# How much of a value a line of the history shows. A card is a third of the
+# page wide, and an arm list in full would push the rest of the log off it.
+HISTORY_CHARS = 60
+
+
+def card_of(field: str) -> str:
+    """The title of the card a field is dealt into."""
+    for title, fields in CARDS:
+        if field in fields:
+            return title
+    return OTHER
+
+
+def history_by_card(moves: list[dict]) -> dict[str, list[dict]]:
+    """A trial's moves filed under the card each belongs to, order kept."""
+    cards: dict[str, list[dict]] = {}
+    for move in moves:
+        cards.setdefault(card_of(move["field"]), []).append(move)
+    return cards
+
+
+def history_label(moves: list[dict]) -> str:
+    """The fold a card's history sits under: how much, and how recent.
+
+    The date is on the fold so a reader can tell a card that moved last week
+    from one that moved in spring without opening either.
+    """
+    return f"History · {len(moves)} · last {long_date(moves[0]['detected_at'])}"
+
+
+def history_move(move: dict) -> str:
+    """One move as it reads in the history: what it went from, and to."""
+    if move["field"] == CRITERIA:
+        return AMENDED
+    before = excerpt(qualified(move["previous"], move.get("previous_qualifier")), HISTORY_CHARS)
+    after = excerpt(qualified(move["current"], move.get("qualifier")), HISTORY_CHARS)
+    return f"{before} → {after}"
+
+
+def render_history(moves: list[dict]) -> str:
+    """A card's moves as one markdown block, newest day first.
+
+    Each move says whether it has been reviewed. Grey rather than highlighted:
+    the highlight colours mean unread on the card above, and a history drawn in
+    them would read as a card full of news.
+    """
+    lines = []
+    for day in dict.fromkeys(move["detected_at"][:10] for move in moves):
+        lines.append(f"**{long_date(day)}**")
+        for move in (m for m in moves if m["detected_at"][:10] == day):
+            state = REVIEWED if move["reviewed"] else UNREVIEWED
+            fake = f" {SYNTHETIC_MARK}" if move["synthetic"] else ""
+            lines.append(
+                f"{state} {label(move['field'])}{fake}  \n"
+                f"&nbsp;&nbsp;&nbsp;&nbsp;:gray[{history_move(move)}]"
+            )
+    return "  \n".join(lines)
+
+
 # --- the study tables
 #
 # One line per trial, so every cell is a single short string. Pure functions
