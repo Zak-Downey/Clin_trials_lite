@@ -628,6 +628,79 @@ def test_a_trial_in_two_lists_is_readable_from_both_and_leaves_one_when_removed(
     assert storage.get_trial(conn, "NCT03412565") is not None
 
 
+def filled(conn, list_id: int, ids: list[str], record, make_fetcher, restyled):
+    """Put several distinct studies in a list, each under its own NCT ID."""
+    fetch = make_fetcher(records={nct: restyled(record, nct) for nct in ids})
+    for nct in ids:
+        monitor.add(conn, nct, list_id, fetch=fetch)
+
+
+def test_switching_to_a_shorter_list_does_not_carry_the_old_selection(
+    app, record, make_fetcher, restyled
+):
+    """Row numbers mean a different study, or none, once the list behind them changes.
+
+    The published Streamlit (1.62) knows the keyed table by its key alone, so
+    the row selected in one list comes back under the next. The selection is
+    held across the switch the way a browser holds it, which is the only way
+    the stale row number reaches the code that reads it. A Streamlit before
+    1.62 folds the table's data into its identity and drops the selection on
+    its own, so under one of those this test proves only that nothing opens;
+    the raise itself was reproduced against a local stlite build (ticket 16).
+    """
+    conn = storage.connect()
+    app.run()
+    lung = named(app, "Lung")
+    myeloma = named(app, "Myeloma")
+    filled(conn, lung, ["NCT00000001", "NCT00000002", "NCT00000003"], record, make_fetcher, restyled)
+    filled(conn, myeloma, ["NCT00000009"], record, make_fetcher, restyled)
+    showing(app, lung)
+    open_profile(app, 2)
+    assert app.button(key="remove_NCT00000003")
+
+    app.session_state["watchlist"] = selection([2])
+    app.selectbox(key="chosen_list").set_value(myeloma).run()
+
+    assert not app.exception
+    assert watchlist(app)[0]["NCT ID"] == "NCT00000009"
+    assert not [b for b in app.button if b.key and b.key.startswith("remove_")]
+
+
+def test_a_selection_carried_between_lists_does_not_open_another_trial(
+    app, record, make_fetcher, restyled
+):
+    conn = storage.connect()
+    app.run()
+    lung = named(app, "Lung")
+    myeloma = named(app, "Myeloma")
+    filled(conn, lung, ["NCT00000001"], record, make_fetcher, restyled)
+    filled(conn, myeloma, ["NCT00000009"], record, make_fetcher, restyled)
+    showing(app, lung)
+    open_profile(app, 0)
+
+    app.session_state["watchlist"] = selection([0])
+    app.selectbox(key="chosen_list").set_value(myeloma).run()
+
+    assert not app.exception
+    assert not [b for b in app.button if b.key and b.key.startswith("remove_")]
+
+
+def test_a_row_number_beyond_the_list_reads_as_no_selection(app, fetcher):
+    """What removing the last row of a list leaves behind."""
+    conn = storage.connect()
+    app.run()
+    lung = named(app, "Lung")
+    monitor.add(conn, "NCT03412565", lung, fetch=fetcher)
+    showing(app, lung)
+
+    app.session_state["watchlist"] = selection([1])
+    app.run()
+
+    assert not app.exception
+    assert watchlist(app)[0]["NCT ID"] == "NCT03412565"
+    assert not [b for b in app.button if b.key and b.key.startswith("remove_")]
+
+
 def test_a_trial_removed_from_its_only_list_stops_being_monitored(app, fetcher):
     conn = storage.connect()
     app.run()

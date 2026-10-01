@@ -46,6 +46,15 @@ CARD_COLUMNS = 3
 # is the window a briefing is usually written over.
 CUSTOM_DAYS = 30
 
+# The watchlist table, whose selection Streamlit keeps under the same key.
+TABLE = "watchlist"
+
+# Which list the table's selection was made in. Streamlit (from 1.62, the one
+# the published site runs) knows a keyed table by its key alone, so a row
+# selected in one list is reported again under the next, where that row number
+# is a different trial or no trial at all. The selection goes with its list.
+SELECTED_IN = "watchlist_selected_in"
+
 conn = storage.connect()
 
 # --- which list is showing
@@ -53,6 +62,11 @@ conn = storage.connect()
 picker, _ = st.columns([2, 3], vertical_alignment="bottom")
 chosen = choose(picker, conn, "Watchlist", "chosen_list")
 chosen_name = names(conn)[chosen]
+
+previously = st.session_state.get(SELECTED_IN)
+if previously is not None and previously != chosen:
+    st.session_state.pop(TABLE, None)
+st.session_state[SELECTED_IN] = chosen
 
 with st.expander("Manage lists"):
     fresh = st.text_input("New list", placeholder="Myeloma — Janssen", key="new_list")
@@ -250,7 +264,7 @@ else:
     )
     event = st.dataframe(
         table,
-        key="watchlist",
+        key=TABLE,
         hide_index=True,
         width="stretch",
         on_select="rerun",
@@ -282,7 +296,9 @@ else:
     )
     st.caption("Select a row to open its profile. Click a header to sort.")
 
-    picked = event.selection.rows
+    # A row number past the end is a selection left behind by a longer table,
+    # as removing the last row of this one leaves, and reads as no selection.
+    picked = [i for i in event.selection.rows if i < len(rows)]
     if picked:
         trial = rows[picked[0]]
         nct = trial["nct_id"]
