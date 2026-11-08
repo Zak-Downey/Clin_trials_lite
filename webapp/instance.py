@@ -37,4 +37,6 @@ def claim(db_path: str, wait: float = 3.0):
                 handle.close()
                 return address or None
             time.sleep(0.05)
+    # Holding the lock, whatever address is in the file belongs to a run that died.
+    handle.truncate(0)
     return Claim(handle)
