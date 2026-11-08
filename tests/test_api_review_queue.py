@@ -82,8 +82,8 @@ def test_listing_a_trials_changes_carries_ids_check_and_review_state(seeded):
     changes = body["changes"]
     assert [c["field"] for c in changes] == ["overallStatus", "primaryCompletionDate", "enrollment"]
     newest = changes[0]
-    assert isinstance(newest["id"], int)
-    assert len({c["id"] for c in changes}) == 3
+    assert all(isinstance(i, int) for i in newest["ids"])
+    assert len({i for c in changes for i in c["ids"]}) == 3
     assert newest["check"] == newest["detected_at"]["iso"]
     assert changes[1]["check"] == changes[2]["check"] != newest["check"]
     assert (newest["previous"], newest["current"]) == ("RECRUITING", "COMPLETED")
@@ -180,3 +180,68 @@ def test_a_watchlists_last_checked_is_its_most_recently_checked_trial(seeded):
     conn.close()
     (only,) = seeded.get("/api/watchlists")[1]["watchlists"]
     assert only["last_checked"]["iso"].startswith("2026-11-09")
+
+
+def _raw(api, method, route, headers=None, body=None):
+    import http.client
+    import json as _json
+
+    host, port = api.base.split("//")[1].split(":")
+    connection = http.client.HTTPConnection(host, int(port), timeout=10)
+    connection.putrequest(method, route, skip_host=True)
+    for name, value in (headers or {}).items():
+        connection.putheader(name, value)
+    connection.putheader("Content-Length", str(len(body or "")))
+    connection.endheaders(body.encode() if body else None)
+    response = connection.getresponse()
+    return response.status, _json.loads(response.read())
+
+
+def test_a_foreign_host_header_is_refused(seeded):
+    """test_a_foreign_host_header_is_refused"""
+    port = seeded.base.rsplit(":", 1)[1]
+    status, body = _raw(seeded, "GET", "/api/watchlists", {"Host": f"evil.example:{port}"})
+    assert status == 403 and body["error"]["kind"] == "forbidden_host"
+    status, _ = _raw(seeded, "GET", "/api/watchlists", {"Host": f"localhost:{port}"})
+    assert status == 200
+    status, _ = _raw(seeded, "GET", "/api/watchlists", {})
+    assert status == 403
+
+
+def test_a_write_from_a_foreign_origin_or_without_json_is_refused(seeded):
+    """test_a_write_from_a_foreign_origin_or_without_json_is_refused"""
+    from webapp import routes
+
+    routes.COMPILED.append(("POST", __import__("re").compile(r"/api/_probe\Z"), lambda ctx, **_: {"ok": True}))
+    try:
+        port = seeded.base.rsplit(":", 1)[1]
+        host = f"127.0.0.1:{port}"
+        json_type = "application/json"
+        assert _raw(seeded, "POST", "/api/_probe", {"Host": host, "Content-Type": json_type}, "{}")[0] == 200
+        status, body = _raw(seeded, "POST", "/api/_probe",
+                            {"Host": host, "Content-Type": json_type, "Origin": "http://evil.example"}, "{}")
+        assert status == 403 and body["error"]["kind"] == "forbidden_origin"
+        assert _raw(seeded, "POST", "/api/_probe",
+                    {"Host": host, "Content-Type": json_type, "Origin": f"http://{host}"}, "{}")[0] == 200
+        status, body = _raw(seeded, "POST", "/api/_probe", {"Host": host, "Content-Type": "text/plain"}, "{}")
+        assert status == 415 and body["error"]["kind"] == "unsupported_content_type"
+    finally:
+        routes.COMPILED.pop()
+
+
+def test_a_value_and_its_qualifier_moving_together_are_one_change_with_both_ids(seeded):
+    """test_a_value_and_its_qualifier_moving_together_are_one_change_with_both_ids"""
+    conn = storage.connect(seeded.path)
+    check = "2026-11-09T09:00:00+00:00"
+    storage.add_change(conn, "NCT00000002", {"field": "primaryCompletionDate", "previous": "2026-01", "current": "2026-06"}, check)
+    storage.add_change(conn, "NCT00000002", {"field": "primaryCompletionDateType", "previous": "ESTIMATED", "current": "ACTUAL"}, check)
+    conn.close()
+    changes = seeded.get("/api/trials/NCT00000002/changes")[1]["changes"]
+    moved = [c for c in changes if c["field"] == "primaryCompletionDate"]
+    assert len(moved) == 1 and len(moved[0]["ids"]) == 2
+    assert (moved[0]["previous_qualifier"], moved[0]["qualifier"]) == ("ESTIMATED", "ACTUAL")
+    entry = [t for t in seeded.get(f"/api/watchlists/{LIST_ID}/needs-review")[1]["trials"] if t["nct_id"] == "NCT00000002"][0]
+    queue_move = [m for m in entry["moves"] if m["field"] == "primaryCompletionDate"]
+    assert [m["ids"] for m in queue_move] == [moved[0]["ids"]]
+    unreviewed = [c for c in changes if not c["reviewed"]]
+    assert entry["change_count"] == len(unreviewed) == len(entry["moves"])

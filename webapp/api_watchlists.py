@@ -16,17 +16,15 @@ def _require(conn, list_id: int):
 
 
 def list_watchlists(ctx, **_):
-    with ctx.lock:
-        overview = monitor.watchlist_overview(ctx.conn)
+    overview = monitor.watchlist_overview(ctx.conn)
     return {
         "watchlists": [{**w, "last_checked": local(w["last_checked"])} for w in overview]
     }
 
 
 def needs_review(ctx, list_id: str, **_):
-    with ctx.lock:
-        _require(ctx.conn, int(list_id))
-        entries = monitor.needs_review(ctx.conn, int(list_id))
+    _require(ctx.conn, int(list_id))
+    entries = monitor.needs_review(ctx.conn, int(list_id))
     return {
         "trials": [
             {
@@ -38,6 +36,7 @@ def needs_review(ctx, list_id: str, **_):
                 "changed_fields": e["changed_fields"],
                 "detected_at": local(e["detected_at"]),
                 "change_count": e["change_count"],
+                "moves": e["moves"],
                 "simulated": e["synthetic"],
             }
             for e in entries

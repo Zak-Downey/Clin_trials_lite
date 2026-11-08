@@ -15,7 +15,7 @@ async function drawSidebar(activeId) {
     name.textContent = w.name;
     const count = document.createElement("span");
     count.className = w.needs_review_count ? "badge" : "count";
-    count.textContent = w.needs_review_count || w.trial_count;
+    count.textContent = `${w.needs_review_count} to review · ${w.trial_count} trials`;
     link.append(name, count);
     return link;
   }));

@@ -134,6 +134,8 @@ def api(tmp_path, fetcher, make_finder):
         def request(self, method, route, body=None):
             data = None if body is None else _json.dumps(body).encode()
             req = urllib.request.Request(self.base + route, data=data, method=method)
+            if method == "POST":
+                req.add_header("Content-Type", "application/json")
             try:
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     raw, status = resp.read(), resp.status

@@ -12,11 +12,11 @@ export async function render(root, listId, watchlist) {
   root.replaceChildren(
     el("h1", {}, watchlist ? watchlist.name : "Watchlist"),
     el("p", { class: "meta", id: "queue-counts" },
-      `Needs review: ${counts.trials} trial${counts.trials === 1 ? "" : "s"}, ` +
+      `${counts.trials} trial${counts.trials === 1 ? "" : "s"} need${counts.trials === 1 ? "s" : ""} review · ` +
       `${counts.field_changes} unreviewed field change${counts.field_changes === 1 ? "" : "s"}`),
   );
   if (!trials.length) {
-    root.append(el("div", { class: "empty" }, "Nothing needs review."));
+    root.append(el("div", { class: "empty" }, "All caught up"));
     return;
   }
   const table = el("table", { class: "queue" });
@@ -26,7 +26,7 @@ export async function render(root, listId, watchlist) {
   for (const t of trials) {
     const first = el("td", {}, el("strong", {}, t.heading || t.nct_id), el("div", { class: "meta" }, t.nct_id));
     const changed = el("td", {}, `${t.changed_fields.join(", ")} (${t.change_count})`);
-    if (t.simulated) changed.append(el("div", { class: "simulated" }, "Simulated"));
+    if (t.simulated) changed.append(el("div", { class: "simulated" }, "Simulated changes"));
     body.append(el("tr", { "data-nct": t.nct_id }, first, el("td", {}, t.phase || ""),
       el("td", {}, t.sponsor || ""), el("td", {}, t.status || ""), changed, el("td", {}, when(t.detected_at))));
   }

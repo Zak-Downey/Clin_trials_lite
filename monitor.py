@@ -1108,14 +1108,18 @@ def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
         profile = medical_affairs.profile(snapshot["record"]) if snapshot else {}
         for folded in diff.fold_moves(found, profile):
             change = folded.pop("change")
+            rows = folded.pop("changes")
             moves.append(
                 {
                     **folded,
-                    "id": change["id"],
+                    # Every change row the move folds, so reviewing by ID
+                    # reaches the qualifier as well as the value.
+                    "ids": [row["id"] for row in rows],
+                    "registry_updated": profile.get("lastUpdatePostDate"),
                     # One check of one trial is identified by its detection time.
                     "check": when,
                     "detected_at": when,
-                    "reviewed": change["reviewed"],
+                    "reviewed": all(row["reviewed"] for row in rows),
                     "synthetic": change["synthetic"],
                 }
             )
@@ -1179,7 +1183,8 @@ def needs_review(conn: sqlite3.Connection, list_id: int) -> list[dict]:
     (acronym, else brief title), identity facts, the names of the fields
     outstanding (high-signal first), when the newest was detected, how many
     field changes are outstanding (a value and its qualifier count once per
-    check) and whether any is simulated.
+    check) and whether any is simulated. `moves` lists those folded moves, each
+    with the IDs of the change rows it folds.
     """
     entries = []
     for trial in storage.list_trials(conn, list_id):
@@ -1188,9 +1193,14 @@ def needs_review(conn: sqlite3.Connection, list_id: int) -> list[dict]:
         if not unreviewed:
             continue
         profile = profile_of(conn, nct) or {}
-        per_check: dict[str, list[str]] = {}
+        per_check: dict[str, list[dict]] = {}
         for change in unreviewed:
-            per_check.setdefault(change["detected_at"], []).append(change["field"])
+            per_check.setdefault(change["detected_at"], []).append(change)
+        moves = [
+            {"field": m["field"], "ids": [r["id"] for r in m["changes"]], "check": when}
+            for when, found in per_check.items()
+            for m in diff.fold_moves(found, profile)
+        ]
         entries.append(
             {
                 "nct_id": nct,
@@ -1200,7 +1210,8 @@ def needs_review(conn: sqlite3.Connection, list_id: int) -> list[dict]:
                     diff.fold_qualifiers(c["field"] for c in unreviewed)
                 ),
                 "detected_at": max(per_check),
-                "change_count": sum(len(diff.fold_qualifiers(f)) for f in per_check.values()),
+                "change_count": len(moves),
+                "moves": moves,
                 "synthetic": any(c["synthetic"] for c in unreviewed),
             }
         )

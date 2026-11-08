@@ -26,6 +26,8 @@ Every check in this repo runs against these. A row whose fidelity check starts w
 
 | Stand-in | Stands in for | Fidelity check | Last checked |
 |---|---|---|---|
+| Stub fetcher and finder (`make_fetcher`, `make_finder` in `tests/conftest.py`) injected by the `api` fixture | The ClinicalTrials.gov client | None yet: no endpoint calls the registry; first live check belongs to the ticket that adds one | never |
+| In-process `make_server` on a free port (the `api` fixture) | `python run.py` as a user starts it | `tests/test_run.py` starts the real `run.py` in a subprocess and fetches the page | 2026-11-08 |
 
 ## CI
 

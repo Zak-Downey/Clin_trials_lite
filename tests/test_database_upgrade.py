@@ -42,3 +42,15 @@ def test_an_older_database_opens_with_its_data_and_an_upgraded_schema(tmp_path):
     # Upgraded in place: the schema version is recorded, and the trial is housed.
     assert conn.execute("PRAGMA user_version").fetchone()[0] == storage.SCHEMA_VERSION
     assert [t["nct_id"] for t in storage.list_trials(conn, 1)] == ["NCT00000001"]
+
+
+def test_a_database_from_a_later_version_is_not_stamped_back(tmp_path):
+    """test_a_database_from_a_later_version_is_not_stamped_back"""
+    path = str(tmp_path / "later.db")
+    storage.connect(path).close()
+    raw = sqlite3.connect(path)
+    raw.execute(f"PRAGMA user_version = {storage.SCHEMA_VERSION + 5}")
+    raw.commit()
+    raw.close()
+    conn = storage.connect(path)
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == storage.SCHEMA_VERSION + 5
