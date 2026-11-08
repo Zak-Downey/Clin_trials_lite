@@ -90,7 +90,7 @@ def test_walk_the_header_shows_last_checked_and_a_failed_check_carries_a_labelle
     assert page.get_by_text("Latest check failed").is_visible()
     walk.shot("failed")
     page.evaluate("location.hash = '#/trials/NCT03412565'")
-    page.get_by_text("Last checked").wait_for()
+    page.get_by_role("heading", level=1, name=re.compile("^A Study to Evaluate")).wait_for()
     assert page.get_by_text("Latest check failed").count() == 0
 
 
@@ -111,6 +111,7 @@ def test_walk_trial_details_has_five_sections_long_ones_expand_and_an_unreviewed
     """test_walk_trial_details_has_five_sections_long_ones_expand_and_an_unreviewed_field_is_never_collapsed"""
     _, walk = open_page(make_app, make_walk, ACRONYM, "/details")
     page = walk.page
+    page.locator(".detail-section").nth(4).wait_for()
     titles = page.locator(".detail-section h2").all_inner_texts()
     assert [t.split("\n")[0].strip("+− ").strip() for t in titles] == [
         "Identity & study design", "Conditions & eligibility", "Interventions & arms", "Endpoints", "Dates & results"]
