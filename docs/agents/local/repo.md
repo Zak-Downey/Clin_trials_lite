@@ -1,24 +1,24 @@
 # This repo
 
-What is particular to this repo. The other files under `docs/agents/` hold in any repo and are replaced when the kit is updated; the files in `local/` are yours and are never replaced. Fill in each line below. A line that still says "Fill in" is a gap an agent will trip on.
+What is particular to this repo. The other files under `docs/agents/` hold in any repo and are replaced when the kit is updated; the files in `local/` are yours and are never replaced. Every line below is a fact of this repo; a line left blank is a gap an agent will trip on.
 
 ## Commands
 
-- **Unit suite.** Fill in: the command, and where its output goes.
-- **Walk suite.** Fill in: the command that runs every walk across workers, and how to run some by name.
-- **Outline a module.** Fill in: for example `grep -n '^export '` for JavaScript, `grep -n '^def \|^class '` for Python.
+- **Unit suite.** `.venv/bin/python -m pytest -q`, run from the repo root (tests in `tests/`). Under `gate.py checks` its output goes to the file the gate names on the `output:` path it prints (`unit.txt` in a temporary `factory-gate-*` folder).
+- **Walk suite.** None in this repo yet.
+- **Outline a module.** `grep -n '^def \|^class ' <file>.py`
 - **The gate's checks.** The suites above, by name, in `docs/agents/local/factory.json`. `python3 .claude/factory/gate.py checks` runs them all.
 
 ## Walks
 
-- **Tooling.** Fill in: the browser driver (a dev dependency only), the runner, and where walks live (outside the fast test folder, so the fast suite needs no browser).
-- **Helpers.** Fill in: the shared walk helper; how it starts the app on its own free port with a fresh temporary copy of the fixture data; which stand-in replaces each external service and how the app is pointed at it; one browser per worker; the guards; the screenshot helper.
-- **Evidence.** Fill in: where results files (tracked) and screenshots (git-ignored) go, normally `.scratch/<feature>/walks/`.
-- **Shared client plumbing.** Fill in: the files whose change runs the whole walk suite.
-- **Areas.** Fill in: the four to six areas the exploratory walkers split into, one walker each.
-- **Viewports.** Fill in: the fixed viewport, and the smallest one the brief allows.
-- **Agents running browsers at once.** Fill in: a number at or below this machine's cores.
-- **Not checkable by a walk here.** Fill in: what only the user can check in this product.
+- **Tooling.** None in this repo yet: no browser driver or walk runner is installed. The Streamlit pages are tested in the unit suite through `streamlit.testing.v1.AppTest` (`tests/test_app.py`), which needs no browser.
+- **Helpers.** None in this repo yet.
+- **Evidence.** None in this repo yet; when a walk suite exists, `.scratch/<feature>/walks/`.
+- **Shared client plumbing.** Not in this repo.
+- **Areas.** Not in this repo.
+- **Viewports.** Not in this repo.
+- **Agents running browsers at once.** 1.
+- **Not checkable by a walk here.** Everything in a browser: with no walk suite, every user-facing behaviour is checked only by the unit suite's `AppTest` runs or by the user.
 
 ## Stand-ins
 
@@ -26,11 +26,10 @@ Every check in this repo runs against these. A row whose fidelity check starts w
 
 | Stand-in | Stands in for | Fidelity check | Last checked |
 |---|---|---|---|
-| Fill in | | | |
 
 ## CI
 
-- **Workflows.** Fill in: each workflow file, what it runs, and whether it runs on a draft. Or: none yet.
-- **The local gate.** Fill in: the hook and commands that run before a push, and how a step CI has already passed on this commit is skipped.
-- **The dispatch.** Fill in: the command that runs the expensive workflow on a draft.
-- **Gaps against the checklist.** Fill in: any item of `ci-spend.md`'s checklist a workflow does not follow yet, and why.
+- **Workflows.** `.github/workflows/deploy.yml` ("Publish the site"): on push to `main` or `master` and on `workflow_dispatch`, runs `python build_site.py site` and deploys the result to GitHub Pages. It runs no tests. There is no pull-request workflow, so nothing runs on a draft.
+- **The local gate.** No pre-push hook or other local hook in this repo; `python3 .claude/factory/gate.py checks` is run by hand. No CI step runs the tests, so there is nothing to skip.
+- **The dispatch.** `gh workflow run deploy.yml` (publishes the site; not a test run).
+- **Gaps against the checklist.** No CI workflow runs the tests, so the test-workflow items of `ci-spend.md` do not apply yet. `deploy.yml` triggers on push to `main` on purpose, because it publishes `main`. Neither of its jobs sets `timeout-minutes`.
