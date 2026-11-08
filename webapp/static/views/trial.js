@@ -16,7 +16,7 @@ export async function render(root, nct, tab, origin) {
   const others = trial.watchlists.filter((w) => !home || w.id !== home.id);
   const state = { reviewed: false, event: null };
 
-  const back = el("a", { class: "back", "data-back": "", href: home ? `#/watchlists/${home.id}/needs-review` : "#/watchlists" },
+  const back = el("a", { class: "back", "data-back": "", href: home ? `#/watchlists/${home.id}/${origin && origin.listId === home.id && origin.tab || "needs-review"}` : "#/watchlists" },
     `‹ Back to ${home ? home.name : "watchlists"}`);
   const meta = el("p", { class: "meta" }, [nct, trial.last_checked ? `Last checked ${when(trial.last_checked)}` : "Not yet checked"].join(" · "));
   if (trial.check_failed) {

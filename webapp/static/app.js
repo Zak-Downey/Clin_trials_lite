@@ -1,6 +1,7 @@
 // Shell and router. The URL hash holds the state: #/watchlists/<id>, #/find.
 import { get } from "/static/api.js";
 import { render as renderFind } from "/static/views/find.js";
+import { render as renderAll } from "/static/views/all_trials.js";
 import { render as renderQueue } from "/static/views/needs_review.js";
 import { render as renderSummary } from "/static/views/summary.js";
 import { mount as mountCheck } from "/static/views/check.js";
@@ -27,7 +28,7 @@ async function drawSidebar(activeId) {
   note.textContent = "Number badges show trials with unreviewed changes.";
   sidebar.replaceChildren(heading, ...watchlists.map((w) => {
     const link = document.createElement("a");
-    link.href = `#/watchlists/${w.id}/needs-review`;
+    link.href = `#/watchlists/${w.id}`; // the tab is the remembered one, else Needs review
     if (w.id === activeId) link.className = "active";
     const name = document.createElement("span");
     name.className = "name";
@@ -55,7 +56,7 @@ document.addEventListener("click", (event) => {
   const link = event.target.closest && event.target.closest('a[href^="#/trials/"]');
   const here = /^#\/watchlists\/(\d+)\//.exec(location.hash);
   if (link && here) {
-    origin = { listId: Number(here[1]), scroll: window.scrollY };
+    origin = { listId: Number(here[1]), tab: location.hash.split("/")[3] || "needs-review", scroll: window.scrollY };
     history.replaceState({ scroll: window.scrollY }, "");
   }
   const back = event.target.closest && event.target.closest("a[data-back]");
@@ -63,6 +64,13 @@ document.addEventListener("click", (event) => {
 }, true);
 
 window.addEventListener("reviewchange", () => drawSidebar(null).catch(() => {}));
+
+const remembered = (id) => {
+  try { return localStorage.getItem(`tab:${id}`); } catch { return null; }
+};
+const remember = (id, tab) => {
+  try { localStorage.setItem(`tab:${id}`, tab); } catch { /* the choice just is not kept */ }
+};
 
 async function route() {
   const mine = ++generation;
@@ -92,12 +100,17 @@ async function route() {
     const id = parts[0] === "watchlists" && parts[1] ? Number(parts[1]) : (lists[0] && lists[0].id);
     if (id === undefined) { view.textContent = "No watchlists yet."; return; }
     // The address always names the watchlist and the tab, so reload and Back land where you were.
-    const tab = parts[2] === "summary" ? "summary" : "needs-review";
+    // A tab chosen is remembered per watchlist; a bare address opens the remembered one,
+    // else Needs review. A count that changes never changes the tab.
+    const known = ["needs-review", "all-trials", "summary"];
+    const tab = known.includes(parts[2]) ? parts[2] : (remembered(id) || "needs-review");
+    remember(id, tab);
     const canonical = `#/watchlists/${id}/${tab}`;
-    if (tab === "needs-review" && location.hash !== canonical) history.replaceState(null, "", canonical);
+    if (tab !== "summary" && location.hash !== canonical) history.replaceState(null, "", canonical);
+    if (tab === "summary" && !parts[2]) history.replaceState(null, "", canonical);
     const draw = tab === "summary"
       ? (node, listId, current) => renderSummary(node, listId, current, hashQuery)
-      : renderQueue;
+      : tab === "all-trials" ? renderAll : renderQueue;
     await drawSidebar(id);
     const watchlist = lists.find((w) => w.id === id);
     const header = el("div", { class: "watchlist-header" });

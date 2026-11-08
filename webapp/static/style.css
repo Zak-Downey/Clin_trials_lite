@@ -198,3 +198,16 @@ li.card.result input[type=checkbox], .select-page input { width: 20px; height: 2
 .find-bar .count { margin-right: 4px; }
 .find-bar > label { margin-left: auto; }
 .head-actions { flex-wrap: wrap; }
+
+.table-tools { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin: 0 0 12px; }
+.table-tools .field:first-child { flex: 1 1 auto; max-width: 560px; }
+.table-tools .field:last-child { flex: none; }
+table.trials { width: 100%; border-collapse: collapse; background: var(--surface); }
+table.trials th { position: sticky; top: 0; z-index: 1; background: var(--surface); text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); }
+table.trials td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+table.trials td:first-child { width: 46%; }
+table.trials td a { font-weight: 600; text-decoration: none; }
+table.trials .identity { margin-top: 2px; }
+.review-state { display: inline-block; white-space: nowrap; border-radius: 6px; padding: 1px 8px; font-size: 12px; font-weight: 600; background: var(--page); color: var(--muted); }
+.review-state.unreviewed { background: var(--accent-soft); color: var(--accent); }
+table.trials .warning { color: #b42318; font-size: 12px; margin-top: 2px; }

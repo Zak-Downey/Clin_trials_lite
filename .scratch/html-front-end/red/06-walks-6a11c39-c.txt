@@ -1,0 +1,33 @@
+# tip 6a11c3900640cb95ef2da893be0ea19ee8bae6a0
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+
+make_app = <function make_app.<locals>.build at 0x1092f11c0>
+make_walk = <function make_walk.<locals>.build at 0x1092f5760>
+
+    def test_walk_the_filter_searches_only_this_watchlist_and_says_so(make_app, make_walk):
+        """test_walk_the_filter_searches_only_this_watchlist_and_says_so"""
+        _, walk = open_all_trials(make_app, make_walk)
+        page = walk.page
+        box = page.get_by_label("Filter by title, NCT ID or sponsor")
+        assert "not ClinicalTrials.gov" in page.locator("#filter-note").inner_text()
+        box.fill("delta")
+>       assert titles(page) == ["Delta quiet study"]
+E       AssertionError: assert ['Alpha revie...ller 02', ...] == ['Delta quiet study']
+E         
+E         At index 0 diff: 'Alpha reviewed study' != 'Delta quiet study'
+E         Left contains 18 more items, first extra item: 'Alpha-numeric long titled study of a combination regimen in adults with relapsed or refractory multiple myeloma who have received at least two prior lines of therapy including a proteasome inhibitor and an immunomodulatory agent'
+E         Use -v to get more diff
+
+walks/test_all_trials_walk.py:143: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_all_trials_walk.py::test_walk_a_failed_check_is_labelled_and_keeps_the_earlier_success_time[1440x900]
+FAILED walks/test_all_trials_walk.py::test_walk_a_failed_check_is_labelled_and_keeps_the_earlier_success_time[1024x768]
+FAILED walks/test_all_trials_walk.py::test_walk_the_filter_searches_only_this_watchlist_and_says_so[1440x900]
+FAILED walks/test_all_trials_walk.py::test_walk_the_filter_searches_only_this_watchlist_and_says_so[1024x768]
+4 failed, 125 passed in 58.28s
+
+## Result
+walks/test_all_trials_walk.py::test_walk_a_failed_check_is_labelled_and_keeps_the_earlier_success_time[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/alone-test-walk-a-failed-check-is-labelled-and-keeps-the-earlier-success-time-1440x900.txt)
+walks/test_all_trials_walk.py::test_walk_a_failed_check_is_labelled_and_keeps_the_earlier_success_time[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/alone-test-walk-a-failed-check-is-labelled-and-keeps-the-earlier-success-time-1024x768.txt)
+walks/test_all_trials_walk.py::test_walk_the_filter_searches_only_this_watchlist_and_says_so[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/alone-test-walk-the-filter-searches-only-this-watchlist-and-says-so-1440x900.txt)
+walks/test_all_trials_walk.py::test_walk_the_filter_searches_only_this_watchlist_and_says_so[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/alone-test-walk-the-filter-searches-only-this-watchlist-and-says-so-1024x768.txt)

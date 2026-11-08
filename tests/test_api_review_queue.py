@@ -248,3 +248,39 @@ def test_a_value_and_its_qualifier_moving_together_are_one_change_with_both_ids(
     assert [m["ids"] for m in queue_move] == [moved[0]["ids"]]
     unreviewed = [c for c in changes if not c["reviewed"]]
     assert entry["change_count"] == len(unreviewed) == len(entry["moves"])
+
+
+def test_all_trials_lists_every_trial_with_review_state_freshness_and_failure(seeded):
+    """test_all_trials_lists_every_trial_with_review_state_freshness_and_failure"""
+    conn = storage.connect(seeded.path)
+    storage.mark_checked(conn, "NCT00000003", SECOND_CHECK)
+    storage.mark_check_failed(conn, "NCT00000003", "unreachable", "2026-11-08T17:00:00+00:00")
+    conn.close()
+    status, body = seeded.get(f"/api/watchlists/{LIST_ID}/all-trials")
+    assert status == 200
+    by_id = {t["nct_id"]: t for t in body["trials"]}
+    assert set(by_id) == {"NCT03412565", "NCT00000002", "NCT00000003"}
+    first, acro, read = by_id["NCT03412565"], by_id["NCT00000002"], by_id["NCT00000003"]
+    assert first["review"] == {"state": "unreviewed", "label": "3 changes"}
+    assert acro["review"] == {"state": "unreviewed", "label": "1 change"}
+    assert read["review"] == {"state": "reviewed", "label": "Reviewed"}
+    assert first["heading"].startswith("A Study to Evaluate") and acro["heading"] == "ACRO"
+    assert first["status"] == "Completed"  # the registry status, apart from the review state
+    assert first["latest_change"]["iso"].startswith("2026-11-08")
+    assert read["last_checked"]["iso"].startswith("2026-11-08")
+    assert read["check_failed"]["kind"] == "unreachable"
+    assert first["check_failed"] is None
+
+
+def test_a_trial_with_no_changes_reads_no_changes_and_an_unknown_list_is_not_found(seeded, record, restyled):
+    """test_a_trial_with_no_changes_reads_no_changes_and_an_unknown_list_is_not_found"""
+    conn = storage.connect(seeded.path)
+    quiet = restyled(record, "NCT00000004")
+    monitor.add(conn, "NCT00000004", LIST_ID, fetch=lambda _n: quiet, when="2026-11-01T08:00:00+00:00")
+    conn.close()
+    trials = seeded.get(f"/api/watchlists/{LIST_ID}/all-trials")[1]["trials"]
+    quiet_row = next(t for t in trials if t["nct_id"] == "NCT00000004")
+    assert quiet_row["review"] == {"state": "none", "label": "No changes"}
+    assert quiet_row["latest_change"] is None
+    status, body = seeded.get("/api/watchlists/999/all-trials")
+    assert status == 404 and body["error"]["kind"] == "watchlist_not_found"

@@ -46,3 +46,37 @@ def needs_review(ctx, list_id: str, **_):
             "field_changes": sum(e["change_count"] for e in entries),
         },
     }
+
+
+def all_trials(ctx, list_id: str, **_):
+    """Every trial in the watchlist: identity, registry status, review state (a separate
+    fact), last successful check and whether the latest check failed."""
+    _require(ctx.conn, int(list_id))
+    queue = {e["nct_id"]: e for e in monitor.needs_review(ctx.conn, int(list_id))}
+    trials = []
+    for t in storage.list_trials(ctx.conn, int(list_id)):
+        nct = t["nct_id"]
+        profile = monitor.profile_of(ctx.conn, nct) or {}
+        changes = storage.list_changes(ctx.conn, nct)
+        if nct in queue:
+            n = queue[nct]["change_count"]
+            review = {"state": "unreviewed", "label": f"{n} change{'' if n == 1 else 's'}"}
+        elif changes:
+            review = {"state": "reviewed", "label": "Reviewed"}
+        else:
+            review = {"state": "none", "label": "No changes"}
+        trials.append(
+            {
+                "nct_id": nct,
+                "heading": profile.get("acronym") or profile.get("briefTitle") or nct,
+                "phase": display.phase_label(profile.get("phases")),
+                "sponsor": profile.get("leadSponsor"),
+                "status": display.status_label(profile.get("overallStatus")),
+                "review": review,
+                "latest_change": local(max(c["detected_at"] for c in changes)) if changes else None,
+                "last_checked": local(t["last_checked"]),
+                "check_failed": {"at": local(t["check_failed_at"]), "kind": t["check_error_kind"]}
+                if t["check_failed_at"] else None,
+            }
+        )
+    return {"trials": trials, "counts": {"trials": len(trials)}}

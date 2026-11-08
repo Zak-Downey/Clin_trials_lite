@@ -1,0 +1,46 @@
+# tip 6b05a7fc25cd1fa50599ada316191170a2022bc0
+.........................................FF............................. [ 13%]
+........................................................................ [ 27%]
+........................................................................ [ 40%]
+........................................................................ [ 54%]
+........................................................................ [ 68%]
+........................................................................ [ 81%]
+........................................................................ [ 95%]
+.......................                                                  [100%]
+=================================== FAILURES ===================================
+__ test_all_trials_lists_every_trial_with_review_state_freshness_and_failure ___
+
+seeded = <conftest.api.<locals>.Client object at 0x1080f06e0>
+
+    def test_all_trials_lists_every_trial_with_review_state_freshness_and_failure(seeded):
+        """test_all_trials_lists_every_trial_with_review_state_freshness_and_failure"""
+        conn = storage.connect(seeded.path)
+        storage.mark_checked(conn, "NCT00000003", SECOND_CHECK)
+        storage.mark_check_failed(conn, "NCT00000003", "unreachable", "2026-11-08T17:00:00+00:00")
+        conn.close()
+        status, body = seeded.get(f"/api/watchlists/{LIST_ID}/all-trials")
+>       assert status == 200
+E       assert 404 == 200
+
+tests/test_api_review_queue.py:260: AssertionError
+_ test_a_trial_with_no_changes_reads_no_changes_and_an_unknown_list_is_not_found _
+
+seeded = <conftest.api.<locals>.Client object at 0x1080f1fd0>
+record = {'protocolSection': {'identificationModule': {'nctId': 'NCT03412565', 'orgStudyIdInfo': {'id': 'CR108435'}, 'secondary...id': 'D001896', 'term': 'Boron Compounds'}, {'id': 'D009930', 'term': 'Organic Chemicals'}, ...]}}, 'hasResults': True}
+restyled = <function restyled.<locals>.build at 0x10809d080>
+
+    def test_a_trial_with_no_changes_reads_no_changes_and_an_unknown_list_is_not_found(seeded, record, restyled):
+        """test_a_trial_with_no_changes_reads_no_changes_and_an_unknown_list_is_not_found"""
+        conn = storage.connect(seeded.path)
+        quiet = restyled(record, "NCT00000004")
+        monitor.add(conn, "NCT00000004", LIST_ID, fetch=lambda _n: quiet, when="2026-11-01T08:00:00+00:00")
+        conn.close()
+>       trials = seeded.get(f"/api/watchlists/{LIST_ID}/all-trials")[1]["trials"]
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'trials'
+
+tests/test_api_review_queue.py:281: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_api_review_queue.py::test_all_trials_lists_every_trial_with_review_state_freshness_and_failure
+FAILED tests/test_api_review_queue.py::test_a_trial_with_no_changes_reads_no_changes_and_an_unknown_list_is_not_found
+2 failed, 525 passed in 36.93s
