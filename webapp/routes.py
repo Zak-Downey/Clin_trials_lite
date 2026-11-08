@@ -25,7 +25,8 @@ ROUTES = [
     ("GET", r"/api/watchlists/(?P<list_id>\d+)/summary", api_summary.summary),
     ("POST", r"/api/watchlists/(?P<list_id>\d+)/trials", api_membership.add_trials),
     ("GET", r"/api/registry/trials/(?P<nct_id>[Nn][Cc][Tt]\d{8})", api_membership.registry_trial),
-
+    ("POST", r"/api/watchlists", api_watchlists.create_watchlist),
+    ("GET", r"/api/watchlists/(?P<list_id>\d+)/lookup", api_membership.lookup),
     ("GET", r"/api/watchlists/(?P<list_id>\d+)/all-trials", api_watchlists.all_trials),
 ]
 
