@@ -4,7 +4,7 @@ export function tabs(listId, selected) {
   nav.className = "tabs";
   nav.setAttribute("role", "tablist");
   nav.setAttribute("aria-label", "Watchlist views");
-  for (const [key, label] of [["needs-review", "Needs review"], ["summary", "Summary"]]) {
+  for (const [key, label] of [["needs-review", "Needs review"], ["all-trials", "All trials"], ["summary", "Summary"]]) {
     const link = document.createElement("a");
     link.setAttribute("role", "tab");
     link.setAttribute("aria-selected", String(key === selected));
