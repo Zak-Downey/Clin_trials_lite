@@ -32,6 +32,7 @@ from __future__ import annotations
 import copy
 import json
 import pathlib
+import re
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -121,6 +122,8 @@ class Handler(BaseHTTPRequestHandler):
             nct = route[len("/studies/"):].upper()
             if flags["fail"] and nct in flags["fail_ids"]:
                 return self._reply(500, {"error": f"{nct} failed"})
+            if nct not in studies and re.fullmatch(r"NCT100000(0[1-9]|[1-9]\d|1[0-2]\d|13[0-4])", nct):
+                studies[nct] = _copy_as(_captured(), nct)  # one of the "many" search answers
             if flags["not_found"] or nct not in studies:
                 return self._reply(404, {"error": f"{nct} not found"})
             return self._reply(200, studies[nct])
