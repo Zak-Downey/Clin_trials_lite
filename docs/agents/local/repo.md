@@ -17,7 +17,7 @@ What is particular to this repo. The other files under `docs/agents/` hold in an
 - **Shared client plumbing.** `webapp/static/app.js`, `webapp/static/api.js`, `webapp/static/style.css`, `walks/helper.py`, `walks/conftest.py`, `walks/standin_registry.py`, `walks/serve.py`. A change to one runs the whole walk suite.
 - **Areas.** The shell and sidebar; each watchlist tab (`webapp/static/views/`); Find trials (not built yet).
 - **Viewports.** 1440 x 900 and 1024 x 768 (every walk runs at both); the acceptance walk adds Playwright's WebKit when that ticket exists. The browser runs in Asia/Tokyo and the server in America/New_York, so a time shifted into the browser's zone shows.
-- **Agents running browsers at once.** 1 (a suite run uses four workers).
+- **Agents running browsers at once.** 3 (a suite run uses four workers; the runner re-runs a failure alone, so load-only flakes show as such).
 - **Not checkable by a walk here.** Wording and legibility, Safari, real hardware, the live registry (`walks/fidelity_check.py` is by hand).
 
 ## Running a walk
