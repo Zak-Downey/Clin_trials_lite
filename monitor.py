@@ -30,7 +30,15 @@ PAUSE = 0.5
 
 
 class MonitorError(Exception):
-    """Something went wrong that the analyst needs to see, in their words."""
+    """Something went wrong that the analyst needs to see, in their words.
+
+    `kind` names what went wrong for a caller that must tell causes apart
+    (not_found, registry_error, unreachable, bad_record, error).
+    """
+
+    def __init__(self, message: str = "", kind: str = "error"):
+        super().__init__(message)
+        self.kind = kind
 
 
 def _default_fetch(nct_id: str) -> dict:
@@ -54,17 +62,19 @@ def _fetch_record(nct: str, fetch) -> dict:
         record = (fetch or _default_fetch)(nct)
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
-            raise MonitorError(f"{nct} was not found on ClinicalTrials.gov.") from exc
-        raise MonitorError(f"ClinicalTrials.gov returned an error for {nct} ({exc.code}).") from exc
+            raise MonitorError(f"{nct} was not found on ClinicalTrials.gov.", "not_found") from exc
+        raise MonitorError(
+            f"ClinicalTrials.gov returned an error for {nct} ({exc.code}).", "registry_error"
+        ) from exc
     except urllib.error.URLError as exc:
-        raise MonitorError(f"Could not reach ClinicalTrials.gov: {exc.reason}") from exc
+        raise MonitorError(f"Could not reach ClinicalTrials.gov: {exc.reason}", "unreachable") from exc
     except Exception as exc:
         # A timeout, a TLS failure, a malformed response. The analyst gets a
         # readable message rather than a traceback.
-        raise MonitorError(f"Could not fetch {nct}: {exc}") from exc
+        raise MonitorError(f"Could not fetch {nct}: {exc}", "unreachable") from exc
 
     if not record or "protocolSection" not in record:
-        raise MonitorError(f"ClinicalTrials.gov returned no usable record for {nct}.")
+        raise MonitorError(f"ClinicalTrials.gov returned no usable record for {nct}.", "bad_record")
     return record
 
 
@@ -496,6 +506,66 @@ def search(
     return {"rows": rows, "capped": capped}
 
 
+PAGE_SIZE = 10
+SEARCH_CAP = 100
+
+
+def _default_find_page(**params) -> dict:
+    return ctgov.find_page(**params)
+
+
+def search_page(
+    cond: str = "",
+    intr: str = "",
+    spons: str = "",
+    phases=(),
+    sponsor_types=(),
+    statuses=(),
+    started_from: str = "",
+    started_to: str = "",
+    page: int = 1,
+    find_page=None,
+) -> dict:
+    """One page (ten rows) of a search, the registry's true total for the same
+    query, and whether the 100-result cap applies. Refuses what search() refuses.
+    """
+    query = as_query(
+        cond, intr, spons, phases, sponsor_types, statuses, started_from, started_to
+    )
+    _refuse_unanswerable(query)
+    try:
+        answer = (find_page or _default_find_page)(
+            cond=query["cond"],
+            intr=query["intr"],
+            spons=query["spons"],
+            phases=tuple(query["phases"]),
+            sponsor_types=tuple(query["sponsor_types"]),
+            statuses=tuple(query["statuses"]),
+            started_from=query["started_from"],
+            started_to=query["started_to"],
+            page=page,
+            page_size=PAGE_SIZE,
+        )
+    except urllib.error.URLError as exc:
+        raise MonitorError(f"Could not reach ClinicalTrials.gov: {exc.reason}") from exc
+    except Exception as exc:
+        raise MonitorError(f"The search failed: {exc}") from exc
+    rows = []
+    for study in answer["studies"]:
+        profile = medical_affairs.profile(study)
+        rows.append({"nct_id": profile["nctId"], **_identity(profile)})
+    total = answer["total"]
+    shown = min(total, SEARCH_CAP)
+    return {
+        "rows": rows,
+        "total": total,
+        "capped": total > SEARCH_CAP,
+        "page": page,
+        "pages": -(-shown // PAGE_SIZE),
+        "page_size": PAGE_SIZE,
+    }
+
+
 # --- a list's remembered search
 #
 # A list named "Myeloma — Janssen" is a therapy area, not a bag of trial
@@ -827,6 +897,52 @@ def check(
     return _unchanged(nct)
 
 
+def check_one(
+    conn: sqlite3.Connection,
+    nct_id: str,
+    fetch=None,
+    when: str | None = None,
+    force: bool = False,
+) -> dict:
+    """Check one trial, reporting a failure as a result instead of raising.
+
+    A failure is recorded against the trial (its time and kind) and leaves the
+    trial's last successful check and stored data alone; a later success clears it.
+    """
+    try:
+        return check(conn, nct_id, fetch=fetch, when=when, force=force)
+    except MonitorError as exc:
+        if storage.get_trial(conn, nct_id) is not None:
+            storage.mark_check_failed(conn, nct_id, exc.kind, when)
+        return {
+            "kind": "trial",
+            "nct_id": nct_id,
+            "outcome": "error",
+            "error_kind": exc.kind,
+            "changes": 0,
+            "detail": str(exc),
+        }
+
+
+def finish_run(
+    conn: sqlite3.Connection, list_id: int, results: list[dict], when: str | None = None
+) -> None:
+    """Record that a list's check for updates finished: when, and which trials failed."""
+    failed = [
+        r["nct_id"] for r in results if r.get("kind") != "search" and r["outcome"] == "error"
+    ]
+    storage.finish_check_run(conn, list_id, failed, when)
+
+
+def failed_in_last_run(conn: sqlite3.Connection, list_id: int) -> list[str]:
+    """The trials Retry failed re-checks: those whose check failed in the list's last
+    run and has not succeeded since, and that the list still holds."""
+    still_failing = {
+        t["nct_id"] for t in storage.list_trials(conn, list_id) if t["check_failed_at"]
+    }
+    return [n for n in storage.last_check_run(conn, list_id)["failed"] if n in still_failing]
+
+
 def check_size(conn: sqlite3.Connection, list_id: int | None = None) -> int:
     """How many results a check run will yield, for the page's progress bar.
 
@@ -871,18 +987,7 @@ def check_all(
     for index, trial in enumerate(storage.list_trials(conn, list_id)):
         if index:
             browser.wait(pause)
-        nct = trial["nct_id"]
-        try:
-            result = check(conn, nct, fetch=fetch, when=when, force=force)
-        except MonitorError as exc:
-            result = {
-                "kind": "trial",
-                "nct_id": nct,
-                "outcome": "error",
-                "changes": 0,
-                "detail": str(exc),
-            }
-        yield result
+        yield check_one(conn, trial["nct_id"], fetch=fetch, when=when, force=force)
 
 
 def summarise(results: list[dict]) -> dict:
@@ -1243,7 +1348,6 @@ def watchlist_overview(conn: sqlite3.Connection) -> list[dict]:
     overview = []
     for row in storage.list_lists(conn):
         trials = storage.list_trials(conn, row["id"])
-        checked = [t["last_checked"] for t in trials if t["last_checked"]]
         overview.append(
             {
                 "id": row["id"],
@@ -1252,7 +1356,7 @@ def watchlist_overview(conn: sqlite3.Connection) -> list[dict]:
                 "needs_review_count": sum(
                     1 for t in trials if storage.count_unreviewed(conn, t["nct_id"])
                 ),
-                "last_checked": max(checked) if checked else None,
+                "last_checked": storage.last_check_run(conn, row["id"])["finished"],
                 "saved_search": storage.get_list_search(conn, row["id"]) is not None,
             }
         )

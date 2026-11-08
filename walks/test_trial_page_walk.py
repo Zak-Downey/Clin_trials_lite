@@ -61,15 +61,22 @@ def open_trial(make_app, make_walk, nct="NCT03412565"):
     app = make_app(seed=seed_trial_page)
     walk = make_walk(app)
     walk.page.goto(app.url)
-    walk.page.locator(f'tr[data-nct="{nct}"]').wait_for()
-    walk.page.locator(f'tr[data-nct="{nct}"] strong a').click()
+    walk.page.locator(f'li.card[data-nct="{nct}"]').wait_for()
+    walk.page.locator(f'li.card[data-nct="{nct}"] h3 a').click()
     walk.page.get_by_role("heading", level=1).wait_for()
     walk.page.get_by_role("button", name="Mark reviewed").wait_for()
     return app, walk
 
 
-def sidebar_text(page):
-    return page.get_by_label("Watchlists").inner_text()
+def to_review(page, name):
+    """The needs-review count the sidebar's badge shows for a watchlist (its title says "N to review")."""
+    link = page.get_by_label("Watchlists").get_by_role("link", name=re.compile(f"^{name}"))
+    return link.locator(".badge").get_attribute("title")
+
+
+def wait_for_count(page, name, text):
+    page.get_by_label("Watchlists").get_by_role("link", name=re.compile(f"^{name}")).locator(
+        f'.badge[title="{text}"]').wait_for(state="attached")
 
 
 def test_walk_a_trial_opens_on_changes_with_the_other_tabs_near_and_back_keeps_the_queue_position(make_app, make_walk):
@@ -78,22 +85,22 @@ def test_walk_a_trial_opens_on_changes_with_the_other_tabs_near_and_back_keeps_t
     walk = make_walk(app)
     page = walk.page
     page.goto(app.url)
-    page.locator("table.queue tbody tr").nth(10).wait_for()
+    page.locator("ul.queue > li.card").nth(10).wait_for()
     page.evaluate("window.scrollTo(0, 400)")
     before = page.evaluate("window.scrollY")
     assert before > 100
-    visible = page.locator("table.queue tbody tr").evaluate_all(
+    visible = page.locator("ul.queue > li.card").evaluate_all(
         "(rows) => rows.filter((r) => { const b = r.getBoundingClientRect(); return b.top > 60 && b.bottom < innerHeight })"
         ".map((r) => r.dataset.nct)")
     nct = visible[0]
-    page.locator(f'tr[data-nct="{nct}"] strong a').click()
+    page.locator(f'li.card[data-nct="{nct}"] h3 a').click()
     page.get_by_role("button", name="Mark reviewed").wait_for()
     assert page.get_by_role("tab", name=re.compile("^Changes")).get_attribute("aria-selected") == "true"
     for name in ("Trial details", "History"):
         assert page.get_by_role("tab", name=name).is_visible()
     walk.shot("trial")
     page.get_by_role("link", name="‹ Back to Myeloma").click()
-    page.locator("table.queue tbody tr").nth(10).wait_for()
+    page.locator("ul.queue > li.card").nth(10).wait_for()
     page.wait_for_function("(y) => Math.abs(scrollY - y) < 3", arg=before)
     assert abs(page.evaluate("window.scrollY") - before) < 3
     walk.shot("back")
@@ -157,7 +164,7 @@ def test_walk_marking_reviewed_keeps_the_page_labels_each_change_drops_the_count
     """test_walk_marking_reviewed_keeps_the_page_labels_each_change_drops_the_counts_and_holds_the_scroll"""
     _, walk = open_trial(make_app, make_walk)
     page = walk.page
-    assert "16 to review" in sidebar_text(page) and "Elsewhere" in sidebar_text(page)
+    assert to_review(page, "Myeloma") == "16 to review" and to_review(page, "Elsewhere") == "1 to review"
     page.evaluate("window.scrollTo(0, 150)")
     before = page.evaluate("window.scrollY")
     page.get_by_role("button", name="Mark reviewed").click()
@@ -165,8 +172,8 @@ def test_walk_marking_reviewed_keeps_the_page_labels_each_change_drops_the_count
     assert page.locator(".reviewed-label:visible").count() == 5
     assert page.get_by_role("tab", name=re.compile("^Changes")).get_attribute("aria-selected") == "true"
     assert page.get_by_role("button", name="Undo").is_visible()
-    page.get_by_label("Watchlists").get_by_text("15 to review").wait_for()
-    assert "0 to review" in page.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Elsewhere")).inner_text()
+    wait_for_count(page, "Myeloma", "15 to review")
+    assert to_review(page, "Elsewhere") == "0 to review"
     assert abs(page.evaluate("window.scrollY") - before) < 3
     walk.shot("reviewed")
 
@@ -180,7 +187,7 @@ def test_walk_undo_restores_the_changes_and_counts_and_is_gone_after_leaving(mak
     page.get_by_role("button", name="Undo").wait_for(state="detached")
     assert page.locator(".reviewed-label:visible").count() == 0
     assert page.get_by_role("button", name="Mark reviewed").is_enabled()
-    page.get_by_label("Watchlists").get_by_text("16 to review").wait_for()
+    wait_for_count(page, "Myeloma", "16 to review")
     # Review again, then take another action (a tab): Undo is gone and stays gone on return.
     page.get_by_role("button", name="Mark reviewed").click()
     page.get_by_role("button", name="Undo").wait_for()
@@ -199,9 +206,9 @@ def test_walk_next_trial_opens_the_next_in_needs_review_and_marks_nothing(make_a
     page.get_by_role("button", name="Next trial").click()
     page.wait_for_url(re.compile(r"#/trials/NCT00000002$"))
     page.get_by_role("button", name="Mark reviewed").wait_for()
-    assert "16 to review" in sidebar_text(page)
+    assert to_review(page, "Myeloma") == "16 to review"
     page.get_by_role("link", name="‹ Back to Myeloma").click()
-    page.locator('tr[data-nct="NCT03412565"]').wait_for()  # still in the queue, unreviewed
+    page.locator('li.card[data-nct="NCT03412565"]').wait_for()  # still in the queue, unreviewed
 
 
 def test_walk_a_trial_with_simulated_changes_carries_the_simulated_label_on_its_changes_tab(make_app, make_walk):

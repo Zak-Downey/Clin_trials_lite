@@ -30,12 +30,16 @@ def test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps(ma
     assert links.count() == 2
     long_link = links.nth(0)
     assert helper.LONG_NAME in long_link.inner_text()
-    assert "2 to review · 3 trials" in long_link.inner_text()
+    assert page.get_by_label("Watchlists").get_by_role("heading", name="Your watchlists").is_visible()
+    assert "Number badges show trials with unreviewed changes." in page.get_by_label("Watchlists").inner_text()
+    assert long_link.locator(".counts").inner_text() == "3 trials"
+    assert long_link.locator(".badge").inner_text() == "2"
     quiet = links.nth(1)
-    assert quiet.inner_text().startswith("Quiet") and "0 to review · 1 trial" in quiet.inner_text()
-    assert "1 trials" not in quiet.inner_text()  # one trial, not "1 trials"
+    assert quiet.locator(".name").inner_text() == "Quiet"
+    assert quiet.locator(".counts").inner_text() == "1 trial"  # one trial, not "1 trials"
+    assert quiet.locator(".badge").inner_text() == "0"
     # Wrapped, not cut: the name's text is whole, it spans several lines, and nothing spills out of the sidebar.
-    name = long_link.locator("span").first
+    name = long_link.locator(".name")
     lines = page.evaluate(
         "(el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight))",
         name.element_handle())
@@ -57,57 +61,54 @@ def test_walk_a_watchlist_opens_on_needs_review_newest_detection_first(make_app,
     page = walk.page
     assert page.get_by_role("heading", level=1).inner_text() == helper.LONG_NAME
     assert page.get_by_role("tab", name="Needs review").get_attribute("aria-selected") == "true"
+    assert page.get_by_role("heading", name="2 trials need review").is_visible()
     counts = page.locator("#queue-counts").inner_text()
-    assert "2 trials need review" in counts
-    assert re.search(r"\b6 unreviewed field changes\b", counts), counts
-    rows = page.locator("table.queue tbody tr")
+    assert counts == "6 unreviewed field changes · Most recently detected first", counts
+    rows = page.locator("ul.queue > li")
     assert rows.count() == 2  # NCT00000003 has nothing unreviewed, so it is not listed
     assert [rows.nth(i).get_attribute("data-nct") for i in range(2)] == ["NCT03412565", "NCT00000002"]
     walk.shot("queue")
     page.get_by_label("Watchlists").get_by_role("link", name="Quiet").click()
     page.get_by_text("All caught up").wait_for()
-    assert "0 trials need review" in page.locator("#queue-counts").inner_text()
+    assert page.get_by_role("heading", name="0 trials need review").is_visible()
 
 
-def test_walk_a_queue_entry_shows_what_the_row_shows_and_labels_simulated_changes(make_app, make_walk):
-    """test_walk_a_queue_entry_shows_what_the_row_shows_and_labels_simulated_changes"""
+def test_walk_a_queue_entry_is_a_narrow_card_and_labels_simulated_changes(make_app, make_walk):
+    """test_walk_a_queue_entry_is_a_narrow_card_and_labels_simulated_changes"""
     _, walk = open_app(make_app, make_walk)
     page = walk.page
-    real = page.locator('tr[data-nct="NCT03412565"]')
-    text = real.inner_text()
-    assert real.locator("td").nth(0).locator("strong").inner_text()  # a heading
-    assert "NCT03412565" in text
+    real = page.locator('li[data-nct="NCT03412565"]')
+    assert real.get_by_role("heading", level=3).inner_text()  # a heading
+    assert real.locator(".identity").inner_text().startswith("NCT03412565 · Phase 2 · ")
+    assert real.locator(".identity").inner_text().endswith(" · Completed")
+    assert real.locator(".fields").inner_text() == "Completion date · Enrollment · Interventions"
+    assert real.locator(".changes").inner_text() == "3 changes"
     # The detected time is the server's wall clock in its zone (New York), not the browser's (Tokyo).
-    assert "11:45 AM EST" in text, text
-    assert re.search(r"\(\d+\)", text)  # the change count
-    for header in ("Trial", "Phase", "Sponsor", "Status", "What changed", "Detected"):
-        assert page.get_by_role("columnheader", name=header).count() == 1
-    assert page.locator("table.queue input[type=checkbox]").count() == 0
+    assert real.locator(".detected").inner_text() == "Detected Nov 8, 2026, 11:45 AM EST", real.locator(".detected").inner_text()
+    assert real.get_by_role("link", name="Review changes").is_visible()
+    assert page.locator("ul.queue input[type=checkbox], table").count() == 0
     assert real.get_by_text("Simulated changes").count() == 0
-    simulated = page.locator('tr[data-nct="NCT00000002"]')
+    simulated = page.locator('li[data-nct="NCT00000002"]')
     assert simulated.get_by_text("Simulated changes").is_visible()
     assert "4:00 AM EST" in simulated.inner_text()
     walk.shot("entries")
 
 
-def test_walk_the_queue_reads_in_words_not_registry_codes_and_keeps_short_cells_whole(make_app, make_walk):
-    """test_walk_the_queue_reads_in_words_not_registry_codes_and_keeps_short_cells_whole"""
+def test_walk_a_card_reads_in_words_and_its_badge_and_button_stay_whole(make_app, make_walk):
+    """test_walk_a_card_reads_in_words_and_its_badge_and_button_stay_whole"""
     _, walk = open_app(make_app, make_walk)
     page = walk.page
-    row = page.locator('tr[data-nct="NCT03412565"]')
-    cells = row.locator("td")
-    assert cells.nth(1).inner_text() == "Phase 2"
-    assert cells.nth(3).inner_text() == "Completed"  # not the registry's COMPLETED
-    changed = cells.nth(4).inner_text()
-    for name in ("Completion date", "Enrollment", "Interventions"):
-        assert name in changed, changed
-    assert not re.search(r"[a-z][A-Z]", changed), changed  # no completionDate-style field names
-    # Phase and Status each sit on one line: a word is never broken across lines.
-    for column in (1, 3):
+    card = page.locator('li[data-nct="NCT03412565"]')
+    identity = card.locator(".identity").inner_text()
+    assert "Phase 2" in identity and "Completed" in identity and "COMPLETED" not in identity, identity
+    fields = card.locator(".fields").inner_text()
+    assert not re.search(r"[a-z][A-Z]", fields), fields  # no completionDate-style field names
+    # The badge and the button each sit on one line.
+    for sel in (".changes", ".button"):
         lines = page.evaluate(
             "(td) => { const r = document.createRange(); r.selectNodeContents(td); return r.getClientRects().length }",
-            cells.nth(column).element_handle())
-        assert lines == 1, (column, lines)
+            card.locator(sel).element_handle())
+        assert lines == 1, (sel, lines)
     walk.shot("readable")
 
 
@@ -125,14 +126,14 @@ def test_walk_the_heading_and_review_changes_open_the_same_trial_address(make_ap
     """test_walk_the_heading_and_review_changes_open_the_same_trial_address"""
     app, walk = open_app(make_app, make_walk)
     page = walk.page
-    row = page.locator('tr[data-nct="NCT03412565"]')
-    heading = row.locator("strong a")
+    row = page.locator('li[data-nct="NCT03412565"]')
+    heading = row.locator("h3 a")
     review = row.get_by_role("link", name="Review changes")
     assert heading.get_attribute("href") == review.get_attribute("href") == "#/trials/NCT03412565"
     review.click()
     page.wait_for_url(re.compile(r"#/trials/NCT03412565$"))
     page.go_back()
-    page.locator('tr[data-nct="NCT03412565"] strong a').click()
+    page.locator('li[data-nct="NCT03412565"] h3 a').click()
     page.wait_for_url(re.compile(r"#/trials/NCT03412565$"))
 
 

@@ -27,3 +27,8 @@ Every closure holds: each red file shows its named check failing at ac59568, and
 ## Notes
 1. `expect(status, path)` matches on status and path only, not on method, so an expected 404 on a GET also excuses a failing POST to the same path | walks/helper.py `_status` | left: no walk meets it yet; add a method when an error walk needs one
 2. Finding 2's red file fails on the message assertion, with all 24 broken walks red at that tip, so it shows the check failing but not specifically the removed `requestfailed` guard; the mutation sample did not target that line, and the reviewed fixed tip's check asserts `/static/aborted.js (net::ERR` and the absence of the foreign-server message, which only the `requestfailed` handler can produce | .scratch/html-front-end/red/02-walks-requestfailed-guard-ac59568.txt | left: the assertion is specific to that guard
+
+## Layout follow-up (queue and sidebar against design-01)
+The Needs review queue was a wide table and the sidebar a plain list; both now follow design-01 (cards, "Your watchlists", count badges, footnote). Walks assert the new structure.
+1. The queue was a wide table with Phase, Sponsor and Status columns | webapp/static/views/needs_review.js | fixed — walk: test_walk_a_queue_entry_is_a_narrow_card_and_labels_simulated_changes — red: .scratch/html-front-end/red/02-walks-4476f24.txt
+2. The sidebar lacked its heading, per-entry badge and footnote | webapp/static/app.js | fixed — walk: test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps — red: .scratch/html-front-end/red/02-walks-4476f24.txt

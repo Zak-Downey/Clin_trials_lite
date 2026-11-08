@@ -264,6 +264,37 @@ def find(
     )
 
 
+def find_page(
+    cond: str | None = None,
+    intr: str | None = None,
+    spons: str | None = None,
+    phases=(),
+    sponsor_types=(),
+    statuses=(),
+    started_from: str | None = None,
+    started_to: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+) -> dict:
+    """One page of full study records, and the registry's total for the same query.
+
+    The registry pages by token, so page N is read as the first N pages in one
+    request and sliced: a page is never more than the cap the caller allows.
+    """
+    params = search_params(
+        cond, intr, spons, phases, sponsor_types, statuses, started_from, started_to
+    )
+    answer = _get(
+        "/studies",
+        {**params, "pageSize": page * page_size, "countTotal": "true"},
+    )
+    studies = answer.get("studies", [])
+    return {
+        "studies": studies[(page - 1) * page_size : page * page_size],
+        "total": answer.get("totalCount", len(studies)),
+    }
+
+
 def count(cond: str | None = None, term: str | None = None, **extra) -> int:
     """How many studies match, without downloading them."""
     params = {

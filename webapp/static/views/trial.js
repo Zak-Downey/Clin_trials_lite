@@ -42,7 +42,7 @@ export async function render(root, nct, tab, origin) {
   }
 
   const heading = el("h2", {});
-  const list = el("div", { class: "changes" });
+  const list = el("div", { class: "change-list" });
   const cards = [];
   for (const group of trial.groups) {
     const dates = [group.registry_updated ? `Registry updated ${group.registry_updated}` : null,
@@ -53,7 +53,7 @@ export async function render(root, nct, tab, origin) {
       // A long value gets the whole width: Previously above Now, rather than side by side.
       const long = [change.previous, change.current].some((v) => v.length > 80 || v.includes("\n"));
       const card = el("article", { class: long ? "change long" : "change" },
-        el("h3", { class: "field" }, change.label),
+        el("h3", { class: "field-name" }, change.label),
         el("div", { class: "value previously" }, el("span", { class: "tag" }, "Previously"), el("p", {}, change.previous + word(change.previous_qualifier))),
         el("div", { class: "value now" }, el("span", { class: "tag" }, "Now"), el("p", {}, change.current + word(change.qualifier))));
       const label = el("span", { class: "reviewed-label", hidden: "" }, "Reviewed");

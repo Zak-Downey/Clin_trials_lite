@@ -1,33 +1,45 @@
 // Shell and router. The URL hash holds the state: #/watchlists/<id>, #/find.
 import { get } from "/static/api.js";
+import { render as renderFind } from "/static/views/find.js";
 import { render as renderQueue } from "/static/views/needs_review.js";
+import { mount as mountCheck } from "/static/views/check.js";
 import { render as renderTrial } from "/static/views/trial.js";
 
 const sidebar = document.getElementById("sidebar");
 const view = document.getElementById("view");
+let generation = 0; // a view whose number is not the latest has been left: its timers stop
+
+const el = (tag, attrs = {}) => {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  return node;
+};
 
 async function drawSidebar(activeId) {
   const { watchlists } = await get("/api/watchlists");
-  sidebar.replaceChildren(...watchlists.map((w) => {
+  const heading = document.createElement("h2");
+  heading.className = "sidebar-title";
+  heading.textContent = "Your watchlists";
+  const note = document.createElement("p");
+  note.className = "sidebar-note";
+  note.textContent = "Number badges show trials with unreviewed changes.";
+  sidebar.replaceChildren(heading, ...watchlists.map((w) => {
     const link = document.createElement("a");
     link.href = `#/watchlists/${w.id}/needs-review`;
     if (w.id === activeId) link.className = "active";
     const name = document.createElement("span");
+    name.className = "name";
     name.textContent = w.name;
-    const count = document.createElement("span");
-    count.className = "counts";
-    const trials = `${w.trial_count} trial${w.trial_count === 1 ? "" : "s"}`;
-    if (w.needs_review_count) {
-      const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = `${w.needs_review_count} to review`;
-      count.append(badge, ` · ${trials}`);
-    } else {
-      count.textContent = `0 to review · ${trials}`;
-    }
-    link.append(name, count);
+    const trials = document.createElement("span");
+    trials.className = "counts";
+    trials.textContent = `${w.trial_count} trial${w.trial_count === 1 ? "" : "s"}`;
+    const badge = document.createElement("span");
+    badge.className = "badge" + (w.needs_review_count ? "" : " none");
+    badge.textContent = String(w.needs_review_count);
+    badge.title = `${w.needs_review_count} to review`;
+    link.append(name, trials, badge);
     return link;
-  }));
+  }), note);
   return watchlists;
 }
 
@@ -51,13 +63,15 @@ document.addEventListener("click", (event) => {
 window.addEventListener("reviewchange", () => drawSidebar(null).catch(() => {}));
 
 async function route() {
-  const parts = location.hash.replace(/^#\/?/, "").split("/");
+  const mine = ++generation;
+  const [hashPath, hashQuery = ""] = location.hash.replace(/^#\/?/, "").split("?");
+  const parts = hashPath.split("/");
   document.querySelectorAll("[data-dest]").forEach((a) =>
     a.classList.toggle("active", a.dataset.dest === (parts[0] === "find" ? "find" : "watchlists")));
   try {
     if (parts[0] === "find") {
       await drawSidebar(null);
-      view.textContent = "Find trials is coming.";
+      await renderFind(view, hashQuery);
       return;
     }
     if (parts[0] === "trials" && parts[1]) {
@@ -73,7 +87,21 @@ async function route() {
     const canonical = `#/watchlists/${id}/needs-review`;
     if (location.hash !== canonical) history.replaceState(null, "", canonical);
     await drawSidebar(id);
-    await renderQueue(view, id, lists.find((w) => w.id === id));
+    const watchlist = lists.find((w) => w.id === id);
+    const header = el("div", { class: "watchlist-header" });
+    const status = el("div", { id: "check-status" });
+    const queue = el("div", { id: "queue" });
+    view.replaceChildren(header, status, queue);
+    await renderQueue(queue, id, watchlist);
+    mountCheck(header, status, id, watchlist, {
+      alive: () => generation === mine,
+      refresh: async () => {
+        const fresh = await drawSidebar(id);
+        const current = fresh.find((w) => w.id === id);
+        await renderQueue(queue, id, current);
+        return current;
+      },
+    }).catch((err) => { if (generation === mine) status.replaceChildren(el("div", { class: "error" }, err.message)); });
     const y = pendingScroll ?? (history.state && history.state.scroll);
     pendingScroll = null;
     if (y) window.scrollTo(0, y);
