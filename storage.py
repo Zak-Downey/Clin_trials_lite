@@ -105,6 +105,16 @@ CREATE TABLE IF NOT EXISTS changes (
 );
 
 CREATE INDEX IF NOT EXISTS changes_by_trial ON changes(nct_id, id);
+
+-- Each review of a trial: when, and exactly which change IDs it marked. An undo
+-- stamps `undone_at` on the event it reverses rather than deleting it.
+CREATE TABLE IF NOT EXISTS review_events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    nct_id      TEXT NOT NULL REFERENCES trials(nct_id),
+    reviewed_at TEXT NOT NULL,
+    change_ids  TEXT NOT NULL,
+    undone_at   TEXT
+);
 """
 
 
@@ -443,6 +453,73 @@ def mark_reviewed(conn: sqlite3.Connection, nct_id: str, when: str | None = None
     conn.execute("UPDATE trials SET last_reviewed = ? WHERE nct_id = ?", (stamp, nct_id))
     conn.commit()
     return marked
+
+
+def _event(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "nct_id": row["nct_id"],
+        "reviewed_at": row["reviewed_at"],
+        "change_ids": json.loads(row["change_ids"]),
+        "undone_at": row["undone_at"],
+    }
+
+
+def review_changes(
+    conn: sqlite3.Connection, nct_id: str, ids: list[int], when: str | None = None
+) -> dict | None:
+    """Mark exactly these change IDs of a trial reviewed and record the review.
+
+    An ID that is not an unreviewed change of this trial is left alone. Returns
+    the review event (its `change_ids` are what was marked), or None when
+    nothing was.
+    """
+    stamp = when or now()
+    wanted = sorted({int(i) for i in ids})
+    marks = ",".join("?" * len(wanted))
+    marked = [
+        row["id"]
+        for row in conn.execute(
+            f"SELECT id FROM changes WHERE nct_id = ? AND reviewed = 0 AND id IN ({marks}) ORDER BY id",
+            (nct_id, *wanted),
+        )
+    ] if wanted else []
+    if not marked:
+        return None
+    conn.execute(
+        f"UPDATE changes SET reviewed = 1 WHERE id IN ({','.join('?' * len(marked))})", marked
+    )
+    conn.execute("UPDATE trials SET last_reviewed = ? WHERE nct_id = ?", (stamp, nct_id))
+    event_id = conn.execute(
+        "INSERT INTO review_events (nct_id, reviewed_at, change_ids) VALUES (?, ?, ?)",
+        (nct_id, stamp, json.dumps(marked)),
+    ).lastrowid
+    conn.commit()
+    return _event(conn.execute("SELECT * FROM review_events WHERE id = ?", (event_id,)).fetchone())
+
+
+def get_review_event(conn: sqlite3.Connection, event_id: int) -> dict | None:
+    row = conn.execute("SELECT * FROM review_events WHERE id = ?", (event_id,)).fetchone()
+    return _event(row) if row else None
+
+
+def undo_review(conn: sqlite3.Connection, event_id: int, when: str | None = None) -> dict | None:
+    """Return exactly the changes a review marked to unreviewed and record the undo.
+
+    None if there is no such event or it was already undone.
+    """
+    event = get_review_event(conn, event_id)
+    if event is None or event["undone_at"]:
+        return None
+    ids = event["change_ids"]
+    conn.execute(
+        f"UPDATE changes SET reviewed = 0 WHERE id IN ({','.join('?' * len(ids))})", ids
+    )
+    conn.execute(
+        "UPDATE review_events SET undone_at = ? WHERE id = ?", (when or now(), event_id)
+    )
+    conn.commit()
+    return get_review_event(conn, event_id)
 
 
 # --- snapshots

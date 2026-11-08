@@ -1,0 +1,90 @@
+# tip a348fc2f19744e60fe4f3aec33de866ead99522f
+..............FFFF...................................................... [ 14%]
+........................................................................ [ 29%]
+........................................................................ [ 44%]
+........................................................................ [ 59%]
+........................................................................ [ 74%]
+........................................................................ [ 88%]
+......................................................                   [100%]
+=================================== FAILURES ===================================
+_ test_the_trial_page_groups_unreviewed_changes_by_check_and_names_every_watchlist _
+
+api = <conftest.api.<locals>.Client object at 0x106d28280>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+restyled = <function restyled.<locals>.build at 0x106d4d8b0>
+
+    def test_the_trial_page_groups_unreviewed_changes_by_check_and_names_every_watchlist(api, record, restyled):
+        """test_the_trial_page_groups_unreviewed_changes_by_check_and_names_every_watchlist"""
+        _setup(api, record, restyled)
+        status, body = api.get("/api/trials/NCT03412565")
+        assert status == 200
+>       assert [g["check"] for g in body["groups"]] == [SECOND, FIRST]
+E       AssertionError: assert ['2026-11-08T16:45:00+00:00'] == ['2026-11-08T...:00:00+00:00']
+E         
+E         Right contains one more item: '2026-11-06T09:00:00+00:00'
+E         Use -v to get more diff
+
+tests/test_api_review.py:41: AssertionError
+_ test_marking_reviewed_marks_exactly_the_ids_sent_and_a_later_change_stays_unreviewed _
+
+api = <conftest.api.<locals>.Client object at 0x106d91a60>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+restyled = <function restyled.<locals>.build at 0x106bf0430>
+
+    def test_marking_reviewed_marks_exactly_the_ids_sent_and_a_later_change_stays_unreviewed(api, record, restyled):
+        """test_marking_reviewed_marks_exactly_the_ids_sent_and_a_later_change_stays_unreviewed"""
+        _setup(api, record, restyled)
+        shown = _ids(api.get("/api/trials/NCT03412565")[1])
+        conn = storage.connect(api.path)  # a check finishes while the analyst reads
+        storage.add_change(conn, "NCT03412565", {"field": "briefTitle", "previous": "a", "current": "b"}, "2026-11-09T09:00:00+00:00")
+        conn.close()
+        status, body = api.post("/api/trials/NCT03412565/review", {"ids": shown})
+        assert status == 200
+>       assert sorted(body["marked"]) == sorted(shown) and body["unreviewed_count"] == 1
+E       assert ([1, 2, 3, 5] == [1, 2, 3]
+E         
+E         Left contains one more item: 5
+E         Use -v to get more diff)
+
+tests/test_api_review.py:63: AssertionError
+_ test_a_review_applies_in_every_watchlist_records_its_time_and_ids_and_undo_returns_exactly_those _
+
+api = <conftest.api.<locals>.Client object at 0x106c05c70>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+restyled = <function restyled.<locals>.build at 0x106c0f5e0>
+
+    def test_a_review_applies_in_every_watchlist_records_its_time_and_ids_and_undo_returns_exactly_those(api, record, restyled):
+        """test_a_review_applies_in_every_watchlist_records_its_time_and_ids_and_undo_returns_exactly_those"""
+        other = _setup(api, record, restyled)
+        shown = _ids(api.get("/api/trials/NCT03412565")[1])
+        keep = shown[0]
+        _, body = api.post("/api/trials/NCT03412565/review", {"ids": shown[1:]})
+        event = body["event"]
+>       assert sorted(event["change_ids"]) == sorted(shown[1:]) and event["reviewed_at"]["iso"]
+E       assert ([1, 2, 3] == [1, 2]
+E         
+E         Left contains one more item: 3
+E         Use -v to get more diff)
+
+tests/test_api_review.py:80: AssertionError
+_ test_a_review_request_without_a_list_of_ids_or_for_an_unknown_trial_is_refused _
+
+api = <conftest.api.<locals>.Client object at 0x106cbe910>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+restyled = <function restyled.<locals>.build at 0x106cd8280>
+
+    def test_a_review_request_without_a_list_of_ids_or_for_an_unknown_trial_is_refused(api, record, restyled):
+        """test_a_review_request_without_a_list_of_ids_or_for_an_unknown_trial_is_refused"""
+        _setup(api, record, restyled)
+        status, body = api.post("/api/trials/NCT03412565/review", {"ids": "all"})
+        assert status == 400 and body["error"]["kind"] == "invalid_request"
+>       assert api.post("/api/trials/NCT03412565/review", {})[0] == 400
+E       assert 500 == 400
+
+tests/test_api_review.py:102: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_api_review.py::test_the_trial_page_groups_unreviewed_changes_by_check_and_names_every_watchlist
+FAILED tests/test_api_review.py::test_marking_reviewed_marks_exactly_the_ids_sent_and_a_later_change_stays_unreviewed
+FAILED tests/test_api_review.py::test_a_review_applies_in_every_watchlist_records_its_time_and_ids_and_undo_returns_exactly_those
+FAILED tests/test_api_review.py::test_a_review_request_without_a_list_of_ids_or_for_an_unknown_trial_is_refused
+4 failed, 482 passed in 21.30s
