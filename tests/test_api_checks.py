@@ -7,6 +7,7 @@ few trials, and the registry's real error bodies.
 
 from __future__ import annotations
 
+import copy
 import threading
 import time
 import urllib.error
@@ -40,6 +41,7 @@ def fetcher(record, restyled):
         return served[nct_id]
 
     fetch.fail = fail
+    fetch.served = served
     GATE.set()
     return fetch
 
@@ -185,3 +187,18 @@ def test_checking_an_unknown_watchlist_is_not_found(api):
     """test_checking_an_unknown_watchlist_is_not_found"""
     assert api.post("/api/watchlists/99/check")[1]["error"]["kind"] == "watchlist_not_found"
     assert api.get("/api/watchlists/99/check")[0] == 404
+
+
+def test_still_need_review_from_earlier_checks_leaves_out_what_this_check_just_found(watched, fetcher):
+    """test_still_need_review_from_earlier_checks_leaves_out_what_this_check_just_found"""
+    conn = storage.connect(watched.path)
+    storage.add_change(conn, "NCT00000002", {"field": "enrollment", "previous": 1, "current": 2}, "2026-11-02T00:00:00+00:00")
+    conn.close()
+    revised = copy.deepcopy(fetcher.served["NCT00000001"])
+    revised["protocolSection"]["designModule"]["enrollmentInfo"]["count"] += 5
+    revised["protocolSection"]["statusModule"]["lastUpdatePostDateStruct"]["date"] = "2026-12-01"
+    fetcher.served["NCT00000001"] = revised
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    done = finished(watched)
+    assert (done["changed"], done["still_need_review"]) == (1, 1)
+    assert watched.get(f"/api/watchlists/{LIST_ID}/needs-review")[1]["counts"]["trials"] == 2
