@@ -1,0 +1,53 @@
+# tip e26784cead9f7b38126e0bc567abaefb618eb0e0
+.........................................FF............................. [ 13%]
+........................................................................ [ 27%]
+........................................................................ [ 40%]
+........................................................................ [ 54%]
+........................................................................ [ 68%]
+........................................................................ [ 81%]
+........................................................................ [ 95%]
+.......................                                                  [100%]
+=================================== FAILURES ===================================
+__ test_all_trials_lists_every_trial_with_review_state_freshness_and_failure ___
+
+seeded = <conftest.api.<locals>.Client object at 0x10bb22e40>
+
+    def test_all_trials_lists_every_trial_with_review_state_freshness_and_failure(seeded):
+        """test_all_trials_lists_every_trial_with_review_state_freshness_and_failure"""
+        conn = storage.connect(seeded.path)
+        storage.mark_checked(conn, "NCT00000003", SECOND_CHECK)
+        storage.mark_check_failed(conn, "NCT00000003", "unreachable", "2026-11-08T17:00:00+00:00")
+        conn.close()
+        status, body = seeded.get(f"/api/watchlists/{LIST_ID}/all-trials")
+        assert status == 200
+        by_id = {t["nct_id"]: t for t in body["trials"]}
+>       assert set(by_id) == {"NCT03412565", "NCT00000002", "NCT00000003"}
+E       AssertionError: assert {'NCT00000002', 'NCT03412565'} == {'NCT00000002...'NCT03412565'}
+E         
+E         Extra items in the right set:
+E         'NCT00000003'
+E         Use -v to get more diff
+
+tests/test_api_review_queue.py:262: AssertionError
+_ test_a_trial_with_no_changes_reads_no_changes_and_an_unknown_list_is_not_found _
+
+seeded = <conftest.api.<locals>.Client object at 0x10bb234d0>
+record = {'protocolSection': {'identificationModule': {'nctId': 'NCT03412565', 'orgStudyIdInfo': {'id': 'CR108435'}, 'secondary...id': 'D001896', 'term': 'Boron Compounds'}, {'id': 'D009930', 'term': 'Organic Chemicals'}, ...]}}, 'hasResults': True}
+restyled = <function restyled.<locals>.build at 0x10be218a0>
+
+    def test_a_trial_with_no_changes_reads_no_changes_and_an_unknown_list_is_not_found(seeded, record, restyled):
+        """test_a_trial_with_no_changes_reads_no_changes_and_an_unknown_list_is_not_found"""
+        conn = storage.connect(seeded.path)
+        quiet = restyled(record, "NCT00000004")
+        monitor.add(conn, "NCT00000004", LIST_ID, fetch=lambda _n: quiet, when="2026-11-01T08:00:00+00:00")
+        conn.close()
+        trials = seeded.get(f"/api/watchlists/{LIST_ID}/all-trials")[1]["trials"]
+>       quiet_row = next(t for t in trials if t["nct_id"] == "NCT00000004")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       StopIteration
+
+tests/test_api_review_queue.py:282: StopIteration
+=========================== short test summary info ============================
+FAILED tests/test_api_review_queue.py::test_all_trials_lists_every_trial_with_review_state_freshness_and_failure
+FAILED tests/test_api_review_queue.py::test_a_trial_with_no_changes_reads_no_changes_and_an_unknown_list_is_not_found
+2 failed, 525 passed in 37.40s

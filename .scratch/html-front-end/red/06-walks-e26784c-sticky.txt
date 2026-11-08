@@ -1,0 +1,31 @@
+# tip e26784cead9f7b38126e0bc567abaefb618eb0e0
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-all-trials-tab/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+        assert row.locator("td a").first.inner_text() == "Zeta daratumumab study"
+        assert "Phase 2" in cells.nth(0).inner_text() and "Janssen Research & Development, LLC" in cells.nth(0).inner_text()
+        assert cells.nth(1).inner_text() == "Completed"
+        assert cells.nth(2).inner_text() == "3 changes"
+        assert cells.nth(3).inner_text().startswith("Nov 8, 2026, 11:45 AM EST"), cells.nth(3).inner_text()
+        assert page.get_by_text("19 trials").first.is_visible()
+        walk.shot("table")
+        # A long title wraps onto a taller row and nothing runs sideways.
+        long_row = page.locator('tr[data-nct="NCT00000005"]')
+        assert long_row.locator("td a").first.inner_text() == LONG_TITLE
+        assert long_row.bounding_box()["height"] > 2 * page.locator('tr[data-nct="NCT00000004"]').bounding_box()["height"] * 0.9
+        assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
+        # Headers stay visible while the page scrolls.
+        head = page.locator("table.trials thead th").first
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        assert page.evaluate("window.scrollY") > 100
+        box = head.bounding_box()
+>       assert 0 <= box["y"] < 80 and head.is_visible()
+E       assert (0 <= -912.328125)
+
+walks/test_all_trials_walk.py:106: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_all_trials_walk.py::test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_titles_wrap[1440x900]
+FAILED walks/test_all_trials_walk.py::test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_titles_wrap[1024x768]
+2 failed, 127 passed in 58.04s
+
+## Result
+walks/test_all_trials_walk.py::test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_titles_wrap[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-all-trials-tab/.scratch/html-front-end/walks/alone-test-walk-all-trials-lists-every-trial-with-its-facts-headers-stay-and-titles-wrap-1440x900.txt)
+walks/test_all_trials_walk.py::test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_titles_wrap[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-all-trials-tab/.scratch/html-front-end/walks/alone-test-walk-all-trials-lists-every-trial-with-its-facts-headers-stay-and-titles-wrap-1024x768.txt)
