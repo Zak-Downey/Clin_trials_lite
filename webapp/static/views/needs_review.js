@@ -12,14 +12,16 @@ export async function render(root, listId, watchlist) {
   const tabs = el("nav", { class: "tabs", role: "tablist", "aria-label": "Watchlist views" },
     el("a", { role: "tab", "aria-selected": "true", href: `#/watchlists/${listId}/needs-review` }, "Needs review"));
   root.replaceChildren(
-    el("h1", {}, watchlist ? watchlist.name : "Watchlist"),
     tabs,
     el("p", { class: "meta", id: "queue-counts" },
       `${counts.trials} trial${counts.trials === 1 ? "" : "s"} need${counts.trials === 1 ? "s" : ""} review · ` +
       `${counts.field_changes} unreviewed field change${counts.field_changes === 1 ? "" : "s"}`),
   );
   if (!trials.length) {
-    root.append(el("div", { class: "empty" }, "All caught up"));
+    const last = watchlist && watchlist.last_checked ? `Last checked ${when(watchlist.last_checked)}.` : "Not checked yet.";
+    root.append(el("div", { class: "empty caught-up" },
+      el("div", {}, el("h2", {}, "All caught up"), el("p", {}, `No changes awaiting review. ${last}`)),
+      el("a", { class: "button", href: `#/watchlists/${listId}/all-trials` }, "View all trials")));
     return;
   }
   const table = el("table", { class: "queue" });

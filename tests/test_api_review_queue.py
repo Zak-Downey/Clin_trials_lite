@@ -109,7 +109,7 @@ def test_watchlists_carry_counts_last_checked_and_saved_search_flag(seeded):
     assert only["trial_count"] == 3
     assert only["needs_review_count"] == 2
     assert only["saved_search"] is False
-    assert only["last_checked"]["iso"].startswith("2026-11-01")
+    assert only["last_checked"] is None  # no check for updates has finished yet
 
     conn = storage.connect(seeded.path)
     storage.set_list_search(conn, LIST_ID, {"cond": "myeloma"})
@@ -172,15 +172,17 @@ def test_a_stamp_without_an_offset_is_read_as_utc(monkeypatch):
         time.tzset()
 
 
-def test_a_watchlists_last_checked_is_its_most_recently_checked_trial(seeded):
-    """test_a_watchlists_last_checked_is_its_most_recently_checked_trial"""
+def test_a_watchlists_last_checked_is_when_its_most_recent_check_for_updates_finished(seeded):
+    """test_a_watchlists_last_checked_is_when_its_most_recent_check_for_updates_finished"""
     conn = storage.connect(seeded.path)
-    storage.mark_checked(conn, "NCT03412565", "2026-11-03T10:00:00+00:00")
+    # A trial checked later than the run finished (or by another route) does not move it.
     storage.mark_checked(conn, "NCT00000002", "2026-11-09T10:00:00+00:00")
-    storage.mark_checked(conn, "NCT00000003", "2026-11-05T10:00:00+00:00")
+    assert seeded.get("/api/watchlists")[1]["watchlists"][0]["last_checked"] is None
+    storage.finish_check_run(conn, LIST_ID, [], "2026-11-03T10:00:00+00:00")
+    storage.finish_check_run(conn, LIST_ID, [], "2026-11-05T10:00:00+00:00")
     conn.close()
     (only,) = seeded.get("/api/watchlists")[1]["watchlists"]
-    assert only["last_checked"]["iso"].startswith("2026-11-09")
+    assert only["last_checked"]["iso"].startswith("2026-11-05")
 
 
 def _raw(api, method, route, headers=None, body=None):

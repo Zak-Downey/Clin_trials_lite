@@ -112,3 +112,13 @@ def test_standin_register_switch_makes_the_next_saved_search_run_find_a_new_matc
     result = monitor.find_new(conn, list_id)
     assert result["outcome"] == "found" and result["found"] == [standin_registry.REGISTERED_ID]
     conn.close()
+
+
+def test_standin_fail_switch_fails_only_the_listed_studies(registry):
+    """test_standin_fail_switch_fails_only_the_listed_studies"""
+    registry.set("fail", True, ids=["nct00000002"])
+    assert _get(registry, "/api/v2/studies/NCT00000002")[0] == 500
+    assert _get(registry, "/api/v2/studies/NCT00000003")[0] == 200
+    assert _get(registry, "/api/v2/studies?pageSize=2")[0] == 200  # a search is not a lookup
+    registry.set("fail", False)
+    assert _get(registry, "/api/v2/studies/NCT00000002")[0] == 200
