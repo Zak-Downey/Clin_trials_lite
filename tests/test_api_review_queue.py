@@ -60,6 +60,7 @@ def seeded(api, record, restyled):
 
 
 def test_an_unknown_address_answers_with_a_stable_kind_and_a_message(api):
+    """test_an_unknown_address_answers_with_a_stable_kind_and_a_message"""
     status, body = api.get("/api/nowhere")
     assert status == 404
     assert body["error"]["kind"] == "not_found"
@@ -67,6 +68,7 @@ def test_an_unknown_address_answers_with_a_stable_kind_and_a_message(api):
 
 
 def test_an_unknown_watchlist_answers_with_its_own_kind(api):
+    """test_an_unknown_watchlist_answers_with_its_own_kind"""
     status, body = api.get("/api/watchlists/999/needs-review")
     assert status == 404
     assert body["error"]["kind"] == "watchlist_not_found"
@@ -74,6 +76,7 @@ def test_an_unknown_watchlist_answers_with_its_own_kind(api):
 
 
 def test_listing_a_trials_changes_carries_ids_check_and_review_state(seeded):
+    """test_listing_a_trials_changes_carries_ids_check_and_review_state"""
     status, body = seeded.get("/api/trials/NCT03412565/changes")
     assert status == 200
     changes = body["changes"]
@@ -91,12 +94,14 @@ def test_listing_a_trials_changes_carries_ids_check_and_review_state(seeded):
 
 
 def test_changes_of_a_trial_not_watched_answer_not_found(seeded):
+    """test_changes_of_a_trial_not_watched_answer_not_found"""
     status, body = seeded.get("/api/trials/NCT09999999/changes")
     assert status == 404
     assert body["error"]["kind"] == "trial_not_found"
 
 
 def test_watchlists_carry_counts_last_checked_and_saved_search_flag(seeded):
+    """test_watchlists_carry_counts_last_checked_and_saved_search_flag"""
     status, body = seeded.get("/api/watchlists")
     assert status == 200
     (only,) = body["watchlists"]
@@ -113,6 +118,7 @@ def test_watchlists_carry_counts_last_checked_and_saved_search_flag(seeded):
 
 
 def test_needs_review_holds_only_unreviewed_trials_newest_detection_first(seeded):
+    """test_needs_review_holds_only_unreviewed_trials_newest_detection_first"""
     status, body = seeded.get(f"/api/watchlists/{LIST_ID}/needs-review")
     assert status == 200
     assert [t["nct_id"] for t in body["trials"]] == ["NCT03412565", "NCT00000002"]
@@ -121,6 +127,7 @@ def test_needs_review_holds_only_unreviewed_trials_newest_detection_first(seeded
 
 
 def test_a_queue_entry_carries_what_the_row_shows(seeded):
+    """test_a_queue_entry_carries_what_the_row_shows"""
     first, second = seeded.get(f"/api/watchlists/{LIST_ID}/needs-review")[1]["trials"]
     assert first["heading"].startswith("A Study to Evaluate Subcutaneous")
     assert second["heading"] == "ACRO"
@@ -132,6 +139,7 @@ def test_a_queue_entry_carries_what_the_row_shows(seeded):
 
 
 def test_times_are_in_the_machines_zone_with_the_zone_named(seeded, monkeypatch):
+    """test_times_are_in_the_machines_zone_with_the_zone_named"""
     monkeypatch.setenv("TZ", "America/New_York")
     time.tzset()
     try:
@@ -143,12 +151,14 @@ def test_times_are_in_the_machines_zone_with_the_zone_named(seeded, monkeypatch)
 
 
 def test_a_known_address_with_the_wrong_method_says_so(api):
+    """test_a_known_address_with_the_wrong_method_says_so"""
     status, body = api.post("/api/watchlists")
     assert status == 405
     assert body["error"]["kind"] == "method_not_allowed"
 
 
 def test_a_stamp_without_an_offset_is_read_as_utc(monkeypatch):
+    """test_a_stamp_without_an_offset_is_read_as_utc"""
     from webapp.times import local
 
     monkeypatch.setenv("TZ", "America/New_York")

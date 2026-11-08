@@ -17,11 +17,13 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 def test_the_database_is_monitor_db_in_the_start_folder_unless_monitor_db_is_set():
+    """test_the_database_is_monitor_db_in_the_start_folder_unless_monitor_db_is_set"""
     assert run.database_path({}, "/here") == os.path.join("/here", "monitor.db")
     assert run.database_path({"MONITOR_DB": "/else/x.db"}, "/here") == "/else/x.db"
 
 
 def test_run_py_serves_the_page_on_localhost_only_and_prints_the_address(tmp_path):
+    """test_run_py_serves_the_page_on_localhost_only_and_prints_the_address"""
     env = {**os.environ, "MONITOR_DB": str(tmp_path / "m.db")}
     proc = subprocess.Popen(
         [sys.executable, str(ROOT / "run.py"), "--no-browser"],
@@ -41,6 +43,7 @@ def test_run_py_serves_the_page_on_localhost_only_and_prints_the_address(tmp_pat
 
 
 def test_the_server_refuses_to_bind_beyond_the_local_machine(tmp_path):
+    """test_the_server_refuses_to_bind_beyond_the_local_machine"""
     import pytest
     from webapp.server import make_server
 
@@ -49,6 +52,7 @@ def test_the_server_refuses_to_bind_beyond_the_local_machine(tmp_path):
 
 
 def test_the_shell_and_its_assets_are_served_and_nothing_outside_static_is(api):
+    """test_the_shell_and_its_assets_are_served_and_nothing_outside_static_is"""
     for route, kind in (("/", "text/html"), ("/static/app.js", "javascript"), ("/static/style.css", "text/css")):
         with urllib.request.urlopen(api.base + route, timeout=10) as resp:
             assert kind in resp.headers["Content-Type"]

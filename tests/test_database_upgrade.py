@@ -21,6 +21,7 @@ CREATE TABLE changes (id INTEGER PRIMARY KEY AUTOINCREMENT, nct_id TEXT NOT NULL
 
 
 def test_an_older_database_opens_with_its_data_and_an_upgraded_schema(tmp_path):
+    """test_an_older_database_opens_with_its_data_and_an_upgraded_schema"""
     path = str(tmp_path / "old.db")
     old = sqlite3.connect(path)
     old.executescript(OLD_SCHEMA)
