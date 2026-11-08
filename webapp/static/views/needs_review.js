@@ -32,8 +32,8 @@ export async function render(root, listId, watchlist) {
       el("div", { class: "meta" }, t.nct_id), el("a", { href: address }, "Review changes"));
     const changed = el("td", {}, `${t.changed_fields.join(", ")} (${t.change_count})`);
     if (t.simulated) changed.append(el("div", { class: "simulated" }, "Simulated changes"));
-    body.append(el("tr", { "data-nct": t.nct_id }, first, el("td", {}, t.phase || ""),
-      el("td", {}, t.sponsor || ""), el("td", {}, t.status || ""), changed, el("td", {}, when(t.detected_at))));
+    body.append(el("tr", { "data-nct": t.nct_id }, first, el("td", { class: "fit" }, t.phase || ""),
+      el("td", {}, t.sponsor || ""), el("td", { class: "fit" }, t.status || ""), changed, el("td", {}, when(t.detected_at))));
   }
   table.append(body);
   root.append(table);

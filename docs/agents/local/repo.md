@@ -22,7 +22,7 @@ What is particular to this repo. The other files under `docs/agents/` hold in an
 
 ## Running a walk
 
-Write `walk = make_walk(make_app(seed=helper.seed_queue))`, `walk.page.goto(app.url)`, act by role and name, assert on what is drawn, `walk.shot("step")`. The stand-in registry's switches are `registry.set("revise")` and so on (its control endpoint, never the app). A new guard or helper change runs `walks/test_walk_guards.py`, which runs deliberately broken pages in `walks/broken/`.
+Write `walk = make_walk(make_app(seed=helper.seed_queue))`, `walk.page.goto(app.url)`, act by role and name, assert on what is drawn, `walk.shot("step")`. The stand-in registry's switches are `registry.set("revise")` and so on (its control endpoint, never the app). A new guard or helper change runs `walks/test_walk_guards.py`, which runs deliberately broken pages in `walks/broken/`. A walk that proves an error response declares it first with `walk.expect(status, path)`; the guards then treat that response as expected, and fail the walk if it never comes.
 
 ## Stand-ins
 
@@ -31,8 +31,9 @@ Every check in this repo runs against these. A row whose fidelity check starts w
 | Stand-in | Stands in for | Fidelity check | Last checked |
 |---|---|---|---|
 | Stub fetcher and finder (`make_fetcher`, `make_finder` in `tests/conftest.py`) injected by the `api` fixture | The ClinicalTrials.gov client | None yet: no endpoint calls the registry; first live check belongs to the ticket that adds one | never |
-| Stand-in registry (`walks/standin_registry.py`) serving the captured NCT03412565 record and two copies, with not-found, server-error, slow, revise and register switches | ClinicalTrials.gov, in the walks | `python walks/fidelity_check.py` fetches NCT03412565 live and compares key paths and types with the fixture (by hand, outside the gate) | 2026-11-08 |
+| Stand-in registry (`walks/standin_registry.py`) serving the captured NCT03412565 record and two copies, with not-found, server-error, slow, revise and register switches | ClinicalTrials.gov, in the walks | `python walks/fidelity_check.py` fetches NCT03412565 live and compares key paths and types with the fixture (by hand, outside the gate). Covers the single-study lookup only: the search answers (`studies`, `nextPageToken`, `totalCount`) are the stand-in's own and are not compared | 2026-11-08 |
 | Chromium, headless, at 1440 x 900 and 1024 x 768 (Playwright) | The analyst's browser | None: Safari and real hardware are the user's at hand-over | never |
+| `walks/serve.py` (the walks' start path: `make_server` on a free port over `ctgov.BASE` replaced after import; no `instance.claim`, `--port`, start-up messages) | `python run.py` as a user starts it, in the walks | `tests/test_run.py` runs the real `run.py` and fetches the page; nothing ties `serve.py` to it beyond that | never |
 | In-process `make_server` on a free port (the `api` fixture) | `python run.py` as a user starts it | `tests/test_run.py` starts the real `run.py` in a subprocess and fetches the page | 2026-11-08 |
 
 ## CI

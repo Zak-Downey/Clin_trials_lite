@@ -121,36 +121,73 @@ class App:
 
 class Guards:
     """What fails a walk without being asked: console and page errors, failed
-    requests (including any to somewhere but the app), sideways scrolling."""
+    requests (including any to somewhere but the app), sideways scrolling.
+
+    A guard means "unexpected failure". A walk that proves how the app handles an
+    error response declares it first, with `expect(status, path)`; that response
+    (and the console line the browser writes for it) is then not a failure, and a
+    walk that declared one that never came fails.
+    """
 
     def __init__(self, page, origin: str):
         self.page, self.origin, self.found = page, origin, []
+        self.expected, self.seen = [], set()
         page.on("console", self._console)
         page.on("pageerror", lambda err: self.found.append(f"page error: {err}"))
         page.on("requestfailed", lambda r: self.found.append(f"failed request: {r.url} ({r.failure})"))
         page.on("request", self._foreign)
         page.on("response", self._status)
 
+    def expect(self, status: int, path: str) -> None:
+        """This walk expects the app's server to answer `path` (a URL path, no query) with `status`."""
+        self.expected.append((status, path))
+
+    def _path(self, url: str) -> str:
+        return url[len(self.origin):].split("?", 1)[0] if url.startswith(self.origin) else url
+
     def _console(self, message):
-        if message.type == "error":
-            self.found.append(f"console error: {message.text}")
+        if message.type != "error":
+            return
+        url = (message.location or {}).get("url", "")
+        for status, path in self.expected:
+            if self._path(url) == path and str(status) in message.text:
+                return
+        self.found.append(f"console error: {message.text}")
 
     def _foreign(self, request):
-        if not request.url.startswith(self.origin) and not request.url.startswith("data:"):
+        own = request.url == self.origin or request.url.startswith(self.origin + "/")
+        if not own and not request.url.startswith("data:"):
             self.found.append(f"failed request: {request.url} (not the app's own server)")
 
     def _status(self, response):
         if response.status >= 400:
+            if (response.status, self._path(response.url)) in self.expected:
+                self.seen.add((response.status, self._path(response.url)))
+                return
             self.found.append(f"failed request: {response.url} (status {response.status})")
 
-    def sideways(self) -> str | None:
-        wide = self.page.evaluate(
-            "() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
-        return f"horizontal scrolling: the page is {wide}px wider than the window" if wide > 0 else None
+    def measure(self) -> None:
+        """Record sideways scrolling now: of the page, or of a region inside it."""
+        if self.page.is_closed():
+            return
+        wide, regions = self.page.evaluate(
+            """() => [
+              document.documentElement.scrollWidth - document.documentElement.clientWidth,
+              [...document.querySelectorAll('body *')].filter((el) => {
+                const x = getComputedStyle(el).overflowX;
+                return (x === 'auto' || x === 'scroll') && el.scrollWidth > el.clientWidth;
+              }).map((el) => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '')),
+            ]""")
+        if wide > 0:
+            self.found.append(f"horizontal scrolling: the page is {wide}px wider than the window")
+        for region in regions:
+            self.found.append(f"horizontal scrolling: {region} scrolls sideways inside the page")
 
     def problems(self) -> list[str]:
-        scroll = self.sideways()
-        return self.found + ([scroll] if scroll else [])
+        self.measure()
+        missing = [f"expected response never came: {status} {path}"
+                   for status, path in self.expected if (status, path) not in self.seen]
+        return list(dict.fromkeys(self.found + missing))
 
 
 def shot_name(nodeid: str) -> str:

@@ -32,7 +32,8 @@ def test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps(ma
     assert helper.LONG_NAME in long_link.inner_text()
     assert "2 to review · 3 trials" in long_link.inner_text()
     quiet = links.nth(1)
-    assert quiet.inner_text().startswith("Quiet") and "0 to review · 1 trials" in quiet.inner_text()
+    assert quiet.inner_text().startswith("Quiet") and "0 to review · 1 trial" in quiet.inner_text()
+    assert "1 trials" not in quiet.inner_text()  # one trial, not "1 trials"
     # Wrapped, not cut: the name's text is whole, it spans several lines, and nothing spills out of the sidebar.
     name = long_link.locator("span").first
     lines = page.evaluate(
@@ -41,6 +42,12 @@ def test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps(ma
     assert lines >= 3
     assert page.evaluate("(el) => el.scrollWidth <= el.clientWidth", long_link.element_handle())
     assert page.evaluate("(el) => getComputedStyle(el).textOverflow", name.element_handle()) != "ellipsis"
+    # The count badge is a pill with room round its words, on one line.
+    badge = long_link.locator(".badge")
+    box = badge.bounding_box()
+    assert box["height"] <= 24 and page.evaluate("(el) => el.scrollWidth <= el.clientWidth", badge.element_handle())
+    assert page.evaluate("(el) => parseFloat(getComputedStyle(el).paddingLeft)", badge.element_handle()) >= 8
+    assert page.evaluate("(el) => parseFloat(getComputedStyle(el).paddingRight)", badge.element_handle()) >= 8
     walk.shot("sidebar")
 
 
@@ -81,6 +88,37 @@ def test_walk_a_queue_entry_shows_what_the_row_shows_and_labels_simulated_change
     assert simulated.get_by_text("Simulated changes").is_visible()
     assert "4:00 AM EST" in simulated.inner_text()
     walk.shot("entries")
+
+
+def test_walk_the_queue_reads_in_words_not_registry_codes_and_keeps_short_cells_whole(make_app, make_walk):
+    """test_walk_the_queue_reads_in_words_not_registry_codes_and_keeps_short_cells_whole"""
+    _, walk = open_app(make_app, make_walk)
+    page = walk.page
+    row = page.locator('tr[data-nct="NCT03412565"]')
+    cells = row.locator("td")
+    assert cells.nth(1).inner_text() == "Phase 2"
+    assert cells.nth(3).inner_text() == "Completed"  # not the registry's COMPLETED
+    changed = cells.nth(4).inner_text()
+    for name in ("Completion date", "Enrollment", "Interventions"):
+        assert name in changed, changed
+    assert not re.search(r"[a-z][A-Z]", changed), changed  # no completionDate-style field names
+    # Phase and Status each sit on one line: a word is never broken across lines.
+    for column in (1, 3):
+        lines = page.evaluate(
+            "(td) => { const r = document.createRange(); r.selectNodeContents(td); return r.getClientRects().length }",
+            cells.nth(column).element_handle())
+        assert lines == 1, (column, lines)
+    walk.shot("readable")
+
+
+def test_walk_a_stale_watchlist_address_shows_not_found_and_the_walk_expects_the_404(make_app, make_walk):
+    """test_walk_a_stale_watchlist_address_shows_not_found_and_the_walk_expects_the_404"""
+    app = make_app(seed=helper.seed_queue)
+    walk = make_walk(app)
+    walk.expect(404, "/api/watchlists/999/needs-review")
+    walk.page.goto(f"{app.url}#/watchlists/999/needs-review")
+    walk.page.get_by_text("There is no watchlist 999.").wait_for()
+    walk.shot("not-found")
 
 
 def test_walk_the_heading_and_review_changes_open_the_same_trial_address(make_app, make_walk):
