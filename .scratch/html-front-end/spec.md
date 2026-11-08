@@ -12,7 +12,6 @@ The Trial Change Monitor works, but its Streamlit front end gets in the analyst'
 - The saved search is buried in a folded "Manage lists" panel. Its new matches appear only after a check, in a table that looks like the watchlist's own.
 - On the Search page the destination watchlist has to be picked twice, below a tall grid with truncated titles and no select-all.
 - The change summary is a monospace code block that runs off the right edge.
-- On a narrow window, everything that matters scrolls sideways.
 
 Streamlit can't fix most of this: its layout, tables and rerun model are the cause. The app also carries a WebAssembly runtime and a GitHub Pages pipeline, which the analyst no longer needs now that running locally is fine.
 
@@ -71,7 +70,7 @@ The words used on screen are the ones in `CONTEXT.md`.
 ### Trial page: changes
 
 31. As an analyst, I want a trial page with Changes, Trial details and History tabs, opening on Changes when I come from the queue and on Trial details when I come from All trials (Changes one click away), so that each route opens where I need it.
-32. As an analyst, I want each unreviewed change shown as the field name with labelled Previously and Now values, stacked Previously first and Now second when the values are long or the window is narrow, all text wrapping, so that I compare them directly.
+32. As an analyst, I want each unreviewed change shown as the field name with labelled Previously and Now values, stacked Previously first and Now second when the values are long, all text wrapping, so that I compare them directly.
 33. As an analyst, I want each change to show both its registry-updated date and its detected time, so that I know when the sponsor edited it and when I noticed.
 34. As an analyst, I want changes grouped by the check that found them, keeping intermediate transitions, so that a field that moved twice shows both moves.
 35. As an analyst, I want a link to the trial's ClinicalTrials.gov page, so that I can check the source.
@@ -164,8 +163,8 @@ The words used on screen are the ones in `CONTEXT.md`.
 
 ### Reach and trust
 
-99. As an analyst, I want every screen usable at any window width down to 390 px with no horizontal scrolling of titles, changes or summaries, both top-level destinations visible without a hamburger menu, and each trial's title, ID, what changed and counts still visible where tables reflow into rows, so that a narrow window still works.
-100. As an analyst, I want every action reachable by keyboard, using real controls with visible focus, text labels, targets at least 44 px, and no meaning carried by colour alone, so that the app is accessible.
+99. As an analyst, I want every screen to work in any desktop browser window from 1440 px down to 1024 px wide with no horizontal scrolling of titles, changes or summaries, so that a smaller laptop window still works.
+100. As an analyst, I want every action reachable by keyboard, using real controls with visible focus, text labels, and no meaning carried by colour alone, so that the app is accessible.
 100a. As an analyst, I want every time the app shows (detected, last checked, history, summary) in my machine's local time zone, so that times agree with my clock.
 101. As an analyst, I want the app reachable only from my own machine, so that my watchlists are never exposed on a network.
 102. As an analyst, I want the README to say how to start the app, where the database file lives and how to back it up, so that I can trust it with my work.
@@ -218,14 +217,14 @@ The resources, in outline. Every response is JSON, every error carries a stable 
 ### Look
 
 - The design's teal accent, neutral greys, card and tab styles, typography hierarchy and spacing, implemented in one stylesheet with colours as custom properties. Not pixel-matched.
-- One responsive layout: the sidebar collapses above the content below a breakpoint, tables reflow into rows, and nothing scrolls horizontally down to 390 px.
+- A desktop layout, designed at 1440 px and working down to 1024 px wide without horizontal scrolling (columns narrow and text wraps; nothing reflows for small screens). No phone or tablet layout.
 
 ## Testing Decisions
 
 - **A good test checks behaviour a user or the page can observe, through the highest seam that shows it**, never internal calls or SQL. A test names the behaviour in plain words, as the existing suite does.
 - **Seam 1, the server's HTTP API, in-process.** The server is built by a factory that takes the database path and the registry fetch and search functions, so tests run it against a temporary database with the stub fetchers and finders the suite already uses (`make_fetcher`, `make_finder` and the captured NCT03412565 record in the test fixtures). All new domain behaviour is proven here: review by ID and its scope, review events and undo, failure recording and Retry failed, retention and resume, restore, lookup and the four error kinds, paging, the cap and totals, bulk-add outcomes, summary grouping, the CSV columns, the one-check-at-a-time rule.
 - **The existing domain tests stay** (`test_check_trials`, `test_diff`, `test_briefing`, `test_found_trials`, `test_lists`, `test_search`, `test_watchlist`, `test_simulate` and the rest) and are updated where this spec changes a rule: retention instead of deletion, review by ID. Tests that exist only for retired code (the Streamlit app, the site, the in-browser transport, the deploy workflow) are deleted with it.
-- **Seam 2, the browser.** Playwright (Python, a development dependency only) drives the real server in Chromium. A shared walk helper starts the server on a free port with a fresh temporary database and the stand-in registry, gives each worker its own browser, fails a walk on any console error or failed request, and takes screenshots into the feature's walks folder. Walks run at 1440 × 900 and 390 × 844. The acceptance walk also runs in Playwright's WebKit, which stands in for Safari; Safari itself is checked by the user at hand-over. Every acceptance box about something a user sees names the walk that checks it.
+- **Seam 2, the browser.** Playwright (Python, a development dependency only) drives the real server in Chromium. A shared walk helper starts the server on a free port with a fresh temporary database and the stand-in registry, gives each worker its own browser, fails a walk on any console error or failed request, and takes screenshots into the feature's walks folder. Walks run at 1440 × 900 and 1024 × 768. The acceptance walk also runs in Playwright's WebKit, which stands in for Safari; Safari itself is checked by the user at hand-over. Every acceptance box about something a user sees names the walk that checks it.
 - **The stand-in registry** is a small local HTTP server answering the two ClinicalTrials.gov API calls the app makes (one study by NCT ID; a study search with paging and a total count), serving captured records from the test fixtures, with switches to return not-found, server error and a slow response, and two that make the registry move between steps of a walk: **revise**, which serves a later version of a study (a changed completion date, enrolment and interventions, with a later registry update date), so the next check for updates finds a real change through the normal code path; and **register**, which adds a study to the search results, so the next saved-search run finds a new match. The walk helper flips them over a control endpoint of the stand-in, not through the app; this is the acceptance walk's only non-keyboard step. Simulated-change labels are walked separately, on a database the simulator seeded before the walk began. Its fidelity check, run on demand and dated in `docs/agents/local/repo.md`: fetch one captured study live and compare its structure with the fixture.
 - **The walk suite** is a separate pytest suite outside the fast unit folder, so the unit suite needs no browser. It becomes a gate check in `docs/agents/local/factory.json`, and the front-end paths become `user_facing` there, in the walk-tooling ticket.
 - **Prior art:** `tests/conftest.py` (stub fetchers and finders, temporary database), `tests/test_check_trials.py` and `tests/test_found_trials.py` (domain behaviour through the module seam), and `tests/test_app.py` for the scenarios the current UI covers, which the new walks replace.
@@ -233,7 +232,7 @@ The resources, in outline. Every response is JSON, every error carries a stable 
 ## Out of Scope
 
 - Stopping a check midway; "Check this trial" on the trial page.
-- Phone-specific designs, wherever the design names them: on page 14 the sticky footers with safe-area insets, the view picker replacing tabs, and the watchlist title as a picker; on page 5 (note 1) the facts panel becoming a compact section on phones; on page 7 (note 4) the Search action pinned to the bottom of a phone's viewport. The layout is fluid instead (stories 99 and 100).
+- Phones and small screens, entirely: below 1024 px wide nothing is designed or tested. That rules out all of design page 14, the compact facts section on page 5 (note 1) and the pinned Search action on page 7 (note 4). A phone layout, if ever needed, is a future spec.
 - A check-activity page, and the cross-watchlist "Everything monitored" summary.
 - The "Design sample · Simulated" header badge.
 - Hosting, GitHub Pages, any server other than the analyst's own machine, logins, sharing and sync (ADR 0003).
@@ -250,7 +249,7 @@ The build is finished when all of the following hold, and not before. When they 
 1. **Every in-scope design clause is covered and proven.** Every row of the coverage table below marked In or Partly in maps to at least one acceptance box in a ticket, at the level of each clause the row keeps, and every such box is ticked with a `walk:` or `test:` (evidence.md). A `needs-human` line may sit beside that proof for look or wording, but never replaces it. Each box cites the rows it proves as `(design 3/4)`, so coverage is a search: every In and Partly-in Ref appears in at least one ticked box under `.scratch/html-front-end/issues/`.
 2. **The old front end is gone.** No file, import, dependency or workflow for Streamlit, stlite, the site build, the in-browser transport or the Pages deployment remains: `grep -rliE 'streamlit|stlite' --exclude-dir=.git --exclude-dir=.scratch --exclude-dir=adr .` finds nothing, comments in kept modules and tests included.
 3. **Every check is green.** `python3 .claude/factory/gate.py checks` passes: unit, gate tests and the walk suite.
-4. **The acceptance walk passes**, keyboard only, at 1440 × 900 and 390 × 844 in Chromium, and at 1440 × 900 in WebKit: start the app on an empty database; create a watchlist; search; select across two pages; add trials; save the search; check for updates; *(stand-in: revise one study, register one study)*; check for updates again; open the changed trial; review it; undo; review again; add the new match; dismiss one match and restore it; view the summary; copy it; export the CSV. The italic step is the only one not taken through the page.
+4. **The acceptance walk passes**, keyboard only, at 1440 × 900 and 1024 × 768 in Chromium, and at 1440 × 900 in WebKit: start the app on an empty database; create a watchlist; search; select across two pages; add trials; save the search; check for updates; *(stand-in: revise one study, register one study)*; check for updates again; open the changed trial; review it; undo; review again; add the new match; dismiss one match and restore it; view the summary; copy it; export the CSV. The italic step is the only one not taken through the page.
 5. **The exploration ticket is done, in one round.** One exploratory walker per area, once. A finding is fixed in this spec only when it breaks an acceptance box, an In or Partly-in row of the coverage table, or the walk guards (a console error, a failed request, horizontal scrolling). Every other finding is listed under Further Notes for the follow-up spec and is not fixed here. No second round.
 6. **The user's hand-over ticket is done**: the user has started the app with the README's command, clicked through the acceptance journey in their own browser (Safari included), and ticked it.
 
@@ -283,7 +282,7 @@ Every numbered note (N/1–N/5) and footer note (N/F) on the 14 design pages. St
 | 4/3 | One timeline of field changes, monitoring events and review events; review times stored | In | 48 |
 | 4/4 | Expand a check to see every transition; review removes nothing | In | 49 |
 | 4/F | Reviewed everywhere the trial appears; scope stated before the action | In | 38 |
-| 5/1 | Facts panel: status, phase, lead sponsor, enrolment. *Out:* compact phone section (decision 4) | Partly in | 44 |
+| 5/1 | Facts panel: status, phase, lead sponsor, enrolment. *Out:* compact section on phones (decision 4) | Partly in | 44 |
 | 5/2 | Short title or acronym as heading; full title and all identifiers in Identity; no truncation | In | 43 |
 | 5/3 | Eight groups merged into five sections; long ones expand; unreviewed changes never hidden | In | 45, 47 |
 | 5/4 | Menu with watchlist membership and Remove from this list. *Out:* Check this trial (decision 3) | Partly in | 50, 51 |
@@ -328,11 +327,11 @@ Every numbered note (N/1–N/5) and footer note (N/F) on the 14 design pages. St
 | 13/3 | Delete removes the watchlist and keeps history; Remove trial acts on this watchlist only, with Undo | In | 51, 96 |
 | 13/4 | Full recheck in the menu with its explanation, out of the normal workflow | In | 93, 95 |
 | 13/F | Manage saved search shows the query, Edit search and Turn off; edit replaces only when saved | In | 76 |
-| 14/1 | Both top-level destinations visible without a hamburger. *Out:* watchlist title as picker (decision 4) | Partly in | 2, 99 |
-| 14/2 | Title, ID, what changed and counts stay visible at narrow widths. *Out:* view selector (decision 4) | Partly in | 99 |
-| 14/3 | Stacked comparisons, Previous first; long text wraps; the page scrolls | In | 32, 99 |
-| 14/4 | Real controls, clear focus, text labels, not colour alone, 44 px targets. *Out:* sticky footer and safe-area inset (decision 4) | Partly in | 100 |
-| 14/F | Same data and actions at every width; fluid layout; no horizontal scrolling | In | 99 |
+| 14/1 | Two top-level destinations without a hamburger; watchlist title as a picker with counts (phone layout) | Out (decision 4) | — |
+| 14/2 | Cards replace table columns; view selector replaces tabs (phone layout) | Out (decision 4) | — |
+| 14/3 | Comparisons stacked for a phone (phone layout; desktop stacking is 3/2) | Out (decision 4) | — |
+| 14/4 | Real controls, clear focus, text labels, not colour alone. *Out:* sticky footer, safe-area inset and 44 px touch targets (decision 4) | Partly in | 100 |
+| 14/F | Phone layouts show the same data and actions; fluid at intermediate widths (phone layout) | Out (decision 4) | — |
 
 Not rows: the "Design sample · Simulated" header badge (decision 5), which no note mentions.
 
