@@ -112,3 +112,10 @@ def test_standin_register_switch_makes_the_next_saved_search_run_find_a_new_matc
     result = monitor.find_new(conn, list_id)
     assert result["outcome"] == "found" and result["found"] == [standin_registry.REGISTERED_ID]
     conn.close()
+
+
+def test_standin_search_answers_134_for_many_and_none_for_nothing(registry):
+    _, many = _get(registry, "/api/v2/studies?query.cond=many&pageSize=10&countTotal=true")
+    assert many["totalCount"] == 134 and len(many["studies"]) == 10
+    _, none = _get(registry, "/api/v2/studies?query.cond=nothing&pageSize=10&countTotal=true")
+    assert none["totalCount"] == 0 and none["studies"] == []

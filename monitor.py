@@ -496,6 +496,66 @@ def search(
     return {"rows": rows, "capped": capped}
 
 
+PAGE_SIZE = 10
+SEARCH_CAP = 100
+
+
+def _default_find_page(**params) -> dict:
+    return ctgov.find_page(**params)
+
+
+def search_page(
+    cond: str = "",
+    intr: str = "",
+    spons: str = "",
+    phases=(),
+    sponsor_types=(),
+    statuses=(),
+    started_from: str = "",
+    started_to: str = "",
+    page: int = 1,
+    find_page=None,
+) -> dict:
+    """One page (ten rows) of a search, the registry's true total for the same
+    query, and whether the 100-result cap applies. Refuses what search() refuses.
+    """
+    query = as_query(
+        cond, intr, spons, phases, sponsor_types, statuses, started_from, started_to
+    )
+    _refuse_unanswerable(query)
+    try:
+        answer = (find_page or _default_find_page)(
+            cond=query["cond"],
+            intr=query["intr"],
+            spons=query["spons"],
+            phases=tuple(query["phases"]),
+            sponsor_types=tuple(query["sponsor_types"]),
+            statuses=tuple(query["statuses"]),
+            started_from=query["started_from"],
+            started_to=query["started_to"],
+            page=page,
+            page_size=PAGE_SIZE,
+        )
+    except urllib.error.URLError as exc:
+        raise MonitorError(f"Could not reach ClinicalTrials.gov: {exc.reason}") from exc
+    except Exception as exc:
+        raise MonitorError(f"The search failed: {exc}") from exc
+    rows = []
+    for study in answer["studies"]:
+        profile = medical_affairs.profile(study)
+        rows.append({"nct_id": profile["nctId"], **_identity(profile)})
+    total = answer["total"]
+    shown = min(total, SEARCH_CAP)
+    return {
+        "rows": rows,
+        "total": total,
+        "capped": total > SEARCH_CAP,
+        "page": page,
+        "pages": -(-shown // PAGE_SIZE),
+        "page_size": PAGE_SIZE,
+    }
+
+
 # --- a list's remembered search
 #
 # A list named "Myeloma — Janssen" is a therapy area, not a bag of trial

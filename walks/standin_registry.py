@@ -5,8 +5,13 @@
 
 Serves the captured NCT03412565 record (tests/fixtures) and copies of it under
 other NCT IDs. Lacks: any record that is not that one study (every study here
-has the same conditions, sponsor and arms), filtering (a search returns every
-study whatever it asks for), and the registry's real paging tokens.
+has the same conditions, sponsor and arms), filtering (a search returns the same
+studies whatever it asks, except the two condition words below), and the
+registry's real paging tokens.
+
+A search with query.cond "many" answers 134 studies (NCT10000001 to NCT10000134),
+one with "nothing" answers none; every other search answers the three-or-four study set.
+totalCount is always the true size of the answer.
 
 Switches, flipped over POST /control/<name> with {"on": true|false}:
 
@@ -119,6 +124,12 @@ class Handler(BaseHTTPRequestHandler):
             size = int(query.get("pageSize", ["10"])[0])
             start = int(query.get("pageToken", ["0"])[0])
             everything = list(studies.values())
+            cond = query.get("query.cond", [""])[0].strip().lower()
+            if cond == "many":
+                base = _captured()
+                everything = [_copy_as(base, f"NCT{10000000 + n:08d}") for n in range(1, 135)]
+            elif cond == "nothing":
+                everything = []
             page = everything[start:start + size]
             body = {"studies": page}
             if start + size < len(everything):
