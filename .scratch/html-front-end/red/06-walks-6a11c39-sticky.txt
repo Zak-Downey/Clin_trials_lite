@@ -1,5 +1,5 @@
-# tip e26784cead9f7b38126e0bc567abaefb618eb0e0
-Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-all-trials-tab/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+# tip 6a11c3900640cb95ef2da893be0ea19ee8bae6a0
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/walks-run.txt (exit 1)
         assert row.locator("td a").first.inner_text() == "Zeta daratumumab study"
         assert "Phase 2" in cells.nth(0).inner_text() and "Janssen Research & Development, LLC" in cells.nth(0).inner_text()
         assert cells.nth(1).inner_text() == "Completed"
@@ -24,8 +24,8 @@ walks/test_all_trials_walk.py:106: AssertionError
 =========================== short test summary info ============================
 FAILED walks/test_all_trials_walk.py::test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_titles_wrap[1440x900]
 FAILED walks/test_all_trials_walk.py::test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_titles_wrap[1024x768]
-2 failed, 127 passed in 58.04s
+2 failed, 127 passed in 57.67s
 
 ## Result
-walks/test_all_trials_walk.py::test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_titles_wrap[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-all-trials-tab/.scratch/html-front-end/walks/alone-test-walk-all-trials-lists-every-trial-with-its-facts-headers-stay-and-titles-wrap-1440x900.txt)
-walks/test_all_trials_walk.py::test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_titles_wrap[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-all-trials-tab/.scratch/html-front-end/walks/alone-test-walk-all-trials-lists-every-trial-with-its-facts-headers-stay-and-titles-wrap-1024x768.txt)
+walks/test_all_trials_walk.py::test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_titles_wrap[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/alone-test-walk-all-trials-lists-every-trial-with-its-facts-headers-stay-and-titles-wrap-1440x900.txt)
+walks/test_all_trials_walk.py::test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_titles_wrap[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/alone-test-walk-all-trials-lists-every-trial-with-its-facts-headers-stay-and-titles-wrap-1024x768.txt)
