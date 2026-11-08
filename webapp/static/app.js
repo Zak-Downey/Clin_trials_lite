@@ -1,5 +1,6 @@
 // Shell and router. The URL hash holds the state: #/watchlists/<id>, #/find.
 import { get } from "/static/api.js";
+import { render as renderFind } from "/static/views/find.js";
 import { render as renderQueue } from "/static/views/needs_review.js";
 
 const sidebar = document.getElementById("sidebar");
@@ -34,13 +35,14 @@ async function drawSidebar(activeId) {
 }
 
 async function route() {
-  const parts = location.hash.replace(/^#\/?/, "").split("/");
+  const [hashPath, hashQuery = ""] = location.hash.replace(/^#\/?/, "").split("?");
+  const parts = hashPath.split("/");
   document.querySelectorAll("[data-dest]").forEach((a) =>
     a.classList.toggle("active", a.dataset.dest === (parts[0] === "find" ? "find" : "watchlists")));
   try {
     if (parts[0] === "find") {
       await drawSidebar(null);
-      view.textContent = "Find trials is coming.";
+      await renderFind(view, hashQuery);
       return;
     }
     if (parts[0] === "trials" && parts[1]) {

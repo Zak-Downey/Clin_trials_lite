@@ -1,0 +1,188 @@
+// Find trials: the Search tab. The address (#/find?cond=...&page=2) holds the submitted query.
+import { get } from "/static/api.js";
+
+const el = (tag, attrs = {}, ...kids) => {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  for (const kid of kids) node.append(kid);
+  return node;
+};
+
+const PHASES = [["EARLY_PHASE1", "Early phase 1", "Early phase 1"], ["PHASE1", "1", "Phase 1"], ["PHASE2", "2", "Phase 2"],
+  ["PHASE3", "3", "Phase 3"], ["PHASE4", "4", "Phase 4"], ["NA", "Not applicable", "Not applicable"]];
+const SPONSOR_TYPES = [["INDUSTRY", "Industry"], ["OTHER", "Other (incl. academic)"], ["NIH", "NIH"],
+  ["FED", "US federal"], ["OTHER_GOV", "Other government"], ["NETWORK", "Network"], ["INDIV", "Individual"]];
+const STATUSES = [["NOT_YET_RECRUITING", "Not yet recruiting"], ["RECRUITING", "Recruiting"],
+  ["ENROLLING_BY_INVITATION", "Enrolling by invitation"], ["ACTIVE_NOT_RECRUITING", "Active, not recruiting"],
+  ["SUSPENDED", "Suspended"], ["TERMINATED", "Terminated"], ["COMPLETED", "Completed"],
+  ["WITHDRAWN", "Withdrawn"], ["UNKNOWN", "Unknown"]];
+const NAMING = "Start with at least one of these four fields";
+
+const name = (table, code) => (table.find((row) => row[0] === code) || [code, code])[1];
+const number = (n) => n.toLocaleString("en-US");
+
+function readQuery(params) {
+  return {
+    cond: params.get("cond") || "", intr: params.get("intr") || "", spons: params.get("spons") || "",
+    phase: params.getAll("phase"), sponsor_type: params.getAll("sponsor_type"), status: params.getAll("status"),
+    started_from: params.get("started_from") || "", started_to: params.get("started_to") || "",
+  };
+}
+
+function toParams(q, page) {
+  const p = new URLSearchParams();
+  for (const k of ["cond", "intr", "spons"]) if (q[k].trim()) p.set(k, q[k].trim());
+  for (const k of ["phase", "sponsor_type", "status"]) q[k].forEach((v) => p.append(k, v));
+  for (const k of ["started_from", "started_to"]) if (q[k]) p.set(k, q[k]);
+  if (page) p.set("page", String(page));
+  return p;
+}
+
+const named = (q) => q.cond.trim() || q.intr.trim() || q.spons.trim() || q.phase.length;
+
+function summary(q) {
+  const main = [q.cond.trim(), q.intr.trim() && `Intervention ${q.intr.trim()}`, q.spons.trim(),
+    q.phase.length && q.phase.map((c) => name(PHASES.map((p) => [p[0], p[2]]), c)).join("/")].filter(Boolean);
+  const side = [q.sponsor_type.length && q.sponsor_type.map((c) => name(SPONSOR_TYPES, c)).join(" or "),
+    q.status.length && q.status.map((c) => name(STATUSES, c)).join(" or "),
+    q.started_from && `Started on or after ${q.started_from}`, q.started_to && `Started on or before ${q.started_to}`].filter(Boolean);
+  return { main: main.join(" · "), side: side.join(" · ") };
+}
+
+function field(label, key, value) {
+  const id = `find-${key}`;
+  const input = el("input", { id, name: key, type: "text", autocomplete: "off" });
+  input.value = value;
+  return el("div", { class: "field" }, el("label", { for: id }, label), input);
+}
+
+function form(q, error, onSubmit) {
+  const phases = new Set(q.phase);
+  const phaseButtons = PHASES.map(([code, text, full]) => {
+    const b = el("button", { type: "button", class: "toggle", "aria-pressed": String(phases.has(code)), "aria-label": full, "data-code": code }, text);
+    b.addEventListener("click", () => b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")));
+    return b;
+  });
+  const sponsorType = el("select", { id: "find-sponsor_type", name: "sponsor_type" }, el("option", { value: "" }, "Any"),
+    ...SPONSOR_TYPES.map(([code, text]) => el("option", { value: code }, text)));
+  sponsorType.value = q.sponsor_type[0] || "";
+  const statusBoxes = STATUSES.map(([code, text]) => {
+    const box = el("input", { type: "checkbox", name: "status", value: code });
+    box.checked = q.status.includes(code);
+    return el("label", { class: "check" }, box, text);
+  });
+  const dates = [["Study started from", "started_from"], ["Study started to", "started_to"]].map(([text, key]) => {
+    const input = el("input", { id: `find-${key}`, name: key, type: "date" });
+    input.value = q[key];
+    return el("div", { class: "field" }, el("label", { for: `find-${key}` }, text), input);
+  });
+  const more = el("div", { id: "more-filters", hidden: "" },
+    el("div", { class: "filters" },
+      el("div", { class: "field" }, el("label", { for: "find-sponsor_type" }, "Lead sponsor type"), sponsorType,
+        el("p", { class: "help" }, "Sponsor type uses the lead sponsor, not collaborators")),
+      el("fieldset", { class: "statuses" }, el("legend", {}, "Trial status"), ...statusBoxes),
+      el("div", { class: "dates" }, ...dates,
+        el("p", { class: "help" }, "Date filters exclude trials without a reported start date"))));
+  const toggle = el("button", { type: "button", class: "link", "aria-expanded": "false", "aria-controls": "more-filters" }, "More filters");
+  toggle.addEventListener("click", () => {
+    const open = more.hasAttribute("hidden");
+    more.toggleAttribute("hidden", !open);
+    toggle.setAttribute("aria-expanded", String(open));
+  });
+  if (q.sponsor_type.length || q.status.length || q.started_from || q.started_to) toggle.click();
+  const group = el("fieldset", { class: "naming" }, el("legend", { id: "naming-rule" }, NAMING),
+    el("div", { class: "fields" }, field("Condition", "cond", q.cond), field("Intervention", "intr", q.intr), field("Sponsor", "spons", q.spons)),
+    el("div", { class: "field" }, el("span", { class: "label", id: "phase-label" }, "Phase"),
+      el("div", { class: "phases", role: "group", "aria-labelledby": "phase-label" }, ...phaseButtons)));
+  if (error) group.append(el("p", { class: "field-error", role: "alert" }, error));
+  const clear = el("button", { type: "button", class: "link" }, "Clear all");
+  const submit = el("button", { type: "submit", class: "primary" }, "Search trials");
+  const f = el("form", { class: "search-form", novalidate: "" }, group, toggle, more, el("div", { class: "actions" }, clear, submit));
+  const read = () => ({
+    cond: f.cond.value, intr: f.intr.value, spons: f.spons.value,
+    phase: phaseButtons.filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.dataset.code),
+    sponsor_type: f.sponsor_type.value ? [f.sponsor_type.value] : [],
+    status: statusBoxes.map((l) => l.firstChild).filter((b) => b.checked).map((b) => b.value),
+    started_from: f.started_from.value, started_to: f.started_to.value,
+  });
+  clear.addEventListener("click", () => {
+    f.reset();
+    for (const k of ["cond", "intr", "spons"]) f[k].value = "";
+    f.sponsor_type.value = "";
+    f.started_from.value = ""; f.started_to.value = "";
+    statusBoxes.forEach((l) => { l.firstChild.checked = false; });
+    phaseButtons.forEach((b) => b.setAttribute("aria-pressed", "false"));
+  });
+  f.addEventListener("submit", (event) => { event.preventDefault(); onSubmit(read()); });
+  return f;
+}
+
+function results(q, data, page, go, edit, clearOptional) {
+  const out = el("section", { class: "results", "aria-label": "Search results" });
+  const head = summary(q);
+  out.append(el("div", { class: "summary" },
+    el("div", {}, el("strong", { id: "query-summary" }, head.main || "Search"), head.side ? el("div", { class: "meta" }, head.side) : ""),
+    edit));
+  if (!data.total) {
+    const again = el("button", { type: "button" }, "Edit search");
+    again.addEventListener("click", () => edit.click());
+    out.append(el("div", { class: "empty" }, el("p", {}, "No trials match this search."), el("div", { class: "actions" }, again, clearOptional)));
+    return out;
+  }
+  const first = (page - 1) * data.page_size + 1;
+  out.append(el("h2", { id: "match-count" }, `${number(data.total)} match${data.total === 1 ? "" : "es"}`),
+    el("p", { class: "meta", id: "range" }, `${first}–${first + data.rows.length - 1} of ${number(data.total)} matches`));
+  if (data.capped) out.append(el("p", { class: "cap", role: "note" }, `Showing the first 100 of ${number(data.total)}. Narrow your search to see the rest`));
+  const list = el("ul", { class: "cards" });
+  for (const r of data.rows) {
+    const facts = [r.phase, r.sponsor, r.status].filter(Boolean).join(" · ");
+    list.append(el("li", { class: "card", "data-nct": r.nct_id }, el("strong", {}, r.title || r.nct_id),
+      el("div", { class: "meta" }, `${facts} · ${r.nct_id}`)));
+  }
+  const prev = el("button", { type: "button" }, "Previous");
+  const next = el("button", { type: "button" }, "Next");
+  prev.disabled = page <= 1;
+  next.disabled = page >= data.pages;
+  prev.addEventListener("click", () => go(page - 1));
+  next.addEventListener("click", () => go(page + 1));
+  out.append(list, el("nav", { class: "pager", "aria-label": "Result pages" }, prev, el("span", {}, `Page ${page} of ${data.pages}`), next));
+  return out;
+}
+
+export async function render(root, search) {
+  const params = new URLSearchParams(search || "");
+  const q = readQuery(params);
+  const page = Math.max(1, Number(params.get("page")) || 1);
+  const submitted = named(q) && (params.has("page") || params.has("cond") || params.has("intr") || params.has("spons") || params.has("phase"));
+  const rerender = () => render(root, search);
+  const head = [el("h1", {}, "Find trials"), el("p", { class: "meta" }, "Search ClinicalTrials.gov, then choose what to monitor."),
+    el("nav", { class: "tabs", role: "tablist", "aria-label": "Find trials views" },
+      el("a", { role: "tab", "aria-selected": "true", href: "#/find" }, "Search"))];
+  const open = (query, error, below) => {
+    root.replaceChildren(...head, form(query, error, (typed) => {
+      if (!named(typed)) { open(typed, "Add a condition, intervention, sponsor or phase to search.", below); return; }
+      const target = `#/find?${toParams(typed, 1)}`;
+      if (location.hash === target) rerender(); else location.hash = target;
+    }));
+    if (below) root.append(below);
+  };
+  if (!submitted) { open(q, "", null); return; }
+  const status = el("p", { class: "meta", role: "status" }, "Searching…");
+  root.replaceChildren(...head, status);
+  let data;
+  try {
+    data = await get(`/api/search?${toParams(q, page)}`);
+  } catch (err) {
+    const retry = el("button", { type: "button" }, "Retry");
+    retry.addEventListener("click", rerender);
+    open(q, "", el("div", { class: "error", role: "alert" }, el("p", {}, err.message), retry));
+    return;
+  }
+  const edit = el("button", { type: "button" }, "Edit search");
+  edit.addEventListener("click", () => open(q, "", null));
+  const clearOptional = el("button", { type: "button" }, "Clear optional filters");
+  clearOptional.addEventListener("click", () => {
+    location.hash = `#/find?${toParams({ ...q, sponsor_type: [], status: [], started_from: "", started_to: "" }, 1)}`;
+  });
+  root.replaceChildren(...head, results(q, data, page, (p) => { location.hash = `#/find?${toParams(q, p)}`; }, edit, clearOptional));
+}

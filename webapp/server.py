@@ -8,7 +8,7 @@ import pathlib
 import sqlite3
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import storage
 
@@ -24,12 +24,13 @@ class Context:
     The dispatcher holds the lock around every handler.
     """
 
-    def __init__(self, db_path: str, fetch, find):
+    def __init__(self, db_path: str, fetch, find, find_page=None):
         # Used from request threads, under self.lock (taken by the dispatcher).
         self.conn = storage.connect(db_path, check_same_thread=False)
         self.lock = threading.RLock()
         self.fetch = fetch
         self.find = find
+        self.find_page = find_page
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -91,7 +92,9 @@ class Handler(BaseHTTPRequestHandler):
                 # One lock for every handler: the connection is shared, and a handler
                 # cannot forget it. Handlers must not hold it across registry calls.
                 with self.server.ctx.lock:
-                    result = handler(self.server.ctx, **match.groupdict())
+                    result = handler(
+                        self.server.ctx, query=parse_qs(urlsplit(self.path).query), **match.groupdict()
+                    )
                 return self._json(200, result)
             if known_path:
                 raise ApiError(405, "method_not_allowed", f"{method} is not allowed here.")
@@ -112,11 +115,11 @@ class Handler(BaseHTTPRequestHandler):
         self._dispatch("POST")
 
 
-def make_server(db_path: str, fetch=None, find=None, host: str = "127.0.0.1", port: int = 0):
+def make_server(db_path: str, fetch=None, find=None, find_page=None, host: str = "127.0.0.1", port: int = 0):
     """A server over `db_path` using the given registry functions (None until an endpoint needs them: no registry call is made without one)."""
     if host not in ("127.0.0.1", "localhost", "::1"):
         raise ValueError("The server only binds to the local machine.")
     server = ThreadingHTTPServer((host, port), Handler)
     server.daemon_threads = True
-    server.ctx = Context(db_path, fetch, find)
+    server.ctx = Context(db_path, fetch, find, find_page)
     return server
