@@ -1,0 +1,281 @@
+# tip a348fc2f19744e60fe4f3aec33de866ead99522f
+..............FFFFFFFF....F.....F....................................... [ 14%]
+........................................................................ [ 29%]
+...................................................FFF.................. [ 43%]
+........................................................................ [ 58%]
+........................................................................ [ 73%]
+........................................................................ [ 87%]
+.............................................................            [100%]
+=================================== FAILURES ===================================
+_____ test_a_second_check_for_the_same_watchlist_is_refused_while_one_runs _____
+
+watched = <conftest.api.<locals>.Client object at 0x106ad2d90>
+fetcher = <function fetcher.<locals>.fetch at 0x106be7310>
+
+    def test_a_second_check_for_the_same_watchlist_is_refused_while_one_runs(watched, fetcher):
+        """test_a_second_check_for_the_same_watchlist_is_refused_while_one_runs"""
+        GATE.clear()
+        status, body = watched.post(f"/api/watchlists/{LIST_ID}/check")
+>       assert status == 200 and body["state"] == "running" and body["total"] == 3
+E       assert (404 == 200)
+
+tests/test_api_checks.py:70: AssertionError
+_______ test_a_check_reports_progress_while_the_watchlist_stays_readable _______
+
+watched = <conftest.api.<locals>.Client object at 0x106eb8700>
+
+    def test_a_check_reports_progress_while_the_watchlist_stays_readable(watched):
+        """test_a_check_reports_progress_while_the_watchlist_stays_readable"""
+        GATE.clear()
+        watched.post(f"/api/watchlists/{LIST_ID}/check")
+        status, body = watched.get(f"/api/watchlists/{LIST_ID}/needs-review")
+        assert status == 200  # the queue answers while a fetch is waiting
+        progress = watched.get(f"/api/watchlists/{LIST_ID}/check")[1]
+>       assert (progress["state"], progress["processed"], progress["total"]) == ("running", 0, 3)
+E       KeyError: 'state'
+
+tests/test_api_checks.py:88: KeyError
+__ test_a_failed_trial_makes_the_check_incomplete_and_keeps_the_search_apart ___
+
+watched = <conftest.api.<locals>.Client object at 0x106f150a0>
+fetcher = <function fetcher.<locals>.fetch at 0x106eaf8b0>
+
+    def test_a_failed_trial_makes_the_check_incomplete_and_keeps_the_search_apart(watched, fetcher):
+        """test_a_failed_trial_makes_the_check_incomplete_and_keeps_the_search_apart"""
+        conn = storage.connect(watched.path)
+        monitor.remember_search(conn, LIST_ID, monitor.as_query(cond="myeloma"))
+        conn.close()
+        fetcher.fail.add("NCT00000002")
+        watched.post(f"/api/watchlists/{LIST_ID}/check")
+>       done = finished(watched)
+
+tests/test_api_checks.py:103: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+api = <conftest.api.<locals>.Client object at 0x106f150a0>
+route = '/api/watchlists/1/check'
+
+    def finished(api, route=f"/api/watchlists/{LIST_ID}/check"):
+        for _ in range(100):
+            status, body = api.get(route)
+>           assert status == 200
+E           assert 404 == 200
+
+tests/test_api_checks.py:59: AssertionError
+________ test_a_saved_search_failure_is_reported_apart_from_the_trials _________
+
+watched = <conftest.api.<locals>.Client object at 0x106eb8790>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+
+    def test_a_saved_search_failure_is_reported_apart_from_the_trials(watched, record):
+        """test_a_saved_search_failure_is_reported_apart_from_the_trials"""
+        conn = storage.connect(watched.path)
+        monitor.remember_search(conn, LIST_ID, monitor.as_query(cond="myeloma"))
+        conn.close()
+        from webapp.server import make_server
+    
+        def broken(**_):
+            raise urllib.error.URLError("search down")
+    
+        server = make_server(watched.path, fetch=lambda n: record, find=broken)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+        import json
+        import urllib.request
+    
+        req = urllib.request.Request(f"{base}/api/watchlists/{LIST_ID}/check", data=b"{}", method="POST",
+                                     headers={"Content-Type": "application/json"})
+>       urllib.request.urlopen(req).read()
+
+tests/test_api_checks.py:134: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:214: in urlopen
+    return opener.open(url, data, timeout)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:523: in open
+    response = meth(req, response)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:632: in http_response
+    response = self.parent.error(
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:561: in error
+    return self._call_chain(*args)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:494: in _call_chain
+    result = func(*args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x106e49790>
+req = <urllib.request.Request object at 0x106ae2940>
+fp = <http.client.HTTPResponse object at 0x106ae2700>, code = 404
+msg = 'Not Found', hdrs = <http.client.HTTPMessage object at 0x106ae25e0>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 404: Not Found
+
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:641: HTTPError
+______________ test_retry_failed_rechecks_only_the_failed_trials _______________
+
+watched = <conftest.api.<locals>.Client object at 0x106eb8700>
+fetcher = <function fetcher.<locals>.fetch at 0x106ada310>
+
+    def test_retry_failed_rechecks_only_the_failed_trials(watched, fetcher):
+        """test_retry_failed_rechecks_only_the_failed_trials"""
+        fetcher.fail.add("NCT00000002")
+        watched.post(f"/api/watchlists/{LIST_ID}/check")
+>       finished(watched)
+
+tests/test_api_checks.py:149: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+api = <conftest.api.<locals>.Client object at 0x106eb8700>
+route = '/api/watchlists/1/check'
+
+    def finished(api, route=f"/api/watchlists/{LIST_ID}/check"):
+        for _ in range(100):
+            status, body = api.get(route)
+>           assert status == 200
+E           assert 404 == 200
+
+tests/test_api_checks.py:59: AssertionError
+__ test_a_check_with_nothing_new_says_how_many_still_need_review_from_earlier __
+
+watched = <conftest.api.<locals>.Client object at 0x10c113c70>
+
+    def test_a_check_with_nothing_new_says_how_many_still_need_review_from_earlier(watched):
+        """test_a_check_with_nothing_new_says_how_many_still_need_review_from_earlier"""
+        conn = storage.connect(watched.path)
+        storage.add_change(conn, "NCT00000001", {"field": "enrollment", "previous": 1, "current": 2}, "2026-11-02T00:00:00+00:00")
+        conn.close()
+        watched.post(f"/api/watchlists/{LIST_ID}/check")
+>       done = finished(watched)
+
+tests/test_api_checks.py:168: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+api = <conftest.api.<locals>.Client object at 0x10c113c70>
+route = '/api/watchlists/1/check'
+
+    def finished(api, route=f"/api/watchlists/{LIST_ID}/check"):
+        for _ in range(100):
+            status, body = api.get(route)
+>           assert status == 200
+E           assert 404 == 200
+
+tests/test_api_checks.py:59: AssertionError
+____________ test_a_check_runs_the_saved_search_even_with_no_trials ____________
+
+api = <conftest.api.<locals>.Client object at 0x106f154c0>
+
+    def test_a_check_runs_the_saved_search_even_with_no_trials(api):
+        """test_a_check_runs_the_saved_search_even_with_no_trials"""
+        conn = storage.connect(api.path)
+        monitor.remember_search(conn, LIST_ID, monitor.as_query(cond="myeloma"))
+        conn.close()
+        status, body = api.post(f"/api/watchlists/{LIST_ID}/check")
+>       assert status == 200 and body["total"] == 0 and body["has_search"] is True
+E       assert (404 == 200)
+
+tests/test_api_checks.py:179: AssertionError
+_______________ test_checking_an_unknown_watchlist_is_not_found ________________
+
+api = <conftest.api.<locals>.Client object at 0x10c103af0>
+
+    def test_checking_an_unknown_watchlist_is_not_found(api):
+        """test_checking_an_unknown_watchlist_is_not_found"""
+>       assert api.post("/api/watchlists/99/check")[1]["error"]["kind"] == "watchlist_not_found"
+E       AssertionError: assert 'not_found' == 'watchlist_not_found'
+E         
+E         - watchlist_not_found
+E         + not_found
+
+tests/test_api_checks.py:186: AssertionError
+_______ test_watchlists_carry_counts_last_checked_and_saved_search_flag ________
+
+seeded = <conftest.api.<locals>.Client object at 0x10c053700>
+
+    def test_watchlists_carry_counts_last_checked_and_saved_search_flag(seeded):
+        """test_watchlists_carry_counts_last_checked_and_saved_search_flag"""
+        status, body = seeded.get("/api/watchlists")
+        assert status == 200
+        (only,) = body["watchlists"]
+        assert only["id"] == LIST_ID and only["name"] == storage.DEFAULT_LIST
+        assert only["trial_count"] == 3
+        assert only["needs_review_count"] == 2
+        assert only["saved_search"] is False
+>       assert only["last_checked"] is None  # no check for updates has finished yet
+E       AssertionError: assert {'iso': '2026-11-01T08:00:00+00:00', 'zone': 'GMT'} is None
+
+tests/test_api_review_queue.py:112: AssertionError
+_ test_a_watchlists_last_checked_is_when_its_most_recent_check_for_updates_finished _
+
+seeded = <conftest.api.<locals>.Client object at 0x10c092be0>
+
+    def test_a_watchlists_last_checked_is_when_its_most_recent_check_for_updates_finished(seeded):
+        """test_a_watchlists_last_checked_is_when_its_most_recent_check_for_updates_finished"""
+        conn = storage.connect(seeded.path)
+        # A trial checked later than the run finished (or by another route) does not move it.
+        storage.mark_checked(conn, "NCT00000002", "2026-11-09T10:00:00+00:00")
+>       assert seeded.get("/api/watchlists")[1]["watchlists"][0]["last_checked"] is None
+E       AssertionError: assert {'iso': '2026-11-09T10:00:00+00:00', 'zone': 'GMT'} is None
+
+tests/test_api_review_queue.py:180: AssertionError
+_ test_a_failed_check_records_its_time_and_kind_and_a_later_success_clears_it __
+
+conn = <sqlite3.Connection object at 0x106c55a80>
+fetcher = <function make_fetcher.<locals>.build.<locals>.fetch at 0x111138160>
+make_fetcher = <function make_fetcher.<locals>.build at 0x111138ee0>
+
+    def test_a_failed_check_records_its_time_and_kind_and_a_later_success_clears_it(conn, fetcher, make_fetcher):
+        """test_a_failed_check_records_its_time_and_kind_and_a_later_success_clears_it"""
+        monitor.add(conn, "NCT03412565", fetch=fetcher, when="2026-01-01T00:00:00+00:00")
+        down = make_fetcher(failures={"NCT03412565": urllib.error.URLError("down")})
+    
+>       result = monitor.check_one(conn, "NCT03412565", fetch=down, when="2026-02-01T00:00:00+00:00")
+E       AttributeError: module 'monitor' has no attribute 'check_one'
+
+tests/test_check_trials.py:543: AttributeError
+____________ test_error_kinds_tell_not_found_from_a_registry_error _____________
+
+conn = <sqlite3.Connection object at 0x111118c60>
+fetcher = <function make_fetcher.<locals>.build.<locals>.fetch at 0x1113231f0>
+make_fetcher = <function make_fetcher.<locals>.build at 0x111323f70>
+
+    def test_error_kinds_tell_not_found_from_a_registry_error(conn, fetcher, make_fetcher):
+        """test_error_kinds_tell_not_found_from_a_registry_error"""
+        monitor.add(conn, "NCT03412565", fetch=fetcher)
+        for code, kind in ((404, "not_found"), (500, "registry_error")):
+            err = urllib.error.HTTPError("http://x", code, "no", None, None)
+>           result = monitor.check_one(conn, "NCT03412565", fetch=make_fetcher(failures={"NCT03412565": err}))
+E           AttributeError: module 'monitor' has no attribute 'check_one'
+
+tests/test_check_trials.py:560: AttributeError
+____ test_retry_failed_rechecks_only_the_trials_that_failed_in_the_last_run ____
+
+conn = <sqlite3.Connection object at 0x1111186c0>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+fetcher = <function make_fetcher.<locals>.build.<locals>.fetch at 0x111031670>
+make_fetcher = <function make_fetcher.<locals>.build at 0x111031310>
+
+    def test_retry_failed_rechecks_only_the_trials_that_failed_in_the_last_run(conn, record, fetcher, make_fetcher):
+        """test_retry_failed_rechecks_only_the_trials_that_failed_in_the_last_run"""
+        for nct in ("NCT00000001", "NCT00000002", "NCT00000003"):
+            monitor.add(conn, nct, fetch=fetcher, when="2026-01-01T00:00:00+00:00")
+        down = make_fetcher({"NCT00000001": record}, failures={"NCT00000002": urllib.error.URLError("x")}, default=record)
+        results = list(monitor.check_all(conn, fetch=down, pause=0))
+>       monitor.finish_run(conn, 1, results, "2026-02-01T00:00:00+00:00")
+E       AttributeError: module 'monitor' has no attribute 'finish_run'
+
+tests/test_check_trials.py:570: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_api_checks.py::test_a_second_check_for_the_same_watchlist_is_refused_while_one_runs
+FAILED tests/test_api_checks.py::test_a_check_reports_progress_while_the_watchlist_stays_readable
+FAILED tests/test_api_checks.py::test_a_failed_trial_makes_the_check_incomplete_and_keeps_the_search_apart
+FAILED tests/test_api_checks.py::test_a_saved_search_failure_is_reported_apart_from_the_trials
+FAILED tests/test_api_checks.py::test_retry_failed_rechecks_only_the_failed_trials
+FAILED tests/test_api_checks.py::test_a_check_with_nothing_new_says_how_many_still_need_review_from_earlier
+FAILED tests/test_api_checks.py::test_a_check_runs_the_saved_search_even_with_no_trials
+FAILED tests/test_api_checks.py::test_checking_an_unknown_watchlist_is_not_found
+FAILED tests/test_api_review_queue.py::test_watchlists_carry_counts_last_checked_and_saved_search_flag
+FAILED tests/test_api_review_queue.py::test_a_watchlists_last_checked_is_when_its_most_recent_check_for_updates_finished
+FAILED tests/test_check_trials.py::test_a_failed_check_records_its_time_and_kind_and_a_later_success_clears_it
+FAILED tests/test_check_trials.py::test_error_kinds_tell_not_found_from_a_registry_error
+FAILED tests/test_check_trials.py::test_retry_failed_rechecks_only_the_trials_that_failed_in_the_last_run
+13 failed, 480 passed in 21.47s

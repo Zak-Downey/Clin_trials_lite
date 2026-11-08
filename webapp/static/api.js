@@ -19,3 +19,18 @@ export function when(time) {
   const wall = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));
   return wall.toLocaleString([], { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " " + time.zone;
 }
+
+export async function post(path) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  const body = await response.json();
+  if (!response.ok) {
+    const error = new Error(body.error ? body.error.message : "Request failed");
+    error.kind = body.error ? body.error.kind : "unknown";
+    throw error;
+  }
+  return body;
+}

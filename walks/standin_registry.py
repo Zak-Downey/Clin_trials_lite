@@ -20,6 +20,8 @@ Switches, flipped over POST /control/<name> with {"on": true|false}:
     slow          both calls wait `delay` seconds first (POST /control/slow {"on": true, "delay": 3})
     revise        NCT03412565 is served in a later version: a later completion date,
                   other enrolment, one intervention fewer, a later registry update date
+    fail          lookups of the listed studies answer 500, the others as usual
+                  (POST /control/fail {"on": true, "ids": ["NCT00000002"]})
     register      a further study (REGISTERED_ID) joins the search results
 
 GET /control shows the switches. The app is never asked to flip them.
@@ -39,7 +41,7 @@ FIXTURE = pathlib.Path(__file__).resolve().parent.parent / "tests" / "fixtures" 
 BASE_ID = "NCT03412565"
 REGISTERED_ID = "NCT00000099"
 COPY_IDS = ["NCT00000002", "NCT00000003"]
-SWITCHES = ("not_found", "server_error", "slow", "revise", "register")
+SWITCHES = ("fail", "not_found", "register", "revise", "server_error", "slow")
 
 
 def _captured() -> dict:
@@ -71,11 +73,12 @@ class State:
         self.lock = threading.Lock()
         self.on = {name: False for name in SWITCHES}
         self.delay = 2.0
+        self.fail_ids: list[str] = []
         self.requests = []  # (path) of every registry call, for tests
 
     def snapshot(self) -> dict:
         with self.lock:
-            return {**self.on, "delay": self.delay}
+            return {**self.on, "delay": self.delay, "fail_ids": list(self.fail_ids)}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -116,6 +119,8 @@ class Handler(BaseHTTPRequestHandler):
         studies = self._studies()
         if route.startswith("/studies/"):
             nct = route[len("/studies/"):].upper()
+            if flags["fail"] and nct in flags["fail_ids"]:
+                return self._reply(500, {"error": f"{nct} failed"})
             if flags["not_found"] or nct not in studies:
                 return self._reply(404, {"error": f"{nct} not found"})
             return self._reply(200, studies[nct])
@@ -148,9 +153,12 @@ class Handler(BaseHTTPRequestHandler):
         if name == "reset":
             with state.lock:
                 state.on = {n: False for n in SWITCHES}
+                state.fail_ids = []
         elif name in SWITCHES:
             with state.lock:
                 state.on[name] = bool(body.get("on", True))
+                if "ids" in body:
+                    state.fail_ids = [str(i).upper() for i in body["ids"]]
                 if "delay" in body:
                     state.delay = float(body["delay"])
         else:

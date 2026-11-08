@@ -14,14 +14,16 @@ export async function render(root, listId, watchlist) {
   const tabs = el("nav", { class: "tabs", role: "tablist", "aria-label": "Watchlist views" },
     el("a", { role: "tab", "aria-selected": "true", href: `#/watchlists/${listId}/needs-review` }, "Needs review"));
   root.replaceChildren(
-    el("h1", {}, watchlist ? watchlist.name : "Watchlist"),
     tabs,
     el("h2", { class: "queue-title", id: "queue-title" }, `${plural(counts.trials, "trial")} ${counts.trials === 1 ? "needs" : "need"} review`),
     el("p", { class: "meta", id: "queue-counts" },
       `${plural(counts.field_changes, "unreviewed field change")} · Most recently detected first`),
   );
   if (!trials.length) {
-    root.append(el("div", { class: "empty" }, "All caught up"));
+    const last = watchlist && watchlist.last_checked ? `Last checked ${when(watchlist.last_checked)}.` : "Not checked yet.";
+    root.append(el("div", { class: "card caught-up" },
+      el("div", { class: "card-body" }, el("h3", {}, "All caught up"), el("p", {}, `No changes awaiting review. ${last}`)),
+      el("a", { class: "button", href: `#/watchlists/${listId}/all-trials` }, "View all trials")));
     return;
   }
   const list = el("ul", { class: "queue" });

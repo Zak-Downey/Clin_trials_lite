@@ -118,6 +118,13 @@ def now() -> str:
 LATE_COLUMNS = (
     ("changes", "reviewed", "INTEGER NOT NULL DEFAULT 0"),
     ("lists", "search", "TEXT"),
+    # A failed check, kept apart from `last_checked` (the last *successful* one).
+    ("trials", "check_failed_at", "TEXT"),
+    ("trials", "check_error_kind", "TEXT"),
+    # When a list's most recent check for updates finished, and which trials
+    # failed in it (a JSON list of NCT IDs): what "Retry failed" re-checks.
+    ("lists", "last_check_finished", "TEXT"),
+    ("lists", "last_check_failed", "TEXT"),
 )
 
 
@@ -424,10 +431,48 @@ def delete_trial(conn: sqlite3.Connection, nct_id: str) -> None:
 
 
 def mark_checked(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> None:
+    """Record a successful check, which clears any failure recorded against the trial."""
     conn.execute(
-        "UPDATE trials SET last_checked = ? WHERE nct_id = ?", (when or now(), nct_id)
+        "UPDATE trials SET last_checked = ?, check_failed_at = NULL, check_error_kind = NULL"
+        " WHERE nct_id = ?",
+        (when or now(), nct_id),
     )
     conn.commit()
+
+
+def mark_check_failed(
+    conn: sqlite3.Connection, nct_id: str, kind: str, when: str | None = None
+) -> None:
+    """Record that a check failed, without moving the last successful check."""
+    conn.execute(
+        "UPDATE trials SET check_failed_at = ?, check_error_kind = ? WHERE nct_id = ?",
+        (when or now(), kind, nct_id),
+    )
+    conn.commit()
+
+
+def finish_check_run(
+    conn: sqlite3.Connection, list_id: int, failed: list[str], when: str | None = None
+) -> None:
+    """Record that a list's check for updates finished, and which trials failed in it."""
+    conn.execute(
+        "UPDATE lists SET last_check_finished = ?, last_check_failed = ? WHERE id = ?",
+        (when or now(), json.dumps(sorted(failed)), list_id),
+    )
+    conn.commit()
+
+
+def last_check_run(conn: sqlite3.Connection, list_id: int) -> dict:
+    """{"finished": stamp or None, "failed": [NCT IDs]} for a list's last check run."""
+    row = conn.execute(
+        "SELECT last_check_finished, last_check_failed FROM lists WHERE id = ?", (list_id,)
+    ).fetchone()
+    if row is None:
+        return {"finished": None, "failed": []}
+    return {
+        "finished": row["last_check_finished"],
+        "failed": json.loads(row["last_check_failed"] or "[]"),
+    }
 
 
 def mark_reviewed(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> int:
