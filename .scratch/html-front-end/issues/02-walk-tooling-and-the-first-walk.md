@@ -2,7 +2,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Touches:** *
 
@@ -12,18 +12,18 @@
 
 **What to build:** The walk suite every user-facing ticket proves its boxes with. Playwright for Python as a development dependency, a walk folder outside the unit tests, and a shared helper that starts the server on a free port with a fresh temporary database pointed at the stand-in registry, gives each worker its own browser, fails a walk on any console error, failed request or horizontal scrolling, and saves screenshots under `.scratch/html-front-end/walks/` (git-ignored). The stand-in registry answers the two ClinicalTrials.gov calls the app makes from the captured fixture records, with switches for not-found, server error, slow, **revise** and **register**, flipped over its own control endpoint. Then one walk through the thin slice from ticket 01.
 
-- [ ] Playwright is a development dependency only; the walk suite lives outside the unit test folder and the unit suite runs without a browser
-- [ ] The walk helper starts the server on a free port with a fresh temporary database and the stand-in registry, and runs at 1440 × 900 and 1024 × 768
-- [ ] Each guard fails a walk when its condition occurs, each shown red on a deliberately broken page: a console error, a failed request, horizontal scrolling
-- [ ] The stand-in registry serves one study by NCT ID and a paged study search with a total count from the captured fixtures, and its not-found, server-error and slow switches change the app's responses as the real registry would
-- [ ] The stand-in's **revise** switch makes the next check for updates detect a change through the normal check path, and **register** makes the next saved-search run find a new match
-- [ ] The stand-in's fidelity check fetches one captured study live and compares its structure with the fixture; its row is added to the Stand-ins table in `docs/agents/local/repo.md` with the date it was run
-- [ ] `docs/agents/local/factory.json` gains the walk suite as a check named `walks`, the walk folder under `evidence.walk`, and the front-end paths under `user_facing`; `gate.py config` passes
-- [ ] `docs/agents/local/repo.md`'s Walks section is filled in for the new tooling (tooling, helpers, evidence, shared plumbing, areas, viewports)
-- [ ] Walk: the sidebar lists every watchlist with its trial count and the number of trials needing review, and a long watchlist name wraps instead of truncating (design 1/1)
-- [ ] Walk: a watchlist opens on Needs review, listing only trials with unreviewed changes, newest detection first, headed with "N trials need review" and "M unreviewed field changes" (design 1/2)
-- [ ] Walk: each queue entry shows heading, NCT ID, phase, sponsor, status, the changed field names, the detected time and the change count, with no selection checkboxes; a trial with simulated changes is labelled "Simulated changes" (design 1/F, 1/3)
-- [ ] Walk: the trial heading and "Review changes" link to the same trial address (design 1/3)
-- [ ] Walk: reloading and using Back and Forward keep the chosen watchlist and tab
+- [x] Playwright is a development dependency only; the walk suite lives outside the unit test folder and the unit suite runs without a browser — doc: requirements-dev.txt; check: unit (482 pass with no browser installed in play; pytest.ini limits it to tests/); check: walks
+- [x] The walk helper starts the server on a free port with a fresh temporary database and the stand-in registry, and runs at 1440 × 900 and 1024 × 768 — walk: test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps (runs at both viewports on a fresh temporary database and the stand-in); red: .scratch/html-front-end/red/02-walks-8250054.txt
+- [x] Each guard fails a walk when its condition occurs, each shown red on a deliberately broken page: a console error, a failed request, horizontal scrolling — walk: test_walk_guard_fails_a_walk_on_a_console_error; walk: test_walk_guard_fails_a_walk_on_a_failed_request_or_one_to_somewhere_else; walk: test_walk_guard_fails_a_walk_on_an_uncaught_page_error; walk: test_walk_guard_fails_a_walk_on_horizontal_scrolling; red: .scratch/html-front-end/red/02-walks-8250054.txt
+- [x] The stand-in registry serves one study by NCT ID and a paged study search with a total count from the captured fixtures, and its not-found, server-error and slow switches change the app's responses as the real registry would — walk: test_standin_serves_one_study_by_nct_id_from_the_captured_fixture; walk: test_standin_search_pages_with_a_total_count; walk: test_standin_not_found_switch_makes_the_apps_lookup_say_not_found; walk: test_standin_server_error_switch_makes_both_calls_fail_as_the_registry_would; walk: test_standin_slow_switch_delays_the_answer; red: .scratch/html-front-end/red/02-walks-8250054.txt
+- [x] The stand-in's **revise** switch makes the next check for updates detect a change through the normal check path, and **register** makes the next saved-search run find a new match — walk: test_standin_revise_switch_makes_the_next_check_find_a_change; walk: test_standin_register_switch_makes_the_next_saved_search_run_find_a_new_match; red: .scratch/html-front-end/red/02-walks-8250054.txt
+- [x] The stand-in's fidelity check fetches one captured study live and compares its structure with the fixture; its row is added to the Stand-ins table in `docs/agents/local/repo.md` with the date it was run — walk: test_fidelity_compare_reports_a_path_missing_live_and_one_only_live; walk: test_fidelity_compare_reports_a_retyped_value_but_not_a_null_one; walk: test_fidelity_compare_of_equal_records_finds_nothing; red: .scratch/html-front-end/red/02-walks-07ba86d.txt; doc: walks/fidelity_check.py (stand-ins row added in docs/agents/local/repo.md, run 2026-11-08: OK against the live record)
+- [x] `docs/agents/local/factory.json` gains the walk suite as a check named `walks`, the walk folder under `evidence.walk`, and the front-end paths under `user_facing`; `gate.py config` passes — check: walks (gate.py config passes)
+- [x] `docs/agents/local/repo.md`'s Walks section is filled in for the new tooling (tooling, helpers, evidence, shared plumbing, areas, viewports) — doc: docs/agents/local/repo.md#Running a walk
+- [x] Walk: the sidebar lists every watchlist with its trial count and the number of trials needing review, and a long watchlist name wraps instead of truncating (design 1/1) — walk: test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps; red: .scratch/html-front-end/red/02-walks-8250054.txt
+- [x] Walk: a watchlist opens on Needs review, listing only trials with unreviewed changes, newest detection first, headed with "N trials need review" and "M unreviewed field changes" (design 1/2) — walk: test_walk_a_watchlist_opens_on_needs_review_newest_detection_first; red: .scratch/html-front-end/red/02-walks-8250054.txt
+- [x] Walk: each queue entry shows heading, NCT ID, phase, sponsor, status, the changed field names, the detected time and the change count, with no selection checkboxes; a trial with simulated changes is labelled "Simulated changes" (design 1/F, 1/3) — walk: test_walk_a_queue_entry_shows_what_the_row_shows_and_labels_simulated_changes; red: .scratch/html-front-end/red/02-walks-8250054.txt
+- [x] Walk: the trial heading and "Review changes" link to the same trial address (design 1/3) — walk: test_walk_the_heading_and_review_changes_open_the_same_trial_address; red: .scratch/html-front-end/red/02-walks-8250054.txt
+- [x] Walk: reloading and using Back and Forward keep the chosen watchlist and tab — walk: test_walk_reload_back_and_forward_keep_the_chosen_watchlist_and_tab; red: .scratch/html-front-end/red/02-walks-8250054.txt; walk: test_walk_a_bare_address_is_rewritten_in_place_so_back_leaves_the_app; red: .scratch/html-front-end/red/02-walks-9ec3673.txt
 
 ## Comments

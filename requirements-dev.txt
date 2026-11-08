@@ -1,0 +1,4 @@
+# Development only: the browser walk suite (walks/). The app itself needs none of this.
+# After installing, once: python -m playwright install chromium
+playwright
+pytest-xdist

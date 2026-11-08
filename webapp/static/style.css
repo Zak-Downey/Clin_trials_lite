@@ -31,3 +31,6 @@ table.queue th { color: var(--muted); font-weight: 500; font-size: 12px; }
 .simulated { color: var(--simulated); font-size: 12px; }
 .empty, .error { padding: 24px; background: var(--surface); border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); }
 .error { color: #b42318; }
+.tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--line); margin: 0 0 16px; }
+.tabs a { padding: 8px 0; text-decoration: none; color: var(--muted); }
+.tabs a[aria-selected=true] { color: var(--accent); border-bottom: 2px solid var(--accent); }

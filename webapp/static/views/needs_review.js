@@ -9,8 +9,11 @@ const el = (tag, attrs = {}, ...kids) => {
 
 export async function render(root, listId, watchlist) {
   const { trials, counts } = await get(`/api/watchlists/${listId}/needs-review`);
+  const tabs = el("nav", { class: "tabs", role: "tablist", "aria-label": "Watchlist views" },
+    el("a", { role: "tab", "aria-selected": "true", href: `#/watchlists/${listId}/needs-review` }, "Needs review"));
   root.replaceChildren(
     el("h1", {}, watchlist ? watchlist.name : "Watchlist"),
+    tabs,
     el("p", { class: "meta", id: "queue-counts" },
       `${counts.trials} trial${counts.trials === 1 ? "" : "s"} need${counts.trials === 1 ? "s" : ""} review · ` +
       `${counts.field_changes} unreviewed field change${counts.field_changes === 1 ? "" : "s"}`),
@@ -24,7 +27,9 @@ export async function render(root, listId, watchlist) {
     ...["Trial", "Phase", "Sponsor", "Status", "What changed", "Detected"].map((h) => el("th", {}, h)))));
   const body = el("tbody");
   for (const t of trials) {
-    const first = el("td", {}, el("strong", {}, t.heading || t.nct_id), el("div", { class: "meta" }, t.nct_id));
+    const address = `#/trials/${t.nct_id}`;
+    const first = el("td", {}, el("strong", {}, el("a", { href: address }, t.heading || t.nct_id)),
+      el("div", { class: "meta" }, t.nct_id), el("a", { href: address }, "Review changes"));
     const changed = el("td", {}, `${t.changed_fields.join(", ")} (${t.change_count})`);
     if (t.simulated) changed.append(el("div", { class: "simulated" }, "Simulated changes"));
     body.append(el("tr", { "data-nct": t.nct_id }, first, el("td", {}, t.phase || ""),
