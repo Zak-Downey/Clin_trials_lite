@@ -17,3 +17,13 @@ Tip reviewed: ac59568
 ## Nit
 8. Origin matched by string prefix | walks/helper.py | fixed — walk: test_walk_guard_does_not_take_a_longer_port_for_the_apps_own_origin — red: .scratch/html-front-end/red/02-walks-ac59568.txt
 9. A closed page drops the guards' findings | walks/conftest.py | fixed — walk: test_walk_guard_keeps_the_first_of_two_pages_and_a_closed_pages_findings — red: .scratch/html-front-end/red/02-walks-ac59568.txt
+
+## Reviewer (tip ac235c9)
+Every closure holds: each red file shows its named check failing at ac59568, and the check asserts on what its finding names. Mutation sample: no `mutate_paths` is configured, so the whole diff is the list, and `gate.py mutate` refused (untracked `.venv`), so I drew by hand. The prompt's hand sample (`_console`, `make_walk` suffix, `exit_code`) was skipped. Lines mutated, 4 tried, 4 caught: `helper.py` `_foreign` (`origin + "/"` to `origin`) caught by the longer-port walk; `_status` expected-branch condition negated, caught by 4 walks; `problems` "expected never came" filter forced empty, caught by the expected-response guard walk; `conftest.py` `Walk.shot`'s `self.guards.measure()` removed, caught by the mid-walk width walk. `git status` shows only the untracked `.venv`.
+
+## Blocking
+(none)
+
+## Notes
+1. `expect(status, path)` matches on status and path only, not on method, so an expected 404 on a GET also excuses a failing POST to the same path | walks/helper.py `_status` | left: no walk meets it yet; add a method when an error walk needs one
+2. Finding 2's red file fails on the message assertion, with all 24 broken walks red at that tip, so it shows the check failing but not specifically the removed `requestfailed` guard; the mutation sample did not target that line, and the reviewed fixed tip's check asserts `/static/aborted.js (net::ERR` and the absence of the foreign-server message, which only the `requestfailed` handler can produce | .scratch/html-front-end/red/02-walks-requestfailed-guard-ac59568.txt | left: the assertion is specific to that guard
