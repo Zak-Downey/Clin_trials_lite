@@ -218,5 +218,5 @@ def test_walk_a_trial_with_simulated_changes_carries_the_simulated_label_on_its_
     assert page.get_by_text("Simulated changes").is_visible()
     walk.shot("simulated")
     page.goto(page.url.replace("NCT00000002", "NCT03412565"))
-    page.get_by_role("button", name="Mark reviewed").wait_for()
+    page.locator("article.change").nth(4).wait_for()  # only NCT03412565 has five changes
     assert page.get_by_text("Simulated changes").count() == 0
