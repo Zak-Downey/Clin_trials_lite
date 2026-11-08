@@ -192,7 +192,7 @@ def test_walk_undo_restores_the_changes_and_counts_and_is_gone_after_leaving(mak
     page.get_by_role("button", name="Mark reviewed").click()
     page.get_by_role("button", name="Undo").wait_for()
     page.get_by_role("tab", name="History").click()
-    page.get_by_text("History is coming.").wait_for()
+    page.get_by_role("heading", name="Trial history").wait_for()
     assert page.get_by_role("button", name="Undo").count() == 0
     page.get_by_role("tab", name=re.compile("^Changes")).click()
     page.get_by_text("No unreviewed changes").wait_for()
