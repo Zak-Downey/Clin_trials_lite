@@ -54,17 +54,45 @@ def preset_range(name: str, today: datetime.date | None = None):
     return None
 
 
+def period_range(kind: str, today: datetime.date | None = None):
+    """The whole period a Summary button means: Monday to Sunday, or the calendar month.
+
+    Unlike `preset_range` this runs to the end of the period, so the heading
+    names the same days however early in it the reader looks.
+    """
+    day = today or datetime.date.today()
+    if kind == "week":
+        start = day - datetime.timedelta(days=day.weekday())
+        return start, start + datetime.timedelta(days=6)
+    if kind == "month":
+        first = day.replace(day=1)
+        following = (first + datetime.timedelta(days=32)).replace(day=1)
+        return first, following - datetime.timedelta(days=1)
+    return None
+
+
 # --- gathering
 
 
-def _within(stamp: str, start: datetime.date, end: datetime.date) -> bool:
+def _local(stamp: str, zone: datetime.tzinfo | None) -> datetime.datetime:
+    """A stored stamp (UTC unless it says otherwise) in the zone dates are read in.
+
+    `None` is the machine's own zone, which is the one the analyst's clock uses.
+    """
+    parsed = datetime.datetime.fromisoformat(stamp)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+    return parsed.astimezone(zone)
+
+
+def _within(stamp: str, start: datetime.date, end: datetime.date, zone=datetime.timezone.utc) -> bool:
     """Whether a detection stamp falls inside the range, both days included.
 
-    Compared by date rather than by moment: the reader chose two days, so a
-    change detected at half past eleven at night on the closing day is inside
-    the range they asked for.
+    Compared by date rather than by moment, and by the date in the reader's
+    zone: a change detected at half past eleven at night on the closing day is
+    inside the range they asked for.
     """
-    return str(start) <= stamp[:10] <= str(end)
+    return start <= _local(stamp, zone).date() <= end
 
 
 def _list_name(conn: sqlite3.Connection, list_id: int | None) -> str:
@@ -95,6 +123,9 @@ def _move(folded: dict, registry_updated) -> dict:
     change = folded["change"]
     field = folded["field"]
     return {
+        "ids": [row["id"] for row in folded["changes"]],
+        # A move is read when every row it folds is.
+        "reviewed": all(row["reviewed"] for row in folded["changes"]),
         **{key: value for key, value in folded.items() if key not in ("change", "changes")},
         "label": display.label(field),
         "registry_updated": registry_updated,
@@ -130,8 +161,11 @@ def summarise(
     list_id: int | None,
     start: datetime.date,
     end: datetime.date,
+    zone: datetime.tzinfo | None = datetime.timezone.utc,
 ) -> dict:
-    """Everything one list moved by, over a range of days.
+    """Everything one list moved by, over a range of days read in `zone`.
+
+    `zone=None` is the machine's local zone.
 
     One entry per trial, however many checks its moves are spread across, with
     the fields high-signal first inside it: a briefing that leads on a corrected
@@ -144,7 +178,7 @@ def summarise(
     changes = [
         change
         for change in storage.list_changes(conn)
-        if change["nct_id"] in watched and _within(change["detected_at"], start, end)
+        if change["nct_id"] in watched and _within(change["detected_at"], start, end, zone)
     ]
 
     # Changes arrive newest first, so grouping preserves that order and the
@@ -172,6 +206,7 @@ def summarise(
 
     return {
         "list_name": _list_name(conn, list_id),
+        "zone": zone,
         "start": start,
         "end": end,
         "entries": entries,
@@ -184,18 +219,19 @@ def summarise(
 # The word marking a fabricated move in a spreadsheet, where an emoji is not
 # something a filter or a formula can be written against. The app's own word,
 # so a row of the file and a line of the page are saying the same thing.
-SYNTHETIC = display.SYNTHETIC.removeprefix(display.SYNTHETIC_MARK).strip()
+SYNTHETIC = "Simulated"
 
 COLUMNS = (
-    "List",
+    "Watchlist",
     "NCT ID",
     "Title",
     "Field",
-    "Previous",
-    "Current",
+    "Previous value",
+    "New value",
     "Registry updated",
     "Detected",
-    "Synthetic",
+    "Review status",
+    "Simulated",
     "Registry record",
 )
 
@@ -262,7 +298,7 @@ def as_text(summary: dict) -> str:
                 # registry's "(Actual)" would otherwise sit inside a second set
                 # of brackets and read as one parenthesis.
                 f" — registry updated {display.long_date(move['registry_updated'])}, "
-                f"detected {display.long_date(move['detected'])}{mark}"
+                f"detected {display.long_date(_local(move['detected'], summary.get('zone', datetime.timezone.utc)).date().isoformat())}{mark}"
             )
     return "\n".join(lines)
 
@@ -292,7 +328,10 @@ def as_csv(summary: dict) -> str | None:
                     _value(move, "previous"),
                     _value(move, "current"),
                     move["registry_updated"] or "",
-                    move["detected"][:10],
+                    _local(move["detected"], summary.get("zone", datetime.timezone.utc)).isoformat(
+                        timespec="seconds"
+                    ),
+                    "Reviewed" if move["reviewed"] else "Awaiting review",
                     SYNTHETIC if move["synthetic"] else "",
                     entry["url"],
                 ]
