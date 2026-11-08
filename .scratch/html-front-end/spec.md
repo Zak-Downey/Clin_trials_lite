@@ -70,8 +70,8 @@ The words used on screen are the ones in `CONTEXT.md`.
 
 ### Trial page: changes
 
-31. As an analyst, I want a trial page with Changes, Trial details and History tabs, opening on Changes when I come from the queue, so that the change is the first thing I read.
-32. As an analyst, I want each unreviewed change shown as the field name with labelled Previously and Now values, stacked when the values are long, so that I compare them directly.
+31. As an analyst, I want a trial page with Changes, Trial details and History tabs, opening on Changes when I come from the queue and on Trial details when I come from All trials (Changes one click away), so that each route opens where I need it.
+32. As an analyst, I want each unreviewed change shown as the field name with labelled Previously and Now values, stacked Previously first and Now second when the values are long or the window is narrow, all text wrapping, so that I compare them directly.
 33. As an analyst, I want each change to show both its registry-updated date and its detected time, so that I know when the sponsor edited it and when I noticed.
 34. As an analyst, I want changes grouped by the check that found them, keeping intermediate transitions, so that a field that moved twice shows both moves.
 35. As an analyst, I want a link to the trial's ClinicalTrials.gov page, so that I can check the source.
@@ -79,18 +79,19 @@ The words used on screen are the ones in `CONTEXT.md`.
 37. As an analyst, I want an action bar that stays visible without covering content, saying "Review covers all N changes shown above", so that I know exactly what reviewing will do.
 38. As an analyst, I want the action bar to say before I act that reviewing also clears these changes in every other watchlist holding the trial, naming them, so that the scope is never a surprise.
 39. As an analyst, I want "Mark reviewed" to mark exactly the changes shown, so that a change found by a check that finished while I was reading stays unreviewed.
-40. As an analyst, I want to stay on the trial after reviewing, with a confirmation ("3 changes marked reviewed. This trial stays open.") and the page not jumping, so that I keep my place.
+40. As an analyst, I want to stay on the Changes tab after reviewing, the changes still shown with a Reviewed label, a confirmation ("3 changes marked reviewed. This trial stays open."), the queue and sidebar counts updating in place, and the page and scroll position not jumping, so that I keep my place.
 41. As an analyst, I want an Undo on that confirmation that restores exactly those changes to unreviewed, until I leave the trial or act again, so that a slip costs nothing.
 42. As an analyst, I want a "Next trial" button that opens the next trial in Needs review without marking anything reviewed, so that I can move through the queue deliberately.
 
 ### Trial page: details and history
 
 43. As an analyst, I want the trial heading to use the registry acronym if there is one, else its brief title, with the full official title and every identifier under Identity, so that the heading is readable and nothing is silently cut.
+43a. As an analyst, I want the trial page header to show the trial's last successful check, with a labelled warning when its latest check failed, so that I know how current what I'm reading is.
 44. As an analyst, I want an "At a glance" panel with registry status, phase, lead sponsor, enrolment, the ClinicalTrials.gov link and when monitoring began, so that the key facts stay in view.
 45. As an analyst, I want the details as five sections (Identity & study design, Conditions & eligibility, Interventions & arms, Endpoints, Dates & results), the long ones expandable on demand, so that the dossier reads as a document rather than uneven cards.
 46. As an analyst, I want a missing registry value shown as "Not reported", never guessed, so that I can trust what I read.
 47. As an analyst, I want fields with unreviewed changes never hidden inside a collapsed section, so that the details never conceal what is new.
-48. As an analyst, I want a History tab with one newest-first timeline of change detections, reviews (with time and count) and the start of monitoring, so that the trial's whole record is in one place.
+48. As an analyst, I want a History tab with one newest-first timeline of change detections, reviews and undone reviews (with time and count), the start of monitoring, and any period when it was not monitored (stopped, and resumed), so that the trial's whole record is in one place and "nothing changed" is never confused with "not watched".
 49. As an analyst, I want to expand any check in the history to see every previous-to-new transition, even after review, so that reviewing never erases evidence.
 50. As an analyst, I want the trial page's menu to show which watchlists hold the trial and offer "Remove from this list", so that membership is managed where I'm looking.
 51. As an analyst, I want removing a trial from a watchlist to offer Undo, and to keep the trial's history even when no other watchlist holds it, so that a slip loses nothing.
@@ -110,9 +111,9 @@ The words used on screen are the ones in `CONTEXT.md`.
 
 ### Find trials: selecting and adding
 
-62. As an analyst, I want each result as a row with a real checkbox and a title link that opens its details, long titles wrapping, so that selecting and opening stay separate.
-63. As an analyst, I want "Select 10 on this page" and selections that persist across pages and while I look at a trial's details, with the total stated, so that I can gather trials from several pages.
-64. As an analyst, I want an action bar, shown once something is selected, stating "N trials selected", with Clear, an "Add to" watchlist picker and "Add N trials", so that the count and destination are always in reach.
+62. As an analyst, I want each result as a row with a real checkbox and a title link ("View details") that opens its details, long titles wrapping, so that selecting and opening stay separate. Details of a trial I don't monitor show its header facts and the Trial details sections fetched from the registry, with no Changes or History tabs and an "Add to watchlist" action.
+63. As an analyst, I want "Select 10 on this page" and selections that persist across pages, while I look at a trial's details, and when I leave Find trials and come back, with the total stated, so that I can gather trials from several pages.
+64. As an analyst, I want an action bar, shown once something is selected, stating "N trials selected", with Clear, an "Add to" watchlist picker and "Add N trials", that reserves space so it never covers the last results, so that the count and destination are always in reach.
 65. As an analyst, I want the destination preset to the watchlist I came from, so that I rarely pick it at all.
 66. As an analyst, I want a "New watchlist" option inside every destination picker that creates the watchlist and returns me to my task with it selected, so that I never abandon a task to create a destination.
 67. As an analyst, I want adding to confirm exactly what happened ("2 added; 1 already in this list"), link to the watchlist, and clear the completed selection, so that the loop is closed.
@@ -131,16 +132,17 @@ The words used on screen are the ones in `CONTEXT.md`.
 74. As an analyst, I want a confirmation ("Search saved. <watchlist> will check for new matches when you run Check for updates.") with an "Open watchlist" link, so that I know it worked.
 75. As an analyst, I want a "Saved search is on" banner on a watchlist that has one, with a Manage link, saying it runs when I check for updates and that new matches need my approval, so that discovery is visible but secondary.
 76. As an analyst, I want Manage saved search to show the query, with "Edit search" (which opens Find trials pre-filled and replaces the query only when I save it) and "Turn off" (which keeps the watchlist's trials), so that I control discovery.
-77. As an analyst, I want New matches as their own tab with a count, never pushing the review queue down, so that discovery never competes with review.
-78. As an analyst, I want new matches listed with checkboxes, title links to details, and an action bar with "Add N to watchlist" and "Dismiss N", so that I decide on several at once.
+77. As an analyst, I want New matches as their own tab with a count, never pushing the review queue down, described as "Not monitored yet" results of the saved search (never as new registrations or as changes), so that discovery never competes with review or is mistaken for it.
+78. As an analyst, I want new matches listed with checkboxes, title links to details, and an action bar with "Add N to watchlist" and "Dismiss N" that never covers the last match, so that I decide on several at once.
+78a. As an analyst, I want the New matches tab and the check result to say when the saved search found more than the 100 it can offer, so that I know to narrow it.
 79. As an analyst, I want trials added from new matches to take their baseline and the confirmation to say "N added" with a link to All trials, so that I see the result.
-80. As an analyst, I want the dismiss action to state before I commit that "These trials will not be suggested again for this list", and to offer Undo afterwards, so that dismissing is deliberate and reversible.
+80. As an analyst, I want the dismiss action to state before I commit that "These trials will not be suggested again for this list", and to offer Undo afterwards, and dismissing in one watchlist to change nothing in any other, so that dismissing is deliberate, reversible and contained.
 81. As an analyst, I want "View dismissed" to list a watchlist's dismissed matches, each with Restore, so that a dismissal is never permanent.
 82. As an analyst, I want a watchlist with a saved search and no trials to offer "Check for new matches", so that it has a useful next step.
 
 ### Change summary and export
 
-83. As an analyst, I want a Summary tab with This week (Monday to Sunday), This month and Custom dates, filtering by detection time, so that I can brief on any period.
+83. As an analyst, I want a Summary tab with This week (Monday to Sunday), This month (the calendar month) and Custom dates, filtering by detection time, so that I can brief on any period.
 84. As an analyst, I want Custom dates to open labelled From and To fields with Apply and Cancel, the old summary staying until both dates are valid, so that a half-picked range never blanks the page.
 85. As an analyst, I want the summary headed with the period, the number of trials and field changes, how many await review and how many are reviewed, and the time zone dates use, so that the numbers are unambiguous.
 86. As an analyst, I want reviewed changes kept in the summary, so that reporting is independent of my reading.
@@ -156,14 +158,15 @@ The words used on screen are the ones in `CONTEXT.md`.
 93. As an analyst, I want a ⋯ menu on the watchlist with Rename watchlist, Manage saved search, Full recheck and Delete watchlist, each opening its own dialog, so that administration stays out of the daily path.
 94. As an analyst, I want watchlist names checked for being empty or duplicate inline, in both New watchlist and Rename, so that I fix the name in place.
 95. As an analyst, I want Full recheck explained as a one-off that ignores the registry's update date, with its own completion message, so that I use it only when I mean to.
-96. As an analyst, I want Delete watchlist to name the watchlist, say that it removes the watchlist, its saved search and its memberships, that trials in other watchlists are unchanged, and that history is kept while trials no longer in any watchlist stop being checked, so that I know exactly what I'm deleting.
-97. As an analyst, I want every dialog to trap focus, close on Escape without changes, and return focus to what opened it, so that the keyboard works throughout.
+96. As an analyst, I want Delete watchlist to name the watchlist, say that it removes the watchlist, its saved search and its memberships, that trials in other watchlists are unchanged, and that history is kept while trials no longer in any watchlist stop being checked, and that deleting cannot be undone, so that I know exactly what I'm deleting.
+97. As an analyst, I want every dialog to trap focus, close on Escape without changes, return focus to what opened it, and leave me on the same view and scroll position after saving or cancelling, so that the keyboard works throughout and I never lose my place.
 98. As an analyst, I want to add a trial back after it left every watchlist and have its history resume, so that the next check tells me what moved while it was unwatched.
 
 ### Reach and trust
 
-99. As an analyst, I want every screen usable at any window width down to 390 px with no horizontal scrolling of titles, changes or summaries, so that a narrow window still works.
-100. As an analyst, I want every action reachable by keyboard, with visible focus, text labels and no meaning carried by colour alone, so that the app is accessible.
+99. As an analyst, I want every screen usable at any window width down to 390 px with no horizontal scrolling of titles, changes or summaries, both top-level destinations visible without a hamburger menu, and each trial's title, ID, what changed and counts still visible where tables reflow into rows, so that a narrow window still works.
+100. As an analyst, I want every action reachable by keyboard, using real controls with visible focus, text labels, targets at least 44 px, and no meaning carried by colour alone, so that the app is accessible.
+100a. As an analyst, I want every time the app shows (detected, last checked, history, summary) in my machine's local time zone, so that times agree with my clock.
 101. As an analyst, I want the app reachable only from my own machine, so that my watchlists are never exposed on a network.
 102. As an analyst, I want the README to say how to start the app, where the database file lives and how to back it up, so that I can trust it with my work.
 103. As a developer, I want the simulator runnable from the command line against a trial, its changes labelled simulated wherever they appear, so that I can demonstrate alerting without a real change.
@@ -184,7 +187,9 @@ The words used on screen are the ones in `CONTEXT.md`.
 - **Review events persist.** Each review records its time and the change IDs it marked, so History can show "Reviewed · Marked 3 changes from the 16:45 check as reviewed". Undo takes a review event and returns exactly its changes to unreviewed, recording the undo.
 - **Check failures persist per trial.** A failed check records its time and error kind against the trial without moving its last successful check. A later success clears the failure flag. A watchlist's "last checked" is the time its most recent check for updates finished.
 - **Retry failed** re-checks only the trials whose most recent check failed in the watchlist's last check run.
-- **Retention.** Removing a trial from its last watchlist, or deleting that watchlist, no longer deletes the trial, its snapshots or its changes; the trial becomes unmonitored and is skipped by every check. Adding it back to any watchlist makes it monitored again without a new baseline; the next check compares against its last snapshot. Undo of a removal restores the membership.
+- **Retention.** Removing a trial from its last watchlist, or deleting that watchlist, no longer deletes the trial, its snapshots or its changes; the trial becomes unmonitored and is skipped by every check. Adding it back to any watchlist makes it monitored again without a new baseline; the next check compares against its last snapshot. Undo of a removal restores the membership. When monitoring stopped and when it resumed are recorded, so History can show the gap.
+- **An existing database file is upgraded in place.** The storage layer already migrates its schema on open; the new tables and columns are added the same way, so a `monitor.db` from local Streamlit use opens with its data intact. ("No migration" in the brief is about the retired GitHub Pages site's browser storage, which the local app cannot read.)
+- **Details of a trial that is not monitored** (from search results or new matches) come from one registry fetch, shown through the same profile and section mapping as a monitored trial, and are not stored.
 - **Restore a dismissed match**, and list a watchlist's dismissed matches.
 - **Look up a trial without adding it**: returns its NCT ID, heading, official title, sponsor and status.
 - **Distinct error kinds** for invalid format, not found, already in this watchlist and registry unavailable, as error types or codes the API maps to messages, not message text.
@@ -220,15 +225,15 @@ The resources, in outline. Every response is JSON, every error carries a stable 
 - **A good test checks behaviour a user or the page can observe, through the highest seam that shows it**, never internal calls or SQL. A test names the behaviour in plain words, as the existing suite does.
 - **Seam 1, the server's HTTP API, in-process.** The server is built by a factory that takes the database path and the registry fetch and search functions, so tests run it against a temporary database with the stub fetchers and finders the suite already uses (`make_fetcher`, `make_finder` and the captured NCT03412565 record in the test fixtures). All new domain behaviour is proven here: review by ID and its scope, review events and undo, failure recording and Retry failed, retention and resume, restore, lookup and the four error kinds, paging, the cap and totals, bulk-add outcomes, summary grouping, the CSV columns, the one-check-at-a-time rule.
 - **The existing domain tests stay** (`test_check_trials`, `test_diff`, `test_briefing`, `test_found_trials`, `test_lists`, `test_search`, `test_watchlist`, `test_simulate` and the rest) and are updated where this spec changes a rule: retention instead of deletion, review by ID. Tests that exist only for retired code (the Streamlit app, the site, the in-browser transport, the deploy workflow) are deleted with it.
-- **Seam 2, the browser.** Playwright (Python, a development dependency only) drives the real server in Chromium. A shared walk helper starts the server on a free port with a fresh temporary database and the stand-in registry, gives each worker its own browser, fails a walk on any console error or failed request, and takes screenshots into the feature's walks folder. Walks run at 1440 × 900 and 390 × 844. Every acceptance box about something a user sees names the walk that checks it.
-- **The stand-in registry** is a small local HTTP server answering the two ClinicalTrials.gov API calls the app makes (one study by NCT ID; a study search with paging and a total count), serving captured records from the test fixtures, with switches to return not-found, server error and a slow response. Its fidelity check, run on demand and dated in `docs/agents/local/repo.md`: fetch one captured study live and compare its structure with the fixture.
+- **Seam 2, the browser.** Playwright (Python, a development dependency only) drives the real server in Chromium. A shared walk helper starts the server on a free port with a fresh temporary database and the stand-in registry, gives each worker its own browser, fails a walk on any console error or failed request, and takes screenshots into the feature's walks folder. Walks run at 1440 × 900 and 390 × 844. The acceptance walk also runs in Playwright's WebKit, which stands in for Safari; Safari itself is checked by the user at hand-over. Every acceptance box about something a user sees names the walk that checks it.
+- **The stand-in registry** is a small local HTTP server answering the two ClinicalTrials.gov API calls the app makes (one study by NCT ID; a study search with paging and a total count), serving captured records from the test fixtures, with switches to return not-found, server error and a slow response, and two that make the registry move between steps of a walk: **revise**, which serves a later version of a study (a changed completion date, enrolment and interventions, with a later registry update date), so the next check for updates finds a real change through the normal code path; and **register**, which adds a study to the search results, so the next saved-search run finds a new match. The walk helper flips them over a control endpoint of the stand-in, not through the app; this is the acceptance walk's only non-keyboard step. Simulated-change labels are walked separately, on a database the simulator seeded before the walk began. Its fidelity check, run on demand and dated in `docs/agents/local/repo.md`: fetch one captured study live and compare its structure with the fixture.
 - **The walk suite** is a separate pytest suite outside the fast unit folder, so the unit suite needs no browser. It becomes a gate check in `docs/agents/local/factory.json`, and the front-end paths become `user_facing` there, in the walk-tooling ticket.
 - **Prior art:** `tests/conftest.py` (stub fetchers and finders, temporary database), `tests/test_check_trials.py` and `tests/test_found_trials.py` (domain behaviour through the module seam), and `tests/test_app.py` for the scenarios the current UI covers, which the new walks replace.
 
 ## Out of Scope
 
 - Stopping a check midway; "Check this trial" on the trial page.
-- The phone-specific designs on page 14: sticky footers, the view picker replacing tabs, the watchlist title as a picker. The layout is fluid instead.
+- Phone-specific designs, wherever the design names them: on page 14 the sticky footers with safe-area insets, the view picker replacing tabs, and the watchlist title as a picker; on page 5 (note 1) the facts panel becoming a compact section on phones; on page 7 (note 4) the Search action pinned to the bottom of a phone's viewport. The layout is fluid instead (stories 99 and 100).
 - A check-activity page, and the cross-watchlist "Everything monitored" summary.
 - The "Design sample · Simulated" header badge.
 - Hosting, GitHub Pages, any server other than the analyst's own machine, logins, sharing and sync (ADR 0003).
@@ -242,18 +247,99 @@ The resources, in outline. Every response is JSON, every error carries a stable 
 
 The build is finished when all of the following hold, and not before. When they hold, it stops.
 
-1. **Every numbered design note is covered.** Each of the 14 pages' numbered notes and its footer note, less the items ruled out above, maps to at least one acceptance box in a ticket, and each box is ticked with evidence (a walk, a test, or `needs-human` where only the user can judge). The coverage table, design page and note number → ticket and box, lives in the foundational ticket and is complete at hand-over.
-2. **The old front end is gone.** No Streamlit, stlite, site build, in-browser transport or Pages workflow remains in the repository or its requirements, and nothing refers to them except the ADRs and closed tickets.
+1. **Every in-scope design clause is covered and proven.** Every row of the coverage table below marked In or Partly in maps to at least one acceptance box in a ticket, at the level of each clause the row keeps, and every such box is ticked with a `walk:` or `test:` (evidence.md). A `needs-human` line may sit beside that proof for look or wording, but never replaces it. Each box cites the rows it proves as `(design 3/4)`, so coverage is a search: every In and Partly-in Ref appears in at least one ticked box under `.scratch/html-front-end/issues/`.
+2. **The old front end is gone.** No file, import, dependency or workflow for Streamlit, stlite, the site build, the in-browser transport or the Pages deployment remains: `grep -rliE 'streamlit|stlite' --exclude-dir=.git --exclude-dir=.scratch --exclude-dir=adr .` finds nothing, comments in kept modules and tests included.
 3. **Every check is green.** `python3 .claude/factory/gate.py checks` passes: unit, gate tests and the walk suite.
-4. **The acceptance walk passes**, keyboard only, at 1440 × 900 and 390 × 844: start the app on an empty database; create a watchlist; search; select across two pages; add trials; save the search; check for updates; open a trial with a simulated change; review it; undo; review again; add a new match; dismiss one and restore it; view the summary; copy it; export the CSV.
-5. **The exploration ticket is done**: its walkers' defects are fixed, each with the check that found it green.
-6. **The user's hand-over ticket is done**: the user has started the app with the README's command and clicked through the acceptance journey themselves.
+4. **The acceptance walk passes**, keyboard only, at 1440 × 900 and 390 × 844 in Chromium, and at 1440 × 900 in WebKit: start the app on an empty database; create a watchlist; search; select across two pages; add trials; save the search; check for updates; *(stand-in: revise one study, register one study)*; check for updates again; open the changed trial; review it; undo; review again; add the new match; dismiss one match and restore it; view the summary; copy it; export the CSV. The italic step is the only one not taken through the page.
+5. **The exploration ticket is done, in one round.** One exploratory walker per area, once. A finding is fixed in this spec only when it breaks an acceptance box, an In or Partly-in row of the coverage table, or the walk guards (a console error, a failed request, horizontal scrolling). Every other finding is listed under Further Notes for the follow-up spec and is not fixed here. No second round.
+6. **The user's hand-over ticket is done**: the user has started the app with the README's command, clicked through the acceptance journey in their own browser (Safari included), and ticked it.
 
 **Anything new the user asks for at or after hand-over is a follow-up spec, not a reopening of this one.** A defect against a box in this spec is fixed here; a wish beyond it is written down under Further Notes and carried to the next spec. This is what ends the build.
 
+### Design coverage
+
+Every numbered note (N/1–N/5) and footer note (N/F) on the 14 design pages. Stories are this spec's. *Partly in* keeps the clauses named and rules out the rest, with the decision (brief) that rules them out.
+
+| Ref | Clause (design) | Scope | Stories |
+|---|---|---|---|
+| 1/1 | Watchlist switcher shows trial totals and trials needing review; long names wrap | In | 3, 4 |
+| 1/2 | Explicit units (trials, field changes); order by detection time | In | 9, 11 |
+| 1/3 | Title and Review changes open the same page; no selection checkboxes in the queue | In | 12 |
+| 1/4 | Manual checking; last checked shown; never imply live or scheduled monitoring | In | 15, 16 |
+| 1/5 | Saved search visible; new matches in their own tab; never push the queue down | In | 75, 77 |
+| 1/F | Queue keeps identity, what changed, when detected, one action | In | 10 |
+| 2/1 | Filter this watchlist by title, ID or sponsor, distinct from registry search | In | 28 |
+| 2/2 | Registry status and review state independent: unreviewed, reviewed history, no changes | In | 26 |
+| 2/3 | Each trial's last successful check; failed check adds a warning and keeps the earlier time | In | 22, 27, 43a |
+| 2/4 | Title is a real link to the trial (Changes available at once); wrap titles, taller rows, visible headers | In | 30, 31 |
+| 2/F | Default Needs review; remember an explicit view; never switch views on count changes | In | 7, 8 |
+| 3/1 | Changes opens first from the queue; details and History one click away; Back restores position | In | 31, 36 |
+| 3/2 | Labelled Previous / Now; long values stacked; all text wraps | In | 32 |
+| 3/3 | Registry updated vs Detected; changes grouped by check, intermediate events kept | In | 33, 34 |
+| 3/4 | Review all changes shown; action bar visible without covering content; Next trial never reviews | In | 37, 39, 42 |
+| 3/F | Review clears only the displayed change IDs | In | 39 |
+| 4/1 | Stay on Changes with a Reviewed label; no automatic move to History | In | 40 |
+| 4/2 | Undo the review; queue count updates; page and scroll do not jump | In | 40, 41 |
+| 4/3 | One timeline of field changes, monitoring events and review events; review times stored | In | 48 |
+| 4/4 | Expand a check to see every transition; review removes nothing | In | 49 |
+| 4/F | Reviewed everywhere the trial appears; scope stated before the action | In | 38 |
+| 5/1 | Facts panel: status, phase, lead sponsor, enrolment. *Out:* compact phone section (decision 4) | Partly in | 44 |
+| 5/2 | Short title or acronym as heading; full title and all identifiers in Identity; no truncation | In | 43 |
+| 5/3 | Eight groups merged into five sections; long ones expand; unreviewed changes never hidden | In | 45, 47 |
+| 5/4 | Menu with watchlist membership and Remove from this list. *Out:* Check this trial (decision 3) | Partly in | 50, 51 |
+| 5/F | Exact registry values; "Not reported"; never infer | In | 46 |
+| 6/1 | Form expanded first; after results, a plain-language summary with Edit search | In | 52, 58 |
+| 6/2 | Watch this search opens a dialog; works with none selected; adds no results | In | 72 |
+| 6/3 | Real checkboxes select, title links open; titles wrap; selection kept when viewing, paging, returning | In | 62, 63 |
+| 6/4 | Action bar on selection, reserving space; exact count and destination; success links to the list | In | 64, 67 |
+| 6/F | Pagination, never a nested scroll; select-all is this page; selections kept across pages; total stated | In | 59, 63 |
+| 7/1 | The four-field rule stated before failure; error beside the group; values kept | In | 52, 57 |
+| 7/2 | Phase as labelled multi-select controls, selected beyond colour, clear-all | In | 53 |
+| 7/3 | More filters folded; selections shown in full; no essential help in tooltips | In | 54, 55 |
+| 7/4 | Enter submits. *Out:* phone sticky Search action (decision 4) | Partly in | 56 |
+| 7/F | Zero matches keeps the query with Edit / Clear optional filters; network error keeps the form with Retry | In | 60, 61 |
+| 8/1 | Watch this search saves the submitted query only; can target an empty watchlist | In | 72 |
+| 8/2 | One saved search per watchlist; show the old query; Replace saved search; Cancel changes nothing | In | 73 |
+| 8/3 | New watchlist inside both destination pickers; inline validation; return with it selected | In | 66, 94 |
+| 8/4 | Success names the watchlist with Open watchlist; "2 added; 1 already in this list"; selection cleared | In | 67, 74 |
+| 8/F | Separate dialogs; focus trapped; Escape cancels and returns focus | In | 97 |
+| 9/1 | New matches a separate queue, labelled precisely | In | 77 |
+| 9/2 | View dismissed with Restore; dismissed not re-offered unless restored | In | 81 |
+| 9/3 | "Add to watchlist" wording; baseline taken; "2 added" linking to All trials | In | 79 |
+| 9/4 | Dismissal consequence stated first; Undo after; nothing deleted from another watchlist | In | 80 |
+| 9/F | Saved search runs with zero trials; discovery failure reported separately | In | 23, 24 |
+| 10/1 | Range filters detection time; reviewed changes stay in summary and export | In | 83, 86 |
+| 10/2 | Custom dates: From / To with Apply; old summary kept until valid; Cancel | In | 84 |
+| 10/3 | Copy as plain text with links; CSV with exact values, field, dates, review status, simulated flag | In | 88, 89 |
+| 10/4 | Grouped by trial then check; expand to every transition; nothing flattened | In | 87 |
+| 10/F | Empty period message; controls kept; export disabled with a reason; wider range offered | In | 90 |
+| 11/1 | No empty summary, feed or check controls before the first trial; baseline explained | In | 91, 92 |
+| 11/2 | Find trials and Add by NCT ID carry the originating watchlist | In | 65, 70, 91 |
+| 11/3 | Lookup shows ID, title, sponsor and status before Add; nothing unseen added | In | 69 |
+| 11/4 | Invalid ID kept and focused; format explained; four error kinds distinguished | In | 71 |
+| 11/F | First trial is a baseline, not an alert; saved search with no trials offers Check for new matches | In | 68, 82 |
+| 12/1 | Checking leaves the list and open trial readable; duplicate checks prevented. *Out:* Stop (decision 3) | Partly in | 18, 19 |
+| 12/2 | Partial success explicit; trial and discovery failures separate; failed trial's time not advanced | In | 22, 23 |
+| 12/3 | No new changes is not reviewed; count kept; distinction stated | In | 20, 21 |
+| 12/4 | Empty queue offers View all trials; no automatic tab switch; no implied currency | In | 8, 14 |
+| 12/F | Normal checks use the date optimisation; Full recheck a one-off with its own completion label | In | 95 |
+| 13/1 | One task per dialog: Rename, Manage saved search; never create, rename and delete in one form. *Out:* View check activity (decision 10) | Partly in | 93 |
+| 13/2 | Dialog names its target; duplicates checked inline; same view and scroll after save or cancel | In | 94, 97 |
+| 13/3 | Delete removes the watchlist and keeps history; Remove trial acts on this watchlist only, with Undo | In | 51, 96 |
+| 13/4 | Full recheck in the menu with its explanation, out of the normal workflow | In | 93, 95 |
+| 13/F | Manage saved search shows the query, Edit search and Turn off; edit replaces only when saved | In | 76 |
+| 14/1 | Both top-level destinations visible without a hamburger. *Out:* watchlist title as picker (decision 4) | Partly in | 2, 99 |
+| 14/2 | Title, ID, what changed and counts stay visible at narrow widths. *Out:* view selector (decision 4) | Partly in | 99 |
+| 14/3 | Stacked comparisons, Previous first; long text wraps; the page scrolls | In | 32, 99 |
+| 14/4 | Real controls, clear focus, text labels, not colour alone, 44 px targets. *Out:* sticky footer and safe-area inset (decision 4) | Partly in | 100 |
+| 14/F | Same data and actions at every width; fluid layout; no horizontal scrolling | In | 99 |
+
+Not rows: the "Design sample · Simulated" header badge (decision 5), which no note mentions.
+
 ## Further Notes
 
-- **Tickets, for `to-tickets`:** the foundational ticket is the server, its API seam with the factory and stub wiring, the domain changes the API needs first (change IDs, review by ID and review events), the design-note coverage table, and one thin end-to-end slice (open a watchlist's Needs review). Walk tooling comes before the first user-facing ticket: Playwright, the shared helper with its guards each shown to fail, the stand-in registry with its fidelity check, the `factory.json` checks and `user_facing` entries, and one walk through the thin slice. Then roughly one ticket per design page or pair of pages; the retirement of the old front end as its own ticket once the new one reaches the acceptance journey; the acceptance walk; the exploration ticket; and the user's hand-over ticket.
+- **Tickets, for `to-tickets`:** the foundational ticket is the server, its API seam with the factory and stub wiring, the domain changes the API needs first (change IDs, review by ID and review events), and one thin end-to-end slice (open a watchlist's Needs review). Walk tooling comes before the first user-facing ticket: Playwright, the shared helper with its guards each shown to fail, the stand-in registry with its fidelity check, the `factory.json` checks and `user_facing` entries, and one walk through the thin slice. Then roughly one ticket per design page or pair of pages; the retirement of the old front end as its own ticket once the new one reaches the acceptance journey; the acceptance walk; the exploration ticket; and the user's hand-over ticket.
+- **Every acceptance box written by `to-tickets` cites its Design coverage rows** as `(design N/n)`; a ticket whose boxes cite no row is infrastructure (walk tooling, retirement) and says so.
 - **Areas for the exploratory walkers:** watchlists and review; trial page; find trials; saved search and new matches; summary and export; dialogs and administration.
 - **ADR 0001 stands:** lead sponsor type matches the lead sponsor only, and the form's help text says so.
 - **The screenshots of the current app** are in the UX overview PDF made on 8 November 2026 (`~/Downloads/Trial-Change-Monitor-UX-overview.pdf`); the design's "Current screens" footers refer to its numbering.

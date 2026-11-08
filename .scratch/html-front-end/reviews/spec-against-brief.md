@@ -123,3 +123,16 @@ End State 6 also makes completion depend on the user clicking through. The brief
 - `docs/agents/tickets.md`, `walkthrough.md`, `orchestrator.md`.
 - The UX overview PDF the spec's Further Notes cite (`~/Downloads/Trial-Change-Monitor-UX-overview.pdf`), and the design's "Current screens" footers, which point into it.
 - No code beyond the `grep` for Streamlit references in B4.
+
+---
+
+## Resolution (orchestrating session, 2026-11-08)
+
+Every finding is fixed in `spec.md`; none needed a new decision from the user, because each tightens the spec toward what the brief already says.
+
+- **B1 fixed.** End State 1: every box is proven by `walk:` or `test:`; `needs-human` may sit beside the proof, never replace it.
+- **B2 fixed.** The spec now carries a Design coverage table: all 71 notes and footers, each In, or Partly in with the clause kept and the decision that rules out the rest. 5/1 and 7/4's phone clauses are out under decision 4, and Out of Scope names them. Boxes cite rows as `(design N/n)`, so coverage is a search.
+- **B3 fixed.** End State 5: one exploration round; a finding is fixed here only if it breaks a box, an in-scope row, or the walk guards; everything else goes to Further Notes for the follow-up spec. (The exploration ticket is required by the factory for a user-facing spec, which is why it stays.)
+- **B4 fixed.** End State 2 is a runnable grep, excluding `.git`, `.scratch` and `docs/adr`; comments in kept modules are reworded.
+- **B5 fixed.** The stand-in registry gains `revise` and `register` switches, flipped by the walk helper; End State 4 names that as the walk's only non-keyboard step. Simulated labels are walked on a pre-seeded database.
+- **N1** story 31 · **N2** story 40 · **N3** story 48 and Retention · **N4** story 43a · **N5** story 63 · **N6** stories 64, 78 · **N7** stories 77, 80 · **N8** story 97 · **N9** stories 32, 99, 100 · **N10** story 96 · **N11** WebKit run of the acceptance walk, Safari at hand-over · **N12** existing database upgraded in place · **N13** story 78a · **N14** story 100a · **N15** story 62 and Domain changes · **N16** left: technical side delegated · **N17** left: superset of the brief's walk, the user agreed hand-over click-through in Q7; "This month" defined as the calendar month (story 83).
