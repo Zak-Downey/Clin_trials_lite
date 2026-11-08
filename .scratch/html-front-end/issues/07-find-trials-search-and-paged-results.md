@@ -2,7 +2,7 @@
 
 **Blocked by:** 02
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **Touches:** monitor.py, ctgov.py, webapp/static/app.js, webapp/static/style.css, webapp/routes.py, walks/standin_registry.py
 

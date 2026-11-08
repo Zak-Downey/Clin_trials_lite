@@ -1,6 +1,6 @@
 # Spec: Replace the Streamlit front end with an HTML page
 
-Status: needs-triage
+Status: ready-for-agent
 Brief: .scratch/html-front-end/brief.md
 
 ## Problem Statement

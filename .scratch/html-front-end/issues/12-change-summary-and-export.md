@@ -2,7 +2,7 @@
 
 **Blocked by:** 04
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **Touches:** briefing.py, webapp/static/app.js, webapp/static/style.css, webapp/routes.py
 
