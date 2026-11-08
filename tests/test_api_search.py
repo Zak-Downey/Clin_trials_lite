@@ -50,6 +50,7 @@ def search_api(tmp_path, record, restyled):
 
 
 def test_a_search_returns_ten_rows_and_the_registrys_total(search_api):
+    """test_a_search_returns_ten_rows_and_the_registrys_total"""
     search_api.s["total"] = 27
     status, body = search_api.get("/api/search?cond=myeloma")
     assert status == 200
@@ -61,6 +62,7 @@ def test_a_search_returns_ten_rows_and_the_registrys_total(search_api):
 
 
 def test_the_last_page_is_short_and_page_two_starts_at_eleven(search_api):
+    """test_the_last_page_is_short_and_page_two_starts_at_eleven"""
     search_api.s["total"] = 27
     _, body = search_api.get("/api/search?cond=myeloma&page=3")
     assert [r["nct_id"] for r in body["rows"]][0] == "NCT00000021"
@@ -68,6 +70,7 @@ def test_the_last_page_is_short_and_page_two_starts_at_eleven(search_api):
 
 
 def test_over_one_hundred_matches_the_cap_applies_and_the_total_stays_true(search_api):
+    """test_over_one_hundred_matches_the_cap_applies_and_the_total_stays_true"""
     search_api.s["total"] = 5214
     _, body = search_api.get("/api/search?cond=myeloma&page=10")
     assert body["total"] == 5214 and body["capped"] is True and body["pages"] == 10
@@ -75,18 +78,21 @@ def test_over_one_hundred_matches_the_cap_applies_and_the_total_stays_true(searc
 
 
 def test_exactly_one_hundred_is_not_capped(search_api):
+    """test_exactly_one_hundred_is_not_capped"""
     search_api.s["total"] = 100
     _, body = search_api.get("/api/search?cond=myeloma")
     assert body["capped"] is False and body["pages"] == 10
 
 
 def test_a_page_past_the_cap_is_refused(search_api):
+    """test_a_page_past_the_cap_is_refused"""
     search_api.s["total"] = 5214
     status, body = search_api.get("/api/search?cond=myeloma&page=11")
     assert status == 400 and body["error"]["kind"] == "bad_page"
 
 
 def test_every_axis_reaches_the_finder(search_api):
+    """test_every_axis_reaches_the_finder"""
     search_api.s["total"] = 1
     search_api.get(
         "/api/search?cond=a&intr=b&spons=c&phase=PHASE2&phase=PHASE3&sponsor_type=INDUSTRY"
@@ -101,18 +107,21 @@ def test_every_axis_reaches_the_finder(search_api):
 
 
 def test_a_query_with_none_of_the_four_naming_fields_is_refused_without_a_registry_call(search_api):
+    """test_a_query_with_none_of_the_four_naming_fields_is_refused_without_a_registry_call"""
     status, body = search_api.get("/api/search?status=RECRUITING")
     assert status == 400 and body["error"]["kind"] == "nothing_asked"
     assert search_api.s["calls"] == []
 
 
 def test_zero_matches_is_an_empty_page_not_an_error(search_api):
+    """test_zero_matches_is_an_empty_page_not_an_error"""
     search_api.s["total"] = 0
     status, body = search_api.get("/api/search?cond=zzz")
     assert status == 200 and body["rows"] == [] and body["total"] == 0 and body["pages"] == 0
 
 
 def test_a_registry_failure_is_a_502_with_its_kind(search_api):
+    """test_a_registry_failure_is_a_502_with_its_kind"""
     search_api.s["failure"] = RuntimeError("boom")
     status, body = search_api.get("/api/search?cond=x")
     assert status == 502 and body["error"]["kind"] == "registry_error"
