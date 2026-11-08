@@ -1,0 +1,41 @@
+# tip e6f6d7c56cea6f6085d54db35bb162e7911de5eb
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-change-summary-and-export/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+E       AssertionError: assert 'div#strip scrolls sideways inside the page' in 'FFFFFFFFFFFFFFFFFFFFFFFF                                                 [100%]\n=================================== ...440x900]\nFAILED walks/broken/broken_pages.py::test_broken_page_closed_after_an_error[1024x768]\n24 failed in 14.46s\n'
+
+walks/test_walk_guards.py:77: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_find_trials_walk.py::test_walk_zero_matches_keep_the_summary_and_offer_edit_search_and_clear_optional_filters[1440x900]
+FAILED walks/test_summary_walk.py::test_walk_custom_dates_keep_the_old_summary_until_apply_and_cancel_changes_nothing[1440x900]
+FAILED walks/test_summary_walk.py::test_walk_summary_offers_three_periods_and_a_heading_with_the_period_counts_and_zone[1440x900]
+FAILED walks/test_summary_walk.py::test_walk_the_summary_groups_by_trial_then_check_and_expands_to_every_transition[1024x768]
+FAILED walks/test_summary_walk.py::test_walk_custom_dates_keep_the_old_summary_until_apply_and_cancel_changes_nothing[1024x768]
+FAILED walks/test_summary_walk.py::test_walk_summary_offers_three_periods_and_a_heading_with_the_period_counts_and_zone[1024x768]
+FAILED walks/test_summary_walk.py::test_walk_copy_summary_puts_plain_text_with_each_trials_link_on_the_clipboard[1440x900]
+FAILED walks/test_summary_walk.py::test_walk_an_empty_period_says_so_keeps_the_controls_and_disables_export_with_its_reason[1440x900]
+FAILED walks/test_summary_walk.py::test_walk_the_summary_groups_by_trial_then_check_and_expands_to_every_transition[1440x900]
+FAILED walks/test_summary_walk.py::test_walk_export_csv_downloads_the_file_for_the_shown_period[1440x900]
+FAILED walks/test_summary_walk.py::test_walk_copy_summary_puts_plain_text_with_each_trials_link_on_the_clipboard[1024x768]
+FAILED walks/test_summary_walk.py::test_walk_an_empty_period_says_so_keeps_the_controls_and_disables_export_with_its_reason[1024x768]
+FAILED walks/test_summary_walk.py::test_walk_export_csv_downloads_the_file_for_the_shown_period[1024x768]
+FAILED walks/test_walk_guards.py::test_walk_second_page_shots_keep_their_own_names[1440x900]
+FAILED walks/test_walk_guards.py::test_walk_second_page_shots_keep_their_own_names[1024x768]
+FAILED walks/test_walk_guards.py::test_walk_guard_keeps_the_first_of_two_pages_and_a_closed_pages_findings
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_an_expected_response_that_never_came_or_came_elsewhere
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_a_failed_request_or_one_to_somewhere_else
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_a_request_to_the_app_that_gets_no_answer
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_a_walk_that_was_wide_only_at_a_screenshot_or_in_a_region
+20 failed, 79 passed in 51.22s
+Traceback (most recent call last):
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-change-summary-and-export/walks/run_walks.py", line 72, in <module>
+    sys.exit(main(sys.argv[1:]))
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-change-summary-and-export/walks/run_walks.py", line 61, in main
+    if pytest([nodeid], alone) == 0:
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-change-summary-and-export/walks/run_walks.py", line 31, in pytest
+    return subprocess.run(
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 505, in run
+    with Popen(*popenargs, **kwargs) as process:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 951, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1821, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+OSError: [Errno 62] Too many levels of symbolic links: '/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python'

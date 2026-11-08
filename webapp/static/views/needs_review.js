@@ -1,4 +1,5 @@
 import { get, when } from "/static/api.js";
+import { tabs as tabBar } from "/static/views/tabs.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -11,8 +12,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export async function render(root, listId, watchlist) {
   const { trials, counts } = await get(`/api/watchlists/${listId}/needs-review`);
-  const tabs = el("nav", { class: "tabs", role: "tablist", "aria-label": "Watchlist views" },
-    el("a", { role: "tab", "aria-selected": "true", href: `#/watchlists/${listId}/needs-review` }, "Needs review"));
+  const tabs = tabBar(listId, "needs-review");
   root.replaceChildren(
     tabs,
     el("h2", { class: "queue-title", id: "queue-title" }, `${plural(counts.trials, "trial")} ${counts.trials === 1 ? "needs" : "need"} review`),

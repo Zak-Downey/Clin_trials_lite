@@ -2,6 +2,7 @@
 import { get } from "/static/api.js";
 import { render as renderFind } from "/static/views/find.js";
 import { render as renderQueue } from "/static/views/needs_review.js";
+import { render as renderSummary } from "/static/views/summary.js";
 import { mount as mountCheck } from "/static/views/check.js";
 import { render as renderTrial } from "/static/views/trial.js";
 
@@ -84,21 +85,25 @@ async function route() {
     const id = parts[0] === "watchlists" && parts[1] ? Number(parts[1]) : (lists[0] && lists[0].id);
     if (id === undefined) { view.textContent = "No watchlists yet."; return; }
     // The address always names the watchlist and the tab, so reload and Back land where you were.
-    const canonical = `#/watchlists/${id}/needs-review`;
-    if (location.hash !== canonical) history.replaceState(null, "", canonical);
+    const tab = parts[2] === "summary" ? "summary" : "needs-review";
+    const canonical = `#/watchlists/${id}/${tab}`;
+    if (tab === "needs-review" && location.hash !== canonical) history.replaceState(null, "", canonical);
+    const draw = tab === "summary"
+      ? (node, listId, current) => renderSummary(node, listId, current, hashQuery)
+      : renderQueue;
     await drawSidebar(id);
     const watchlist = lists.find((w) => w.id === id);
     const header = el("div", { class: "watchlist-header" });
     const status = el("div", { id: "check-status" });
     const queue = el("div", { id: "queue" });
     view.replaceChildren(header, status, queue);
-    await renderQueue(queue, id, watchlist);
+    await draw(queue, id, watchlist);
     mountCheck(header, status, id, watchlist, {
       alive: () => generation === mine,
       refresh: async () => {
         const fresh = await drawSidebar(id);
         const current = fresh.find((w) => w.id === id);
-        await renderQueue(queue, id, current);
+        await draw(queue, id, current);
         return current;
       },
     }).catch((err) => { if (generation === mine) status.replaceChildren(el("div", { class: "error" }, err.message)); });

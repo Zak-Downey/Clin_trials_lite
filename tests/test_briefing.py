@@ -281,9 +281,9 @@ def test_the_csv_carries_one_row_per_move_with_both_dates(watched, detect):
     assert rows[0]["NCT ID"] == NCT
     assert rows[0]["Field"] == display.label("enrollment")
     # Enrolment carries the registry's word for it, which travels with the value.
-    assert rows[0]["Current"].startswith("300")
+    assert rows[0]["New value"].startswith("300")
     assert rows[0]["Registry updated"] == "2026-02-14"
-    assert rows[0]["Detected"] == "2026-03-10"
+    assert rows[0]["Detected"] == "2026-03-10T09:00:00+00:00"
     assert rows[0]["Registry record"] == f"{display.STUDY_URL}/{NCT}"
 
 
@@ -376,7 +376,7 @@ def test_a_simulated_move_is_marked_in_every_csv_row(simulated):
     rows = rows_of(briefing.as_csv(summary(simulated, "2026-03-01", "2026-03-31")))
 
     assert rows
-    assert all(row["Synthetic"] == briefing.SYNTHETIC for row in rows)
+    assert all(row["Simulated"] == briefing.SYNTHETIC for row in rows)
 
 
 def test_a_real_move_is_not_marked_as_simulated(watched, detect):
@@ -385,7 +385,7 @@ def test_a_real_move_is_not_marked_as_simulated(watched, detect):
     reported = summary(watched, "2026-03-01", "2026-03-31")
 
     assert display.SYNTHETIC not in briefing.as_text(reported)
-    assert rows_of(briefing.as_csv(reported))[0]["Synthetic"] == ""
+    assert rows_of(briefing.as_csv(reported))[0]["Simulated"] == ""
 
 
 # --- an empty range
@@ -436,3 +436,43 @@ def test_the_file_is_named_for_the_list_and_the_range(watched):
 
     assert named.endswith(".csv")
     assert "2026-03-01" in named and "2026-03-31" in named
+
+
+# --- ticket 12: the periods the Summary tab offers, and the local zone
+
+
+def test_period_ranges_run_monday_to_sunday_and_the_calendar_month():
+    """test_period_ranges_run_monday_to_sunday_and_the_calendar_month"""
+    wednesday = datetime.date(2026, 9, 9)
+    assert briefing.period_range("week", wednesday) == (datetime.date(2026, 9, 7), datetime.date(2026, 9, 13))
+    assert briefing.period_range("month", wednesday) == (datetime.date(2026, 9, 1), datetime.date(2026, 9, 30))
+    assert briefing.period_range("month", datetime.date(2026, 12, 31)) == (
+        datetime.date(2026, 12, 1), datetime.date(2026, 12, 31))
+    assert briefing.period_range("week", datetime.date(2026, 11, 8)) == (
+        datetime.date(2026, 11, 2), datetime.date(2026, 11, 8))
+    assert briefing.period_range("custom", wednesday) is None
+
+
+def test_a_range_is_read_in_the_zone_given_not_in_utc(watched, detect):
+    """test_a_range_is_read_in_the_zone_given_not_in_utc"""
+    detect("2026-03-31T20:00:00+00:00", "2026-03-30", enrolment=300)  # 1 April in Tokyo
+    tokyo = datetime.timezone(datetime.timedelta(hours=9))
+
+    def over(start, end, zone):
+        return briefing.summarise(watched, only_list(watched), datetime.date.fromisoformat(start),
+                                  datetime.date.fromisoformat(end), zone)
+
+    assert over("2026-03-01", "2026-03-31", tokyo)["entries"] == []
+    assert len(over("2026-04-01", "2026-04-01", tokyo)["entries"]) == 1
+    assert len(over("2026-03-01", "2026-03-31", datetime.timezone.utc)["entries"]) == 1
+
+
+def test_a_move_says_whether_it_was_reviewed(watched, detect):
+    """test_a_move_says_whether_it_was_reviewed"""
+    detect("2026-03-05T09:00:00+00:00", "2026-03-04", enrolment=300)
+    monitor.review(watched, NCT)
+    detect("2026-03-20T09:00:00+00:00", "2026-03-19", status="TERMINATED")
+
+    moves = summary(watched, "2026-03-01", "2026-03-31")["entries"][0]["moves"]
+
+    assert {m["field"]: m["reviewed"] for m in moves} == {"enrollment": True, "overallStatus": False}
