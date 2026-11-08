@@ -1111,6 +1111,9 @@ def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
             moves.append(
                 {
                     **folded,
+                    "id": change["id"],
+                    # One check of one trial is identified by its detection time.
+                    "check": when,
                     "detected_at": when,
                     "reviewed": change["reviewed"],
                     "synthetic": change["synthetic"],
@@ -1167,3 +1170,59 @@ def review(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> in
         raise MonitorError(f"{nct} is not on the watchlist.")
 
     return storage.mark_reviewed(conn, nct, when)
+
+
+def needs_review(conn: sqlite3.Connection, list_id: int) -> list[dict]:
+    """The list's trials with unreviewed changes, newest detection first.
+
+    One entry per trial, carrying what the queue row shows: the heading
+    (acronym, else brief title), identity facts, the names of the fields
+    outstanding (high-signal first), when the newest was detected, how many
+    field changes are outstanding (a value and its qualifier count once per
+    check) and whether any is simulated.
+    """
+    entries = []
+    for trial in storage.list_trials(conn, list_id):
+        nct = trial["nct_id"]
+        unreviewed = [c for c in storage.list_changes(conn, nct) if not c["reviewed"]]
+        if not unreviewed:
+            continue
+        profile = profile_of(conn, nct) or {}
+        per_check: dict[str, list[str]] = {}
+        for change in unreviewed:
+            per_check.setdefault(change["detected_at"], []).append(change["field"])
+        entries.append(
+            {
+                "nct_id": nct,
+                "heading": profile.get("acronym") or profile.get("briefTitle"),
+                **_identity(profile),
+                "changed_fields": diff.by_signal(
+                    diff.fold_qualifiers(c["field"] for c in unreviewed)
+                ),
+                "detected_at": max(per_check),
+                "change_count": sum(len(diff.fold_qualifiers(f)) for f in per_check.values()),
+                "synthetic": any(c["synthetic"] for c in unreviewed),
+            }
+        )
+    return sorted(entries, key=lambda e: e["detected_at"], reverse=True)
+
+
+def watchlist_overview(conn: sqlite3.Connection) -> list[dict]:
+    """Every list with its trial count, trials needing review and last check."""
+    overview = []
+    for row in storage.list_lists(conn):
+        trials = storage.list_trials(conn, row["id"])
+        checked = [t["last_checked"] for t in trials if t["last_checked"]]
+        overview.append(
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "trial_count": len(trials),
+                "needs_review_count": sum(
+                    1 for t in trials if storage.count_unreviewed(conn, t["nct_id"])
+                ),
+                "last_checked": max(checked) if checked else None,
+                "saved_search": storage.get_list_search(conn, row["id"]) is not None,
+            }
+        )
+    return overview

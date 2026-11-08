@@ -1,0 +1,821 @@
+# tip 9fe8a3def3565e3aa2b5baa7a16076cf7adb0a16
+..............FFFFFFFF......F..........F..FF...............F............ [ 15%]
+........................................................................ [ 30%]
+.....................................F.................................. [ 46%]
+........................................................................ [ 61%]
+...............................................................F........ [ 76%]
+...............FFFF..................................................... [ 92%]
+................................FFFFF                                    [100%]
+=================================== FAILURES ===================================
+_______ test_an_unknown_address_answers_with_a_stable_kind_and_a_message _______
+
+api = <conftest.api.<locals>.Client object at 0x1095935e0>
+
+    def test_an_unknown_address_answers_with_a_stable_kind_and_a_message(api):
+        status, body = api.get("/api/nowhere")
+>       assert status == 404
+E       assert 500 == 404
+
+tests/test_api_review_queue.py:64: AssertionError
+_____________ test_an_unknown_watchlist_answers_with_its_own_kind ______________
+
+api = <conftest.api.<locals>.Client object at 0x1095fca60>
+
+    def test_an_unknown_watchlist_answers_with_its_own_kind(api):
+        status, body = api.get("/api/watchlists/999/needs-review")
+>       assert status == 404
+E       assert 500 == 404
+
+tests/test_api_review_queue.py:71: AssertionError
+_______ test_listing_a_trials_changes_carries_ids_check_and_review_state _______
+
+seeded = <conftest.api.<locals>.Client object at 0x1095fb700>
+
+    def test_listing_a_trials_changes_carries_ids_check_and_review_state(seeded):
+        status, body = seeded.get("/api/trials/NCT03412565/changes")
+>       assert status == 200
+E       assert 500 == 200
+
+tests/test_api_review_queue.py:78: AssertionError
+_____________ test_changes_of_a_trial_not_watched_answer_not_found _____________
+
+seeded = <conftest.api.<locals>.Client object at 0x1094b6640>
+
+    def test_changes_of_a_trial_not_watched_answer_not_found(seeded):
+        status, body = seeded.get("/api/trials/NCT09999999/changes")
+>       assert status == 404
+E       assert 500 == 404
+
+tests/test_api_review_queue.py:95: AssertionError
+_______ test_watchlists_carry_counts_last_checked_and_saved_search_flag ________
+
+seeded = <conftest.api.<locals>.Client object at 0x1095d9100>
+
+    def test_watchlists_carry_counts_last_checked_and_saved_search_flag(seeded):
+        status, body = seeded.get("/api/watchlists")
+>       assert status == 200
+E       assert 500 == 200
+
+tests/test_api_review_queue.py:101: AssertionError
+____ test_needs_review_holds_only_unreviewed_trials_newest_detection_first _____
+
+seeded = <conftest.api.<locals>.Client object at 0x1095fb5b0>
+
+    def test_needs_review_holds_only_unreviewed_trials_newest_detection_first(seeded):
+        status, body = seeded.get(f"/api/watchlists/{LIST_ID}/needs-review")
+>       assert status == 200
+E       assert 500 == 200
+
+tests/test_api_review_queue.py:117: AssertionError
+________________ test_a_queue_entry_carries_what_the_row_shows _________________
+
+seeded = <conftest.api.<locals>.Client object at 0x109658070>
+
+    def test_a_queue_entry_carries_what_the_row_shows(seeded):
+>       first, second = seeded.get(f"/api/watchlists/{LIST_ID}/needs-review")[1]["trials"]
+E       KeyError: 'trials'
+
+tests/test_api_review_queue.py:124: KeyError
+___________ test_times_are_in_the_machines_zone_with_the_zone_named ____________
+
+seeded = <conftest.api.<locals>.Client object at 0x109658cd0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1095fbbb0>
+
+    def test_times_are_in_the_machines_zone_with_the_zone_named(seeded, monkeypatch):
+        monkeypatch.setenv("TZ", "America/New_York")
+        time.tzset()
+        try:
+>           entry = seeded.get(f"/api/watchlists/{LIST_ID}/needs-review")[1]["trials"][0]
+E           KeyError: 'trials'
+
+tests/test_api_review_queue.py:138: KeyError
+____________ test_reviewing_clears_the_counts_from_the_card_titles _____________
+
+app = AppTest(
+    _script_path='/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-s...SpecialBlock(
+            type='sidebar'
+        ),
+        2: SpecialBlock(
+            type='event'
+        )
+    }
+)
+fetcher = <function make_fetcher.<locals>.build.<locals>.fetch at 0x1137e8d30>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1137d5670>
+
+    def test_reviewing_clears_the_counts_from_the_card_titles(app, fetcher, monkeypatch):
+        """The bell counts what is unread, not what has ever moved."""
+        monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+        monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    
+        app.run()
+        rewind("NCT03412565")
+        app.button(key="check_all").click().run()
+        open_profile(app)
+>       assert display.UNREVIEWED in " ".join(m.value for m in app.markdown)
+E       AssertionError: assert '🔔' in '### 🧪 SYNTHETIC · NCT03412565 — A Multicenter Phase 2 Study to Evaluate Subcutaneous Daratumumab in Combination With Standard Multiple Myeloma Treatment Regimens'
+E        +  where '🔔' = display.UNREVIEWED
+E        +  and   '### 🧪 SYNTHETIC · NCT03412565 — A Multicenter Phase 2 Study to Evaluate Subcutaneous Daratumumab in Combination With Standard Multiple Myeloma Treatment Regimens' = <built-in method join of str object at 0x102c3c2f0>(<generator object test_reviewing_clears_the_counts_from_the_card_titles.<locals>.<genexpr> at 0x1138c0f20>)
+E        +    where <built-in method join of str object at 0x102c3c2f0> = ' '.join
+
+tests/test_app.py:224: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-11-08 18:15:21.459 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+----------------------------- Captured stderr call -----------------------------
+2026-11-08 18:15:21.496 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-08 18:15:21.509 Uncaught app execution
+Traceback (most recent call last):
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 128, in exec_func_with_error_handling
+    result = func()
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 669, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/app.py", line 29, in <module>
+    st.navigation(
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/navigation/page.py", line 300, in run
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/views/watchlist.py", line 337, in <module>
+    histories = history_by_card(monitor.history(conn, nct))
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/monitor.py", line 1114, in history
+    "id": change["id"],
+KeyError: 'id'
+2026-11-08 18:15:21.512 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+____ test_a_changed_trial_shows_the_moved_field_highlighted_in_its_profile _____
+
+app = AppTest(
+    _script_path='/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-s...SpecialBlock(
+            type='sidebar'
+        ),
+        2: SpecialBlock(
+            type='event'
+        )
+    }
+)
+fetcher = <function make_fetcher.<locals>.build.<locals>.fetch at 0x113a36280>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1136fed60>
+
+    def test_a_changed_trial_shows_the_moved_field_highlighted_in_its_profile(
+        app, fetcher, monkeypatch
+    ):
+        monitor.add(storage.connect(), "NCT03412565", fetch=fetcher)
+        monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+    
+        app.run()
+        rewind("NCT03412565")
+        app.button(key="check_all").click().run()
+        open_profile(app)
+    
+>       assert not app.exception
+E       assert not ElementList(_list=[Exception(message="'id'", stack_trace=['File "/Users/zakdowney/Projects/personal/Clin_trials_lite/....ktrees/01-foundation-local-server-and-review-queue-api/monitor.py", line 1114, in history\n    "id": change["id"],'])])
+E        +  where ElementList(_list=[Exception(message="'id'", stack_trace=['File "/Users/zakdowney/Projects/personal/Clin_trials_lite/....ktrees/01-foundation-local-server-and-review-queue-api/monitor.py", line 1114, in history\n    "id": change["id"],'])]) = AppTest(\n    _script_path='/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-s...SpecialBlock(\n            type='sidebar'\n        ),\n        2: SpecialBlock(\n            type='event'\n        )\n    }\n).exception
+
+tests/test_app.py:392: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-11-08 18:15:21.807 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+----------------------------- Captured stderr call -----------------------------
+2026-11-08 18:15:21.841 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-08 18:15:21.854 Uncaught app execution
+Traceback (most recent call last):
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 128, in exec_func_with_error_handling
+    result = func()
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 669, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/app.py", line 29, in <module>
+    st.navigation(
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/navigation/page.py", line 300, in run
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/views/watchlist.py", line 337, in <module>
+    histories = history_by_card(monitor.history(conn, nct))
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/monitor.py", line 1114, in history
+    "id": change["id"],
+KeyError: 'id'
+2026-11-08 18:15:21.855 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+_ test_the_whole_loop_from_adding_to_reviewing_and_changing_again_is_walkable __
+
+app = AppTest(
+    _script_path='/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-s...SpecialBlock(
+            type='sidebar'
+        ),
+        2: SpecialBlock(
+            type='event'
+        )
+    }
+)
+fetcher = <function make_fetcher.<locals>.build.<locals>.fetch at 0x11373c1f0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x113a4b700>
+
+    def test_the_whole_loop_from_adding_to_reviewing_and_changing_again_is_walkable(
+        app, fetcher, monkeypatch
+    ):
+        """Every step taken through the page, as the analyst takes them."""
+        monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+        app.run()
+    
+        add_trial(app, "NCT03412565")
+        assert any("Now monitoring NCT03412565" in msg.value for msg in app.success)
+    
+        app.switch_page(WATCHLIST).run()
+        app.button(key="check_all").click().run()
+        assert watchlist(app)[0]["What changed"] == display.EMPTY
+    
+        rewind("NCT03412565")
+        app.button(key="check_all").click().run()
+    
+        # What moved is read off the table itself, before anything is opened.
+        line = watchlist(app)[0]
+        assert display.UNREVIEWED in line["What changed"]
+        assert "Enrollment" in line["What changed"]
+        # When the sponsor revised the record, told apart from when we noticed.
+        assert line["Registry updated"] is not None
+        assert line["Detected"] is not None
+    
+        open_profile(app)
+>       assert highlighted(app)
+E       AssertionError: assert False
+E        +  where False = highlighted(AppTest(\n    _script_path='/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-s...SpecialBlock(\n            type='sidebar'\n        ),\n        2: SpecialBlock(\n            type='event'\n        )\n    }\n))
+
+tests/test_app.py:462: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-11-08 18:15:21.933 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+----------------------------- Captured stderr call -----------------------------
+2026-11-08 18:15:22.010 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-08 18:15:22.022 Uncaught app execution
+Traceback (most recent call last):
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 128, in exec_func_with_error_handling
+    result = func()
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 669, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/app.py", line 29, in <module>
+    st.navigation(
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/navigation/page.py", line 300, in run
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/views/watchlist.py", line 337, in <module>
+    histories = history_by_card(monitor.history(conn, nct))
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/monitor.py", line 1114, in history
+    "id": change["id"],
+KeyError: 'id'
+2026-11-08 18:15:22.024 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+_____________ test_a_reviewed_card_keeps_its_history_one_fold_away _____________
+
+live = AppTest(
+    _script_path='/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-s...SpecialBlock(
+            type='sidebar'
+        ),
+        2: SpecialBlock(
+            type='event'
+        )
+    }
+)
+
+    def test_a_reviewed_card_keeps_its_history_one_fold_away(live):
+        """Reviewing clears the highlighting, not the record of what moved."""
+        rewind("NCT03412565")
+        live.button(key="check_all").click().run()
+        open_profile(live)
+        live.button(key="review_NCT03412565").click().run()
+        open_profile(live)
+    
+>       assert not live.exception
+E       assert not ElementList(_list=[Exception(message="'id'", stack_trace=['File "/Users/zakdowney/Projects/personal/Clin_trials_lite/....ktrees/01-foundation-local-server-and-review-queue-api/monitor.py", line 1114, in history\n    "id": change["id"],'])])
+E        +  where ElementList(_list=[Exception(message="'id'", stack_trace=['File "/Users/zakdowney/Projects/personal/Clin_trials_lite/....ktrees/01-foundation-local-server-and-review-queue-api/monitor.py", line 1114, in history\n    "id": change["id"],'])]) = AppTest(\n    _script_path='/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-s...SpecialBlock(\n            type='sidebar'\n        ),\n        2: SpecialBlock(\n            type='event'\n        )\n    }\n).exception
+
+tests/test_app.py:489: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-11-08 18:15:22.049 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+----------------------------- Captured stderr call -----------------------------
+2026-11-08 18:15:22.085 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-08 18:15:22.098 Uncaught app execution
+Traceback (most recent call last):
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 128, in exec_func_with_error_handling
+    result = func()
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 669, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/app.py", line 29, in <module>
+    st.navigation(
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/navigation/page.py", line 300, in run
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/views/watchlist.py", line 337, in <module>
+    histories = history_by_card(monitor.history(conn, nct))
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/monitor.py", line 1114, in history
+    "id": change["id"],
+KeyError: 'id'
+2026-11-08 18:15:22.099 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-08 18:15:22.117 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-08 18:15:22.129 Uncaught app execution
+Traceback (most recent call last):
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 128, in exec_func_with_error_handling
+    result = func()
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 669, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/app.py", line 29, in <module>
+    st.navigation(
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/navigation/page.py", line 300, in run
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/views/watchlist.py", line 337, in <module>
+    histories = history_by_card(monitor.history(conn, nct))
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/monitor.py", line 1114, in history
+    "id": change["id"],
+KeyError: 'id'
+2026-11-08 18:15:22.131 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+_____________ test_the_whole_loop_through_a_named_list_is_walkable _____________
+
+app = AppTest(
+    _script_path='/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-s...SpecialBlock(
+            type='sidebar'
+        ),
+        2: SpecialBlock(
+            type='event'
+        )
+    }
+)
+fetcher = <function make_fetcher.<locals>.build.<locals>.fetch at 0x11377cee0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x113785b80>
+
+    def test_the_whole_loop_through_a_named_list_is_walkable(app, fetcher, monkeypatch):
+        """Create a list, fill it from the Search page, then read it."""
+        monkeypatch.setattr(monitor, "_default_fetch", fetcher)
+        app.run()
+    
+        myeloma = named(app, "Myeloma")
+    
+        app.switch_page(SEARCH).run()
+        app.selectbox(key="destination_list").set_value(myeloma).run()
+        app.text_input(key="nct_id").set_value("NCT03412565")
+        press(app, "Start monitoring").run()
+    
+        showing(app, myeloma)
+        app.button(key="check_all").click().run()
+        assert watchlist(app)[0]["What changed"] == display.EMPTY
+    
+        rewind("NCT03412565")
+        app.button(key="check_all").click().run()
+    
+        line = watchlist(app)[0]
+        assert display.UNREVIEWED in line["What changed"]
+    
+        open_profile(app)
+>       assert highlighted(app)
+E       AssertionError: assert False
+E        +  where False = highlighted(AppTest(\n    _script_path='/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-s...SpecialBlock(\n            type='sidebar'\n        ),\n        2: SpecialBlock(\n            type='event'\n        )\n    }\n))
+
+tests/test_app.py:788: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-11-08 18:15:23.560 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+----------------------------- Captured stderr call -----------------------------
+2026-11-08 18:15:23.705 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-08 18:15:23.718 Uncaught app execution
+Traceback (most recent call last):
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 128, in exec_func_with_error_handling
+    result = func()
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 669, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/app.py", line 29, in <module>
+    st.navigation(
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.9/site-packages/streamlit/navigation/page.py", line 300, in run
+    exec(code, module.__dict__)  # noqa: S102
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/views/watchlist.py", line 337, in <module>
+    histories = history_by_card(monitor.history(conn, nct))
+  File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-local-server-and-review-queue-api/monitor.py", line 1114, in history
+    "id": change["id"],
+KeyError: 'id'
+2026-11-08 18:15:23.720 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+______ test_an_older_database_opens_with_its_data_and_an_upgraded_schema _______
+
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-53/test_an_older_database_opens_w0')
+
+    def test_an_older_database_opens_with_its_data_and_an_upgraded_schema(tmp_path):
+        path = str(tmp_path / "old.db")
+        old = sqlite3.connect(path)
+        old.executescript(OLD_SCHEMA)
+        old.execute("INSERT INTO trials (nct_id, monitoring_began) VALUES ('NCT00000001', 'then')")
+        old.execute(
+            "INSERT INTO changes (nct_id, field, previous, current, detected_at)"
+            " VALUES ('NCT00000001', 'enrollment', ?, ?, 'then')",
+            (json.dumps(1), json.dumps(2)),
+        )
+        old.commit()
+        old.close()
+    
+        conn = storage.connect(path)
+        (trial,) = storage.list_trials(conn)
+        assert trial["nct_id"] == "NCT00000001"
+        (change,) = storage.list_changes(conn, "NCT00000001")
+        assert (change["previous"], change["current"], change["reviewed"]) == (1, 2, False)
+        # Upgraded in place: the schema version is recorded, and the trial is housed.
+>       assert conn.execute("PRAGMA user_version").fetchone()[0] == storage.SCHEMA_VERSION
+E       assert 0 == 2
+E        +  where 2 = storage.SCHEMA_VERSION
+
+tests/test_database_upgrade.py:42: AssertionError
+_____________ test_history_moves_carry_the_change_id_and_the_check _____________
+
+conn = <sqlite3.Connection object at 0x113684c60>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+
+    def test_history_moves_carry_the_change_id_and_the_check(conn, record):
+        monitor.add(conn, "NCT03412565", fetch=lambda _n: record, when="2026-11-01T08:00:00+00:00")
+        storage.add_change(conn, "NCT03412565", {"field": "enrollment", "previous": 1, "current": 2}, "2026-11-08T16:45:00+00:00")
+>       (move,) = monitor.history(conn, "NCT03412565")
+
+tests/test_history_ids.py:13: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+conn = <sqlite3.Connection object at 0x113684c60>, nct_id = 'NCT03412565'
+
+    def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+        """Every move ever recorded on a trial, newest first, read or not.
+    
+        What a reviewed card still owes its reader: marking a trial reviewed clears
+        the highlighting, and this is where what it cleared can still be read.
+    
+        Folded one check at a time, the way the briefing folds them, so a date that
+        moved and became actual in the same check is one move rather than two; a
+        type that moved alone is read against the record as it stood that day.
+        """
+        checks: dict[str, list[dict]] = {}
+        for change in storage.list_changes(conn, nct_id):
+            checks.setdefault(change["detected_at"], []).append(change)
+    
+        moves = []
+        for when, found in checks.items():
+            snapshot = storage.snapshot_at(conn, nct_id, when)
+            profile = medical_affairs.profile(snapshot["record"]) if snapshot else {}
+            for folded in diff.fold_moves(found, profile):
+                change = folded.pop("change")
+                moves.append(
+                    {
+                        **folded,
+>                       "id": change["id"],
+                        # One check of one trial is identified by its detection time.
+                        "detected_at": when,
+                        "reviewed": change["reviewed"],
+                        "synthetic": change["synthetic"],
+                    }
+                )
+E               KeyError: 'id'
+
+monitor.py:1114: KeyError
+_ test_the_database_is_monitor_db_in_the_start_folder_unless_monitor_db_is_set _
+
+    def test_the_database_is_monitor_db_in_the_start_folder_unless_monitor_db_is_set():
+>       assert run.database_path({}, "/here") == os.path.join("/here", "monitor.db")
+E       AssertionError: assert 'x' == '/here/monitor.db'
+E         
+E         - /here/monitor.db
+E         + x
+
+tests/test_run.py:20: AssertionError
+_____ test_run_py_serves_the_page_on_localhost_only_and_prints_the_address _____
+
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-53/test_run_py_serves_the_page_on0')
+
+    def test_run_py_serves_the_page_on_localhost_only_and_prints_the_address(tmp_path):
+        env = {**os.environ, "MONITOR_DB": str(tmp_path / "m.db")}
+        proc = subprocess.Popen(
+            [sys.executable, str(ROOT / "run.py"), "--no-browser"],
+            cwd=tmp_path, env=env, stdout=subprocess.PIPE, text=True,
+        )
+        try:
+            line = proc.stdout.readline()
+            address = line.split(" at ")[1].strip()
+            assert address.startswith("http://127.0.0.1:")
+>           with urllib.request.urlopen(address, timeout=10) as page:
+
+tests/test_run.py:34: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:214: in urlopen
+    return opener.open(url, data, timeout)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:523: in open
+    response = meth(req, response)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:632: in http_response
+    response = self.parent.error(
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:561: in error
+    return self._call_chain(*args)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:494: in _call_chain
+    result = func(*args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x109593fd0>
+req = <urllib.request.Request object at 0x113b7fee0>
+fp = <http.client.HTTPResponse object at 0x11378aaf0>, code = 500
+msg = 'Internal Server Error'
+hdrs = <http.client.HTTPMessage object at 0x11378abb0>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 500: Internal Server Error
+
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:641: HTTPError
+___________ test_the_server_refuses_to_bind_beyond_the_local_machine ___________
+
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-53/test_the_server_refuses_to_bin0')
+
+    def test_the_server_refuses_to_bind_beyond_the_local_machine(tmp_path):
+        import pytest
+        from webapp.server import make_server
+    
+        with pytest.raises(ValueError):
+>           make_server(str(tmp_path / "x.db"), host="0.0.0.0")
+E           Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_run.py:48: Failed
+____ test_the_shell_and_its_assets_are_served_and_nothing_outside_static_is ____
+
+api = <conftest.api.<locals>.Client object at 0x113a36c10>
+
+    def test_the_shell_and_its_assets_are_served_and_nothing_outside_static_is(api):
+        for route, kind in (("/", "text/html"), ("/static/app.js", "javascript"), ("/static/style.css", "text/css")):
+>           with urllib.request.urlopen(api.base + route, timeout=10) as resp:
+
+tests/test_run.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:214: in urlopen
+    return opener.open(url, data, timeout)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:523: in open
+    response = meth(req, response)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:632: in http_response
+    response = self.parent.error(
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:561: in error
+    return self._call_chain(*args)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:494: in _call_chain
+    result = func(*args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x109593fd0>
+req = <urllib.request.Request object at 0x113a36f40>
+fp = <http.client.HTTPResponse object at 0x113a36910>, code = 500
+msg = 'Internal Server Error'
+hdrs = <http.client.HTTPMessage object at 0x113a36d90>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 500: Internal Server Error
+
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py:641: HTTPError
+___________________ test_reviewing_a_trial_keeps_its_history ___________________
+
+watched = <sqlite3.Connection object at 0x108516b70>
+
+    def test_reviewing_a_trial_keeps_its_history(watched):
+        """The highlighting clears; what it was highlighting stays readable."""
+        moved(watched, "NCT03412565", "enrollment", "2026-08-01T10:00:00+00:00", 300, 265)
+        monitor.review(watched, "NCT03412565")
+    
+>       [move] = monitor.history(watched, "NCT03412565")
+
+tests/test_watchlist.py:249: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+conn = <sqlite3.Connection object at 0x108516b70>, nct_id = 'NCT03412565'
+
+    def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+        """Every move ever recorded on a trial, newest first, read or not.
+    
+        What a reviewed card still owes its reader: marking a trial reviewed clears
+        the highlighting, and this is where what it cleared can still be read.
+    
+        Folded one check at a time, the way the briefing folds them, so a date that
+        moved and became actual in the same check is one move rather than two; a
+        type that moved alone is read against the record as it stood that day.
+        """
+        checks: dict[str, list[dict]] = {}
+        for change in storage.list_changes(conn, nct_id):
+            checks.setdefault(change["detected_at"], []).append(change)
+    
+        moves = []
+        for when, found in checks.items():
+            snapshot = storage.snapshot_at(conn, nct_id, when)
+            profile = medical_affairs.profile(snapshot["record"]) if snapshot else {}
+            for folded in diff.fold_moves(found, profile):
+                change = folded.pop("change")
+                moves.append(
+                    {
+                        **folded,
+>                       "id": change["id"],
+                        # One check of one trial is identified by its detection time.
+                        "detected_at": when,
+                        "reviewed": change["reviewed"],
+                        "synthetic": change["synthetic"],
+                    }
+                )
+E               KeyError: 'id'
+
+monitor.py:1114: KeyError
+____________ test_history_runs_newest_first_and_says_what_is_unread ____________
+
+watched = <sqlite3.Connection object at 0x1138c17b0>
+
+    def test_history_runs_newest_first_and_says_what_is_unread(watched):
+        moved(watched, "NCT03412565", "overallStatus", "2026-08-01T10:00:00+00:00")
+        monitor.review(watched, "NCT03412565")
+        moved(watched, "NCT03412565", "enrollment", "2026-09-05T10:00:00+00:00")
+    
+>       moves = monitor.history(watched, "NCT03412565")
+
+tests/test_watchlist.py:261: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+conn = <sqlite3.Connection object at 0x1138c17b0>, nct_id = 'NCT03412565'
+
+    def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+        """Every move ever recorded on a trial, newest first, read or not.
+    
+        What a reviewed card still owes its reader: marking a trial reviewed clears
+        the highlighting, and this is where what it cleared can still be read.
+    
+        Folded one check at a time, the way the briefing folds them, so a date that
+        moved and became actual in the same check is one move rather than two; a
+        type that moved alone is read against the record as it stood that day.
+        """
+        checks: dict[str, list[dict]] = {}
+        for change in storage.list_changes(conn, nct_id):
+            checks.setdefault(change["detected_at"], []).append(change)
+    
+        moves = []
+        for when, found in checks.items():
+            snapshot = storage.snapshot_at(conn, nct_id, when)
+            profile = medical_affairs.profile(snapshot["record"]) if snapshot else {}
+            for folded in diff.fold_moves(found, profile):
+                change = folded.pop("change")
+                moves.append(
+                    {
+                        **folded,
+>                       "id": change["id"],
+                        # One check of one trial is identified by its detection time.
+                        "detected_at": when,
+                        "reviewed": change["reviewed"],
+                        "synthetic": change["synthetic"],
+                    }
+                )
+E               KeyError: 'id'
+
+monitor.py:1114: KeyError
+________________ test_a_field_that_moved_twice_keeps_both_moves ________________
+
+watched = <sqlite3.Connection object at 0x1138c18a0>
+
+    def test_a_field_that_moved_twice_keeps_both_moves(watched):
+        moved(watched, "NCT03412565", "enrollment", "2026-08-01T10:00:00+00:00", 300, 280)
+        moved(watched, "NCT03412565", "enrollment", "2026-09-05T10:00:00+00:00", 280, 265)
+    
+>       moves = monitor.history(watched, "NCT03412565")
+
+tests/test_watchlist.py:273: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+conn = <sqlite3.Connection object at 0x1138c18a0>, nct_id = 'NCT03412565'
+
+    def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+        """Every move ever recorded on a trial, newest first, read or not.
+    
+        What a reviewed card still owes its reader: marking a trial reviewed clears
+        the highlighting, and this is where what it cleared can still be read.
+    
+        Folded one check at a time, the way the briefing folds them, so a date that
+        moved and became actual in the same check is one move rather than two; a
+        type that moved alone is read against the record as it stood that day.
+        """
+        checks: dict[str, list[dict]] = {}
+        for change in storage.list_changes(conn, nct_id):
+            checks.setdefault(change["detected_at"], []).append(change)
+    
+        moves = []
+        for when, found in checks.items():
+            snapshot = storage.snapshot_at(conn, nct_id, when)
+            profile = medical_affairs.profile(snapshot["record"]) if snapshot else {}
+            for folded in diff.fold_moves(found, profile):
+                change = folded.pop("change")
+                moves.append(
+                    {
+                        **folded,
+>                       "id": change["id"],
+                        # One check of one trial is identified by its detection time.
+                        "detected_at": when,
+                        "reviewed": change["reviewed"],
+                        "synthetic": change["synthetic"],
+                    }
+                )
+E               KeyError: 'id'
+
+monitor.py:1114: KeyError
+__________ test_a_date_and_its_type_moving_in_one_check_are_one_move ___________
+
+watched = <sqlite3.Connection object at 0x10942dc60>
+
+    def test_a_date_and_its_type_moving_in_one_check_are_one_move(watched):
+        when = "2026-09-05T10:00:00+00:00"
+        moved(watched, "NCT03412565", "completionDate", when, "2024-01-31", "2024-04-18")
+        moved(watched, "NCT03412565", "completionDateType", when, "ESTIMATED", "ACTUAL")
+    
+>       [move] = monitor.history(watched, "NCT03412565")
+
+tests/test_watchlist.py:283: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+conn = <sqlite3.Connection object at 0x10942dc60>, nct_id = 'NCT03412565'
+
+    def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+        """Every move ever recorded on a trial, newest first, read or not.
+    
+        What a reviewed card still owes its reader: marking a trial reviewed clears
+        the highlighting, and this is where what it cleared can still be read.
+    
+        Folded one check at a time, the way the briefing folds them, so a date that
+        moved and became actual in the same check is one move rather than two; a
+        type that moved alone is read against the record as it stood that day.
+        """
+        checks: dict[str, list[dict]] = {}
+        for change in storage.list_changes(conn, nct_id):
+            checks.setdefault(change["detected_at"], []).append(change)
+    
+        moves = []
+        for when, found in checks.items():
+            snapshot = storage.snapshot_at(conn, nct_id, when)
+            profile = medical_affairs.profile(snapshot["record"]) if snapshot else {}
+            for folded in diff.fold_moves(found, profile):
+                change = folded.pop("change")
+                moves.append(
+                    {
+                        **folded,
+>                       "id": change["id"],
+                        # One check of one trial is identified by its detection time.
+                        "detected_at": when,
+                        "reviewed": change["reviewed"],
+                        "synthetic": change["synthetic"],
+                    }
+                )
+E               KeyError: 'id'
+
+monitor.py:1114: KeyError
+________________ test_a_simulated_move_is_marked_in_the_history ________________
+
+watched = <sqlite3.Connection object at 0x1138c15d0>
+
+    def test_a_simulated_move_is_marked_in_the_history(watched):
+        moved(watched, "NCT03412565", "enrollment", "2026-09-05T10:00:00+00:00", synthetic=True)
+    
+>       assert monitor.history(watched, "NCT03412565")[0]["synthetic"] is True
+
+tests/test_watchlist.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+conn = <sqlite3.Connection object at 0x1138c15d0>, nct_id = 'NCT03412565'
+
+    def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+        """Every move ever recorded on a trial, newest first, read or not.
+    
+        What a reviewed card still owes its reader: marking a trial reviewed clears
+        the highlighting, and this is where what it cleared can still be read.
+    
+        Folded one check at a time, the way the briefing folds them, so a date that
+        moved and became actual in the same check is one move rather than two; a
+        type that moved alone is read against the record as it stood that day.
+        """
+        checks: dict[str, list[dict]] = {}
+        for change in storage.list_changes(conn, nct_id):
+            checks.setdefault(change["detected_at"], []).append(change)
+    
+        moves = []
+        for when, found in checks.items():
+            snapshot = storage.snapshot_at(conn, nct_id, when)
+            profile = medical_affairs.profile(snapshot["record"]) if snapshot else {}
+            for folded in diff.fold_moves(found, profile):
+                change = folded.pop("change")
+                moves.append(
+                    {
+                        **folded,
+>                       "id": change["id"],
+                        # One check of one trial is identified by its detection time.
+                        "detected_at": when,
+                        "reviewed": change["reviewed"],
+                        "synthetic": change["synthetic"],
+                    }
+                )
+E               KeyError: 'id'
+
+monitor.py:1114: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_api_review_queue.py::test_an_unknown_address_answers_with_a_stable_kind_and_a_message
+FAILED tests/test_api_review_queue.py::test_an_unknown_watchlist_answers_with_its_own_kind
+FAILED tests/test_api_review_queue.py::test_listing_a_trials_changes_carries_ids_check_and_review_state
+FAILED tests/test_api_review_queue.py::test_changes_of_a_trial_not_watched_answer_not_found
+FAILED tests/test_api_review_queue.py::test_watchlists_carry_counts_last_checked_and_saved_search_flag
+FAILED tests/test_api_review_queue.py::test_needs_review_holds_only_unreviewed_trials_newest_detection_first
+FAILED tests/test_api_review_queue.py::test_a_queue_entry_carries_what_the_row_shows
+FAILED tests/test_api_review_queue.py::test_times_are_in_the_machines_zone_with_the_zone_named
+FAILED tests/test_app.py::test_reviewing_clears_the_counts_from_the_card_titles
+FAILED tests/test_app.py::test_a_changed_trial_shows_the_moved_field_highlighted_in_its_profile
+FAILED tests/test_app.py::test_the_whole_loop_from_adding_to_reviewing_and_changing_again_is_walkable
+FAILED tests/test_app.py::test_a_reviewed_card_keeps_its_history_one_fold_away
+FAILED tests/test_app.py::test_the_whole_loop_through_a_named_list_is_walkable
+FAILED tests/test_database_upgrade.py::test_an_older_database_opens_with_its_data_and_an_upgraded_schema
+FAILED tests/test_history_ids.py::test_history_moves_carry_the_change_id_and_the_check
+FAILED tests/test_run.py::test_the_database_is_monitor_db_in_the_start_folder_unless_monitor_db_is_set
+FAILED tests/test_run.py::test_run_py_serves_the_page_on_localhost_only_and_prints_the_address
+FAILED tests/test_run.py::test_the_server_refuses_to_bind_beyond_the_local_machine
+FAILED tests/test_run.py::test_the_shell_and_its_assets_are_served_and_nothing_outside_static_is
+FAILED tests/test_watchlist.py::test_reviewing_a_trial_keeps_its_history - Ke...
+FAILED tests/test_watchlist.py::test_history_runs_newest_first_and_says_what_is_unread
+FAILED tests/test_watchlist.py::test_a_field_that_moved_twice_keeps_both_moves
+FAILED tests/test_watchlist.py::test_a_date_and_its_type_moving_in_one_check_are_one_move
+FAILED tests/test_watchlist.py::test_a_simulated_move_is_marked_in_the_history
+24 failed, 445 passed in 13.41s

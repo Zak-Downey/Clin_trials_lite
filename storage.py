@@ -121,12 +121,18 @@ LATE_COLUMNS = (
 )
 
 
+# Recorded in the file (PRAGMA user_version) each time it is opened, so a
+# database written by an older app is known to have been upgraded in place.
+SCHEMA_VERSION = 2
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Add any column a database predating it is missing."""
     for table, column, declaration in LATE_COLUMNS:
         existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
         if column not in existing:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
 
 
@@ -158,9 +164,9 @@ def _house_every_trial(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def connect(path: str | None = None) -> sqlite3.Connection:
+def connect(path: str | None = None, check_same_thread: bool = True) -> sqlite3.Connection:
     """Open the database, creating the schema if it isn't there yet."""
-    conn = sqlite3.connect(path or DB_PATH)
+    conn = sqlite3.connect(path or DB_PATH, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     _migrate(conn)
@@ -554,6 +560,7 @@ def list_changes(conn: sqlite3.Connection, nct_id: str | None = None) -> list[di
         ).fetchall()
     return [
         {
+            "id": row["id"],
             "nct_id": row["nct_id"],
             "field": row["field"],
             "previous": json.loads(row["previous"]),
