@@ -111,3 +111,11 @@ def test_walk_guard_does_not_take_a_longer_port_for_the_apps_own_origin():
     assert guards.found == []
     guards._foreign(SimpleNamespace(url="http://127.0.0.1:58032/api/x"))
     assert guards.found == ["failed request: http://127.0.0.1:58032/api/x (not the app's own server)"]
+
+
+def test_walk_second_page_shots_keep_their_own_names(make_app, make_walk):
+    """test_walk_second_page_shots_keep_their_own_names"""
+    app = make_app()
+    first, second = make_walk(app), make_walk(app)
+    assert first.name != second.name
+    assert second.name.endswith("-page2")
