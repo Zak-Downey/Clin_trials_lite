@@ -1,0 +1,31 @@
+# tip 9ec3673cbdba717f09b113425f8b0ce8bf471cd1
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+_ test_walk_a_bare_address_is_rewritten_in_place_so_back_leaves_the_app[1440x900] _
+[gw1] darwin -- Python 3.9.6 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x106f1b670>
+make_walk = <function make_walk.<locals>.build at 0x106f1b550>
+
+    def test_walk_a_bare_address_is_rewritten_in_place_so_back_leaves_the_app(make_app, make_walk):
+        """test_walk_a_bare_address_is_rewritten_in_place_so_back_leaves_the_app"""
+        app, walk = open_app(make_app, make_walk)
+        page = walk.page
+        assert page.url.endswith("#/watchlists/1/needs-review")
+        page.go_back()
+>       assert not page.url.startswith(app.url), page.url
+E       AssertionError: http://127.0.0.1:51327/
+E       assert not True
+E        +  where True = <built-in method startswith of str object at 0x106eb17b0>('http://127.0.0.1:51327/')
+E        +    where <built-in method startswith of str object at 0x106eb17b0> = 'http://127.0.0.1:51327/'.startswith
+E        +      where 'http://127.0.0.1:51327/' = <Page url='http://127.0.0.1:51327/'>.url
+E        +    and   'http://127.0.0.1:51327/' = <walks.helper.App object at 0x106741c40>.url
+
+walks/test_needs_review_walk.py:132: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_needs_review_walk.py::test_walk_a_bare_address_is_rewritten_in_place_so_back_leaves_the_app[1024x768]
+FAILED walks/test_needs_review_walk.py::test_walk_a_bare_address_is_rewritten_in_place_so_back_leaves_the_app[1440x900]
+2 failed, 21 passed in 14.22s
+
+## Result
+walks/test_needs_review_walk.py::test_walk_a_bare_address_is_rewritten_in_place_so_back_leaves_the_app[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-a-bare-address-is-rewritten-in-place-so-back-leaves-the-app-1024x768.txt)
+walks/test_needs_review_walk.py::test_walk_a_bare_address_is_rewritten_in_place_so_back_leaves_the_app[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-a-bare-address-is-rewritten-in-place-so-back-leaves-the-app-1440x900.txt)

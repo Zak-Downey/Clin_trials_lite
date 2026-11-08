@@ -121,3 +121,12 @@ def test_walk_reload_back_and_forward_keep_the_chosen_watchlist_and_tab(make_app
     chosen("Quiet")
     page.go_forward()
     chosen(helper.LONG_NAME)
+
+
+def test_walk_a_bare_address_is_rewritten_in_place_so_back_leaves_the_app(make_app, make_walk):
+    """test_walk_a_bare_address_is_rewritten_in_place_so_back_leaves_the_app"""
+    app, walk = open_app(make_app, make_walk)
+    page = walk.page
+    assert page.url.endswith("#/watchlists/1/needs-review")
+    page.go_back()
+    assert not page.url.startswith(app.url), page.url

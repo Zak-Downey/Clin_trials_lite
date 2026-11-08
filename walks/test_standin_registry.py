@@ -49,6 +49,8 @@ def test_standin_search_pages_with_a_total_count(registry):
     _, second = _get(registry, f"/api/v2/studies?pageSize=2&pageToken={first['nextPageToken']}")
     assert len(second["studies"]) == 1 and "nextPageToken" not in second
     assert "totalCount" not in second
+    _, whole = _get(registry, "/api/v2/studies?pageSize=3")
+    assert len(whole["studies"]) == 3 and "nextPageToken" not in whole
 
 
 def test_standin_not_found_switch_makes_the_apps_lookup_say_not_found(registry, through_ctgov):

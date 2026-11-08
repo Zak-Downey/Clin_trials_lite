@@ -24,6 +24,6 @@
 - [x] Walk: a watchlist opens on Needs review, listing only trials with unreviewed changes, newest detection first, headed with "N trials need review" and "M unreviewed field changes" (design 1/2) — walk: test_walk_a_watchlist_opens_on_needs_review_newest_detection_first; red: .scratch/html-front-end/red/02-walks-8250054.txt
 - [x] Walk: each queue entry shows heading, NCT ID, phase, sponsor, status, the changed field names, the detected time and the change count, with no selection checkboxes; a trial with simulated changes is labelled "Simulated changes" (design 1/F, 1/3) — walk: test_walk_a_queue_entry_shows_what_the_row_shows_and_labels_simulated_changes; red: .scratch/html-front-end/red/02-walks-8250054.txt
 - [x] Walk: the trial heading and "Review changes" link to the same trial address (design 1/3) — walk: test_walk_the_heading_and_review_changes_open_the_same_trial_address; red: .scratch/html-front-end/red/02-walks-8250054.txt
-- [x] Walk: reloading and using Back and Forward keep the chosen watchlist and tab — walk: test_walk_reload_back_and_forward_keep_the_chosen_watchlist_and_tab; red: .scratch/html-front-end/red/02-walks-8250054.txt
+- [x] Walk: reloading and using Back and Forward keep the chosen watchlist and tab — walk: test_walk_reload_back_and_forward_keep_the_chosen_watchlist_and_tab; red: .scratch/html-front-end/red/02-walks-8250054.txt; walk: test_walk_a_bare_address_is_rewritten_in_place_so_back_leaves_the_app; red: .scratch/html-front-end/red/02-walks-9ec3673.txt
 
 ## Comments
