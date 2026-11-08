@@ -7,6 +7,7 @@ the network.
 
 from __future__ import annotations
 
+import datetime
 import re
 import sqlite3
 import urllib.error
@@ -111,17 +112,8 @@ def rename_list(conn: sqlite3.Connection, list_id: int, name: str) -> None:
 
 
 def delete_list(conn: sqlite3.Connection, list_id: int) -> None:
-    """Remove a list, and stop monitoring whatever no other list still holds."""
-    held = [t["nct_id"] for t in storage.list_trials(conn, list_id)]
+    """Remove a list. Whatever no other list holds stops being monitored but keeps its history."""
     storage.delete_list(conn, list_id)
-    for nct in held:
-        _forget_if_unlisted(conn, nct)
-
-
-def _forget_if_unlisted(conn: sqlite3.Connection, nct_id: str) -> None:
-    """A trial in no list is nobody's business, so it stops being monitored."""
-    if not storage.lists_holding(conn, nct_id):
-        storage.delete_trial(conn, nct_id)
 
 
 def _default_list(conn: sqlite3.Connection) -> int:
@@ -295,11 +287,21 @@ def summarise_adds(outcome: dict, list_name: str) -> dict:
     return {"level": level, "message": " ".join(parts), "failed": failed}
 
 
-def remove(conn: sqlite3.Connection, nct_id: str, list_id: int) -> None:
-    """Take a trial out of one list, leaving any other list holding it alone."""
-    nct = normalise(nct_id)
-    storage.remove_member(conn, list_id, nct)
-    _forget_if_unlisted(conn, nct)
+def remove(conn: sqlite3.Connection, nct_id: str, list_id: int) -> int | None:
+    """Take a trial out of one list, leaving any other list holding it alone.
+
+    A trial left in no list keeps its snapshots and changes and is skipped by
+    every check until a list takes it back. Returns the id of the 'stopped'
+    event that left, if any (what undoing the removal needs).
+    """
+    return storage.remove_member(conn, list_id, normalise(nct_id))
+
+
+def restore(conn: sqlite3.Connection, nct_id: str, list_id: int, stopped_id: int | None = None) -> None:
+    """Undo a removal: the membership returns, and the gap it opened is not recorded."""
+    if stopped_id:
+        storage.forget_monitoring_event(conn, stopped_id)
+    storage.add_member(conn, list_id, normalise(nct_id))
 
 
 # --- searching the registry
@@ -1229,6 +1231,43 @@ def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
                 }
             )
     return moves
+
+
+def _when(stamp: str) -> datetime.datetime:
+    parsed = datetime.datetime.fromisoformat(stamp)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=datetime.timezone.utc)
+
+
+def timeline(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+    """One newest-first record of a trial: each check that found changes (with every
+    transition, reviewed or not), each review and undone review, the start of
+    monitoring and any stretch it was not monitored."""
+    moves = history(conn, nct_id)
+    checks: dict[str, list[dict]] = {}
+    for move in moves:
+        checks.setdefault(move["check"], []).append(move)
+    entries = [
+        {"kind": "detection", "at": at, "count": len(found), "moves": found,
+         "fields": diff.by_signal(m["field"] for m in found),
+         "reviewed": all(m["reviewed"] for m in found),
+         "synthetic": any(m["synthetic"] for m in found)}
+        for at, found in checks.items()
+    ]
+    for event in storage.review_events(conn, nct_id):
+        ids = set(event["change_ids"])
+        touched = [m for m in moves if ids & set(m["ids"])]
+        base = {"count": len(touched), "from_checks": sorted({m["check"] for m in touched}),
+                "event_id": event["id"]}
+        entries.append({"kind": "review", "at": event["reviewed_at"], **base})
+        if event["undone_at"]:
+            entries.append({"kind": "undo", "at": event["undone_at"], **base})
+    for event in storage.monitoring_events(conn, nct_id):
+        entries.append({"kind": event["kind"], "at": event["at"]})
+    trial = storage.get_trial(conn, nct_id)
+    entries.append({"kind": "start", "at": trial["monitoring_began"]})
+    # Newest first; on a tie the later-made kind (undo after review) leads.
+    order = {"start": 0, "detection": 1, "review": 2, "undo": 3, "stopped": 4, "resumed": 5}
+    return sorted(entries, key=lambda e: (_when(e["at"]), order[e["kind"]]), reverse=True)
 
 
 def watchlist(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:

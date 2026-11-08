@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import diff
 import display
 import monitor
 import storage
@@ -88,8 +89,13 @@ def trial(ctx, nct_id: str, **_):
             }
         )
     ordered = sorted(groups.values(), key=lambda g: g["check"], reverse=True)
+    row = storage.get_trial(ctx.conn, nct)
     return {
         "nct_id": nct,
+        "last_checked": local(row["last_checked"]),
+        "check_failed": {"at": local(row["check_failed_at"]), "kind": row["check_error_kind"]}
+        if row["check_failed_at"] else None,
+        "monitoring_began": display.long_date(row["monitoring_began"]),
         "heading": profile.get("acronym") or profile.get("briefTitle") or nct,
         "official_title": profile.get("officialTitle"),
         "phase": display.phase_label(profile.get("phases")),
@@ -132,3 +138,66 @@ def undo_review(ctx, event_id: str, **_):
         "restored": event["change_ids"],
         "unreviewed_count": storage.count_unreviewed(ctx.conn, event["nct_id"]),
     }
+
+
+def details(ctx, nct_id: str, **_):
+    """At a glance and the five sections, from the newest stored snapshot."""
+    nct = _require(ctx, nct_id)
+    profile = monitor.profile_of(ctx.conn, nct) or {}
+    changed = {
+        diff.QUALIFIES.get(c["field"], c["field"])
+        for c in storage.list_changes(ctx.conn, nct) if not c["reviewed"]
+    }
+    body = display.detail_sections(profile, changed)
+    row = storage.get_trial(ctx.conn, nct)
+    body["registry_url"] = f"{display.STUDY_URL}/{nct}"
+    body["monitoring_began"] = display.long_date(row["monitoring_began"])
+    return body
+
+
+def history(ctx, nct_id: str, **_):
+    """The trial's timeline, newest first."""
+    nct = _require(ctx, nct_id)
+    entries = []
+    for entry in monitor.timeline(ctx.conn, nct):
+        out = {**entry, "at": local(entry["at"])}
+        if "from_checks" in out:
+            out["from_checks"] = [local(c) for c in out["from_checks"]]
+        out["fields"] = [display.label(f) for f in out.get("fields", [])]
+        out["moves"] = [
+            {
+                "field": m["field"], "label": display.label(m["field"]),
+                "previous": display.show(m["previous"]), "current": display.show(m["current"]),
+                "previous_qualifier": _word(m["previous_qualifier"]), "qualifier": _word(m["qualifier"]),
+                "reviewed": m["reviewed"],
+            }
+            for m in out.get("moves", [])
+        ]
+        entries.append(out)
+    return {"entries": entries}
+
+
+def _holding(ctx, nct: str) -> list[dict]:
+    return [{"id": r["id"], "name": r["name"]} for r in storage.lists_holding(ctx.conn, nct)]
+
+
+def remove(ctx, list_id: str, nct_id: str, **_):
+    """Take the trial out of this one watchlist; returns an undo token."""
+    nct = nct_id.upper()
+    if not storage.is_member(ctx.conn, int(list_id), nct):
+        raise ApiError(404, "not_in_watchlist", f"{nct} is not in that watchlist.")
+    stopped = monitor.remove(ctx.conn, nct, int(list_id))
+    return {"undo": f"{list_id}:{nct}:{stopped or 0}", "watchlists": _holding(ctx, nct)}
+
+
+def undo_removal(ctx, body=None, **_):
+    """Put the trial back in the watchlist a removal took it from."""
+    try:
+        list_id, nct, stopped = str((body or {}).get("token", "")).split(":")
+        list_id, stopped = int(list_id), int(stopped)
+    except ValueError:
+        raise ApiError(400, "invalid_request", "Send the undo token the removal returned.") from None
+    if storage.get_list(ctx.conn, list_id) is None or storage.get_trial(ctx.conn, nct) is None:
+        raise ApiError(404, "removal_not_found", "That removal can no longer be undone.")
+    monitor.restore(ctx.conn, nct, list_id, stopped or None)
+    return {"watchlists": _holding(ctx, nct)}

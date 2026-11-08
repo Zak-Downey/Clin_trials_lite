@@ -701,7 +701,7 @@ def test_a_row_number_beyond_the_list_reads_as_no_selection(app, fetcher):
     assert not [b for b in app.button if b.key and b.key.startswith("remove_")]
 
 
-def test_a_trial_removed_from_its_only_list_stops_being_monitored(app, fetcher):
+def test_a_trial_removed_from_its_only_list_is_kept_but_no_longer_monitored(app, fetcher):
     conn = storage.connect()
     app.run()
     lung = named(app, "Lung")
@@ -712,7 +712,8 @@ def test_a_trial_removed_from_its_only_list_stops_being_monitored(app, fetcher):
     app.button(key="remove_NCT03412565").click().run()
 
     assert not app.exception
-    assert storage.get_trial(conn, "NCT03412565") is None
+    assert storage.get_trial(conn, "NCT03412565") is not None
+    assert storage.list_trials(conn) == []
 
 
 def test_adding_from_the_search_page_lands_in_the_chosen_list(app, fetcher, monkeypatch):
@@ -807,8 +808,9 @@ def test_deleting_the_last_list_leaves_a_stand_in_rather_than_an_empty_page(app,
 
     assert not app.exception
     assert len(storage.list_lists(conn)) == 1
-    # The trial went with the list, because nothing else was holding it.
-    assert storage.get_trial(conn, "NCT03412565") is None
+    # The trial outlives the list (history kept) but nothing monitors it.
+    assert storage.get_trial(conn, "NCT03412565") is not None
+    assert storage.list_trials(conn) == []
     assert any("Nothing in this list yet" in info.value for info in app.info)
 
 

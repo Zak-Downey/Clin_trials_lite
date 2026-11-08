@@ -1,0 +1,106 @@
+# tip e6f6d7c56cea6f6085d54db35bb162e7911de5eb
+........................................................................ [ 14%]
+........................................................................ [ 28%]
+........................................................................ [ 42%]
+........................................................................ [ 56%]
+........................................................................ [ 70%]
+........................................................................ [ 84%]
+................................................FFFFFF.................. [ 98%]
+.........                                                                [100%]
+=================================== FAILURES ===================================
+_ test_removing_a_trial_from_its_last_watchlist_keeps_it_and_no_check_fetches_it_and_adding_it_back_resumes _
+
+conn = <sqlite3.Connection object at 0x115476300>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+
+    def test_removing_a_trial_from_its_last_watchlist_keeps_it_and_no_check_fetches_it_and_adding_it_back_resumes(conn, record):
+        """test_removing_a_trial_from_its_last_watchlist_keeps_it_and_no_check_fetches_it_and_adding_it_back_resumes"""
+        _add(conn, record)
+        storage.add_change(conn, NCT, {"field": "enrollment", "previous": 1, "current": 2}, T1)
+        monitor.remove(conn, NCT, 1)
+>       assert storage.get_trial(conn, NCT) is not None
+E       AssertionError: assert None is not None
+E        +  where None = <function get_trial at 0x10a6c5dc0>(<sqlite3.Connection object at 0x115476300>, 'NCT03412565')
+E        +    where <function get_trial at 0x10a6c5dc0> = storage.get_trial
+
+tests/test_trial_page_details.py:31: AssertionError
+__________ test_deleting_a_watchlist_keeps_the_trial_and_its_history ___________
+
+conn = <sqlite3.Connection object at 0x10b84d7b0>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+
+    def test_deleting_a_watchlist_keeps_the_trial_and_its_history(conn, record):
+        """test_deleting_a_watchlist_keeps_the_trial_and_its_history"""
+        _add(conn, record)
+        monitor.delete_list(conn, 1)
+>       assert storage.get_trial(conn, NCT) is not None and storage.count_snapshots(conn, NCT) == 1
+E       AssertionError: assert (None is not None)
+E        +  where None = <function get_trial at 0x10a6c5dc0>(<sqlite3.Connection object at 0x10b84d7b0>, 'NCT03412565')
+E        +    where <function get_trial at 0x10a6c5dc0> = storage.get_trial
+
+tests/test_trial_page_details.py:51: AssertionError
+_ test_the_timeline_is_newest_first_with_checks_reviews_undos_start_and_the_unmonitored_gap _
+
+conn = <sqlite3.Connection object at 0x115c755d0>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+
+    def test_the_timeline_is_newest_first_with_checks_reviews_undos_start_and_the_unmonitored_gap(conn, record):
+        """test_the_timeline_is_newest_first_with_checks_reviews_undos_start_and_the_unmonitored_gap"""
+        _add(conn, record)
+        storage.add_change(conn, NCT, {"field": "enrollment", "previous": 1, "current": 2}, T1)
+        storage.add_change(conn, NCT, {"field": "overallStatus", "previous": "RECRUITING", "current": "COMPLETED"}, T2)
+        storage.add_change(conn, NCT, {"field": "enrollment", "previous": 2, "current": 3}, T2)
+        ids = [m["ids"][0] for m in monitor.history(conn, NCT) if m["check"] == T2]
+        event = storage.review_changes(conn, NCT, ids, "2026-11-08T17:02:00+00:00")
+        storage.undo_review(conn, event["id"], "2026-11-08T17:05:00+00:00")
+        storage.remove_member(conn, 1, NCT)
+>       conn.execute("UPDATE monitoring_events SET at = ?", ("2026-11-09T01:00:00+00:00",))
+E       sqlite3.OperationalError: no such table: monitoring_events
+
+tests/test_trial_page_details.py:65: OperationalError
+_ test_every_field_of_the_eight_groups_lands_in_exactly_one_section_or_at_a_glance _
+
+    def test_every_field_of_the_eight_groups_lands_in_exactly_one_section_or_at_a_glance():
+        """test_every_field_of_the_eight_groups_lands_in_exactly_one_section_or_at_a_glance"""
+>       placed = [f for _, fields in display.DETAIL_SECTIONS for f in fields] + list(display.GLANCE_FIELDS)
+E       AttributeError: module 'display' has no attribute 'DETAIL_SECTIONS'
+
+tests/test_trial_page_details.py:79: AttributeError
+_ test_detail_sections_show_not_reported_for_a_missing_value_and_never_collapse_an_unreviewed_field _
+
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+
+    def test_detail_sections_show_not_reported_for_a_missing_value_and_never_collapse_an_unreviewed_field(record):
+        """test_detail_sections_show_not_reported_for_a_missing_value_and_never_collapse_an_unreviewed_field"""
+        profile = medical_affairs.profile(record)
+>       body = display.detail_sections(profile, {"enrollment", "conditions"})
+E       AttributeError: module 'display' has no attribute 'detail_sections'
+
+tests/test_trial_page_details.py:89: AttributeError
+__________ test_the_api_serves_details_history_and_removal_with_undo ___________
+
+api = <conftest.api.<locals>.Client object at 0x1158627f0>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+restyled = <function restyled.<locals>.build at 0x115af4ee0>
+
+    def test_the_api_serves_details_history_and_removal_with_undo(api, record, restyled):
+        """test_the_api_serves_details_history_and_removal_with_undo"""
+        conn = storage.connect(api.path)
+        other = monitor.create_list(conn, "Other", when=T0)
+        monitor.add(conn, NCT, 1, fetch=lambda _n: record, when=T0)
+        monitor.add(conn, NCT, other, fetch=lambda _n: record, when=T0)
+        storage.mark_check_failed(conn, NCT, "unavailable", T2)
+        conn.close()
+        status, head = api.get(f"/api/trials/{NCT}")
+>       assert status == 200 and head["last_checked"]["iso"] and head["check_failed"]["kind"] == "unavailable"
+E       KeyError: 'last_checked'
+
+tests/test_trial_page_details.py:110: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_trial_page_details.py::test_removing_a_trial_from_its_last_watchlist_keeps_it_and_no_check_fetches_it_and_adding_it_back_resumes
+FAILED tests/test_trial_page_details.py::test_deleting_a_watchlist_keeps_the_trial_and_its_history
+FAILED tests/test_trial_page_details.py::test_the_timeline_is_newest_first_with_checks_reviews_undos_start_and_the_unmonitored_gap
+FAILED tests/test_trial_page_details.py::test_every_field_of_the_eight_groups_lands_in_exactly_one_section_or_at_a_glance
+FAILED tests/test_trial_page_details.py::test_detail_sections_show_not_reported_for_a_missing_value_and_never_collapse_an_unreviewed_field
+FAILED tests/test_trial_page_details.py::test_the_api_serves_details_history_and_removal_with_undo
+6 failed, 507 passed in 30.67s

@@ -83,6 +83,17 @@ CREATE TABLE IF NOT EXISTS trials (
     last_reviewed   TEXT
 );
 
+-- When monitoring of a trial stopped (its last watchlist let it go) and resumed
+-- (a watchlist took it back), so History can show the gap as "not watched".
+CREATE TABLE IF NOT EXISTS monitoring_events (
+    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    nct_id TEXT NOT NULL REFERENCES trials(nct_id),
+    kind   TEXT NOT NULL,
+    at     TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS monitoring_by_trial ON monitoring_events(nct_id, id);
+
 CREATE TABLE IF NOT EXISTS snapshots (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     nct_id      TEXT NOT NULL REFERENCES trials(nct_id),
@@ -176,8 +187,10 @@ def _house_every_trial(conn: sqlite3.Connection) -> None:
     # Only ever the trials of a database that had no lists at all. A trial that
     # loses its last list while the app is running is deliberately dropped, and
     # re-homing it here would quietly undo that.
+    # Not a trial left unwatched on purpose: its removal is recorded and stays.
     conn.execute(
-        "INSERT INTO list_members (list_id, nct_id, added) SELECT ?, nct_id, ? FROM trials",
+        "INSERT INTO list_members (list_id, nct_id, added) SELECT ?, nct_id, ? FROM trials"
+        " WHERE nct_id NOT IN (SELECT nct_id FROM monitoring_events WHERE kind = 'stopped')",
         (home, stamp),
     )
     conn.commit()
@@ -234,9 +247,14 @@ def rename_list(conn: sqlite3.Connection, list_id: int, name: str) -> None:
 def delete_list(conn: sqlite3.Connection, list_id: int) -> None:
     """Remove a list, its membership rows and anything it had on offer.
 
-    The trials themselves stay: another list may hold them.
+    The trials themselves stay, history and all; one no other list holds
+    becomes unmonitored.
     """
+    held = [r["nct_id"] for r in conn.execute(
+        "SELECT nct_id FROM list_members WHERE list_id = ?", (list_id,))]
     conn.execute("DELETE FROM list_members WHERE list_id = ?", (list_id,))
+    for nct in held:
+        _note_if_unheld(conn, nct)
     conn.execute("DELETE FROM found WHERE list_id = ?", (list_id,))
     conn.execute("DELETE FROM lists WHERE id = ?", (list_id,))
     conn.commit()
@@ -263,7 +281,20 @@ def get_list_search(conn: sqlite3.Connection, list_id: int) -> dict | None:
 def add_member(
     conn: sqlite3.Connection, list_id: int, nct_id: str, when: str | None = None
 ) -> None:
-    """Put a trial in a list. A trial already in it is left as it was."""
+    """Put a trial in a list. A trial already in it is left as it was.
+
+    A trial no list was holding is monitored again from here: that is recorded.
+    """
+    if get_trial(conn, nct_id) is not None and not lists_holding(conn, nct_id):
+        last = conn.execute(
+            "SELECT kind FROM monitoring_events WHERE nct_id = ? ORDER BY id DESC LIMIT 1",
+            (nct_id,),
+        ).fetchone()
+        if last and last["kind"] == "stopped":
+            conn.execute(
+                "INSERT INTO monitoring_events (nct_id, kind, at) VALUES (?, 'resumed', ?)",
+                (nct_id, when or now()),
+            )
     conn.execute(
         "INSERT OR IGNORE INTO list_members (list_id, nct_id, added) VALUES (?, ?, ?)",
         (list_id, nct_id, when or now()),
@@ -271,10 +302,41 @@ def add_member(
     conn.commit()
 
 
-def remove_member(conn: sqlite3.Connection, list_id: int, nct_id: str) -> None:
+def _note_if_unheld(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> int | None:
+    """Record that monitoring stopped if no list holds the trial now. Returns the event id."""
+    if lists_holding(conn, nct_id):
+        return None
+    return conn.execute(
+        "INSERT INTO monitoring_events (nct_id, kind, at) VALUES (?, 'stopped', ?)",
+        (nct_id, when or now()),
+    ).lastrowid
+
+
+def remove_member(
+    conn: sqlite3.Connection, list_id: int, nct_id: str, when: str | None = None
+) -> int | None:
+    """Take a trial out of a list. Returns the id of the 'stopped' event when that
+    left the trial in no list (its history is kept, it is no longer checked)."""
     conn.execute(
         "DELETE FROM list_members WHERE list_id = ? AND nct_id = ?", (list_id, nct_id)
     )
+    stopped = _note_if_unheld(conn, nct_id, when)
+    conn.commit()
+    return stopped
+
+
+def monitoring_events(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+    """When monitoring of a trial stopped and resumed, oldest first."""
+    return [
+        {"id": r["id"], "kind": r["kind"], "at": r["at"]}
+        for r in conn.execute(
+            "SELECT * FROM monitoring_events WHERE nct_id = ? ORDER BY id", (nct_id,))
+    ]
+
+
+def forget_monitoring_event(conn: sqlite3.Connection, event_id: int) -> None:
+    """Drop one monitoring event (an undone removal leaves no gap behind)."""
+    conn.execute("DELETE FROM monitoring_events WHERE id = ?", (event_id,))
     conn.commit()
 
 
@@ -417,7 +479,11 @@ def list_trials(conn: sqlite3.Connection, list_id: int | None = None) -> list[sq
     Everything monitored, or only what one named list holds.
     """
     if list_id is None:
-        return conn.execute("SELECT * FROM trials ORDER BY monitoring_began, nct_id").fetchall()
+        # Only what some list holds: a trial in none is kept but not monitored.
+        return conn.execute(
+            "SELECT * FROM trials WHERE nct_id IN (SELECT nct_id FROM list_members)"
+            " ORDER BY monitoring_began, nct_id"
+        ).fetchall()
     return conn.execute(
         "SELECT trials.* FROM trials"
         " JOIN list_members ON list_members.nct_id = trials.nct_id"
@@ -436,6 +502,8 @@ def delete_trial(conn: sqlite3.Connection, nct_id: str) -> None:
     conn.execute("DELETE FROM list_members WHERE nct_id = ?", (nct_id,))
     conn.execute("DELETE FROM changes WHERE nct_id = ?", (nct_id,))
     conn.execute("DELETE FROM snapshots WHERE nct_id = ?", (nct_id,))
+    conn.execute("DELETE FROM monitoring_events WHERE nct_id = ?", (nct_id,))
+    conn.execute("DELETE FROM review_events WHERE nct_id = ?", (nct_id,))
     conn.execute("DELETE FROM trials WHERE nct_id = ?", (nct_id,))
     conn.commit()
 
@@ -541,6 +609,14 @@ def review_changes(
     ).lastrowid
     conn.commit()
     return _event(conn.execute("SELECT * FROM review_events WHERE id = ?", (event_id,)).fetchone())
+
+
+def review_events(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+    """Every review of a trial, oldest first, undone ones included."""
+    return [
+        _event(r) for r in conn.execute(
+            "SELECT * FROM review_events WHERE nct_id = ? ORDER BY id", (nct_id,))
+    ]
 
 
 def get_review_event(conn: sqlite3.Connection, event_id: int) -> dict | None:

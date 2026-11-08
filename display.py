@@ -258,6 +258,73 @@ def render_card(title: str, rows: list[dict], nct_id: str | None = None) -> str:
     )
 
 
+# --- the trial page's details
+#
+# The eight cards above regrouped into the design's five sections, plus the four
+# facts kept in view in At a glance. A display mapping only: the monitored fields
+# are the same. Every field of CARDS sits in exactly one place here (a test says so).
+
+NOT_REPORTED = "Not reported"
+
+GLANCE_FIELDS = ("overallStatus", "phases", "leadSponsor", "enrollment")
+
+DETAIL_SECTIONS = [
+    ("Identity & study design", ("nctId", "briefTitle", "officialTitle", "acronym", "orgStudyId",
+                                 "secondaryIds", "sponsorClass", "collaborators", "responsibleParty",
+                                 "studyType", "allocation", "primaryPurpose", "masking")),
+    ("Conditions & eligibility", ("conditions", "conditionMeshTerms", "sex", "minimumAge",
+                                  "eligibilityCriteria")),
+    ("Interventions & arms", ("interventions", "interventionTypes", "armGroups", "drugMeshTerms")),
+    ("Endpoints", ("primaryOutcomes", "primaryOutcomeTimeFrames", "secondaryOutcomeCount")),
+    ("Dates & results", ("whyStopped", "startDate", "primaryCompletionDate", "completionDate",
+                         "studyFirstPostDate", "resultsFirstPostDate", "lastUpdatePostDate",
+                         "hasResults", "resultsUrl")),
+]
+
+# A value's registry qualifier lives in a field of its own in the profile.
+QUALIFIER_OF = {
+    "startDate": "startDateType", "primaryCompletionDate": "primaryCompletionDateType",
+    "completionDate": "completionDateType", "enrollment": "enrollmentType",
+}
+
+
+def _detail(field: str, profile: dict, changed: set) -> dict:
+    value = profile.get(field)
+    if field == "phases":
+        value = phase_label(value) if value else None
+    elif field == "overallStatus":
+        value = status_label(value) if value else None
+    elif field == "hasResults":
+        value = None if value is None else ("Yes" if value else "No")
+    items = value if isinstance(value, list) and value else None
+    reported = value not in (None, "", [])
+    if not reported:
+        shown = NOT_REPORTED
+    elif items:
+        shown = "; ".join(str(i) for i in items)
+    else:
+        qualifier = profile.get(QUALIFIER_OF.get(field, ""))
+        shown = f"{value} · {str(qualifier).capitalize()}" if qualifier else str(value)
+    return {"field": field, "label": label(field), "value": shown, "reported": reported,
+            "items": [str(i) for i in items] if items and len(items) > 1 else None,
+            "changed": field in changed}
+
+
+def detail_sections(profile: dict, changed=()) -> dict:
+    """At a glance and the five sections, a missing value shown as "Not reported".
+
+    `changed` names the fields with an unreviewed change; a section holding one
+    is `locked_open`, so the details never hide what is new.
+    """
+    changed = set(changed)
+    sections = []
+    for title, fields in DETAIL_SECTIONS:
+        rows = [_detail(f, profile, changed) for f in fields]
+        count = sum(1 for r in rows if r["changed"])
+        sections.append({"title": title, "fields": rows, "unreviewed": count, "locked_open": count > 0})
+    return {"glance": [_detail(f, profile, changed) for f in GLANCE_FIELDS], "sections": sections}
+
+
 # --- a card's history
 #
 # Reviewing a trial clears its highlighting, which is right for "what is new"

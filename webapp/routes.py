@@ -18,6 +18,10 @@ ROUTES = [
     ("GET", r"/api/trials/(?P<nct_id>[Nn][Cc][Tt]\d{8})", api_trials.trial),
     ("POST", r"/api/trials/(?P<nct_id>[Nn][Cc][Tt]\d{8})/review", api_trials.review),
     ("POST", r"/api/reviews/(?P<event_id>\d+)/undo", api_trials.undo_review),
+    ("GET", r"/api/trials/(?P<nct_id>[Nn][Cc][Tt]\d{8})/details", api_trials.details),
+    ("GET", r"/api/trials/(?P<nct_id>[Nn][Cc][Tt]\d{8})/history", api_trials.history),
+    ("POST", r"/api/watchlists/(?P<list_id>\d+)/trials/(?P<nct_id>[Nn][Cc][Tt]\d{8})/remove", api_trials.remove),
+    ("POST", r"/api/removals/undo", api_trials.undo_removal),
     ("GET", r"/api/watchlists/(?P<list_id>\d+)/summary", api_summary.summary),
 ]
 
