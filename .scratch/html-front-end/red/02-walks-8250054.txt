@@ -1,0 +1,50 @@
+# tip 82500540bd0a8379dc677ead19f5554a05fc66dc
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+
+walks/test_walk_guards.py:60: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_needs_review_walk.py::test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps[1440x900]
+FAILED walks/test_needs_review_walk.py::test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps[1024x768]
+FAILED walks/test_needs_review_walk.py::test_walk_reload_back_and_forward_keep_the_chosen_watchlist_and_tab[1440x900]
+FAILED walks/test_needs_review_walk.py::test_walk_reload_back_and_forward_keep_the_chosen_watchlist_and_tab[1024x768]
+FAILED walks/test_standin_registry.py::test_standin_serves_one_study_by_nct_id_from_the_captured_fixture
+FAILED walks/test_standin_registry.py::test_standin_search_pages_with_a_total_count
+FAILED walks/test_standin_registry.py::test_standin_not_found_switch_makes_the_apps_lookup_say_not_found
+FAILED walks/test_standin_registry.py::test_standin_server_error_switch_makes_both_calls_fail_as_the_registry_would
+FAILED walks/test_standin_registry.py::test_standin_slow_switch_delays_the_answer
+FAILED walks/test_standin_registry.py::test_standin_revise_switch_makes_the_next_check_find_a_change
+FAILED walks/test_standin_registry.py::test_standin_register_switch_makes_the_next_saved_search_run_find_a_new_match
+FAILED walks/test_needs_review_walk.py::test_walk_the_heading_and_review_changes_open_the_same_trial_address[1440x900]
+FAILED walks/test_needs_review_walk.py::test_walk_a_queue_entry_shows_what_the_row_shows_and_labels_simulated_changes[1440x900]
+FAILED walks/test_needs_review_walk.py::test_walk_a_watchlist_opens_on_needs_review_newest_detection_first[1440x900]
+FAILED walks/test_needs_review_walk.py::test_walk_the_heading_and_review_changes_open_the_same_trial_address[1024x768]
+FAILED walks/test_needs_review_walk.py::test_walk_a_queue_entry_shows_what_the_row_shows_and_labels_simulated_changes[1024x768]
+FAILED walks/test_needs_review_walk.py::test_walk_a_watchlist_opens_on_needs_review_newest_detection_first[1024x768]
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_a_console_error
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_a_failed_request_or_one_to_somewhere_else
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_an_uncaught_page_error
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_horizontal_scrolling
+21 failed in 22.17s
+
+## Result
+walks/test_needs_review_walk.py::test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-sidebar-lists-every-watchlist-with-counts-and-a-long-name-wraps-1440x900.txt)
+walks/test_needs_review_walk.py::test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-sidebar-lists-every-watchlist-with-counts-and-a-long-name-wraps-1024x768.txt)
+walks/test_needs_review_walk.py::test_walk_reload_back_and_forward_keep_the_chosen_watchlist_and_tab[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-reload-back-and-forward-keep-the-chosen-watchlist-and-tab-1440x900.txt)
+walks/test_needs_review_walk.py::test_walk_reload_back_and_forward_keep_the_chosen_watchlist_and_tab[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-reload-back-and-forward-keep-the-chosen-watchlist-and-tab-1024x768.txt)
+walks/test_standin_registry.py::test_standin_serves_one_study_by_nct_id_from_the_captured_fixture -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-standin-serves-one-study-by-nct-id-from-the-captured-fixture.txt)
+walks/test_standin_registry.py::test_standin_search_pages_with_a_total_count -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-standin-search-pages-with-a-total-count.txt)
+walks/test_standin_registry.py::test_standin_not_found_switch_makes_the_apps_lookup_say_not_found -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-standin-not-found-switch-makes-the-apps-lookup-say-not-found.txt)
+walks/test_standin_registry.py::test_standin_server_error_switch_makes_both_calls_fail_as_the_registry_would -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-standin-server-error-switch-makes-both-calls-fail-as-the-registry-would.txt)
+walks/test_standin_registry.py::test_standin_slow_switch_delays_the_answer -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-standin-slow-switch-delays-the-answer.txt)
+walks/test_standin_registry.py::test_standin_revise_switch_makes_the_next_check_find_a_change -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-standin-revise-switch-makes-the-next-check-find-a-change.txt)
+walks/test_standin_registry.py::test_standin_register_switch_makes_the_next_saved_search_run_find_a_new_match -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-standin-register-switch-makes-the-next-saved-search-run-find-a-new-match.txt)
+walks/test_needs_review_walk.py::test_walk_the_heading_and_review_changes_open_the_same_trial_address[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-the-heading-and-review-changes-open-the-same-trial-address-1440x900.txt)
+walks/test_needs_review_walk.py::test_walk_a_queue_entry_shows_what_the_row_shows_and_labels_simulated_changes[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-a-queue-entry-shows-what-the-row-shows-and-labels-simulated-changes-1440x900.txt)
+walks/test_needs_review_walk.py::test_walk_a_watchlist_opens_on_needs_review_newest_detection_first[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-a-watchlist-opens-on-needs-review-newest-detection-first-1440x900.txt)
+walks/test_needs_review_walk.py::test_walk_the_heading_and_review_changes_open_the_same_trial_address[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-the-heading-and-review-changes-open-the-same-trial-address-1024x768.txt)
+walks/test_needs_review_walk.py::test_walk_a_queue_entry_shows_what_the_row_shows_and_labels_simulated_changes[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-a-queue-entry-shows-what-the-row-shows-and-labels-simulated-changes-1024x768.txt)
+walks/test_needs_review_walk.py::test_walk_a_watchlist_opens_on_needs_review_newest_detection_first[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-a-watchlist-opens-on-needs-review-newest-detection-first-1024x768.txt)
+walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_a_console_error -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-guard-fails-a-walk-on-a-console-error.txt)
+walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_a_failed_request_or_one_to_somewhere_else -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-guard-fails-a-walk-on-a-failed-request-or-one-to-somewhere-else.txt)
+walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_an_uncaught_page_error -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-guard-fails-a-walk-on-an-uncaught-page-error.txt)
+walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_horizontal_scrolling -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-and-the-first-walk/.scratch/html-front-end/walks/alone-test-walk-guard-fails-a-walk-on-horizontal-scrolling.txt)
