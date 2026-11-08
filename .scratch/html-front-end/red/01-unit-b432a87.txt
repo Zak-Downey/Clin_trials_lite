@@ -1,0 +1,42 @@
+# tip b432a87f0d8054159837029f6dc43dd23ee7042b
+......................FF................................................ [ 15%]
+........................................................................ [ 30%]
+........................................................................ [ 45%]
+........................................................................ [ 61%]
+........................................................................ [ 76%]
+........................................................................ [ 91%]
+.......................................                                  [100%]
+=================================== FAILURES ===================================
+______________ test_a_known_address_with_the_wrong_method_says_so ______________
+
+api = <conftest.api.<locals>.Client object at 0x10ba33af0>
+
+    def test_a_known_address_with_the_wrong_method_says_so(api):
+        status, body = api.post("/api/watchlists")
+>       assert status == 405
+E       assert 200 == 405
+
+tests/test_api_review_queue.py:147: AssertionError
+________________ test_a_stamp_without_an_offset_is_read_as_utc _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10ba33550>
+
+    def test_a_stamp_without_an_offset_is_read_as_utc(monkeypatch):
+        from webapp.times import local
+    
+        monkeypatch.setenv("TZ", "America/New_York")
+        time.tzset()
+        try:
+>           assert local("2026-11-08T16:45:00") == {"iso": "2026-11-08T11:45:00-05:00", "zone": "EST"}
+E           AssertionError: assert {'iso': '2026...'zone': 'EST'} == {'iso': '2026...'zone': 'EST'}
+E             
+E             Omitting 1 identical items, use -vv to show
+E             Differing items:
+E             {'iso': '2026-11-08T16:45:00-05:00'} != {'iso': '2026-11-08T11:45:00-05:00'}
+E             Use -v to get more diff
+
+tests/test_api_review_queue.py:157: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_api_review_queue.py::test_a_known_address_with_the_wrong_method_says_so
+FAILED tests/test_api_review_queue.py::test_a_stamp_without_an_offset_is_read_as_utc
+2 failed, 469 passed in 13.69s

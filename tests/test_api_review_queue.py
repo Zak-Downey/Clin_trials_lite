@@ -140,3 +140,22 @@ def test_times_are_in_the_machines_zone_with_the_zone_named(seeded, monkeypatch)
     finally:
         monkeypatch.undo()
         time.tzset()
+
+
+def test_a_known_address_with_the_wrong_method_says_so(api):
+    status, body = api.post("/api/watchlists")
+    assert status == 405
+    assert body["error"]["kind"] == "method_not_allowed"
+
+
+def test_a_stamp_without_an_offset_is_read_as_utc(monkeypatch):
+    from webapp.times import local
+
+    monkeypatch.setenv("TZ", "America/New_York")
+    time.tzset()
+    try:
+        assert local("2026-11-08T16:45:00") == {"iso": "2026-11-08T11:45:00-05:00", "zone": "EST"}
+        assert local("not a time") is None and local(None) is None
+    finally:
+        monkeypatch.undo()
+        time.tzset()
