@@ -79,8 +79,8 @@ def test_walk_during_a_check_progress_shows_and_the_queue_and_a_trial_stay_usabl
     assert page.locator("#check-reason").inner_text() == "A check is already running."
     walk.shot("checking")
     # The queue is readable and a trial opens while the check runs.
-    assert page.locator("table.queue tbody tr").count() == 2
-    page.locator('tr[data-nct="NCT03412565"] strong a').click()
+    assert page.locator("ul.queue > li.card").count() == 2
+    page.locator('li.card[data-nct="NCT03412565"] h3 a').click()
     page.get_by_text("Trial NCT03412565").wait_for()
     page.go_back()
     page.get_by_role("status").get_by_text("Checking for updates…").wait_for()
@@ -108,7 +108,7 @@ def test_walk_a_check_with_one_failed_trial_is_incomplete_and_never_an_all_clear
     assert status.get_by_role("button", name="Retry failed").is_visible()
     assert page.get_by_text("Check complete").count() == 0
     # The failed trial keeps its previous data: the queue is as it was.
-    assert page.locator("table.queue tbody tr").count() == 2
+    assert page.locator("ul.queue > li.card").count() == 2
     status.get_by_role("button", name="Show details").click()
     assert "NCT00000002" in status.locator(".details").inner_text()
     walk.shot("incomplete")
@@ -133,7 +133,7 @@ def test_walk_a_check_that_finds_nothing_says_so_and_keeps_earlier_entries_in_th
     text = status.inner_text()
     assert re.search(r"3 of 3 checked at .*EST", text), text
     assert "2 trials still need review from earlier checks" in text, text
-    assert [page.locator("table.queue tbody tr").nth(i).get_attribute("data-nct") for i in range(2)] == ["NCT03412565", "NCT00000002"]
+    assert [page.locator("ul.queue > li.card").nth(i).get_attribute("data-nct") for i in range(2)] == ["NCT03412565", "NCT00000002"]
     assert re.search(r"Last checked .*", page.locator("#watchlist-meta").inner_text())
     assert "11:45 AM EST" not in page.locator("#watchlist-meta").inner_text()  # moved on from the seeded check
     walk.shot("nothing-new")
@@ -164,13 +164,14 @@ def test_walk_a_revised_trial_joins_needs_review_after_a_check_without_a_tab_cha
     app, walk = open_app(make_app, make_walk, seed=seed_baseline)
     page = walk.page
     sidebar = page.get_by_label("Watchlists")
-    assert "0 to review · 2 trials" in sidebar.inner_text()
+    assert "2 trials\n0" in sidebar.inner_text(), sidebar.inner_text()
     page.get_by_text("All caught up").wait_for()
     app.registry.set("revise", True)
     page.get_by_role("button", name="Check for updates").click()
     page.get_by_role("status").get_by_text("Check complete · 1 trial changed").wait_for(timeout=30000)
-    page.locator('tr[data-nct="NCT03412565"]').wait_for()
-    assert "1 to review · 2 trials" in sidebar.inner_text()
+    page.locator('li.card[data-nct="NCT03412565"]').wait_for()
+    page.wait_for_function("() => document.getElementById('sidebar').innerText.includes('2 trials\\n1')")
+    assert "2 trials\n1" in sidebar.inner_text(), sidebar.inner_text()
     assert page.url.endswith("/needs-review")
     assert page.get_by_role("tab", name="Needs review").get_attribute("aria-selected") == "true"
     assert page.get_by_text("All caught up").count() == 0

@@ -72,7 +72,7 @@ button.link { font: inherit; font-weight: 600; background: none; border: 0; padd
 .status .details { flex-basis: 100%; overflow-wrap: anywhere; }
 .status .details[hidden] { display: none; }
 progress { width: 100%; height: 6px; accent-color: var(--accent); margin-top: 8px; }
-.caught-up { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-style: solid; }
-.caught-up h2 { margin: 0 0 4px; color: var(--ink); font-size: 18px; }
-.caught-up p { margin: 0; }
+.caught-up { align-items: center; }
+.caught-up h3 { font-size: 18px; }
+.caught-up p { color: var(--muted); }
 .button { white-space: nowrap; }

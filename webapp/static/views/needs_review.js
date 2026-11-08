@@ -21,8 +21,8 @@ export async function render(root, listId, watchlist) {
   );
   if (!trials.length) {
     const last = watchlist && watchlist.last_checked ? `Last checked ${when(watchlist.last_checked)}.` : "Not checked yet.";
-    root.append(el("div", { class: "empty caught-up" },
-      el("div", {}, el("h2", {}, "All caught up"), el("p", {}, `No changes awaiting review. ${last}`)),
+    root.append(el("div", { class: "card caught-up" },
+      el("div", { class: "card-body" }, el("h3", {}, "All caught up"), el("p", {}, `No changes awaiting review. ${last}`)),
       el("a", { class: "button", href: `#/watchlists/${listId}/all-trials` }, "View all trials")));
     return;
   }
