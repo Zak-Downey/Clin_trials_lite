@@ -123,7 +123,8 @@ def test_walk_trial_details_has_five_sections_long_ones_expand_and_an_unreviewed
     page.get_by_text("Up to 2 years 3 months").first.wait_for()
     # NCT03412565 has unreviewed changes in three sections: those have no collapse control.
     page.evaluate("location.hash = '#/trials/NCT03412565/details'")
-    page.get_by_text("unreviewed", exact=False).first.wait_for()
+    page.get_by_role("heading", level=1, name=re.compile("^A Study to Evaluate")).wait_for()
+    page.locator(".detail-section").nth(4).wait_for()
     for locked in ("Interventions & arms", "Dates & results"):
         section = page.locator("section.detail-section", has_text=locked)
         assert section.get_by_role("button").count() == 0
