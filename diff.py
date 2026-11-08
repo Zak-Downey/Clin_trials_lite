@@ -125,6 +125,7 @@ def fold_moves(changes, profile: dict | None = None) -> list[dict]:
                     "previous_qualifier": change["previous"],
                     "qualifier": change["current"],
                     "change": change,
+                    "changes": [change],
                 }
             )
             continue
@@ -140,6 +141,8 @@ def fold_moves(changes, profile: dict | None = None) -> list[dict]:
                 "previous_qualifier": alongside["previous"] if alongside else stated,
                 "qualifier": alongside["current"] if alongside else stated,
                 "change": change,
+                # Every row the move folds: a value and the qualifier beside it.
+                "changes": [change, alongside] if alongside else [change],
             }
         )
     return folded

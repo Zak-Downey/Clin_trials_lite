@@ -1,0 +1,181 @@
+# tip 58c38db80ad72d27febb99f7262658e5522a7f03
+.........................FFF............................................ [ 15%]
+........................................................................ [ 30%]
+............................................F........................... [ 45%]
+........................................................................ [ 60%]
+......................................................................FF [ 75%]
+...........................FF........................................... [ 90%]
+...............................................                          [100%]
+=================================== FAILURES ===================================
+____________________ test_a_foreign_host_header_is_refused _____________________
+
+seeded = <conftest.api.<locals>.Client object at 0x10759a160>
+
+    def test_a_foreign_host_header_is_refused(seeded):
+        """test_a_foreign_host_header_is_refused"""
+        port = seeded.base.rsplit(":", 1)[1]
+        status, body = _raw(seeded, "GET", "/api/watchlists", {"Host": f"evil.example:{port}"})
+>       assert status == 403 and body["error"]["kind"] == "forbidden_host"
+E       assert (200 == 403)
+
+tests/test_api_review_queue.py:204: AssertionError
+________ test_a_write_from_a_foreign_origin_or_without_json_is_refused _________
+
+seeded = <conftest.api.<locals>.Client object at 0x1076a1e50>
+
+    def test_a_write_from_a_foreign_origin_or_without_json_is_refused(seeded):
+        """test_a_write_from_a_foreign_origin_or_without_json_is_refused"""
+        from webapp import routes
+    
+        routes.COMPILED.append(("POST", __import__("re").compile(r"/api/_probe\Z"), lambda ctx, **_: {"ok": True}))
+        try:
+            port = seeded.base.rsplit(":", 1)[1]
+            host = f"127.0.0.1:{port}"
+            json_type = "application/json"
+            assert _raw(seeded, "POST", "/api/_probe", {"Host": host, "Content-Type": json_type}, "{}")[0] == 200
+            status, body = _raw(seeded, "POST", "/api/_probe",
+                                {"Host": host, "Content-Type": json_type, "Origin": "http://evil.example"}, "{}")
+>           assert status == 403 and body["error"]["kind"] == "forbidden_origin"
+E           assert (200 == 403)
+
+tests/test_api_review_queue.py:223: AssertionError
+_ test_a_value_and_its_qualifier_moving_together_are_one_change_with_both_ids __
+
+seeded = <conftest.api.<locals>.Client object at 0x107632460>
+
+    def test_a_value_and_its_qualifier_moving_together_are_one_change_with_both_ids(seeded):
+        """test_a_value_and_its_qualifier_moving_together_are_one_change_with_both_ids"""
+        conn = storage.connect(seeded.path)
+        check = "2026-11-09T09:00:00+00:00"
+        storage.add_change(conn, "NCT00000002", {"field": "primaryCompletionDate", "previous": "2026-01", "current": "2026-06"}, check)
+        storage.add_change(conn, "NCT00000002", {"field": "primaryCompletionDateType", "previous": "ESTIMATED", "current": "ACTUAL"}, check)
+        conn.close()
+        changes = seeded.get("/api/trials/NCT00000002/changes")[1]["changes"]
+        moved = [c for c in changes if c["field"] == "primaryCompletionDate"]
+>       assert len(moved) == 1 and len(moved[0]["ids"]) == 2
+E       KeyError: 'ids'
+
+tests/test_api_review_queue.py:241: KeyError
+___________ test_a_database_from_a_later_version_is_not_stamped_back ___________
+
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-75/test_a_database_from_a_later_v0')
+
+    def test_a_database_from_a_later_version_is_not_stamped_back(tmp_path):
+        """test_a_database_from_a_later_version_is_not_stamped_back"""
+        path = str(tmp_path / "later.db")
+        storage.connect(path).close()
+        raw = sqlite3.connect(path)
+        raw.execute(f"PRAGMA user_version = {storage.SCHEMA_VERSION + 5}")
+        raw.commit()
+        raw.close()
+        conn = storage.connect(path)
+>       assert conn.execute("PRAGMA user_version").fetchone()[0] == storage.SCHEMA_VERSION + 5
+E       assert 2 == (2 + 5)
+E        +  where 2 = storage.SCHEMA_VERSION
+
+tests/test_database_upgrade.py:56: AssertionError
+_____________ test_history_moves_carry_the_change_id_and_the_check _____________
+
+conn = <sqlite3.Connection object at 0x1073e6c60>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+
+    def test_history_moves_carry_the_change_id_and_the_check(conn, record):
+        """test_history_moves_carry_the_change_id_and_the_check"""
+        monitor.add(conn, "NCT03412565", fetch=lambda _n: record, when="2026-11-01T08:00:00+00:00")
+        storage.add_change(conn, "NCT03412565", {"field": "enrollment", "previous": 1, "current": 2}, "2026-11-08T16:45:00+00:00")
+        (move,) = monitor.history(conn, "NCT03412565")
+>       assert move["ids"] == [storage.list_changes(conn, "NCT03412565")[0]["id"]]
+E       KeyError: 'ids'
+
+tests/test_history_ids.py:15: KeyError
+_ test_a_folded_move_carries_every_id_it_folds_and_is_reviewed_only_if_all_are _
+
+conn = <sqlite3.Connection object at 0x11166fb70>
+record = {'derivedSection': {'conditionBrowseModule': {'ancestors': [{'id': 'D054219', 'term': 'Neoplasms, Plasma Cell'}, {'id'... will consist of 3 phases (screening, treatment and follow-up) and duration of study is approximately 3 years.'}, ...}}
+
+    def test_a_folded_move_carries_every_id_it_folds_and_is_reviewed_only_if_all_are(conn, record):
+        """test_a_folded_move_carries_every_id_it_folds_and_is_reviewed_only_if_all_are"""
+        monitor.add(conn, "NCT03412565", fetch=lambda _n: record, when="2026-11-01T08:00:00+00:00")
+        when = "2026-11-08T16:45:00+00:00"
+        storage.add_change(conn, "NCT03412565", {"field": "primaryCompletionDate", "previous": "2026-01", "current": "2026-06"}, when)
+        storage.add_change(conn, "NCT03412565", {"field": "primaryCompletionDateType", "previous": "ESTIMATED", "current": "ACTUAL"}, when)
+        (move,) = monitor.history(conn, "NCT03412565")
+>       assert sorted(move["ids"]) == sorted(c["id"] for c in storage.list_changes(conn, "NCT03412565"))
+E       KeyError: 'ids'
+
+tests/test_history_ids.py:26: KeyError
+_____ test_a_second_run_on_the_same_database_points_at_the_running_server ______
+
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-75/test_a_second_run_on_the_same_0')
+
+    def test_a_second_run_on_the_same_database_points_at_the_running_server(tmp_path):
+        """test_a_second_run_on_the_same_database_points_at_the_running_server"""
+        first = _start(tmp_path)
+        try:
+            address = first.stdout.readline().split(" at ")[1].strip()
+            second = _start(tmp_path)
+>           out, _ = second.communicate(timeout=20)
+
+tests/test_run.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py:1134: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py:1980: in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Popen: returncode: None args: ['/Users/zakdowney/Projects/personal/Clin_tri...>
+endtime = 34.956081583, orig_timeout = 20
+stdout_seq = [b'Trial Change Monitor is running at http://127.0.0.1:60787/\n']
+stderr_seq = [], skip_check_and_raise = False
+
+    def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,
+                       skip_check_and_raise=False):
+        """Convenience for checking if a timeout has expired."""
+        if endtime is None:
+            return
+        if skip_check_and_raise or _time() > endtime:
+>           raise TimeoutExpired(
+                    self.args, orig_timeout,
+                    output=b''.join(stdout_seq) if stdout_seq else None,
+                    stderr=b''.join(stderr_seq) if stderr_seq else None)
+E           subprocess.TimeoutExpired: Command '['/Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python', '/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-followup/run.py', '--no-browser']' timed out after 20 seconds
+
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py:1178: TimeoutExpired
+_____ test_a_busy_port_or_a_missing_folder_is_a_plain_line_not_a_traceback _____
+
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-75/test_a_busy_port_or_a_missing_0')
+
+    def test_a_busy_port_or_a_missing_folder_is_a_plain_line_not_a_traceback(tmp_path):
+        """test_a_busy_port_or_a_missing_folder_is_a_plain_line_not_a_traceback"""
+        import socket
+    
+        with socket.socket() as taken:
+            taken.bind(("127.0.0.1", 0))
+            taken.listen()
+            proc = _start(tmp_path, "--port", str(taken.getsockname()[1]))
+            _, err = proc.communicate(timeout=20)
+>       assert proc.returncode == 1 and "Traceback" not in err and "port" in err
+E       assert (1 == 1 and 'Traceback' not in 'Traceback (...ady in use\n'
+E        +  where 1 = <Popen: returncode: 1 args: ['/Users/zakdowney/Projects/personal/Clin_trials...>.returncode
+E         
+E         'Traceback' is contained here:
+E           Traceback (most recent call last):
+E         ? +++++++++
+E             File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-followup/run.py", line 43, in <module>
+E               main()
+E             File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-foundation-followup/run.py", line 29, in main...
+E         
+E         ...Full output truncated (10 lines hidden), use '-vv' to show)
+
+tests/test_run.py:94: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_api_review_queue.py::test_a_foreign_host_header_is_refused
+FAILED tests/test_api_review_queue.py::test_a_write_from_a_foreign_origin_or_without_json_is_refused
+FAILED tests/test_api_review_queue.py::test_a_value_and_its_qualifier_moving_together_are_one_change_with_both_ids
+FAILED tests/test_database_upgrade.py::test_a_database_from_a_later_version_is_not_stamped_back
+FAILED tests/test_history_ids.py::test_history_moves_carry_the_change_id_and_the_check
+FAILED tests/test_history_ids.py::test_a_folded_move_carries_every_id_it_folds_and_is_reviewed_only_if_all_are
+FAILED tests/test_run.py::test_a_second_run_on_the_same_database_points_at_the_running_server
+FAILED tests/test_run.py::test_a_busy_port_or_a_missing_folder_is_a_plain_line_not_a_traceback
+8 failed, 471 passed in 35.34s

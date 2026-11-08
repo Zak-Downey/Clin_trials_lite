@@ -19,10 +19,13 @@ STATIC = pathlib.Path(__file__).parent / "static"
 
 
 class Context:
-    """What handlers share: one connection, guarded by one lock, and the registry."""
+    """What handlers share: one connection, guarded by one lock, and the registry.
+
+    The dispatcher holds the lock around every handler.
+    """
 
     def __init__(self, db_path: str, fetch, find):
-        # Used from request threads, always under self.lock.
+        # Used from request threads, under self.lock (taken by the dispatcher).
         self.conn = storage.connect(db_path, check_same_thread=False)
         self.lock = threading.RLock()
         self.fetch = fetch
@@ -54,9 +57,27 @@ class Handler(BaseHTTPRequestHandler):
             kind += "; charset=utf-8"
         self._send(200, target.read_bytes(), kind)
 
+    def _allowed_hosts(self) -> set[str]:
+        port = self.server.server_address[1]
+        return {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+
+    def _guard_origin(self, method: str):
+        """Only this page may talk to this server: refuse a foreign Host (DNS rebinding)
+        and, on writes, a foreign Origin."""
+        allowed = self._allowed_hosts()
+        if self.headers.get("Host") not in allowed:
+            raise ApiError(403, "forbidden_host", "This server only answers requests addressed to it locally.")
+        origin = self.headers.get("Origin")
+        if method != "GET" and origin is not None and origin.removeprefix("http://") not in allowed:
+            raise ApiError(403, "forbidden_origin", "This server only accepts writes from its own page.")
+
+    def _is_json(self) -> bool:
+        return self.headers.get_content_type() == "application/json"
+
     def _dispatch(self, method: str):
         path = urlsplit(self.path).path
         try:
+            self._guard_origin(method)
             known_path = False
             for route_method, pattern, handler in COMPILED:
                 match = pattern.match(path)
@@ -65,7 +86,13 @@ class Handler(BaseHTTPRequestHandler):
                 known_path = True
                 if route_method != method:
                     continue
-                return self._json(200, handler(self.server.ctx, **match.groupdict()))
+                if method == "POST" and not self._is_json():
+                    raise ApiError(415, "unsupported_content_type", "Writes must be sent as application/json.")
+                # One lock for every handler: the connection is shared, and a handler
+                # cannot forget it. Handlers must not hold it across registry calls.
+                with self.server.ctx.lock:
+                    result = handler(self.server.ctx, **match.groupdict())
+                return self._json(200, result)
             if known_path:
                 raise ApiError(405, "method_not_allowed", f"{method} is not allowed here.")
             if method == "GET" and not path.startswith("/api/"):
@@ -86,7 +113,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def make_server(db_path: str, fetch=None, find=None, host: str = "127.0.0.1", port: int = 0):
-    """A server over `db_path` using the given registry functions (real ones by default)."""
+    """A server over `db_path` using the given registry functions (None until an endpoint needs them: no registry call is made without one)."""
     if host not in ("127.0.0.1", "localhost", "::1"):
         raise ValueError("The server only binds to the local machine.")
     server = ThreadingHTTPServer((host, port), Handler)

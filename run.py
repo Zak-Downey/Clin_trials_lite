@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 import webbrowser
 
+from webapp import instance
 from webapp.server import make_server
 
 
@@ -26,8 +28,24 @@ def main(argv=None) -> None:
     parser.add_argument("--no-browser", action="store_true", help="do not open the browser")
     args = parser.parse_args(argv)
 
-    server = make_server(database_path(), port=args.port)
+    db = database_path()
+    folder = os.path.dirname(os.path.abspath(db))
+    if not os.path.isdir(folder):
+        sys.exit(f"The database folder {folder} does not exist. Create it, or set MONITOR_DB to a file in a folder that does.")
+    claimed = instance.claim(db)
+    if not isinstance(claimed, instance.Claim):
+        if claimed is None:
+            sys.exit(f"Another Trial Change Monitor is using {db}, but it has not said where. Try again in a moment.")
+        print(f"Trial Change Monitor is already running at {claimed}", flush=True)
+        if not args.no_browser:
+            webbrowser.open(claimed)
+        return
+    try:
+        server = make_server(db, port=args.port)
+    except OSError as err:
+        sys.exit(f"Cannot listen on port {args.port}: {err.strerror}. Choose another with --port, or leave it out.")
     address = f"http://127.0.0.1:{server.server_address[1]}/"
+    claimed.publish(address)
     print(f"Trial Change Monitor is running at {address}", flush=True)
     if not args.no_browser:
         webbrowser.open(address)

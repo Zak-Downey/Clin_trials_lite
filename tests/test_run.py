@@ -58,3 +58,42 @@ def test_the_shell_and_its_assets_are_served_and_nothing_outside_static_is(api):
             assert kind in resp.headers["Content-Type"]
     status, body = api.get("/static/../server.py")
     assert status == 404 and body["error"]["kind"] == "not_found"
+
+
+def _start(tmp_path, *args):
+    env = {**os.environ, "MONITOR_DB": str(tmp_path / "m.db")}
+    return subprocess.Popen(
+        [sys.executable, str(ROOT / "run.py"), "--no-browser", *args],
+        cwd=tmp_path, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+
+
+def test_a_second_run_on_the_same_database_points_at_the_running_server(tmp_path):
+    """test_a_second_run_on_the_same_database_points_at_the_running_server"""
+    first = _start(tmp_path)
+    try:
+        address = first.stdout.readline().split(" at ")[1].strip()
+        second = _start(tmp_path)
+        out, _ = second.communicate(timeout=20)
+        assert second.returncode == 0
+        assert "already running" in out and address in out
+    finally:
+        first.terminate()
+        first.wait(timeout=10)
+
+
+def test_a_busy_port_or_a_missing_folder_is_a_plain_line_not_a_traceback(tmp_path):
+    """test_a_busy_port_or_a_missing_folder_is_a_plain_line_not_a_traceback"""
+    import socket
+
+    with socket.socket() as taken:
+        taken.bind(("127.0.0.1", 0))
+        taken.listen()
+        proc = _start(tmp_path, "--port", str(taken.getsockname()[1]))
+        _, err = proc.communicate(timeout=20)
+    assert proc.returncode == 1 and "Traceback" not in err and "port" in err
+
+    env = {**os.environ, "MONITOR_DB": str(tmp_path / "nope" / "m.db")}
+    proc = subprocess.run([sys.executable, str(ROOT / "run.py"), "--no-browser"], cwd=tmp_path, env=env,
+                          capture_output=True, text=True, timeout=20)
+    assert proc.returncode == 1 and "Traceback" not in proc.stderr and "folder" in proc.stderr

@@ -95,7 +95,7 @@ def _move(folded: dict, registry_updated) -> dict:
     change = folded["change"]
     field = folded["field"]
     return {
-        **{key: value for key, value in folded.items() if key != "change"},
+        **{key: value for key, value in folded.items() if key not in ("change", "changes")},
         "label": display.label(field),
         "registry_updated": registry_updated,
         "detected": change["detected_at"],
