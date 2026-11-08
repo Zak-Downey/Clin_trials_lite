@@ -75,6 +75,16 @@ class Handler(BaseHTTPRequestHandler):
     def _is_json(self) -> bool:
         return self.headers.get_content_type() == "application/json"
 
+    def _body(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        raw = self.rfile.read(length) if length else b""
+        if not raw:
+            return {}
+        try:
+            return json.loads(raw)
+        except ValueError:
+            raise ApiError(400, "invalid_json", "The request body is not valid JSON.")
+
     def _dispatch(self, method: str):
         path = urlsplit(self.path).path
         try:
@@ -91,9 +101,11 @@ class Handler(BaseHTTPRequestHandler):
                     raise ApiError(415, "unsupported_content_type", "Writes must be sent as application/json.")
                 # One lock for every handler: the connection is shared, and a handler
                 # cannot forget it. Handlers must not hold it across registry calls.
+                body = self._body() if method == "POST" else None
                 with self.server.ctx.lock:
                     result = handler(
-                        self.server.ctx, query=parse_qs(urlsplit(self.path).query), **match.groupdict()
+                        self.server.ctx, query=parse_qs(urlsplit(self.path).query), body=body,
+                        **match.groupdict(),
                     )
                 return self._json(200, result)
             if known_path:

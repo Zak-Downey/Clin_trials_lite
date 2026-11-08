@@ -81,7 +81,7 @@ def test_walk_during_a_check_progress_shows_and_the_queue_and_a_trial_stay_usabl
     # The queue is readable and a trial opens while the check runs.
     assert page.locator("ul.queue > li.card").count() == 2
     page.locator('li.card[data-nct="NCT03412565"] h3 a').click()
-    page.get_by_text("Trial NCT03412565").wait_for()
+    page.get_by_role("link", name="Open ClinicalTrials.gov").wait_for()  # the real trial page now
     page.go_back()
     page.get_by_role("status").get_by_text("Checking for updates…").wait_for()
     assert page.get_by_role("button", name="Check for updates").is_disabled()

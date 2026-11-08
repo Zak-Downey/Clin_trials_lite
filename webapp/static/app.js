@@ -3,6 +3,7 @@ import { get } from "/static/api.js";
 import { render as renderFind } from "/static/views/find.js";
 import { render as renderQueue } from "/static/views/needs_review.js";
 import { mount as mountCheck } from "/static/views/check.js";
+import { render as renderTrial } from "/static/views/trial.js";
 
 const sidebar = document.getElementById("sidebar");
 const view = document.getElementById("view");
@@ -42,6 +43,25 @@ async function drawSidebar(activeId) {
   return watchlists;
 }
 
+// Where the analyst came from, so the trial page can say "Back to <watchlist>" and the
+// queue can be put back at the same scroll position. Kept in the page and in the queue
+// entry's history state (which is what browser Back and Forward read).
+let origin = null;
+let pendingScroll = null;
+
+document.addEventListener("click", (event) => {
+  const link = event.target.closest && event.target.closest('a[href^="#/trials/"]');
+  const here = /^#\/watchlists\/(\d+)\//.exec(location.hash);
+  if (link && here) {
+    origin = { listId: Number(here[1]), scroll: window.scrollY };
+    history.replaceState({ scroll: window.scrollY }, "");
+  }
+  const back = event.target.closest && event.target.closest("a[data-back]");
+  if (back && origin) pendingScroll = origin.scroll;
+}, true);
+
+window.addEventListener("reviewchange", () => drawSidebar(null).catch(() => {}));
+
 async function route() {
   const mine = ++generation;
   const [hashPath, hashQuery = ""] = location.hash.replace(/^#\/?/, "").split("?");
@@ -56,7 +76,8 @@ async function route() {
     }
     if (parts[0] === "trials" && parts[1]) {
       await drawSidebar(null);
-      view.textContent = `Trial ${parts[1]} is coming.`;
+      await renderTrial(view, parts[1].toUpperCase(), parts[2] || "changes", origin);
+      window.scrollTo(0, 0);
       return;
     }
     const lists = await drawSidebar(null);
@@ -81,6 +102,9 @@ async function route() {
         return current;
       },
     }).catch((err) => { if (generation === mine) status.replaceChildren(el("div", { class: "error" }, err.message)); });
+    const y = pendingScroll ?? (history.state && history.state.scroll);
+    pendingScroll = null;
+    if (y) window.scrollTo(0, y);
   } catch (err) {
     const box = document.createElement("div");
     box.className = "error";

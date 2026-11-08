@@ -1281,6 +1281,26 @@ def review(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> in
     return storage.mark_reviewed(conn, nct, when)
 
 
+def review_changes(
+    conn: sqlite3.Connection, nct_id: str, ids: list[int], when: str | None = None
+) -> dict | None:
+    """Mark exactly the changes whose IDs are given, and record the review.
+
+    Changes not listed (one found by a check that finished after the caller
+    read the page) stay unreviewed. Returns the review event, or None if
+    nothing was marked. Raises MonitorError if the trial isn't watched.
+    """
+    nct = normalise(nct_id)
+    if storage.get_trial(conn, nct) is None:
+        raise MonitorError(f"{nct} is not on the watchlist.")
+    return storage.review_changes(conn, nct, ids, when)
+
+
+def undo_review(conn: sqlite3.Connection, event_id: int, when: str | None = None) -> dict | None:
+    """Undo one review event: its changes return to unreviewed; the undo is recorded."""
+    return storage.undo_review(conn, event_id, when)
+
+
 def needs_review(conn: sqlite3.Connection, list_id: int) -> list[dict]:
     """The list's trials with unreviewed changes, newest detection first.
 
