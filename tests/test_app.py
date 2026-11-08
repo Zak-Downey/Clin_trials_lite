@@ -1086,6 +1086,13 @@ def briefing_text(app) -> str:
     return app.code[0].value
 
 
+def download_buttons(app, key: str) -> list:
+    """The download buttons with this key. Streamlit 1.50's AppTest has no
+    download_button accessor: they come back as generic nodes whose key is
+    unset, so match the element id, which ends with the key."""
+    return [b for b in app.get("download_button") if b.proto.id.endswith("-" + key)]
+
+
 def test_the_summary_names_the_list_and_covers_this_week_by_default(app, fetcher):
     add_trial(app, "NCT03412565")
 
@@ -1101,7 +1108,7 @@ def test_a_range_with_nothing_in_it_says_so_and_offers_no_file(app, fetcher):
     app.switch_page(WATCHLIST).run()
 
     assert "No changes" in briefing_text(app)
-    assert not [b for b in app.download_button if b.key == "briefing_csv"]
+    assert not download_buttons(app, "briefing_csv")
 
 
 def test_a_detected_change_reaches_the_summary_and_the_file(app, fetcher, monkeypatch):
@@ -1121,7 +1128,7 @@ def test_a_detected_change_reaches_the_summary_and_the_file(app, fetcher, monkey
     # The file itself is offered from the same summary; what is in it is
     # tested in test_briefing, since the harness holds the button and not its
     # bytes.
-    download = next(b for b in app.download_button if b.key == "briefing_csv")
+    download = next(iter(download_buttons(app, "briefing_csv")))
     assert download.label == "Download CSV"
 
 
@@ -1152,7 +1159,7 @@ def test_a_custom_range_that_excludes_the_change_reports_nothing(app, fetcher, m
     ).run()
 
     assert "No changes" in briefing_text(app)
-    assert not [b for b in app.download_button if b.key == "briefing_csv"]
+    assert not download_buttons(app, "briefing_csv")
 
 
 # --- catching trials that appear
