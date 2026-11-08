@@ -184,3 +184,17 @@ ul.moves { margin: 0; padding-left: 18px; }
 .move { margin: 2px 0; overflow-wrap: anywhere; }
 .state { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px; background: var(--page); color: var(--muted); border: 1px solid var(--line); }
 .state.simulated { color: var(--simulated); border-color: var(--simulated); }
+
+/* Find trials: selecting and adding */
+.select-page { margin: 4px 0 8px; font-size: 14px; }
+.select-page label { display: inline-flex; align-items: center; gap: 8px; }
+li.card.result { display: flex; align-items: flex-start; gap: 12px; }
+li.card.result.selected { background: var(--accent-soft, #e4f3f0); }
+li.card.result input[type=checkbox], .select-page input { width: 20px; height: 20px; flex: none; margin-top: 2px; }
+.result-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.view-details { flex: none; font-weight: 600; }
+.find-bar { flex-wrap: wrap; justify-content: flex-start; align-items: center; }
+.find-bar[hidden] { display: none; }
+.find-bar .count { margin-right: 4px; }
+.find-bar > label { margin-left: auto; }
+.head-actions { flex-wrap: wrap; }

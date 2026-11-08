@@ -131,6 +131,10 @@ def api(tmp_path, fetcher, make_finder):
         finder = find
         base = f"http://127.0.0.1:{server.server_address[1]}"
 
+        def fetch_override(self, fn):
+            """Serve registry lookups from `fn` from now on (the server reads it per call)."""
+            server.ctx.fetch = fn
+
         def request(self, method, route, body=None):
             data = None if body is None else _json.dumps(body).encode()
             req = urllib.request.Request(self.base + route, data=data, method=method)

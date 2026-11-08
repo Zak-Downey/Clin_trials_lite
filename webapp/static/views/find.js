@@ -1,5 +1,5 @@
 // Find trials: the Search tab. The address (#/find?cond=...&page=2) holds the submitted query.
-import { get } from "/static/api.js";
+import { get, post } from "/static/api.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -17,6 +17,13 @@ const STATUSES = [["NOT_YET_RECRUITING", "Not yet recruiting"], ["RECRUITING", "
   ["SUSPENDED", "Suspended"], ["TERMINATED", "Terminated"], ["COMPLETED", "Completed"],
   ["WITHDRAWN", "Withdrawn"], ["UNKNOWN", "Unknown"]];
 const NAMING = "Start with at least one of these four fields";
+
+// Kept across renders, so selections survive paging, viewing a trial and leaving Find trials.
+const selected = new Map(); // NCT ID -> title
+let destination = null; // the watchlist chosen to add to
+let cameFrom = null; // the watchlist whose "Add trials" opened Find trials last
+let outcome = null; // what the last add did, shown in the bar until the next selection
+export let lastFind = "#/find"; // where "Back to results" goes
 
 const name = (table, code) => (table.find((row) => row[0] === code) || [code, code])[1];
 const number = (n) => n.toLocaleString("en-US");
@@ -117,7 +124,7 @@ function form(q, error, onSubmit) {
   return f;
 }
 
-function results(q, data, page, go, edit, clearOptional) {
+function results(q, data, page, go, edit, clearOptional, changed) {
   const out = el("section", { class: "results", "aria-label": "Search results" });
   const head = summary(q);
   out.append(el("div", { class: "summary" },
@@ -134,11 +141,35 @@ function results(q, data, page, go, edit, clearOptional) {
     el("p", { class: "meta", id: "range" }, `${first}–${first + data.rows.length - 1} of ${number(data.total)} matches`));
   if (data.capped) out.append(el("p", { class: "cap", role: "note" }, `Showing the first 100 of ${number(data.total)}. Narrow your search to see the rest`));
   const list = el("ul", { class: "cards" });
+  const boxes = [];
+  const everyOne = el("input", { type: "checkbox", id: "select-page" });
+  const sync = () => {
+    boxes.forEach(([box, r]) => { box.checked = selected.has(r.nct_id); box.closest("li").classList.toggle("selected", box.checked); });
+    everyOne.checked = boxes.every(([box]) => box.checked);
+  };
+  everyOne.addEventListener("change", () => {
+    for (const [, r] of boxes) { if (everyOne.checked) selected.set(r.nct_id, r.title || r.nct_id); else selected.delete(r.nct_id); }
+    outcome = null;
+    sync();
+    changed();
+  });
+  out.append(el("div", { class: "select-page" }, el("label", { for: "select-page" }, everyOne, ` Select ${data.rows.length} on this page`)));
   for (const r of data.rows) {
     const facts = [r.phase, r.sponsor, r.status].filter(Boolean).join(" · ");
-    list.append(el("li", { class: "card", "data-nct": r.nct_id }, el("strong", {}, r.title || r.nct_id),
-      el("div", { class: "meta" }, `${facts} · ${r.nct_id}`)));
+    const title = r.title || r.nct_id;
+    const box = el("input", { type: "checkbox", "aria-label": `Select ${title}`, "data-nct": r.nct_id });
+    box.addEventListener("change", () => {
+      if (box.checked) selected.set(r.nct_id, title); else selected.delete(r.nct_id);
+      outcome = null;
+      sync();
+      changed();
+    });
+    boxes.push([box, r]);
+    list.append(el("li", { class: "card result", "data-nct": r.nct_id }, box,
+      el("div", { class: "result-body" }, el("strong", {}, title), el("div", { class: "meta" }, `${facts} · ${r.nct_id}`)),
+      el("a", { class: "view-details", href: `#/registry/${r.nct_id}`, "aria-label": `View details: ${title}` }, "View details")));
   }
+  sync();
   const prev = el("button", { type: "button" }, "Previous");
   const next = el("button", { type: "button" }, "Next");
   prev.disabled = page <= 1;
@@ -149,22 +180,75 @@ function results(q, data, page, go, edit, clearOptional) {
   return out;
 }
 
-export async function render(root, search) {
+export async function render(root, search, listId) {
+  const base = listId ? `#/find/${listId}` : "#/find";
+  lastFind = location.hash || base;
+  if (listId && listId !== cameFrom) destination = listId;
+  cameFrom = listId || null;
+  let lists = [];
+  try { lists = (await get("/api/watchlists")).watchlists; } catch { lists = []; }
+  if (!lists.some((w) => w.id === destination)) destination = lists[0] ? lists[0].id : null;
+  const syncChecks = () => {
+    const boxes = [...root.querySelectorAll("li.result input[type=checkbox]")];
+    boxes.forEach((box) => { box.checked = selected.has(box.dataset.nct); box.closest("li").classList.toggle("selected", box.checked); });
+    const all = root.querySelector("#select-page");
+    if (all) all.checked = boxes.every((b) => b.checked);
+  };
+  const bar = el("div", { class: "action-bar find-bar", role: "region", "aria-label": "Add selected trials" });
+  const drawBar = () => {
+    if (outcome) {
+      const dismiss = el("button", { type: "button", class: "link" }, "Dismiss");
+      dismiss.addEventListener("click", () => { outcome = null; drawBar(); });
+      bar.hidden = false;
+      bar.replaceChildren(el("div", { role: "status" }, outcome.text, " ",
+        el("a", { href: `#/watchlists/${outcome.list.id}/needs-review` }, `Open ${outcome.list.name}`)), dismiss);
+      return;
+    }
+    bar.hidden = selected.size === 0;
+    if (!selected.size) { bar.replaceChildren(); return; }
+    const count = `${selected.size} trial${selected.size === 1 ? "" : "s"}`;
+    const clear = el("button", { type: "button", class: "link" }, "Clear");
+    clear.addEventListener("click", () => { selected.clear(); drawBar(); syncChecks(); });
+    const pick = el("select", { id: "add-to" }, ...lists.map((w) => el("option", { value: String(w.id) }, w.name)));
+    pick.value = String(destination);
+    pick.addEventListener("change", () => { destination = Number(pick.value); });
+    const add = el("button", { type: "button", class: "primary" }, `Add ${count}`);
+    const note = el("span", { class: "meta", role: "alert" });
+    add.addEventListener("click", async () => {
+      add.disabled = true;
+      try {
+        const done = await post(`/api/watchlists/${destination}/trials`, { nct_ids: [...selected.keys()] });
+        [...done.added, ...done.already].forEach((n) => selected.delete(n));
+        const text = [`${done.added.length} added`, done.already.length && `${done.already.length} already in this list`,
+          done.failed.length && `${done.failed.length} could not be added (${done.failed.map((f) => f.nct_id).join(", ")})`]
+          .filter(Boolean).join("; ");
+        outcome = { text, list: done.list };
+        window.dispatchEvent(new Event("reviewchange"));
+        drawBar();
+        syncChecks();
+      } catch (err) { add.disabled = false; note.textContent = err.message; }
+    });
+    bar.hidden = false;
+    bar.replaceChildren(el("strong", { class: "count" }, `${count} selected`), clear, note,
+      el("label", { for: "add-to" }, "Add to"), pick, add);
+  };
+  drawBar();
   const params = new URLSearchParams(search || "");
   const q = readQuery(params);
   const page = Math.max(1, Number(params.get("page")) || 1);
   const submitted = named(q) && (params.has("page") || params.has("cond") || params.has("intr") || params.has("spons") || params.has("phase"));
-  const rerender = () => render(root, search);
+  const rerender = () => render(root, search, listId);
   const head = [el("h1", {}, "Find trials"), el("p", { class: "meta" }, "Search ClinicalTrials.gov, then choose what to monitor."),
     el("nav", { class: "tabs", role: "tablist", "aria-label": "Find trials views" },
-      el("a", { role: "tab", "aria-selected": "true", href: "#/find" }, "Search"))];
+      el("a", { role: "tab", "aria-selected": "true", href: base }, "Search"))];
   const open = (query, error, below) => {
     root.replaceChildren(...head, form(query, error, (typed) => {
       if (!named(typed)) { open(typed, "Add a condition, intervention, sponsor or phase to search.", below); return; }
-      const target = `#/find?${toParams(typed, 1)}`;
+      const target = `${base}?${toParams(typed, 1)}`;
       if (location.hash === target) rerender(); else location.hash = target;
     }));
     if (below) root.append(below);
+    root.append(bar);
   };
   if (!submitted) { open(q, "", null); return; }
   const status = el("p", { class: "meta", role: "status" }, "Searching…");
@@ -182,7 +266,7 @@ export async function render(root, search) {
   edit.addEventListener("click", () => open(q, "", null));
   const clearOptional = el("button", { type: "button" }, "Clear optional filters");
   clearOptional.addEventListener("click", () => {
-    location.hash = `#/find?${toParams({ ...q, sponsor_type: [], status: [], started_from: "", started_to: "" }, 1)}`;
+    location.hash = `${base}?${toParams({ ...q, sponsor_type: [], status: [], started_from: "", started_to: "" }, 1)}`;
   });
-  root.replaceChildren(...head, results(q, data, page, (p) => { location.hash = `#/find?${toParams(q, p)}`; }, edit, clearOptional));
+  root.replaceChildren(...head, results(q, data, page, (p) => { location.hash = `${base}?${toParams(q, p)}`; }, edit, clearOptional, drawBar), bar);
 }

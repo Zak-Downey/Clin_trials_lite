@@ -192,14 +192,18 @@ const field = (f) => {
 
 // Trial details: At a glance, and five sections, long ones expandable on demand.
 async function drawDetails(body, nct) {
-  const details = await get(`/api/trials/${nct}/details`);
+  drawSections(body, await get(`/api/trials/${nct}/details`));
+}
+
+// The same sections for a trial not monitored (no monitoring_began, nothing unreviewed).
+export function drawSections(body, details) {
   const glance = el("aside", { class: "glance", "aria-label": "At a glance" }, el("h2", {}, "At a glance"));
   const facts = el("dl", {});
   const names = { overallStatus: "Registry status", phases: "Phase", leadSponsor: "Lead sponsor", enrollment: "Enrolment" };
   for (const f of details.glance) facts.append(el("div", { class: "fact" }, el("dt", {}, names[f.field] || f.label), el("dd", { class: f.reported ? "" : "not-reported" }, f.value, ...(f.changed ? [" ", el("span", { class: "unreviewed-flag" }, "Unreviewed change")] : []))));
   facts.append(el("div", { class: "fact" }, el("dt", {}, "ClinicalTrials.gov"),
     el("dd", {}, el("a", { href: details.registry_url, target: "_blank", rel: "noopener" }, "Open the registry record ↗"))));
-  facts.append(el("div", { class: "fact" }, el("dt", {}, "Monitoring began"), el("dd", {}, details.monitoring_began)));
+  if (details.monitoring_began) facts.append(el("div", { class: "fact" }, el("dt", {}, "Monitoring began"), el("dd", {}, details.monitoring_began)));
   glance.append(facts);
   const sections = el("div", { class: "detail-sections" });
   details.sections.forEach((section, index) => {

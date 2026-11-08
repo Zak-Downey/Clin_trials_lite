@@ -5,6 +5,7 @@ import { render as renderQueue } from "/static/views/needs_review.js";
 import { render as renderSummary } from "/static/views/summary.js";
 import { mount as mountCheck } from "/static/views/check.js";
 import { render as renderTrial } from "/static/views/trial.js";
+import { render as renderRegistryTrial } from "/static/views/registry_trial.js";
 
 const sidebar = document.getElementById("sidebar");
 const view = document.getElementById("view");
@@ -68,11 +69,17 @@ async function route() {
   const [hashPath, hashQuery = ""] = location.hash.replace(/^#\/?/, "").split("?");
   const parts = hashPath.split("/");
   document.querySelectorAll("[data-dest]").forEach((a) =>
-    a.classList.toggle("active", a.dataset.dest === (parts[0] === "find" ? "find" : "watchlists")));
+    a.classList.toggle("active", a.dataset.dest === (parts[0] === "find" || parts[0] === "registry" ? "find" : "watchlists")));
   try {
     if (parts[0] === "find") {
       await drawSidebar(null);
-      await renderFind(view, hashQuery);
+      await renderFind(view, hashQuery, Number(parts[1]) || null);
+      return;
+    }
+    if (parts[0] === "registry" && parts[1]) {
+      await drawSidebar(null);
+      await renderRegistryTrial(view, parts[1].toUpperCase());
+      window.scrollTo(0, 0);
       return;
     }
     if (parts[0] === "trials" && parts[1]) {
