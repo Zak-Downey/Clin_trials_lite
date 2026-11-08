@@ -137,3 +137,20 @@ button:disabled { opacity: .5; cursor: default; }
 .change.long { grid-template-columns: minmax(120px, 1fr) minmax(0, 4fr); }
 .change.long .field-name { grid-row: 1 / span 2; }
 .change.long .value { grid-column: 2; }
+
+/* Summary tab (ticket 12) */
+.summary-controls { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+.periods, .outputs { display: flex; flex-wrap: wrap; gap: 8px; }
+.custom-dates { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; padding: 12px 16px; margin: 0 0 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.form-actions { display: flex; gap: 8px; }
+.period-heading { font-size: 18px; margin: 20px 0 2px; }
+.trial-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.trial-head h3 { margin: 0; }
+.card.trial { display: block; }
+.trial-moves { margin-top: 8px; }
+.trial-moves summary { color: var(--accent); font-weight: 600; cursor: pointer; }
+.check-head { margin: 12px 0 4px; font-size: 12px; color: var(--muted); font-weight: 600; }
+ul.moves { margin: 0; padding-left: 18px; }
+.move { margin: 2px 0; overflow-wrap: anywhere; }
+.state { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px; background: var(--page); color: var(--muted); border: 1px solid var(--line); }
+.state.simulated { color: var(--simulated); border-color: var(--simulated); }

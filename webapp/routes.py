@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from . import api_checks, api_search, api_trials, api_watchlists
+from . import api_checks, api_search, api_summary, api_trials, api_watchlists
 
 ROUTES = [
     ("GET", r"/api/watchlists", api_watchlists.list_watchlists),
@@ -18,6 +18,7 @@ ROUTES = [
     ("GET", r"/api/trials/(?P<nct_id>[Nn][Cc][Tt]\d{8})", api_trials.trial),
     ("POST", r"/api/trials/(?P<nct_id>[Nn][Cc][Tt]\d{8})/review", api_trials.review),
     ("POST", r"/api/reviews/(?P<event_id>\d+)/undo", api_trials.undo_review),
+    ("GET", r"/api/watchlists/(?P<list_id>\d+)/summary", api_summary.summary),
 ]
 
 COMPILED = [(m, re.compile(p + r"\Z"), h) for m, p, h in ROUTES]
