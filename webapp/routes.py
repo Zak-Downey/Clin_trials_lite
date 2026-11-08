@@ -23,6 +23,7 @@ ROUTES = [
     ("POST", r"/api/watchlists/(?P<list_id>\d+)/trials/(?P<nct_id>[Nn][Cc][Tt]\d{8})/remove", api_trials.remove),
     ("POST", r"/api/removals/undo", api_trials.undo_removal),
     ("GET", r"/api/watchlists/(?P<list_id>\d+)/summary", api_summary.summary),
+    ("GET", r"/api/watchlists/(?P<list_id>\d+)/all-trials", api_watchlists.all_trials),
 ]
 
 COMPILED = [(m, re.compile(p + r"\Z"), h) for m, p, h in ROUTES]
