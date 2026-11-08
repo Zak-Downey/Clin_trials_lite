@@ -169,3 +169,14 @@ def test_a_stamp_without_an_offset_is_read_as_utc(monkeypatch):
     finally:
         monkeypatch.undo()
         time.tzset()
+
+
+def test_a_watchlists_last_checked_is_its_most_recently_checked_trial(seeded):
+    """test_a_watchlists_last_checked_is_its_most_recently_checked_trial"""
+    conn = storage.connect(seeded.path)
+    storage.mark_checked(conn, "NCT03412565", "2026-11-03T10:00:00+00:00")
+    storage.mark_checked(conn, "NCT00000002", "2026-11-09T10:00:00+00:00")
+    storage.mark_checked(conn, "NCT00000003", "2026-11-05T10:00:00+00:00")
+    conn.close()
+    (only,) = seeded.get("/api/watchlists")[1]["watchlists"]
+    assert only["last_checked"]["iso"].startswith("2026-11-09")
