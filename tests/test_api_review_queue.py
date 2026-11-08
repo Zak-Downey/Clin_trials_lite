@@ -132,7 +132,8 @@ def test_a_queue_entry_carries_what_the_row_shows(seeded):
     assert first["heading"].startswith("A Study to Evaluate Subcutaneous")
     assert second["heading"] == "ACRO"
     assert first["phase"] and first["sponsor"] and first["status"]
-    assert set(first["changed_fields"]) == {"overallStatus", "primaryCompletionDate", "enrollment"}
+    assert set(first["changed_fields"]) == {"Overall status", "Primary completion date", "Enrollment"}
+    assert first["status"] == "Completed"
     assert first["detected_at"]["iso"].startswith("2026-11-08")
     assert first["change_count"] == 3
     assert first["simulated"] is False and second["simulated"] is True

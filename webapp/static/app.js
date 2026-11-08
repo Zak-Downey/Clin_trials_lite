@@ -14,8 +14,16 @@ async function drawSidebar(activeId) {
     const name = document.createElement("span");
     name.textContent = w.name;
     const count = document.createElement("span");
-    count.className = w.needs_review_count ? "badge" : "count";
-    count.textContent = `${w.needs_review_count} to review · ${w.trial_count} trials`;
+    count.className = "counts";
+    const trials = `${w.trial_count} trial${w.trial_count === 1 ? "" : "s"}`;
+    if (w.needs_review_count) {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = `${w.needs_review_count} to review`;
+      count.append(badge, ` · ${trials}`);
+    } else {
+      count.textContent = `0 to review · ${trials}`;
+    }
     link.append(name, count);
     return link;
   }));
