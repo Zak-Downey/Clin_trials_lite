@@ -8,3 +8,4 @@ venv/
 
 # The built site, assembled by build_site.py.
 site/
+.claude/worktrees/
