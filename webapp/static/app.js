@@ -15,26 +15,29 @@ const el = (tag, attrs = {}) => {
 
 async function drawSidebar(activeId) {
   const { watchlists } = await get("/api/watchlists");
-  sidebar.replaceChildren(...watchlists.map((w) => {
+  const heading = document.createElement("h2");
+  heading.className = "sidebar-title";
+  heading.textContent = "Your watchlists";
+  const note = document.createElement("p");
+  note.className = "sidebar-note";
+  note.textContent = "Number badges show trials with unreviewed changes.";
+  sidebar.replaceChildren(heading, ...watchlists.map((w) => {
     const link = document.createElement("a");
     link.href = `#/watchlists/${w.id}/needs-review`;
     if (w.id === activeId) link.className = "active";
     const name = document.createElement("span");
+    name.className = "name";
     name.textContent = w.name;
-    const count = document.createElement("span");
-    count.className = "counts";
-    const trials = `${w.trial_count} trial${w.trial_count === 1 ? "" : "s"}`;
-    if (w.needs_review_count) {
-      const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = `${w.needs_review_count} to review`;
-      count.append(badge, ` · ${trials}`);
-    } else {
-      count.textContent = `0 to review · ${trials}`;
-    }
-    link.append(name, count);
+    const trials = document.createElement("span");
+    trials.className = "counts";
+    trials.textContent = `${w.trial_count} trial${w.trial_count === 1 ? "" : "s"}`;
+    const badge = document.createElement("span");
+    badge.className = "badge" + (w.needs_review_count ? "" : " none");
+    badge.textContent = String(w.needs_review_count);
+    badge.title = `${w.needs_review_count} to review`;
+    link.append(name, trials, badge);
     return link;
-  }));
+  }), note);
   return watchlists;
 }
 
