@@ -1,0 +1,139 @@
+# tip ee71b15d41db18a4f6f8398b7f8968ece2396dc6
+.........................................................FFFFFFFFF...... [ 13%]
+........................................................................ [ 26%]
+........................................................................ [ 39%]
+........................................................................ [ 52%]
+........................................................................ [ 65%]
+........................................................................ [ 78%]
+........................................................................ [ 91%]
+..............................................                           [100%]
+=================================== FAILURES ===================================
+_____________ test_a_watchlist_with_no_saved_search_reads_as_none ______________
+
+api = <conftest.api.<locals>.Client object at 0x10829a270>
+
+    def test_a_watchlist_with_no_saved_search_reads_as_none(api):
+        """test_a_watchlist_with_no_saved_search_reads_as_none"""
+        status, body = api.get("/api/watchlists/1/saved-search")
+>       assert status == 200 and body["saved_search"] is None
+E       assert (404 == 200)
+
+tests/test_api_saved_search.py:21: AssertionError
+______________ test_saving_a_search_stores_it_and_adds_no_trials _______________
+
+api = <conftest.api.<locals>.Client object at 0x10829a3c0>
+
+    def test_saving_a_search_stores_it_and_adds_no_trials(api):
+        """test_saving_a_search_stores_it_and_adds_no_trials"""
+        status, body = api.post("/api/watchlists/1/saved-search", {"query": QUERY})
+>       assert status == 200
+E       assert 404 == 200
+
+tests/test_api_saved_search.py:27: AssertionError
+_____________ test_saving_again_replaces_and_reports_the_old_query _____________
+
+api = <conftest.api.<locals>.Client object at 0x10829a660>
+
+    def test_saving_again_replaces_and_reports_the_old_query(api):
+        """test_saving_again_replaces_and_reports_the_old_query"""
+        api.post("/api/watchlists/1/saved-search", {"query": QUERY})
+        newer = {**QUERY, "cond": "lymphoma", "phase": []}
+        _, body = api.post("/api/watchlists/1/saved-search", {"query": newer})
+>       assert body["replaced"] is True and body["previous"] == QUERY
+               ^^^^^^^^^^^^^^^^
+E       KeyError: 'replaced'
+
+tests/test_api_saved_search.py:41: KeyError
+_______ test_a_query_that_names_nothing_is_refused_and_the_old_one_stays _______
+
+api = <conftest.api.<locals>.Client object at 0x108298ad0>
+
+    def test_a_query_that_names_nothing_is_refused_and_the_old_one_stays(api):
+        """test_a_query_that_names_nothing_is_refused_and_the_old_one_stays"""
+        api.post("/api/watchlists/1/saved-search", {"query": QUERY})
+        status, body = api.post("/api/watchlists/1/saved-search", {"query": {"status": ["RECRUITING"]}})
+>       assert status == 400 and body["error"]["kind"] == "nothing_asked"
+E       assert (404 == 400)
+
+tests/test_api_saved_search.py:49: AssertionError
+_____________ test_an_inverted_date_range_is_refused_as_bad_dates ______________
+
+api = <conftest.api.<locals>.Client object at 0x10829a900>
+
+    def test_an_inverted_date_range_is_refused_as_bad_dates(api):
+        """test_an_inverted_date_range_is_refused_as_bad_dates"""
+        status, body = api.post("/api/watchlists/1/saved-search",
+                                {"query": {"cond": "x", "started_from": "2022-01", "started_to": "2020-01"}})
+>       assert status == 400 and body["error"]["kind"] == "bad_dates"
+E       assert (404 == 400)
+
+tests/test_api_saved_search.py:57: AssertionError
+_________________ test_a_missing_or_malformed_query_is_refused _________________
+
+api = <conftest.api.<locals>.Client object at 0x10829a3c0>
+
+    def test_a_missing_or_malformed_query_is_refused(api):
+        """test_a_missing_or_malformed_query_is_refused"""
+>       assert api.post("/api/watchlists/1/saved-search", {})[1]["error"]["kind"] == "invalid_request"
+E       AssertionError: assert 'not_found' == 'invalid_request'
+E         
+E         - invalid_request
+E         + not_found
+
+tests/test_api_saved_search.py:62: AssertionError
+___ test_an_unknown_watchlist_answers_not_found_on_every_saved_search_route ____
+
+api = <conftest.api.<locals>.Client object at 0x10829aa50>
+
+    def test_an_unknown_watchlist_answers_not_found_on_every_saved_search_route(api):
+        """test_an_unknown_watchlist_answers_not_found_on_every_saved_search_route"""
+>       assert api.get("/api/watchlists/99/saved-search")[1]["error"]["kind"] == "watchlist_not_found"
+E       AssertionError: assert 'not_found' == 'watchlist_not_found'
+E         
+E         - watchlist_not_found
+E         + not_found
+
+tests/test_api_saved_search.py:69: AssertionError
+___________ test_turning_off_removes_the_search_and_keeps_the_trials ___________
+
+api = <conftest.api.<locals>.Client object at 0x108298ad0>
+record = {'protocolSection': {'identificationModule': {'nctId': 'NCT03412565', 'orgStudyIdInfo': {'id': 'CR108435'}, 'secondary...id': 'D001896', 'term': 'Boron Compounds'}, {'id': 'D009930', 'term': 'Organic Chemicals'}, ...]}}, 'hasResults': True}
+
+    def test_turning_off_removes_the_search_and_keeps_the_trials(api, record):
+        """test_turning_off_removes_the_search_and_keeps_the_trials"""
+        import monitor
+    
+        conn = storage.connect(api.path)
+        monitor.add(conn, "NCT03412565", 1, fetch=lambda _n: record, when="2026-11-01T08:00:00+00:00")
+        conn.close()
+        api.post("/api/watchlists/1/saved-search", {"query": QUERY})
+        status, body = api.post("/api/watchlists/1/saved-search/off")
+>       assert status == 200
+E       assert 404 == 200
+
+tests/test_api_saved_search.py:83: AssertionError
+_________________ test_a_saved_search_belongs_to_one_watchlist _________________
+
+api = <conftest.api.<locals>.Client object at 0x10829ae40>
+
+    def test_a_saved_search_belongs_to_one_watchlist(api):
+        """test_a_saved_search_belongs_to_one_watchlist"""
+        _, made = api.post("/api/watchlists", {"name": "Second"})
+        other = made["watchlist"]["id"]
+        api.post("/api/watchlists/1/saved-search", {"query": QUERY})
+>       assert api.get(f"/api/watchlists/{other}/saved-search")[1]["saved_search"] is None
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'saved_search'
+
+tests/test_api_saved_search.py:94: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_api_saved_search.py::test_a_watchlist_with_no_saved_search_reads_as_none
+FAILED tests/test_api_saved_search.py::test_saving_a_search_stores_it_and_adds_no_trials
+FAILED tests/test_api_saved_search.py::test_saving_again_replaces_and_reports_the_old_query
+FAILED tests/test_api_saved_search.py::test_a_query_that_names_nothing_is_refused_and_the_old_one_stays
+FAILED tests/test_api_saved_search.py::test_an_inverted_date_range_is_refused_as_bad_dates
+FAILED tests/test_api_saved_search.py::test_a_missing_or_malformed_query_is_refused
+FAILED tests/test_api_saved_search.py::test_an_unknown_watchlist_answers_not_found_on_every_saved_search_route
+FAILED tests/test_api_saved_search.py::test_turning_off_removes_the_search_and_keeps_the_trials
+FAILED tests/test_api_saved_search.py::test_a_saved_search_belongs_to_one_watchlist
+9 failed, 541 passed in 48.27s

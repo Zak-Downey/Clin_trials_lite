@@ -225,3 +225,12 @@ dialog.dialog h2 { margin: 0 0 12px; font-size: 18px; }
 .inline input { flex: 1; }
 .lookup-result { margin-top: 16px; }
 .next { color: var(--accent); font-weight: 600; }
+.summary-actions { display: flex; gap: 8px; align-items: center; }
+.query-box { background: var(--page); border-radius: 6px; padding: 12px 14px; margin: 12px 0; overflow-wrap: anywhere; }
+.replace-warning { background: #fff1d6; color: #8a5a00; border-radius: 6px; padding: 12px 14px; margin: 12px 0; overflow-wrap: anywhere; }
+.replace-warning .meta { color: #8a5a00; }
+.saved-note { background: #e4f4ef; border-radius: 6px; padding: 12px 16px; }
+.saved-note h3 { margin: 0 0 6px; font-size: 18px; }
+.saved-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 14px; margin: 0 0 12px; background: var(--accent-soft); border-radius: 6px; font-size: 14px; }
+.saved-banner span { flex: 1 1 320px; }
+button.danger { color: #b42318; }

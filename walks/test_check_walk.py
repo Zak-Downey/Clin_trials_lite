@@ -51,7 +51,7 @@ def test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check(make
     meta = page.locator("#watchlist-meta").inner_text()
     assert meta == "3 trials monitored · Last checked Nov 8, 2026, 11:45 AM EST", meta
     buttons = page.get_by_role("main").get_by_role("button")
-    assert [buttons.nth(i).inner_text() for i in range(buttons.count())] == ["Check for updates"]
+    assert [buttons.nth(i).inner_text() for i in range(buttons.count())] == ["Check for updates", "Manage"]  # Manage: the saved-search banner (this seed has one)
     add = page.get_by_role("link", name="Add trials")
     assert add.get_attribute("href") == "#/find/1"
     text = page.get_by_role("main").inner_text().lower()
