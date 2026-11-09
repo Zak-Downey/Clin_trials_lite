@@ -17,7 +17,7 @@ from gate.tracker import Feature, HEADER_RE, REVIEWED_KINDS, table_cells, tracke
 
 def record_paths_ok(path: str, tracker: str) -> bool:
     return (fnmatch.fnmatch(path, "docs/agents/local/*.jsonl") and path.count("/") == 3
-            or path in ("docs/agents/local/ledger.md", "docs/agents/local/rules.md")
+            or path in ("docs/agents/local/ledger.md", "docs/agents/local/rules.md", "docs/agents/local/github-storage.json")
             or path.startswith(tracker + "/"))
 
 
@@ -340,7 +340,23 @@ class Audit:
         before = self.violations
         open_merge = None
         windows = []
-        for entry in entries:
+        aborted = {}
+        for at, entry in enumerate(entries):
+            if entry["verb"] != "merge-abort":
+                continue
+            number, when = entry["args"][0], entry["args"][1]
+            found = next((i for i in range(at) if entries[i]["verb"] == "merge-start" and entries[i]["args"][0] == number and entries[i]["time"] == when), None)
+            if found is None:
+                self.bad(rule, "merge-abort %s %s names no merge-start %s at that time" % (number, when, number))
+                continue
+            later = next((i for i in range(found + 1, len(entries)) if entries[i]["verb"] == "merge-start"), len(entries))
+            if any(entries[i]["verb"] == "merge-end" and entries[i]["args"][0] == number for i in range(found + 1, later)):
+                self.bad(rule, "merge-abort %s %s names a merge-start that was ended by a merge-end before the next merge-start" % (number, when))
+                continue
+            aborted[found] = " ".join(entry["args"][2:]).strip('"')
+        for at, entry in enumerate(entries):
+            if at in aborted:
+                continue
             if entry["verb"] == "merge-start":
                 if open_merge:
                     self.bad(rule, "merge-start %s at %s while the merge of %s (started %s) had no merge-end" % (entry["args"][0], entry["time"], open_merge["args"][0], open_merge["time"]))
@@ -354,7 +370,7 @@ class Audit:
         if open_merge:
             self.bad(rule, "merge-start %s at %s has no merge-end (a merge still open, or the merger died)" % (open_merge["args"][0], open_merge["time"]))
         if self.violations == before:
-            self.say(rule)
+            self.say(rule, "; ".join("merge-start %s %s aborted (logged later): %s" % (entries[i]["args"][0], entries[i]["time"], reason) for i, reason in sorted(aborted.items())))
         rule = "%s: no commit landed during a merge" % name
         before = self.violations
         commits = first_parent_commits(root, limit) if limit else []
@@ -460,14 +476,50 @@ class Audit:
         rule = "%s: design decisions logged" % name
         before = self.violations + self.legacy
         opens = [e for e in entries if e["verb"] == "open"]
+        decided = [e for e in entries if e["verb"] == "decided"]
+        notes = []
+        designs = [t for t in feature.tickets.values() if t.kind == "design" and t.label in merged_at]
+        for entry in decided:
+            if not designs:
+                self.bad(rule, "decided %s %s: the feature has no merged Kind: design ticket" % (entry["args"][0], entry["args"][1][:7]))
+            elif not any(self.decided_commit(feature, t, entry, merges) for t in designs):
+                self.bad(rule, "decided %s %s %s" % (entry["args"][0], entry["args"][1][:7], self.decided_why(feature, designs[0], entry, merges)))
         for number, ticket in sorted(feature.tickets.items()):
             if ticket.kind != "design" or ticket.label not in merged_at:
                 continue
             named = [e for e in opens if ticket.stem in e["text"] or re.search(r"\bticket\s+0*%d\b" % ticket.number, e["text"], re.I)]
-            if not any((log_epoch(e["time"]) or 0) <= merged_at[ticket.label] for e in named):
+            if any((log_epoch(e["time"]) or 0) <= merged_at[ticket.label] for e in named):
+                continue
+            late = next((c for c in (self.decided_commit(feature, ticket, e, merges) for e in decided) if c), None)
+            if late:
+                notes.append("ticket %s decided in %s (logged later)" % (ticket.label, late[:7]))
+            else:
                 self.missing(rule, "open <n> \"...ticket %s...\" before the merge of ticket %s" % (ticket.label, ticket.label), era, merged_at[ticket.label])
         if self.violations + self.legacy == before:
-            self.say(rule)
+            self.say(rule, "; ".join(notes))
+
+    def decided_why(self, feature, ticket, entry, merges) -> str:
+        """Why `decided <n> <commit>` does not stand for the ticket, or "" when it does."""
+        root, number, commit = self.root, entry["args"][0], entry["args"][1]
+        full = run_git(root, "rev-parse", "--verify", "-q", "%s^{commit}" % commit)
+        if not full:
+            return "is not a commit here"
+        merge = next((m[1] for m in merges if m[0] == ticket.label), None)
+        if not merge or run_git(root, "merge-base", "--is-ancestor", full, merge) is None:
+            return "is not an ancestor of the merge of ticket %s" % ticket.label
+        rel = "%s/%s/spec.md" % (tracker_dir(self.config), feature.name)
+        if rel not in (run_git(root, "show", "--name-only", "--format=", full) or "").split("\n"):
+            return "does not change the spec"
+        text = run_git(root, "show", "%s:%s" % (full, rel)) or ""
+        heading = re.search(r"^##\s+Open list\b.*$", text, re.M | re.I)
+        body = re.split(r"^##\s", text[heading.end():], maxsplit=1, flags=re.M)[0] if heading else ""
+        item = re.search(r"^%d\.\s.*(?:\n(?![0-9]+\.\s).*)*" % int(number), body, re.M)
+        if not item or not re.search(r"\bticket\s+0*%d\b" % ticket.number, item.group(0), re.I):
+            return "item %s does not name ticket %s in the Open list at that commit" % (number, ticket.label)
+        return ""
+
+    def decided_commit(self, feature, ticket, entry, merges):
+        return entry["args"][1] if not self.decided_why(feature, ticket, entry, merges) else None
 
     def stamps(self) -> None:
         rule = "stamps"

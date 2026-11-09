@@ -230,11 +230,80 @@ class ConfigCommand(unittest.TestCase):
         """The seed factory.json validates with every key present"""
         with open(SEED, encoding="utf-8") as handle:
             raw = json.load(handle)
-        self.assertEqual([k for k in raw if not k.startswith("$comment")], list(schema_keys()))
-        self.assertEqual([k for k in schema_keys() if "$comment " + k not in raw], [])
+        self.assertEqual([k for k in raw if not k.startswith("$comment")], [k for k in schema_keys() if k != "prices"])
+        self.assertEqual([k for k in schema_keys() if k != "prices" and "$comment " + k not in raw], [])
         with tempfile.TemporaryDirectory() as root:
             problems, _ = validate(without_comments(raw), root)
         self.assertEqual(problems, [])
+
+
+class Prices(unittest.TestCase):
+    """`prices` in factory.json. Fixture: one model; the real ids are whatever the user names."""
+
+    def config_with(self, prices):
+        repo = Repo()
+        write_config(repo, checks=[GOOD_CHECK], prices=prices)
+        return repo
+
+    def test_a_well_formed_prices_block_passes_config_and_frontier_runs(self):
+        """A well formed prices block passes config and frontier runs"""
+        repo = self.config_with({"claude-opus": {"input": 15, "output": 75.5, "cache_read": 1.5, "cache_write": 0}, "claude-haiku": {}})
+        code, out = repo.gate("config")
+        self.assertEqual(code, 0, out)
+        repo.write(".scratch/f/issues/01-a.md", "# 01\n\n**Status:** ready-for-agent\n")
+        code, out = repo.gate("frontier", "f")
+        self.assertNotIn("factory.json", out)
+
+    def test_config_refuses_a_string_price_naming_the_model_and_kind(self):
+        """Config refuses a string price naming the model and kind"""
+        code, out = self.config_with({"claude-opus": {"input": "15"}}).gate("config")
+        self.assertEqual(code, 1, out)
+        self.assertIn("prices.claude-opus.input", out)
+
+    def test_config_refuses_a_negative_price_naming_the_model_and_kind(self):
+        """Config refuses a negative price naming the model and kind"""
+        code, out = self.config_with({"claude-opus": {"output": -1}}).gate("config")
+        self.assertEqual(code, 1, out)
+        self.assertIn("prices.claude-opus.output", out)
+
+    def test_config_checks_every_model_not_only_the_first(self):
+        """Config checks every model not only the first"""
+        code, out = self.config_with({"claude-opus": {"input": 1}, "claude-haiku": {"input": -2}}).gate("config")
+        self.assertEqual(code, 1, out)
+        self.assertIn("prices.claude-haiku.input", out)
+
+    def test_config_refuses_a_boolean_price(self):
+        """Config refuses a boolean price"""
+        code, out = self.config_with({"claude-opus": {"input": True}}).gate("config")
+        self.assertEqual(code, 1, out)
+
+    def test_config_refuses_an_unknown_token_kind_naming_the_model_and_kind(self):
+        """Config refuses an unknown token kind naming the model and kind"""
+        code, out = self.config_with({"claude-opus": {"thinking": 3}}).gate("config")
+        self.assertEqual(code, 1, out)
+        self.assertIn("prices.claude-opus.thinking", out)
+
+    def test_config_refuses_a_model_whose_prices_are_not_an_object(self):
+        """Config refuses a model whose prices are not an object"""
+        code, out = self.config_with({"claude-opus": 5}).gate("config")
+        self.assertEqual(code, 1, out)
+        self.assertIn("prices.claude-opus", out)
+
+    def test_config_keys_lists_prices_with_type_default_and_fields(self):
+        """Config keys lists prices with type default and fields"""
+        code, out = Repo().gate("config", "--keys")
+        line = [l for l in out.splitlines() if l.startswith("prices ")][0]
+        self.assertIn("object", line)
+        self.assertIn("default none", line)
+        for kind in ("input", "output", "cache_read", "cache_write"):
+            self.assertIn("  .%s " % kind, out)
+
+    def test_the_seed_has_no_prices_key(self):
+        """The seed has no prices key"""
+        if not (SEED and os.path.isfile(SEED)):
+            self.skipTest("the seed is in the kit's source repo")
+        with open(SEED, encoding="utf-8") as handle:
+            self.assertNotIn("prices", handle.read())
 
 
 class ConfigReach(unittest.TestCase):

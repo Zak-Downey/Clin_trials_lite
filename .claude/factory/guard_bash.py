@@ -68,7 +68,7 @@ DOC = "docs/agents/every-agent.md"
 # Every log verb a subagent may not write: all of the grammar but `report` (`gate.py` log grammar, orchestrator.md).
 # `merge-start` and `merge-end` are written by `gate.py merge`, and `open` by `gate.py open`; none is written by hand.
 ORCHESTRATOR_LOG_VERBS = ("dispatch", "resume", "foundation-read", "review-wave", "spec-against-brief",
-                          "merge-start", "merge-end", "open", "observation", "note")
+                          "merge-start", "merge-end", "merge-abort", "decided", "open", "observation", "note")
 
 
 class Refusal(Exception):

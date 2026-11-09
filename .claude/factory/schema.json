@@ -24,6 +24,11 @@
     "mutate_except": {"type": "list of string", "default": [], "meaning": "Paths under mutate_paths too slow to mutate; the reviewer's hand sample covers them."},
     "mutate_command": {"type": "string", "default": null, "required_when_nonempty": "mutate_paths", "meaning": "Shell command that mutates the changed files; {files} is their comma-separated list."},
     "mutate_report": {"type": "string", "default": null, "required_when_nonempty": "mutate_paths", "meaning": "Where the command leaves its report, in the mutation-testing-elements JSON shape (files{path}.mutants[].status, location, mutatorName)."},
-    "mutate_timeout_s": {"type": "integer", "default": null, "meaning": "Seconds before the mutation run is killed."}
+    "mutate_timeout_s": {"type": "integer", "default": null, "meaning": "Seconds before the mutation run is killed."},
+    "prices": {"type": "object", "default": null, "meaning": "Dollars per million tokens, by model id; each value sets the four token kinds; a model whose price leaves out a kind its records used is unpriced, never counted as free for that kind.", "values": {"type": "object", "fields": {
+      "input": {"type": "number", "meaning": "Price of an input token."},
+      "output": {"type": "number", "meaning": "Price of an output token."},
+      "cache_read": {"type": "number", "meaning": "Price of a token read from the cache."},
+      "cache_write": {"type": "number", "meaning": "Price of a token written to the cache."}}}}
   }
 }

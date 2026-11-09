@@ -53,6 +53,9 @@ class Escapes(unittest.TestCase):
             line = json.loads(handle.read().strip().split("\n")[-1])
         self.assertEqual(line, {"date": "2026-11-08", "feature": "feat", "id": "E-003", "class": "blocking", "found_by": "branch-review",
                                 "should_have_been": "ticket-review", "fixed_in": "ticket 04", "rule_id": "R-3", "flake": ""})
+        from gate.records import unclassified, well_typed
+        self.assertEqual(unclassified("escapes", line), [])
+        self.assertTrue(well_typed("escapes", line))
         row = [l for l in out.split("\n") if l.startswith("| E-003")][0]
         cells = [c.strip() for c in row.strip("|").split("|")]
         self.assertEqual(cells[:7], ["E-003", "2026-11-08", "feat", "A thing broke", "branch-review", "ticket-review", "ticket 04"])

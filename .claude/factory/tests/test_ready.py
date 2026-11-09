@@ -3,6 +3,7 @@
 Run: python3 -B -m unittest discover -s kit/_claude/factory/tests
 """
 import json
+import re
 import os
 import subprocess
 import unittest
@@ -137,8 +138,8 @@ class Ready(unittest.TestCase):
 class Close(unittest.TestCase):
     """`gate.py close` and the records stamp, in a throwaway repo with a worktree and a log."""
 
-    def made(self, roles=False):
-        repo = Repo()
+    def made(self, roles=False, extra=None):
+        repo = Repo(extra=extra)
         repo.write(".gitignore", ".claude/worktrees/\n")
         repo.write("docs/agents/local/ledger.md", "# Ledger\n\n## Builds\n\n| Feature | Dates | Tickets |\n|---|---|---|\n| old | then | 1 |\n\n## Recurring findings\n")
         repo.ticket("01")
@@ -236,6 +237,253 @@ class Close(unittest.TestCase):
         code, out = self.in_process(repo, ["close", "feat"], audit=lambda root, config, names, report=None: 1)
         self.assertEqual(code, 1)
         self.assertIn("refused by close-audit", out)
+
+    def transcripts(self, model="model-one"):
+        """A projects root holding session s1 with agent a1's transcript (10+20+30+40 tokens), set as $GATE_PROJECTS_DIR."""
+        import shutil
+        import tempfile
+        projects = tempfile.mkdtemp(prefix="gate-projects-")
+        self.addCleanup(shutil.rmtree, projects, True)
+        folder = os.path.join(projects, "-proj", "s1", "subagents")
+        os.makedirs(folder)
+        usage = {"input_tokens": 10, "output_tokens": 20, "cache_read_input_tokens": 30, "cache_creation_input_tokens": 40}
+        with open(os.path.join(folder, "agent-a1.jsonl"), "w", encoding="utf-8") as handle:
+            handle.write(json.dumps({"timestamp": "2026-11-08T10:00:00.000Z", "message": {"id": "m1", "model": model, "usage": usage}}) + "\n")
+        return projects
+
+    def close_with(self, repo, projects=None, patches=(), env=None):
+        """`close feat` in this process with $GATE_PROJECTS_DIR (an empty folder by default) and the named gate.ready attributes replaced."""
+        import contextlib
+        from unittest import mock
+        from gate import ready
+        import tempfile
+        projects = projects or tempfile.mkdtemp(prefix="gate-projects-")
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(mock.patch.dict(os.environ, dict({"GATE_PROJECTS_DIR": projects}, **(env or {}))))
+            for name, value in patches:
+                stack.enter_context(mock.patch.object(ready, name, value))
+            return self.in_process(repo, ["close", "feat"])
+
+    def test_close_writes_the_tokens_record_beside_the_builds_line(self):
+        """Close writes the tokens record beside the builds line"""
+        repo = self.stamped()
+        code, out = self.close_with(repo, self.transcripts())
+        self.assertEqual(code, 0, out)
+        with open(os.path.join(repo.root, "docs/agents/local/tokens.jsonl"), encoding="utf-8") as handle:
+            lines = [json.loads(l) for l in handle if l.strip()]
+        self.assertEqual([(l["feature"], l["agent"], l["output"]) for l in lines], [("feat", "a1", 20)])
+        self.assertEqual([r["feature"] for r in self.jsonl(repo)], ["feat"])
+        self.assertEqual(self.jsonl(repo)[0]["tip"], repo.head())
+
+    def test_close_writes_lines_the_record_shapes_name_and_accept(self):
+        """The lines close writes to builds.jsonl and tokens.jsonl are well typed and every field is named by their shape"""
+        from gate.records import unclassified, well_typed
+        repo = self.stamped()
+        self.assertEqual(self.close_with(repo, self.transcripts())[0], 0)
+        with open(os.path.join(repo.root, "docs/agents/local/tokens.jsonl"), encoding="utf-8") as handle:
+            tokens = [json.loads(l) for l in handle if l.strip()]
+        for name, lines in (("builds", self.jsonl(repo)), ("tokens", tokens)):
+            self.assertTrue(lines, name)
+            for line in lines:
+                self.assertEqual(unclassified(name, line), [], name)
+                self.assertTrue(well_typed(name, line), name)
+
+    def test_close_facts_carry_tokens_and_cost(self):
+        """Close's facts carry the tokens and the cost with the unpriced models"""
+        prices = {"model-one": {"input": 1000000, "output": 0, "cache_read": 0, "cache_write": 0}}
+        repo = self.stamped(extra={"prices": prices})
+        code, out = self.close_with(repo, self.transcripts())
+        self.assertIn("- Tokens: 100\n", out)
+        self.assertIn("- Cost: $10.00 (0 model(s) unpriced)", out)
+        repo = self.stamped(extra={"prices": {"other": prices["model-one"]}})
+        code, out = self.close_with(repo, self.transcripts())
+        self.assertIn("- Cost: $0.00 (1 model(s) unpriced)", out)
+        repo = self.stamped()
+        code, out = self.close_with(repo, self.transcripts())
+        self.assertIn("- Tokens: 100\n", out)
+        self.assertNotIn("- Cost:", out)
+
+    def test_close_with_no_transcripts_says_tokens_not_read_and_prints_no_cost(self):
+        """No transcripts found: Tokens: not read (the tokens line's reason) and no Cost line"""
+        repo = self.stamped(extra={"prices": {"model-one": {"input": 3}}})
+        code, out = self.close_with(repo)
+        tokens_line = [l for l in out.split("\n") if l.startswith("tokens: ")][0]
+        reason = tokens_line[len("tokens: "):]
+        self.assertIn("- Tokens: not read (%s)\n" % reason, out)
+        self.assertNotIn("- Cost:", out)
+        self.assertNotIn("- Tokens: 0", out)
+
+    def test_close_facts_count_a_model_missing_a_kind_it_used_as_unpriced(self):
+        """A price without the cache kinds leaves the cache-read record unpriced in the Facts"""
+        repo = self.stamped(extra={"prices": {"model-one": {"input": 3, "output": 15}}})
+        code, out = self.close_with(repo, self.transcripts())
+        self.assertIn("(1 model(s) unpriced)", out)
+        full = {"input": 3, "output": 15, "cache_read": 0.3, "cache_write": 3.75}
+        repo = self.stamped(extra={"prices": {"model-one": full}})
+        code, out = self.close_with(repo, self.transcripts())
+        self.assertIn("(0 model(s) unpriced)", out)
+
+    def test_close_writes_the_page_and_the_handover_names_it(self):
+        """Close writes the page and the hand-over names its path"""
+        repo = self.stamped()
+        code, out = self.close_with(repo)
+        self.assertEqual(code, 0, out)
+        line = [l for l in out.split("\n") if l.startswith("dashboard: ")]
+        self.assertEqual(len(line), 1, out)
+        path = line[0][len("dashboard: "):]
+        self.assertTrue(os.path.isfile(path), path)
+        self.assertLess(out.index("dashboard: "), out.index("git worktree remove"))
+        code, text = repo.gate("handover", "feat")
+        self.assertIn("Dashboard: %s" % path, text)
+
+    def test_close_of_a_build_and_its_fix_round_gives_the_page_the_facts_figures(self):
+        """The page after a close of two features has the Facts' build cost and tokens"""
+        prices = {"model-one": {"input": 1000000, "output": 1000000, "cache_read": 1000000, "cache_write": 1000000}}
+        repo = self.made(extra={"prices": prices})
+        repo.write(".scratch/feat-review/spec.md", "# Fix\n")
+        with open(os.path.join(repo.root, ".scratch/feat/issues/01-thing.md"), encoding="utf-8") as handle:
+            repo.write(".scratch/feat-review/issues/01-fix.md", handle.read())
+        repo.commit()
+        repo.gate("log", "feat-review", "dispatch", "01", "implementer", "--agent", "a9")
+        code, out = repo.gate("ready", "feat", "feat-review")
+        self.assertEqual(code, 0, out)
+        projects = self.transcripts()
+        usage = {"input_tokens": 1, "output_tokens": 2, "cache_read_input_tokens": 3, "cache_creation_input_tokens": 4}
+        with open(os.path.join(projects, "-proj", "s1", "subagents", "agent-a9.jsonl"), "w", encoding="utf-8") as handle:
+            handle.write(json.dumps({"timestamp": "2026-11-08T10:00:00.000Z", "message": {"id": "m9", "model": "model-one", "usage": usage}}) + "\n")
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"GATE_PROJECTS_DIR": projects}):
+            code, out = self.in_process(repo, ["close", "feat", "feat-review"])
+        self.assertEqual(code, 0, out)
+        tokens = re.search(r"- Tokens: (\d+)", out).group(1)
+        cost = re.search(r"- Cost: (\$[\d.]+)", out).group(1)
+        path = [l for l in out.split("\n") if l.startswith("dashboard: ")][0][len("dashboard: "):]
+        with open(path, encoding="utf-8") as handle:
+            page = handle.read()
+        self.assertEqual(tokens, "110")
+        self.assertIn('<div class="kpi-value">%s</div>' % cost, page)
+        self.assertIn("<td>110</td>", page)
+
+    def test_close_facts_total_the_tokens_file_and_name_a_feature_kept_from_an_earlier_read(self):
+        """Close of a feature with transcripts and one with only old tokens lines totals both, as the page does, and names the older one"""
+        prices = {"model-one": {"input": 1000000, "output": 1000000, "cache_read": 1000000, "cache_write": 1000000}}
+        repo = self.made(extra={"prices": prices})
+        repo.write(".scratch/feat-review/spec.md", "# Fix\n")
+        with open(os.path.join(repo.root, ".scratch/feat/issues/01-thing.md"), encoding="utf-8") as handle:
+            repo.write(".scratch/feat-review/issues/01-fix.md", handle.read())
+        old = {"date": "2026-11-07", "feature": "feat-review", "ticket": "01", "role": "implementer", "agent": "a9", "model": "model-one",
+               "input": 1, "output": 2, "cache_read": 3, "cache_write": 4}
+        repo.write("docs/agents/local/tokens.jsonl", json.dumps(old) + "\n" + json.dumps(dict(old, feature="other", input=5000)) + "\n")
+        repo.commit()
+        code, out = repo.gate("ready", "feat", "feat-review")
+        self.assertEqual(code, 0, out)
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"GATE_PROJECTS_DIR": self.transcripts()}):
+            code, out = self.in_process(repo, ["close", "feat", "feat-review"])
+        self.assertEqual(code, 0, out)
+        self.assertIn("- Tokens: 110\n", out)
+        cost = re.search(r"- Cost: (\$[\d.]+)", out).group(1)
+        self.assertEqual(cost, "$%.2f" % (110 / 1e6 * 1e6))
+        self.assertIn("- Older figures: feat-review (lines kept from an earlier read)", out)
+        path = [l for l in out.split("\n") if l.startswith("dashboard: ")][0][len("dashboard: "):]
+        with open(path, encoding="utf-8") as handle:
+            page = handle.read()
+        self.assertIn('<div class="kpi-value">%s</div>' % cost, page)
+        self.assertIn("<td>110</td>", page)
+
+    def test_close_counts_a_flake_recorded_and_committed_before_the_close(self):
+        """A committed flake is counted by the Facts, the hand-over and the page"""
+        repo = self.made()
+        repo.write("docs/agents/local/flakes.jsonl", json.dumps({"date": "d", "feature": "feat", "file": "w.js", "title": "walk A", "tip": "old0000"}) + "\n")
+        repo.commit()
+        self.assertEqual(repo.gate("ready", "feat")[0], 0)
+        code, out = self.close_with(repo)
+        self.assertEqual(code, 0, out)
+        self.assertIn("- Flakes: 1", out)
+        path = [l for l in out.split("\n") if l.startswith("dashboard: ")][0][len("dashboard: "):]
+        with open(path, encoding="utf-8") as handle:
+            self.assertIn('<div class="kpi-label">Flakes</div><div class="kpi-value">1</div>', handle.read())
+        self.assertIn("## Flakes this build (1)", repo.gate("handover", "feat")[1])
+
+    def test_a_flake_of_a_two_feature_ready_counts_once_for_the_close(self):
+        """A flake recorded by ready x x-review counts once"""
+        from gate.dashboard import count_flakes, feature_names
+        rows = [{"feature": "feat, feat-review", "title": "t"}, {"feature": "other", "title": "u"}, {"feature": "feat", "title": "v"}]
+        self.assertEqual(count_flakes(rows, ["feat", "feat-review"]), 2)
+        self.assertEqual(feature_names("a, b"), ["a", "b"])
+
+    def test_close_facts_count_a_two_feature_flake_once(self):
+        """Close of two features prints Flakes: 1 for one flake"""
+        repo = self.made()
+        repo.write(".scratch/feat-review/spec.md", "# Fix\n")
+        with open(os.path.join(repo.root, ".scratch/feat/issues/01-thing.md"), encoding="utf-8") as handle:
+            repo.write(".scratch/feat-review/issues/01-fix.md", handle.read())
+        repo.write("docs/agents/local/flakes.jsonl", json.dumps({"date": "d", "feature": "feat, feat-review", "file": "w.js", "title": "walk A", "tip": "old0000"}) + "\n"
+                   + json.dumps({"date": "d", "feature": "feat-review", "file": "w.js", "title": "walk B", "tip": "old0000"}) + "\n")
+        repo.commit()
+        code, out = repo.gate("ready", "feat", "feat-review")
+        self.assertEqual(code, 0, out)
+        code, out = repo.gate("close", "feat", "feat-review")
+        self.assertIn("- Flakes: 2", out)
+
+    def test_a_raising_tokens_writer_is_said_and_close_still_writes_its_other_records(self):
+        """A tokens writer that raises is said on a tokens: failed line and close still writes builds.jsonl"""
+        def boom(*args, **kwargs):
+            raise RuntimeError("boom")
+        repo = self.stamped()
+        code, out = self.close_with(repo, patches=(("write_tokens", boom),))
+        self.assertEqual(code, 0, out)
+        self.assertIn("tokens: failed (boom)", out)
+        self.assertEqual([r["feature"] for r in self.jsonl(repo)], ["feat"])
+        self.assertIn("## Facts", out)
+
+    def test_close_exits_as_before_when_dashboard_or_github_fail(self):
+        """Close exits as before when the dashboard or github fail"""
+        def boom(*args, **kwargs):
+            raise RuntimeError("boom")
+        for patches, word in (((("cmd_dashboard", boom),), "dashboard"), ((("cmd_github", lambda *a: 1), ("has_github_remote", lambda root: True)), "github"),
+                              ((("cmd_github", boom), ("has_github_remote", lambda root: True)), "github")):
+            repo = self.stamped()
+            code, out = self.close_with(repo, patches=patches)
+            self.assertEqual(code, 0, out)
+            failed = [l for l in out.split("\n") if l.startswith(word + ": ") and "failed" in l]
+            self.assertEqual(len(failed), 1, out)
+            self.assertIn("## Facts", out)
+            self.assertIn("git worktree remove", out)
+
+    def stub_gh(self):
+        import stat
+        import tempfile
+        folder = tempfile.mkdtemp(prefix="gate-gh-")
+        self.addCleanup(__import__("shutil").rmtree, folder, True)
+        log = os.path.join(folder, "calls.txt")
+        with open(os.path.join(folder, "gh"), "w", encoding="utf-8") as handle:
+            handle.write("#!/bin/sh\necho \"$@\" >> '%s'\necho '{}'\n" % log)
+        os.chmod(os.path.join(folder, "gh"), stat.S_IRWXU)
+        return folder, log
+
+    def test_close_runs_github_only_with_a_github_remote(self):
+        """Close runs github with a GitHub remote and not without one"""
+        folder, log = self.stub_gh()
+        env = {"PATH": folder + os.pathsep + os.environ["PATH"]}
+        repo = self.stamped()
+        code, out = self.close_with(repo, env=env)
+        self.assertEqual(code, 0, out)
+        self.assertFalse(os.path.exists(log), out)
+        self.assertNotIn("github:", out)
+        repo = self.stamped()
+        git(repo.root, "remote", "add", "origin", "git@github.com:owner/repo.git")
+        code, out = self.close_with(repo, env=env)
+        self.assertEqual(code, 0, out)
+        self.assertTrue(os.path.exists(log), out)
+        with open(log, encoding="utf-8") as handle:
+            self.assertIn("auth status", handle.read())
+
+    def test_a_records_commit_may_hold_the_github_storage_file(self):
+        """A records commit may hold the github storage file"""
+        from gate.audit import record_paths_ok
+        self.assertTrue(record_paths_ok("docs/agents/local/github-storage.json", ".scratch"))
+        self.assertFalse(record_paths_ok("docs/agents/local/factory.json", ".scratch"))
 
     def closed(self):
         repo = self.stamped()
@@ -438,6 +686,16 @@ class Handover(unittest.TestCase):
         out = self.repo().gate("handover", "feat")[1]
         self.assertIn("## Proposed rules (0)", out)
         self.assertIn("no rule queue file", out)
+
+    def test_a_flakes_line_of_the_wrong_type_does_not_crash_handover(self):
+        """Handover and the flake count read flakes.jsonl through the shared reader and skip a list title and an array line"""
+        repo = self.repo()
+        rows = [{"date": "d", "feature": "feat", "file": "w.js", "title": "walk A", "tip": "t"}, {"date": "d", "feature": "feat", "file": "w.js", "title": ["walk A"], "tip": "t"}]
+        repo.write("docs/agents/local/flakes.jsonl", "".join(json.dumps(r) + "\n" for r in rows) + "[1]\n")
+        repo.commit()
+        code, out = repo.gate("handover", "feat")
+        self.assertEqual(code, 0, out)
+        self.assertIn("walk A: 1", out)
 
     def test_handover_lists_flakes(self):
         """Handover lists flakes"""

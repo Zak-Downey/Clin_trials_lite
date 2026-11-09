@@ -47,6 +47,11 @@ what an agent used to decide by memory.
                                    against the loop's rules, one line per rule: ok, a violation, or `expected and did
                                    not find: <line>`; with --report, the report's hashes, built tip and counts too.
                                    `close` runs it first; `ready --records` runs it on the committed report
+  gate.py dashboard [<out.html>] [--sample]  write the dashboard page (default <git dir>/factory/dashboard.html);
+                                   --sample draws it from invented figures, labelled as such
+  gate.py github [--year YYYY --month MM]  record this repository's GitHub Actions usage for a month
+                                   (default the current one) and its artifact and cache storage
+  gate.py stats --write <feature> [more]  write the tokens record for features already closed
   gate.py stats                    each build log's first and last time; which guard rules have fired, and for whom;
                                    escapes per build by gate, the misclass count, tokens per role (read from the
                                    subagent transcripts) per finding and per missed escape. Judges nothing
@@ -90,10 +95,12 @@ import os
 
 from gate.audit import cmd_audit
 from gate.checks import cmd_checks, cmd_lint, cmd_red
+from gate.dashboard import cmd_dashboard
 from gate.config import cmd_config, load_config, refusals
 from gate.evidence import Resolver, cmd_boxes, cmd_ticket
 from gate.frontier import cmd_frontier
 from gate.git import find_root
+from gate.github import cmd_github
 from gate.ledger import cmd_ledger, cmd_stats
 from gate.log import cmd_log, cmd_open
 from gate.merge import cmd_merge
@@ -101,6 +108,7 @@ from gate.mutate import cmd_mutate
 from gate.ready import cmd_close, cmd_handover, cmd_ready, cmd_ready_records
 from gate.release import cmd_release
 from gate.refuse import refuse
+from gate.tokens import cmd_stats_write
 from gate.tracker import Feature, list_features, tracker_dir
 
 
@@ -116,7 +124,7 @@ def main(argv: list) -> int:
         return refuse("config-json", "factory.json is not valid JSON (%s)" % error, "valid JSON in docs/agents/local/factory.json")
     if command == "config":
         return cmd_config(root, argv[2:])
-    if command in ("checks", "ready", "merge", "release", "red", "ticket", "mutate", "lint", "frontier", "boxes", "handover", "audit", "close", "features", "log", "open"):
+    if command in ("checks", "ready", "merge", "release", "red", "ticket", "mutate", "lint", "frontier", "boxes", "handover", "audit", "close", "features", "log", "open", "dashboard") and not (command == "dashboard" and "--sample" in argv):
         problems = refusals(root)
         if problems:
             for problem in problems:
@@ -138,7 +146,36 @@ def main(argv: list) -> int:
             return 2
         return cmd_checks(root, config, argv[3] if len(argv) == 4 else None)
     if command == "stats":
-        return cmd_stats(root, config)
+        if len(argv) == 2:
+            return cmd_stats(root, config)
+        if argv[2] != "--write":
+            print("gate: usage: stats [--write <feature> [more]]")
+            return 2
+        names = argv[3:]
+        if not names:
+            print("gate: usage: stats --write <feature> [more]")
+            return 2
+        for name in names:
+            if os.path.normpath(name) != name or os.sep in name or not os.path.isfile(os.path.join(root, tracker_dir(config), name, "spec.md")):
+                return refuse("known-feature", "%s is not a feature (no %s/spec.md)" % (name, os.path.join(tracker_dir(config), name)), "one of the features here: %s" % (", ".join(list_features(root, config)) or "none"), 2)
+        return cmd_stats_write(root, config, names)
+    if command == "dashboard":
+        rest = argv[2:]
+        sample = "--sample" in rest
+        paths = [a for a in rest if a != "--sample"]
+        if len(paths) > 1 or any(a.startswith("-") for a in paths):
+            print("gate: usage: dashboard [<out.html>] [--sample]")
+            return 2
+        return cmd_dashboard(root, config, paths[0] if paths else None, sample)
+    if command == "github":
+        rest = argv[2:]
+        year = month = None
+        if rest:
+            if len(rest) != 4 or rest[0] != "--year" or rest[2] != "--month" or not rest[1].isdigit() or not rest[3].isdigit() or not 1 <= int(rest[3]) <= 12:
+                print("gate: usage: github [--year YYYY --month MM]")
+                return 2
+            year, month = int(rest[1]), int(rest[3])
+        return cmd_github(root, config, year, month)
     if command == "ledger":
         return cmd_ledger(root, argv[2:])
     if command in ("log", "open"):
