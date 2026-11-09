@@ -88,3 +88,47 @@ def registry_trial(ctx, nct_id: str, **_):
         watchlists=[{"id": r["id"], "name": r["name"]} for r in storage.lists_holding(ctx.conn, nct)],
     )
     return body
+
+
+_LOOKUP_STATUS = {"invalid_format": 400, "not_found": 404, "already_in_list": 409, "registry_unavailable": 502}
+_LOOKUP_WORDS = {
+    "invalid_format": "That is not an NCT ID. Use NCT followed by 8 digits, for example NCT03275285.",
+    "not_found": "No trial with that ID was found on ClinicalTrials.gov.",
+    "registry_unavailable": "ClinicalTrials.gov could not be reached. Try again in a moment.",
+}
+
+
+def lookup(ctx, list_id: str, query=None, **_):
+    """Look a trial up for this watchlist and show it before it is added; nothing is stored."""
+    target = storage.get_list(ctx.conn, int(list_id))
+    if target is None:
+        raise ApiError(404, "watchlist_not_found", f"There is no watchlist {list_id}.")
+    raw = ((query or {}).get("nct_id") or [""])[0]
+    try:
+        nct = monitor.normalise(raw)
+        if storage.is_member(ctx.conn, target["id"], nct):
+            raise monitor.MonitorError("", "already_in_list")
+    except monitor.MonitorError as err:
+        _lookup_failure(err, target["name"], raw)
+    got = _fetch_outside_lock(ctx, [nct])[nct]
+
+    def replay(_n):
+        if isinstance(got, Exception):
+            raise got
+        return got
+
+    try:
+        found = monitor.lookup(ctx.conn, nct, target["id"], fetch=replay)
+    except monitor.MonitorError as err:
+        _lookup_failure(err, target["name"], nct)
+    found["status"] = display.status_label(found["status"])
+    found["list"] = {"id": target["id"], "name": target["name"]}
+    return found
+
+
+def _lookup_failure(err, list_name, nct):
+    if err.kind == "already_in_list":
+        message = f"{nct.strip().upper()} is already in {list_name}."
+    else:
+        message = _LOOKUP_WORDS.get(err.kind, str(err))
+    raise ApiError(_LOOKUP_STATUS.get(err.kind, 502), err.kind if err.kind in _LOOKUP_STATUS else "registry_unavailable", message)

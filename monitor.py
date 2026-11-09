@@ -50,7 +50,9 @@ def normalise(nct_id: str) -> str:
     """Tidy a pasted ID. Raises MonitorError if it isn't shaped like an NCT ID."""
     cleaned = nct_id.strip().upper()
     if not NCT_ID.match(cleaned):
-        raise MonitorError(f"{nct_id.strip()!r} is not an NCT ID (expected e.g. NCT03412565).")
+        raise MonitorError(
+            f"{nct_id.strip()!r} is not an NCT ID (expected e.g. NCT03412565).", "invalid_format"
+        )
     return cleaned
 
 
@@ -89,7 +91,7 @@ def _fetch_record(nct: str, fetch) -> dict:
 def _clean_name(name: str) -> str:
     cleaned = name.strip()
     if not cleaned:
-        raise MonitorError("Give the list a name.")
+        raise MonitorError("Give the list a name.", "name_empty")
     return cleaned
 
 
@@ -99,7 +101,7 @@ def create_list(conn: sqlite3.Connection, name: str, when: str | None = None) ->
     try:
         return storage.create_list(conn, cleaned, when)
     except sqlite3.IntegrityError as exc:
-        raise MonitorError(f"There is already a list called “{cleaned}”.") from exc
+        raise MonitorError(f"There is already a list called “{cleaned}”.", "name_taken") from exc
 
 
 def rename_list(conn: sqlite3.Connection, list_id: int, name: str) -> None:
@@ -108,7 +110,7 @@ def rename_list(conn: sqlite3.Connection, list_id: int, name: str) -> None:
     try:
         storage.rename_list(conn, list_id, cleaned)
     except sqlite3.IntegrityError as exc:
-        raise MonitorError(f"There is already a list called “{cleaned}”.") from exc
+        raise MonitorError(f"There is already a list called “{cleaned}”.", "name_taken") from exc
 
 
 def delete_list(conn: sqlite3.Connection, list_id: int) -> None:
@@ -151,7 +153,7 @@ def add(
 
     if storage.is_member(conn, target, nct):
         name = storage.get_list(conn, target)["name"]
-        raise MonitorError(f"{nct} is already in “{name}”.")
+        raise MonitorError(f"{nct} is already in “{name}”.", "already_in_list")
 
     stamp = when or storage.now()
     if storage.get_trial(conn, nct) is None:
@@ -162,6 +164,32 @@ def add(
 
     storage.add_member(conn, target, nct, stamp)
     return nct
+
+
+def lookup(conn: sqlite3.Connection, nct_id: str, list_id: int, fetch=None) -> dict:
+    """Look a trial up in the registry for a list without adding it: nothing is stored.
+
+    Raises MonitorError whose kind is one of invalid_format, already_in_list, not_found
+    or registry_unavailable.
+    """
+    nct = normalise(nct_id)
+    if storage.is_member(conn, list_id, nct):
+        name = storage.get_list(conn, list_id)["name"]
+        raise MonitorError(f"{nct} is already in “{name}”.", "already_in_list")
+    try:
+        record = _fetch_record(nct, fetch)
+    except MonitorError as exc:
+        if exc.kind != "not_found":
+            raise MonitorError(str(exc), "registry_unavailable") from exc
+        raise
+    profile = medical_affairs.profile(record)
+    return {
+        "nct_id": nct,
+        "heading": profile.get("acronym") or profile.get("briefTitle") or nct,
+        "official_title": profile.get("officialTitle"),
+        "sponsor": profile.get("leadSponsor"),
+        "status": profile.get("overallStatus"),
+    }
 
 
 def add_many(

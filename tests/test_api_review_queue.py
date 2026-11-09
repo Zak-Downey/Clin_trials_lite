@@ -153,7 +153,7 @@ def test_times_are_in_the_machines_zone_with_the_zone_named(seeded, monkeypatch)
 
 def test_a_known_address_with_the_wrong_method_says_so(api):
     """test_a_known_address_with_the_wrong_method_says_so"""
-    status, body = api.post("/api/watchlists")
+    status, body = api.post("/api/watchlists/1/needs-review")
     assert status == 405
     assert body["error"]["kind"] == "method_not_allowed"
 

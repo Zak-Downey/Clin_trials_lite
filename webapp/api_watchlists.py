@@ -80,3 +80,19 @@ def all_trials(ctx, list_id: str, **_):
             }
         )
     return {"trials": trials, "counts": {"trials": len(trials)}}
+
+
+_NAME_WORDS = {"name_empty": (400, "Give the watchlist a name."), "name_taken": (409, None)}
+
+
+def create_watchlist(ctx, body=None, **_):
+    """Make a watchlist; returns it and the updated list of watchlists."""
+    name = (body or {}).get("name")
+    name = name if isinstance(name, str) else ""
+    try:
+        new_id = monitor.create_list(ctx.conn, name)
+    except monitor.MonitorError as err:
+        status, message = _NAME_WORDS.get(err.kind, (400, str(err)))
+        raise ApiError(status, err.kind, message or f"There is already a watchlist called “{name.strip()}”.")
+    watchlists = list_watchlists(ctx)["watchlists"]
+    return {"watchlist": next(w for w in watchlists if w["id"] == new_id), "watchlists": watchlists}

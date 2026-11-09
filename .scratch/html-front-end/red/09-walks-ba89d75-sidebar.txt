@@ -1,0 +1,249 @@
+# tip ba89d7537a9023ac68ce3f6322a16d3ab057aae1
+FFFF........                                                             [100%]
+=================================== FAILURES ===================================
+_ test_walk_new_watchlist_from_the_sidebar_and_the_picker_validates_inline_and_selects_the_new_destination[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10940fba0>
+make_walk = <function make_walk.<locals>.build at 0x10940fec0>
+
+    def test_walk_new_watchlist_from_the_sidebar_and_the_picker_validates_inline_and_selects_the_new_destination(make_app, make_walk):
+        """test_walk_new_watchlist_from_the_sidebar_and_the_picker_validates_inline_and_selects_the_new_destination"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        box(page, "NCT10000001").check()
+        picker = bar(page).get_by_label("Add to")
+        picker.select_option(label="+ New watchlist")
+        dialog(page).wait_for()
+        dialog(page).get_by_role("button", name="Create watchlist").click()
+        assert dialog(page).get_by_text("Give the watchlist a name.").is_visible()
+        dialog(page).get_by_label("Name").fill("myeloma")
+        walk.expect(409, "/api/watchlists")
+        dialog(page).get_by_role("button", name="Create watchlist").click()
+        dialog(page).get_by_text("There is already a watchlist called").wait_for()
+        assert dialog(page).get_by_label("Name").input_value() == "myeloma"  # kept
+        walk.shot("refused")
+        dialog(page).get_by_label("Name").fill("Lung")
+        dialog(page).get_by_role("button", name="Create watchlist").click()
+        dialog(page).wait_for(state="detached")
+        assert page.locator("#add-to").evaluate("(s) => s.selectedOptions[0].textContent") == "Lung"
+        assert page.get_by_role("link", name=re.compile("^Lung")).count() == 1  # in the sidebar
+        assert page.locator("li.card input:checked").count() == 1  # the task is as it was
+>       page.get_by_role("button", name="+ New watchlist").click()
+
+walks/test_add_by_id_walk.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x1090bbcb0>
+cb = <function Channel.send.<locals>.<lambda> at 0x1095de700>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="+ New watchlist")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_new_watchlist_from_the_sidebar_and_the_picker_validates_inline_and_selects_the_new_destination[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x1095dee80>
+make_walk = <function make_walk.<locals>.build at 0x1095dfec0>
+
+    def test_walk_new_watchlist_from_the_sidebar_and_the_picker_validates_inline_and_selects_the_new_destination(make_app, make_walk):
+        """test_walk_new_watchlist_from_the_sidebar_and_the_picker_validates_inline_and_selects_the_new_destination"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        box(page, "NCT10000001").check()
+        picker = bar(page).get_by_label("Add to")
+        picker.select_option(label="+ New watchlist")
+        dialog(page).wait_for()
+        dialog(page).get_by_role("button", name="Create watchlist").click()
+        assert dialog(page).get_by_text("Give the watchlist a name.").is_visible()
+        dialog(page).get_by_label("Name").fill("myeloma")
+        walk.expect(409, "/api/watchlists")
+        dialog(page).get_by_role("button", name="Create watchlist").click()
+        dialog(page).get_by_text("There is already a watchlist called").wait_for()
+        assert dialog(page).get_by_label("Name").input_value() == "myeloma"  # kept
+        walk.shot("refused")
+        dialog(page).get_by_label("Name").fill("Lung")
+        dialog(page).get_by_role("button", name="Create watchlist").click()
+        dialog(page).wait_for(state="detached")
+        assert page.locator("#add-to").evaluate("(s) => s.selectedOptions[0].textContent") == "Lung"
+        assert page.get_by_role("link", name=re.compile("^Lung")).count() == 1  # in the sidebar
+        assert page.locator("li.card input:checked").count() == 1  # the task is as it was
+>       page.get_by_role("button", name="+ New watchlist").click()
+
+walks/test_add_by_id_walk.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x1090bbcb0>
+cb = <function Channel.send.<locals>.<lambda> at 0x1096fcd60>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="+ New watchlist")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_every_dialog_traps_focus_and_escape_cancels_and_returns_to_the_opener_in_place[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x109654040>
+make_walk = <function make_walk.<locals>.build at 0x1096fd080>
+
+    def test_walk_every_dialog_traps_focus_and_escape_cancels_and_returns_to_the_opener_in_place(make_app, make_walk):
+        """test_walk_every_dialog_traps_focus_and_escape_cancels_and_returns_to_the_opener_in_place"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        box(page, "NCT10000001").check()
+        # the sidebar's button, from the top of the page
+        names = page.locator("#sidebar a").count()
+        opener = page.get_by_role("button", name="+ New watchlist")
+>       opener.click()
+
+walks/test_add_by_id_walk.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x1090bbcb0>
+cb = <function Channel.send.<locals>.<lambda> at 0x109677d80>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="+ New watchlist")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_every_dialog_traps_focus_and_escape_cancels_and_returns_to_the_opener_in_place[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x1096fe660>
+make_walk = <function make_walk.<locals>.build at 0x109714720>
+
+    def test_walk_every_dialog_traps_focus_and_escape_cancels_and_returns_to_the_opener_in_place(make_app, make_walk):
+        """test_walk_every_dialog_traps_focus_and_escape_cancels_and_returns_to_the_opener_in_place"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        box(page, "NCT10000001").check()
+        # the sidebar's button, from the top of the page
+        names = page.locator("#sidebar a").count()
+        opener = page.get_by_role("button", name="+ New watchlist")
+>       opener.click()
+
+walks/test_add_by_id_walk.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x1090bbcb0>
+cb = <function Channel.send.<locals>.<lambda> at 0x109716f20>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="+ New watchlist")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+=========================== short test summary info ============================
+FAILED walks/test_add_by_id_walk.py::test_walk_new_watchlist_from_the_sidebar_and_the_picker_validates_inline_and_selects_the_new_destination[1440x900]
+FAILED walks/test_add_by_id_walk.py::test_walk_new_watchlist_from_the_sidebar_and_the_picker_validates_inline_and_selects_the_new_destination[1024x768]
+FAILED walks/test_add_by_id_walk.py::test_walk_every_dialog_traps_focus_and_escape_cancels_and_returns_to_the_opener_in_place[1440x900]
+FAILED walks/test_add_by_id_walk.py::test_walk_every_dialog_traps_focus_and_escape_cancels_and_returns_to_the_opener_in_place[1024x768]
+4 failed, 8 passed in 29.76s
