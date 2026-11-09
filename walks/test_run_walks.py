@@ -43,6 +43,7 @@ def test_runner_reports_red_alone_and_red_under_load_green_alone_in_one_run(tmp_
     assert re.search(r"test_always\.py::test_always -- red alone", result)
     assert re.search(r"test_once\.py::test_once -- red under load, green alone", result)
     assert code == 1
+    assert "Walk output written to " + str(tmp_path / "out" / "walks-run.txt") in out
     alone = tmp_path / "out" / "alone-test-always.txt"
     text = alone.read_text()
     assert "1 failed" in text and "passed" not in text
