@@ -300,6 +300,7 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
         if ENGINES[engine][0] == "chromium" else None
     keys.press(page.get_by_role("button", name="Copy summary"))
     page.locator("#summary-notice").wait_for()
+    assert page.locator("#summary-notice").inner_text() == "Summary copied."
     if ENGINES[engine][0] == "chromium":
         text = page.evaluate("() => navigator.clipboard.readText()")
         assert "https://clinicaltrials.gov/study/NCT03412565" in text

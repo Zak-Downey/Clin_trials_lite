@@ -223,3 +223,23 @@ def test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_d
     assert page.get_by_label("Condition").input_value() == "many"
     assert page.get_by_label("Study started from").input_value() == "2022-01-01"
     walk.shot("bad-dates")
+
+
+def test_walk_a_filtered_search_reaches_the_registry_with_its_phase_status_and_dates(make_app, make_walk):
+    """test_walk_a_filtered_search_reaches_the_registry_with_its_phase_status_and_dates"""
+    from urllib.parse import unquote
+
+    app, walk = open_find(make_app, make_walk)
+    page = walk.page
+    page.get_by_label("Condition").fill("Multiple myeloma")
+    page.get_by_role("button", name="Phase 3", exact=True).click()
+    page.get_by_role("button", name="More filters").click()
+    page.get_by_label("Recruiting", exact=True).check()
+    page.get_by_label("Study started from").fill("2020-01-01")
+    page.get_by_label("Study started to").fill("2022-12-31")
+    page.get_by_role("button", name="Search trials").click()
+    page.get_by_role("heading", name="3 matches").wait_for()
+    asked = [unquote(path) for path in app.registry.server.state.requests if "/studies?" in path]
+    last = asked[-1]
+    assert "PHASE3" in last and "RECRUITING" in last and "AREA[StartDate]RANGE[2020-01-01,2022-12-31]" in last, last
+    walk.shot("filtered")

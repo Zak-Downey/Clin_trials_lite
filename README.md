@@ -15,6 +15,20 @@ pip install -r requirements.txt
 (needed on this machine, see below), `pandas` (only for `to_frame()` / `--csv`) and
 `pytest`.
 
+## Browser walks (development only)
+
+The app needs none of this. The walk suite drives the pages in a real browser:
+
+```bash
+pip install -r requirements-dev.txt
+python -m playwright install chromium webkit
+python walks/run_walks.py
+```
+
+`requirements-dev.txt` holds Playwright and pytest-xdist; the second line installs the
+Chromium and WebKit builds the walks use. The unit tests run with `python -m pytest -q`
+and need no browser.
+
 ## Trial Change Monitor
 
 ```bash
