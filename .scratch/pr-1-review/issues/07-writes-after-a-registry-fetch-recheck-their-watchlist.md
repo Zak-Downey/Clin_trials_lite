@@ -14,5 +14,7 @@
 - [x] Test: a trial removed from the watchlist while a check runs, held by no other list, is not fetched, not marked checked and gets no change rows — test: test_a_trial_removed_while_a_check_runs_is_not_fetched_marked_checked_or_given_changes; red: .scratch/pr-1-review/red/07-unit-37ea56c.txt
 - [x] Test: a watchlist deleted while its check runs ends the run without checking its remaining trials — test: test_a_watchlist_deleted_while_its_check_runs_ends_the_run_without_checking_the_rest; red: .scratch/pr-1-review/red/07-unit-37ea56c.txt
 - [x] Test: when `finish_run` raises, the run is no longer running and a new check of that watchlist is accepted — test: test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted; red: .scratch/pr-1-review/red/07-unit-37ea56c.txt
+- [x] Test: a finished check after a trial was removed mid-run counts only the trials it still held (2 of 2, not 2 of 3) — test: test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed; red: .scratch/pr-1-review/red/07-unit-0312f9b.txt
+- [x] Test: a trial removed during its own fetch is not marked checked and gets no change rows — test: test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes; red: .scratch/pr-1-review/red/07-unit-0312f9b.txt
 
 ## Comments

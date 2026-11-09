@@ -39,6 +39,7 @@ Counts: blocking 1 · sweep 2 · design 0 · nit 3.
 - **Who.** An analyst who removes a trial (trial page menu, or Remove from this list) while a check of that watchlist runs.
 - **How I know.** Reproduced at the API: probe `/tmp/r1probe/test_probe_removed_during_fetch.py` removes NCT00000003 during NCT00000001's fetch. The finished state is `{'state': 'complete', 'checked': 2, 'total': 3, 'processed': 2}` (`/tmp/r1-probe4.txt`). Inferred that the page draws it as above (read from `check.js`, not walked).
 - **Where it was made.** `api_checks._work`/`_state`: a skipped step is neither a result nor dropped from the total.
+- **Status.** fixed — test: test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed — red: .scratch/pr-1-review/red/07-unit-0312f9b.txt
 - **Class.** Blocking: it is new in this diff (the F13 fix), and it is a count the analyst reads on the check panel. It happens only on a rare ordering; the merger may downgrade it.
 
 ## Sweep
@@ -48,6 +49,7 @@ Counts: blocking 1 · sweep 2 · design 0 · nit 3.
 - **What happens.** The membership re-read runs before the step (`api_checks.py:69`). `monitor.check_one` then fetches with the lock released (`_unlocked`, `api_checks.py:46-55`) and writes after the fetch with no second look (`monitor.py` `check`: `add_change`, `add_snapshot`, `mark_checked`). A removal that lands during that trial's own fetch gives an unmonitored trial a change row and a new `last_checked`. The spec's "skipped by every check" still fails, though only inside one fetch's window rather than the whole run. R-003's proposed line ("a write after a registry call made outside the lock re-reads the rows it writes to") is the rule this misses.
 - **How I know.** Reproduced: the same probe, removing NCT00000003 during its own fetch with the registry stamp bumped, gives `members 0 … changes 1`, with `last_checked` moved from 2026-11-01 to now (`/tmp/r1-probe3.txt`).
 - **Why the ticket's test passes.** `test_a_trial_removed_while_a_check_runs_is_not_fetched_marked_checked_or_given_changes` (`tests/test_api_checks.py:243`) removes the trial during a different trial's fetch, so it never exercises this window.
+- **Status.** fixed — test: test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes — red: .scratch/pr-1-review/red/07-unit-0312f9b.txt
 - **Class.** Sweep: the window is one registry call, and the fix is a membership re-read after the fetch inside the trial step (for example a fetch wrapper that raises a "no longer held" sentinel once the lock is retaken). Nothing the analyst sees changes except the absence of a stray change.
 
 ### 3. Undo after Mark reviewed has no in-flight guard, so a double click shows "That review was already undone."
