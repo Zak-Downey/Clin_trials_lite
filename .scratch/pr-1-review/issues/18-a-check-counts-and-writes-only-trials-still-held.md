@@ -2,7 +2,7 @@
 
 **Blocked by:** None
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Touches:** webapp/api_checks.py, tests/test_api_checks.py
 

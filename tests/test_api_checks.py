@@ -261,6 +261,40 @@ def test_a_trial_removed_while_a_check_runs_is_not_fetched_marked_checked_or_giv
     assert storage.list_changes(conn, "NCT00000003") == []
 
 
+def test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed(watched, fetcher):
+    """test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed"""
+
+    def fetch(nct):
+        if nct == "NCT00000001":
+            watched.post(f"/api/watchlists/{LIST_ID}/trials/NCT00000003/remove")
+        return fetcher(nct)
+
+    watched.fetch_override(fetch)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    state = finished(watched)
+    assert (state["state"], state["checked"], state["total"]) == ("complete", 2, 2)
+
+
+def test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes(watched, fetcher):
+    """test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes"""
+
+    def fetch(nct):
+        if nct == "NCT00000003":
+            watched.post(f"/api/watchlists/{LIST_ID}/trials/NCT00000003/remove")
+        revised = copy.deepcopy(fetcher(nct))
+        revised["protocolSection"]["statusModule"]["overallStatus"] = "TERMINATED"
+        revised["protocolSection"]["statusModule"]["lastUpdatePostDateStruct"] = {"date": "2030-01-01"}
+        return revised
+
+    watched.fetch_override(fetch)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    state = finished(watched)
+    conn = storage.connect(watched.path)
+    assert storage.get_trial(conn, "NCT00000003")["last_checked"] == "2026-11-01T08:00:00+00:00"
+    assert storage.list_changes(conn, "NCT00000003") == []
+    assert state["total"] == 2
+
+
 def test_a_watchlist_deleted_while_its_check_runs_ends_the_run_without_checking_the_rest(watched, fetcher):
     """test_a_watchlist_deleted_while_its_check_runs_ends_the_run_without_checking_the_rest"""
     asked = []

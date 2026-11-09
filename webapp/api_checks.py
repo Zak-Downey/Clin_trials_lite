@@ -29,6 +29,7 @@ class Run:
         self.running = True
         self.finished_at: str | None = None
         self.crashed: str | None = None
+        self.skipped = 0  # trial steps dropped because the watchlist no longer held the trial
 
 
 def _runs(ctx) -> dict:
@@ -55,6 +56,10 @@ def _unlocked(ctx, call):
     return wrapper
 
 
+class _Removed(BaseException):
+    """(Not an Exception, so the check's own failure handling lets it through.) The watchlist stopped holding a trial while its fetch waited on the network."""
+
+
 def _work(ctx, run: Run, force: bool) -> None:
     fetch = _unlocked(ctx, ctx.fetch or ctgov.get)
     find = _unlocked(ctx, ctx.find or ctgov.find)
@@ -67,10 +72,23 @@ def _work(ctx, run: Run, force: bool) -> None:
                 if storage.get_list(ctx.conn, run.list_id) is None:
                     break  # the watchlist was deleted while the run waited
                 if kind == "trial" and not storage.is_member(ctx.conn, run.list_id, nct):
-                    run.processed = index + 1  # removed from this watchlist since the run began
+                    run.skipped += 1  # removed from this watchlist since the run began
+                    run.processed = index + 1
                     continue
                 if kind == "trial":
-                    result = monitor.check_one(ctx.conn, nct, fetch=fetch, force=force)
+
+                    def held_fetch(n, nct=nct):
+                        record = fetch(n)  # the lock is retaken here
+                        if not storage.is_member(ctx.conn, run.list_id, nct):
+                            raise _Removed(nct)
+                        return record
+
+                    try:
+                        result = monitor.check_one(ctx.conn, nct, fetch=held_fetch, force=force)
+                    except _Removed:
+                        run.skipped += 1
+                        run.processed = index + 1
+                        continue
                 else:
                     result = monitor.find_new(ctx.conn, run.list_id, find=find)
                 if result is not None:
@@ -150,7 +168,7 @@ def _state(ctx, list_id: int) -> dict:
     state = {
         "state": "running" if run.running else "complete",
         "kind": run.kind,
-        "total": len(trial_steps),
+        "total": len(trial_steps) - run.skipped,
         "processed": len(trials),
         "checked": len(trials) - len(failed),
         "failed": len(failed),
