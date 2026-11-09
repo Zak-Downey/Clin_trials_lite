@@ -13,7 +13,8 @@ const TABBABLE = 'a[href], button, input, select, textarea, summary, [tabindex]:
 const WAIT_MS = 3000;
 
 const visible = (node) => node.getClientRects().length > 0 && !node.closest("[hidden]");
-const usable = (node) => node.isConnected && !node.disabled && node.getAttribute("aria-disabled") !== "true" && visible(node);
+// aria-disabled stays focusable (a busy button keeps the keyboard's place); only `disabled` loses it.
+const usable = (node) => node.isConnected && !node.disabled && visible(node);
 const pageOf = () => location.hash.split("?")[0];
 
 function keyOf(node) {

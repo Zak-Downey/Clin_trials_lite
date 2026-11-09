@@ -13,7 +13,7 @@ def focused(page):
     return page.evaluate("document.activeElement.id || document.activeElement.textContent.trim().slice(0, 30)")
 
 
-@pytest.mark.xfail(strict=True, reason="todo: known defect E-031, fixed by ticket 14 of pr-1-review")
+
 def test_walk_check_for_updates_keeps_keyboard_focus_while_it_runs_and_after(make_app, make_walk):
     app = make_app(seed=helper.seed_queue)
     walk = make_walk(app)

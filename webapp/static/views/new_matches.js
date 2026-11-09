@@ -31,6 +31,8 @@ export async function render(root, listId, watchlist) {
     window.dispatchEvent(new Event("reviewchange"));
   };
 
+  const focusOn = (selector) => { const n = root.querySelector(selector); if (n) n.focus({ preventScroll: true }); };
+
   async function draw() {
     const tabs = tabBar(listId, "new-matches", current);
     const data = await get(`/api/watchlists/${listId}/new-matches${mine.showing === "dismissed" ? "/dismissed" : ""}`);
@@ -41,7 +43,11 @@ export async function render(root, listId, watchlist) {
 
     if (mine.showing === "dismissed") {
       const back = el("button", { type: "button", class: "link", id: "back-to-matches" }, "Back to new matches");
-      back.addEventListener("click", () => { mine.showing = "new"; outcome = null; draw(); });
+      back.addEventListener("click", async () => {
+        mine.showing = "new"; outcome = null;
+        await draw();
+        focusOn("#view-dismissed"); // the button pressed is gone; the keyboard stays in the view, not the tab strip
+      });
       body.push(el("div", { class: "matches-head" },
         el("div", {},
           el("h2", { id: "matches-title" }, plural(trials.length, "dismissed match").replace("matchs", "matches")),
@@ -73,7 +79,11 @@ export async function render(root, listId, watchlist) {
     }
 
     const view = el("button", { type: "button", class: "link", id: "view-dismissed" }, "View dismissed");
-    view.addEventListener("click", () => { mine.showing = "dismissed"; outcome = null; selected.clear(); draw(); });
+    view.addEventListener("click", async () => {
+      mine.showing = "dismissed"; outcome = null; selected.clear();
+      await draw();
+      focusOn("#back-to-matches");
+    });
     body.push(el("div", { class: "matches-head" },
       el("div", {},
         el("h2", { id: "matches-title" }, trials.length ? plural(trials.length, "new match").replace("matchs", "matches") : "No new matches"),
