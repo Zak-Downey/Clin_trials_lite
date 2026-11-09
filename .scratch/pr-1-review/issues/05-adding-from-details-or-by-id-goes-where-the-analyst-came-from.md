@@ -2,7 +2,7 @@
 
 **Blocked by:** 01, 02
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **Touches:** webapp/static/views/registry_trial.js, webapp/static/views/add_by_id.js, webapp/static/views/find.js, webapp/static/views/new_matches.js
 

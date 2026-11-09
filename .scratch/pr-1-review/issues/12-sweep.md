@@ -2,7 +2,7 @@
 
 **Blocked by:** 10
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **Touches:** docs/agents/local/repo.md, requirements-dev.txt, README.md, walks/test_check_walk.py, walks/test_walk_guards.py, walks/test_acceptance_walk.py
 

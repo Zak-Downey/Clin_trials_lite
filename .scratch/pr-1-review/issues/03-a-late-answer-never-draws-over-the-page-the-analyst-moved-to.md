@@ -2,7 +2,7 @@
 
 **Blocked by:** 01, 02
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **Touches:** webapp/static/app.js, webapp/static/views/trial.js, webapp/static/views/needs_review.js, webapp/static/views/all_trials.js, webapp/static/views/summary.js
 

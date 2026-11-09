@@ -2,7 +2,7 @@
 
 **Blocked by:** None
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **Touches:** walks/run_walks.py, walks/test_run_walks.py
 
