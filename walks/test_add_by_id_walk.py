@@ -119,6 +119,14 @@ def test_walk_add_by_nct_id_names_its_destination_and_shows_the_trial_before_add
         assert word in found.inner_text()
     assert page.get_by_role("link", name=re.compile("^Myeloma")).inner_text().count("1 trial") == 1  # nothing added yet
     walk.shot("looked-up")
+    page.get_by_label("NCT ID").fill("NCT00000003")  # a different ID than the one shown
+    assert page.get_by_role("button", name="Add to watchlist").count() == 0  # so nothing unseen can be added
+    page.get_by_role("button", name="Look up trial").click()
+    page.get_by_role("button", name="Add to watchlist").wait_for()
+    assert "NCT00000003" in page.locator(".found").inner_text()
+    page.get_by_label("NCT ID").fill("nct00000002")
+    page.get_by_role("button", name="Look up trial").click()
+    page.locator(".found", has_text="NCT00000002").wait_for()
     page.get_by_role("button", name="Add to watchlist").click()
     page.get_by_text("Added NCT00000002 to Myeloma.").wait_for()
     assert "2 trials" in page.get_by_role("link", name=re.compile("^Myeloma")).inner_text()
