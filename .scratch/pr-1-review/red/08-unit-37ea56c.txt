@@ -1,0 +1,143 @@
+# tip 37ea56c4c9053218b73ee67e8304235c4eedc8a7
+........................................................................ [ 15%]
+.....................FFF......................................FFFFFF.... [ 31%]
+........................................................................ [ 46%]
+........................................................................ [ 62%]
+........................................................................ [ 77%]
+........................................................................ [ 93%]
+...............................                                          [100%]
+=================================== FAILURES ===================================
+_____ test_the_latest_line_names_the_newest_check_whatever_the_field_order _____
+
+seeded = <conftest.api.<locals>.Client object at 0x10716aa50>
+
+    def test_the_latest_line_names_the_newest_check_whatever_the_field_order(seeded):
+        """test_the_latest_line_names_the_newest_check_whatever_the_field_order"""
+        conn = storage.connect(seeded.path)
+        storage.add_change(conn, "NCT00000003", {"field": "briefTitle", "previous": "A", "current": "B"}, CHECK_B)
+        conn.close()
+        body = summary(seeded, "period=month")
+        trial = next(t for t in body["trials"] if t["nct_id"] == "NCT00000003")
+>       assert trial["latest"] == "Latest: brief title updated."
+E       AssertionError: assert 'Latest: enrollment updated.' == 'Latest: brief title updated.'
+E         
+E         - Latest: brief title updated.
+E         + Latest: enrollment updated.
+
+tests/test_api_summary.py:163: AssertionError
+____ test_the_csv_starts_with_a_byte_order_mark_and_reads_back_in_utf8_sig _____
+
+seeded = <conftest.api.<locals>.Client object at 0x107168440>
+
+    def test_the_csv_starts_with_a_byte_order_mark_and_reads_back_in_utf8_sig(seeded):
+        """test_the_csv_starts_with_a_byte_order_mark_and_reads_back_in_utf8_sig"""
+        text = summary(seeded, "period=month")["csv"]
+>       assert text.startswith("\ufeff")
+E       assert False
+E        +  where False = <built-in method startswith of str object at 0xc4453c000>('\ufeff')
+E        +    where <built-in method startswith of str object at 0xc4453c000> = 'Watchlist,NCT ID,Title,Field,Previous value,New value,Registry updated,Detected,Review status,Simulated,Registry reco...""quoted""",New,2025-04-29,2026-11-03T12:00:00+09:00,Awaiting review,,https://clinicaltrials.gov/study/NCT03412565\r\n'.startswith
+
+tests/test_api_summary.py:169: AssertionError
+______ test_a_title_that_looks_like_a_formula_is_prefixed_in_the_csv_only ______
+
+seeded = <conftest.api.<locals>.Client object at 0x10716a270>
+
+    def test_a_title_that_looks_like_a_formula_is_prefixed_in_the_csv_only(seeded):
+        """test_a_title_that_looks_like_a_formula_is_prefixed_in_the_csv_only"""
+        conn = storage.connect(seeded.path)
+        storage.add_change(conn, "NCT00000003", {"field": "briefTitle", "previous": "=1+1", "current": "@x"}, CHECK_A)
+        conn.close()
+        body = summary(seeded, "period=month")
+        rows = list(csv.DictReader(io.StringIO(body["csv"].removeprefix("\ufeff"))))
+        row = next(r for r in rows if r["Previous value"].endswith("=1+1"))
+>       assert row["Previous value"] == "'=1+1" and row["New value"] == "'@x"
+E       assert ('=1+1' == "'=1+1"
+E         
+E         - '=1+1
+E         ? -
+E         + =1+1)
+
+tests/test_api_summary.py:183: AssertionError
+____________ test_a_csv_cell_starting_like_a_formula_is_prefixed[=] ____________
+
+lead = '='
+
+    @pytest.mark.parametrize("lead", ["=", "+", "-", "@", "\t", "\r"])
+    def test_a_csv_cell_starting_like_a_formula_is_prefixed(lead):
+        """test_a_csv_cell_starting_like_a_formula_is_prefixed"""
+>       assert briefing._csv_safe(lead + "x") == "'" + lead + "x"
+               ^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'briefing' has no attribute '_csv_safe'
+
+tests/test_briefing.py:484: AttributeError
+____________ test_a_csv_cell_starting_like_a_formula_is_prefixed[+] ____________
+
+lead = '+'
+
+    @pytest.mark.parametrize("lead", ["=", "+", "-", "@", "\t", "\r"])
+    def test_a_csv_cell_starting_like_a_formula_is_prefixed(lead):
+        """test_a_csv_cell_starting_like_a_formula_is_prefixed"""
+>       assert briefing._csv_safe(lead + "x") == "'" + lead + "x"
+               ^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'briefing' has no attribute '_csv_safe'
+
+tests/test_briefing.py:484: AttributeError
+____________ test_a_csv_cell_starting_like_a_formula_is_prefixed[-] ____________
+
+lead = '-'
+
+    @pytest.mark.parametrize("lead", ["=", "+", "-", "@", "\t", "\r"])
+    def test_a_csv_cell_starting_like_a_formula_is_prefixed(lead):
+        """test_a_csv_cell_starting_like_a_formula_is_prefixed"""
+>       assert briefing._csv_safe(lead + "x") == "'" + lead + "x"
+               ^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'briefing' has no attribute '_csv_safe'
+
+tests/test_briefing.py:484: AttributeError
+____________ test_a_csv_cell_starting_like_a_formula_is_prefixed[@] ____________
+
+lead = '@'
+
+    @pytest.mark.parametrize("lead", ["=", "+", "-", "@", "\t", "\r"])
+    def test_a_csv_cell_starting_like_a_formula_is_prefixed(lead):
+        """test_a_csv_cell_starting_like_a_formula_is_prefixed"""
+>       assert briefing._csv_safe(lead + "x") == "'" + lead + "x"
+               ^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'briefing' has no attribute '_csv_safe'
+
+tests/test_briefing.py:484: AttributeError
+___________ test_a_csv_cell_starting_like_a_formula_is_prefixed[\t] ____________
+
+lead = '\t'
+
+    @pytest.mark.parametrize("lead", ["=", "+", "-", "@", "\t", "\r"])
+    def test_a_csv_cell_starting_like_a_formula_is_prefixed(lead):
+        """test_a_csv_cell_starting_like_a_formula_is_prefixed"""
+>       assert briefing._csv_safe(lead + "x") == "'" + lead + "x"
+               ^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'briefing' has no attribute '_csv_safe'
+
+tests/test_briefing.py:484: AttributeError
+___________ test_a_csv_cell_starting_like_a_formula_is_prefixed[\r] ____________
+
+lead = '\r'
+
+    @pytest.mark.parametrize("lead", ["=", "+", "-", "@", "\t", "\r"])
+    def test_a_csv_cell_starting_like_a_formula_is_prefixed(lead):
+        """test_a_csv_cell_starting_like_a_formula_is_prefixed"""
+>       assert briefing._csv_safe(lead + "x") == "'" + lead + "x"
+               ^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'briefing' has no attribute '_csv_safe'
+
+tests/test_briefing.py:484: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_api_summary.py::test_the_latest_line_names_the_newest_check_whatever_the_field_order
+FAILED tests/test_api_summary.py::test_the_csv_starts_with_a_byte_order_mark_and_reads_back_in_utf8_sig
+FAILED tests/test_api_summary.py::test_a_title_that_looks_like_a_formula_is_prefixed_in_the_csv_only
+FAILED tests/test_briefing.py::test_a_csv_cell_starting_like_a_formula_is_prefixed[=]
+FAILED tests/test_briefing.py::test_a_csv_cell_starting_like_a_formula_is_prefixed[+]
+FAILED tests/test_briefing.py::test_a_csv_cell_starting_like_a_formula_is_prefixed[-]
+FAILED tests/test_briefing.py::test_a_csv_cell_starting_like_a_formula_is_prefixed[@]
+FAILED tests/test_briefing.py::test_a_csv_cell_starting_like_a_formula_is_prefixed[\t]
+FAILED tests/test_briefing.py::test_a_csv_cell_starting_like_a_formula_is_prefixed[\r]
+9 failed, 454 passed in 48.29s

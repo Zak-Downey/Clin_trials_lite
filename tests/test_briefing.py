@@ -90,7 +90,7 @@ def summary(conn, start: str, end: str) -> dict:
 
 
 def rows_of(text: str) -> list[dict]:
-    return list(csv.DictReader(io.StringIO(text)))
+    return list(csv.DictReader(io.StringIO(text.removeprefix("\ufeff"))))
 
 
 def fields_in(summary: dict, nct_id: str = NCT) -> list[str]:
@@ -476,3 +476,11 @@ def test_a_move_says_whether_it_was_reviewed(watched, detect):
     moves = summary(watched, "2026-03-01", "2026-03-31")["entries"][0]["moves"]
 
     assert {m["field"]: m["reviewed"] for m in moves} == {"enrollment": True, "overallStatus": False}
+
+
+@pytest.mark.parametrize("lead", ["=", "+", "-", "@", "\t", "\r"])
+def test_a_csv_cell_starting_like_a_formula_is_prefixed(lead):
+    """test_a_csv_cell_starting_like_a_formula_is_prefixed"""
+    assert briefing._csv_safe(lead + "x") == "'" + lead + "x"
+    assert briefing._csv_safe("x" + lead) == "x" + lead
+    assert briefing._csv_safe("") == ""

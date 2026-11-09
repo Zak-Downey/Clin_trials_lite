@@ -133,7 +133,7 @@ def test_the_text_has_each_trials_registry_link(seeded):
 def test_the_csv_has_one_row_per_field_change_with_the_agreed_columns(seeded):
     """test_the_csv_has_one_row_per_field_change_with_the_agreed_columns"""
     body = summary(seeded, "period=month")
-    rows = list(csv.DictReader(io.StringIO(body["csv"])))
+    rows = list(csv.DictReader(io.StringIO(body["csv"].removeprefix("\ufeff"))))
     assert list(rows[0]) == ["Watchlist", "NCT ID", "Title", "Field", "Previous value", "New value",
                              "Registry updated", "Detected", "Review status", "Simulated", "Registry record"]
     assert len(rows) == 5
@@ -151,3 +151,39 @@ def test_an_empty_period_has_no_file_and_says_so(seeded):
     body = summary(seeded, "period=custom&from=2026-01-01&to=2026-01-31")
     assert body["counts"] == {"trials": 0, "field_changes": 0, "awaiting_review": 0, "reviewed": 0}
     assert body["trials"] == [] and body["csv"] is None
+
+
+def test_the_latest_line_names_the_newest_check_whatever_the_field_order(seeded):
+    """test_the_latest_line_names_the_newest_check_whatever_the_field_order"""
+    conn = storage.connect(seeded.path)
+    storage.add_change(conn, "NCT00000003", {"field": "briefTitle", "previous": "A", "current": "B"}, CHECK_B)
+    conn.close()
+    body = summary(seeded, "period=month")
+    trial = next(t for t in body["trials"] if t["nct_id"] == "NCT00000003")
+    assert trial["latest"] == "Latest: brief title updated."
+
+
+def test_the_csv_starts_with_a_byte_order_mark_and_reads_back_in_utf8_sig(seeded):
+    """test_the_csv_starts_with_a_byte_order_mark_and_reads_back_in_utf8_sig"""
+    conn = storage.connect(seeded.path)
+    storage.add_change(conn, "NCT00000003", {"field": "briefTitle", "previous": None, "current": "B"}, CHECK_A)
+    conn.close()
+    text = summary(seeded, "period=month")["csv"]
+    assert text.startswith("\ufeff")
+    rows = list(csv.DictReader(io.StringIO(text.encode("utf-8").decode("utf-8-sig"))))
+    assert list(rows[0])[0] == "Watchlist"
+    assert "\u2014" in {v for r in rows for v in r.values()}
+
+
+def test_a_title_that_looks_like_a_formula_is_prefixed_in_the_csv_only(seeded):
+    """test_a_title_that_looks_like_a_formula_is_prefixed_in_the_csv_only"""
+    conn = storage.connect(seeded.path)
+    storage.add_change(conn, "NCT00000003", {"field": "briefTitle", "previous": "=1+1", "current": "@x"}, CHECK_A)
+    conn.close()
+    body = summary(seeded, "period=month")
+    rows = list(csv.DictReader(io.StringIO(body["csv"].removeprefix("\ufeff"))))
+    row = next(r for r in rows if r["Previous value"].endswith("=1+1"))
+    assert row["Previous value"] == "'=1+1" and row["New value"] == "'@x"
+    assert "=1+1" in body["text"] and "'=1+1" not in body["text"]
+    page = next(t for t in body["trials"] if t["nct_id"] == "NCT00000003")
+    assert any(c["previous"] == "=1+1" for ck in page["checks"] for c in ck["changes"])

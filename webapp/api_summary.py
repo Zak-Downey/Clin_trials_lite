@@ -49,7 +49,7 @@ def _period(query) -> tuple[str, datetime.date, datetime.date]:
 
 def _latest(entry: dict) -> str:
     """"Latest: completion date and enrolment updated." -- the newest check's fields."""
-    newest = entry["moves"][0]["detected"]
+    newest = max(move["detected"] for move in entry["moves"])
     labels = []
     for move in entry["moves"]:
         if move["detected"] == newest and move["label"].lower() not in labels:
