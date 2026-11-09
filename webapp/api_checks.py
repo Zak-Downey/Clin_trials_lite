@@ -64,6 +64,11 @@ def _work(ctx, run: Run, force: bool) -> None:
             if index:
                 time.sleep(pause)
             with ctx.lock:
+                if storage.get_list(ctx.conn, run.list_id) is None:
+                    break  # the watchlist was deleted while the run waited
+                if kind == "trial" and not storage.is_member(ctx.conn, run.list_id, nct):
+                    run.processed = index + 1  # removed from this watchlist since the run began
+                    continue
                 if kind == "trial":
                     result = monitor.check_one(ctx.conn, nct, fetch=fetch, force=force)
                 else:
@@ -74,9 +79,12 @@ def _work(ctx, run: Run, force: bool) -> None:
     except Exception as err:  # the run must end, or the watchlist could never be checked again
         run.crashed = str(err)
     finally:
-        with ctx.lock:
-            monitor.finish_run(ctx.conn, run.list_id, run.results)
-            run.finished_at = storage.last_check_run(ctx.conn, run.list_id)["finished"]
+        try:
+            with ctx.lock:
+                if storage.get_list(ctx.conn, run.list_id) is not None:
+                    monitor.finish_run(ctx.conn, run.list_id, run.results)
+                    run.finished_at = storage.last_check_run(ctx.conn, run.list_id)["finished"]
+        finally:
             run.running = False
 
 
