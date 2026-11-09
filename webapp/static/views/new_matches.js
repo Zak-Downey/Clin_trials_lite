@@ -12,11 +12,14 @@ const el = (tag, attrs = {}, ...kids) => {
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const CONSEQUENCE = "These trials will not be suggested again for this list.";
 
+// What the analyst set, kept per watchlist so a redraw while a check finishes does not clear it.
+const kept = new Map();
+
 export async function render(root, listId, watchlist) {
-  let showing = "new"; // "new" or "dismissed"
+  if (!kept.has(listId)) kept.set(listId, { showing: "new", pending: false, selected: new Set() });
+  const mine = kept.get(listId);
+  const selected = mine.selected;
   let outcome = null; // what the last action did, shown in the bar
-  let pending = false; // Dismiss was pressed and not yet confirmed
-  const selected = new Set();
   let current = watchlist;
 
   const refreshTabs = async () => {
@@ -28,15 +31,16 @@ export async function render(root, listId, watchlist) {
 
   async function draw() {
     const tabs = tabBar(listId, "new-matches", current);
-    const data = await get(`/api/watchlists/${listId}/new-matches${showing === "dismissed" ? "/dismissed" : ""}`);
+    const data = await get(`/api/watchlists/${listId}/new-matches${mine.showing === "dismissed" ? "/dismissed" : ""}`);
     const trials = data.trials;
     for (const id of [...selected]) if (!trials.some((t) => t.nct_id === id)) selected.delete(id);
+    if (!selected.size) mine.pending = false;
     const bar = el("div", { class: "action-bar matches-bar", role: "region", "aria-label": "New matches actions" });
     const body = [];
 
-    if (showing === "dismissed") {
+    if (mine.showing === "dismissed") {
       const back = el("button", { type: "button", class: "link", id: "back-to-matches" }, "Back to new matches");
-      back.addEventListener("click", () => { showing = "new"; outcome = null; draw(); });
+      back.addEventListener("click", () => { mine.showing = "new"; outcome = null; draw(); });
       body.push(el("div", { class: "matches-head" },
         el("div", {},
           el("h2", { id: "matches-title" }, plural(trials.length, "dismissed match").replace("matchs", "matches")),
@@ -68,7 +72,7 @@ export async function render(root, listId, watchlist) {
     }
 
     const view = el("button", { type: "button", class: "link", id: "view-dismissed" }, "View dismissed");
-    view.addEventListener("click", () => { showing = "dismissed"; outcome = null; selected.clear(); draw(); });
+    view.addEventListener("click", () => { mine.showing = "dismissed"; outcome = null; selected.clear(); draw(); });
     body.push(el("div", { class: "matches-head" },
       el("div", {},
         el("h2", { id: "matches-title" }, trials.length ? plural(trials.length, "new match").replace("matchs", "matches") : "No new matches"),
@@ -93,7 +97,7 @@ export async function render(root, listId, watchlist) {
       const box = el("input", { type: "checkbox", "aria-label": `Select ${t.heading}`, "data-nct": t.nct_id });
       box.addEventListener("change", () => {
         if (box.checked) selected.add(t.nct_id); else selected.delete(t.nct_id);
-        outcome = null; pending = false;
+        outcome = null; mine.pending = false;
         sync();
       });
       boxes.push([box, t]);
@@ -130,17 +134,17 @@ export async function render(root, listId, watchlist) {
           await draw();
         } catch (err) { add.disabled = false; note.textContent = err.message; }
       });
-      dismiss.addEventListener("click", () => { pending = true; drawBar(); });
-      if (pending) {
+      dismiss.addEventListener("click", () => { mine.pending = true; drawBar(); });
+      if (mine.pending) {
         const confirm = el("button", { type: "button", class: "primary", id: "confirm-dismiss" }, `Yes, dismiss ${n}`);
         const cancel = el("button", { type: "button", class: "secondary" }, "Cancel");
-        cancel.addEventListener("click", () => { pending = false; drawBar(); });
+        cancel.addEventListener("click", () => { mine.pending = false; drawBar(); });
         confirm.addEventListener("click", async () => {
           confirm.disabled = true;
           try {
             const done = await post(`/api/watchlists/${listId}/new-matches/dismiss`, { nct_ids: [...selected] });
             selected.clear();
-            pending = false;
+            mine.pending = false;
             const undo = el("button", { type: "button", class: "secondary", id: "undo-dismiss" }, "Undo");
             undo.addEventListener("click", async () => {
               undo.disabled = true;

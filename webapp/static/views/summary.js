@@ -61,6 +61,9 @@ function trialCard(trial) {
   return card;
 }
 
+// Whether Custom dates is open and what was typed in it, kept per watchlist so a redraw while a check finishes does not clear them.
+const kept = new Map();
+
 export async function render(root, listId, watchlist, hashQuery = "") {
   const params = new URLSearchParams(hashQuery);
   let period = { kind: ["week", "month", "custom"].includes(params.get("period")) ? params.get("period") : "week" };
@@ -69,7 +72,10 @@ export async function render(root, listId, watchlist, hashQuery = "") {
     if (!period.from || !period.to) period = { kind: "week" };
   }
   let data = await get(`/api/watchlists/${listId}/summary?${queryOf(period)}`);
-  let editing = false; // the Custom dates form is open
+  const mine = kept.get(listId) || { editing: false };
+  kept.set(listId, mine);
+  const closeForm = () => { mine.editing = false; delete mine.from; delete mine.to; };
+  let editing = mine.editing; // the Custom dates form is open
   let notice = "";
 
   const body = el("div", { class: "summary-body" });
@@ -79,7 +85,7 @@ export async function render(root, listId, watchlist, hashQuery = "") {
 
   async function choose(next) {
     const fresh = await get(`/api/watchlists/${listId}/summary?${queryOf(next)}`);
-    period = next; data = fresh; editing = false; notice = "";
+    period = next; data = fresh; editing = false; notice = ""; closeForm();
     remember();
     draw();
   }
@@ -90,7 +96,7 @@ export async function render(root, listId, watchlist, hashQuery = "") {
       const pressed = kind === "custom" ? (editing || period.kind === "custom") : period.kind === kind;
       const button = el("button", { type: "button", class: "toggle", "aria-pressed": String(pressed) }, label);
       button.addEventListener("click", () => {
-        if (kind === "custom") { editing = true; draw(); return; }
+        if (kind === "custom") { editing = true; mine.editing = true; draw(); return; }
         choose({ kind }).catch(showError);
       });
       row.append(button);
@@ -99,8 +105,10 @@ export async function render(root, listId, watchlist, hashQuery = "") {
   }
 
   function customForm() {
-    const from = el("input", { type: "date", id: "summary-from", value: period.kind === "custom" ? period.from : data.period.start });
-    const to = el("input", { type: "date", id: "summary-to", value: period.kind === "custom" ? period.to : data.period.end });
+    const from = el("input", { type: "date", id: "summary-from", value: mine.from ?? (period.kind === "custom" ? period.from : data.period.start) });
+    const to = el("input", { type: "date", id: "summary-to", value: mine.to ?? (period.kind === "custom" ? period.to : data.period.end) });
+    from.addEventListener("input", () => { mine.from = from.value; });
+    to.addEventListener("input", () => { mine.to = to.value; });
     const problem = el("p", { class: "field-error", role: "alert" });
     const apply = el("button", { type: "button", class: "primary" }, "Apply");
     const cancel = el("button", { type: "button" }, "Cancel");
@@ -111,7 +119,7 @@ export async function render(root, listId, watchlist, hashQuery = "") {
       try { await choose({ kind: "custom", from: from.value, to: to.value }); }
       catch (err) { problem.textContent = err.message; }
     });
-    cancel.addEventListener("click", () => { editing = false; draw(); });
+    cancel.addEventListener("click", () => { editing = false; closeForm(); draw(); });
     return el("form", { class: "custom-dates", novalidate: "" },
       el("div", { class: "field" }, el("label", { for: "summary-from" }, "From"), from),
       el("div", { class: "field" }, el("label", { for: "summary-to" }, "To"), to),
@@ -167,7 +175,7 @@ export async function render(root, listId, watchlist, hashQuery = "") {
         `${counts.awaiting_review} awaiting review · ${counts.reviewed} reviewed · Dates use ${data.zone}`));
     if (empty) {
       const wider = shown.kind === "week" ? ["Show the whole month", () => choose({ kind: "month" })]
-        : ["Pick other dates", () => { editing = true; draw(); }];
+        : ["Pick other dates", () => { editing = true; mine.editing = true; draw(); }];
       const offer = el("button", { type: "button", class: "link" }, wider[0]);
       offer.addEventListener("click", () => Promise.resolve(wider[1]()).catch(showError));
       body.append(el("div", { class: "empty", id: "summary-empty" },
