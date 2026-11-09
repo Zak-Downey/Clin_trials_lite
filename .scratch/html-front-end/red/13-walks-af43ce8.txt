@@ -1,0 +1,473 @@
+# tip af43ce865d6d5d0338984f175bd336b45393ec86
+FFFFFFFFFF..........                                                     [100%]
+=================================== FAILURES ===================================
+_ test_walk_the_menu_offers_four_actions_and_each_opens_its_own_dialog[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10b4732e0>
+make_walk = <function make_walk.<locals>.build at 0x10b473600>
+
+    def test_walk_the_menu_offers_four_actions_and_each_opens_its_own_dialog(make_app, make_walk):
+        """test_walk_the_menu_offers_four_actions_and_each_opens_its_own_dialog"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+>       page.get_by_role("button", name="Watchlist actions").click()
+
+walks/test_watchlist_menu_walk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b1846e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10b1f3ec0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Watchlist actions")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_the_menu_offers_four_actions_and_each_opens_its_own_dialog[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10b637d80>
+make_walk = <function make_walk.<locals>.build at 0x10b1f1ee0>
+
+    def test_walk_the_menu_offers_four_actions_and_each_opens_its_own_dialog(make_app, make_walk):
+        """test_walk_the_menu_offers_four_actions_and_each_opens_its_own_dialog"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+>       page.get_by_role("button", name="Watchlist actions").click()
+
+walks/test_watchlist_menu_walk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b1846e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10b473240>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Watchlist actions")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_rename_shows_the_current_name_refuses_empty_and_duplicate_inline_and_keeps_the_place[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10b6a0360>
+make_walk = <function make_walk.<locals>.build at 0x10b6a9a80>
+
+    def test_walk_rename_shows_the_current_name_refuses_empty_and_duplicate_inline_and_keeps_the_place(make_app, make_walk):
+        """test_walk_rename_shows_the_current_name_refuses_empty_and_duplicate_inline_and_keeps_the_place"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        page.evaluate("document.body.style.minHeight = '3000px'")
+        url = page.url
+>       choose(page, "Rename watchlist")  # the click brings the menu into view, so scroll once the dialog is open
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+walks/test_watchlist_menu_walk.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_watchlist_menu_walk.py:25: in choose
+    page.get_by_role("button", name="Watchlist actions").click()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b1846e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10b671c60>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Watchlist actions")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_rename_shows_the_current_name_refuses_empty_and_duplicate_inline_and_keeps_the_place[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10b701f80>
+make_walk = <function make_walk.<locals>.build at 0x10b7023e0>
+
+    def test_walk_rename_shows_the_current_name_refuses_empty_and_duplicate_inline_and_keeps_the_place(make_app, make_walk):
+        """test_walk_rename_shows_the_current_name_refuses_empty_and_duplicate_inline_and_keeps_the_place"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        page.evaluate("document.body.style.minHeight = '3000px'")
+        url = page.url
+>       choose(page, "Rename watchlist")  # the click brings the menu into view, so scroll once the dialog is open
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+walks/test_watchlist_menu_walk.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_watchlist_menu_walk.py:25: in choose
+    page.get_by_role("button", name="Watchlist actions").click()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b1846e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10b6a2020>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Watchlist actions")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_full_recheck_explains_itself_runs_once_and_finishes_with_its_own_label[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10b6a4a40>
+make_walk = <function make_walk.<locals>.build at 0x10b6a5440>
+
+    def test_walk_full_recheck_explains_itself_runs_once_and_finishes_with_its_own_label(make_app, make_walk):
+        """test_walk_full_recheck_explains_itself_runs_once_and_finishes_with_its_own_label"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+>       choose(page, "Full recheck")
+
+walks/test_watchlist_menu_walk.py:99: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_watchlist_menu_walk.py:25: in choose
+    page.get_by_role("button", name="Watchlist actions").click()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b1846e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10b6a8180>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Watchlist actions")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_full_recheck_explains_itself_runs_once_and_finishes_with_its_own_label[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10ba25760>
+make_walk = <function make_walk.<locals>.build at 0x10ba25bc0>
+
+    def test_walk_full_recheck_explains_itself_runs_once_and_finishes_with_its_own_label(make_app, make_walk):
+        """test_walk_full_recheck_explains_itself_runs_once_and_finishes_with_its_own_label"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+>       choose(page, "Full recheck")
+
+walks/test_watchlist_menu_walk.py:99: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_watchlist_menu_walk.py:25: in choose
+    page.get_by_role("button", name="Watchlist actions").click()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b1846e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10b637ba0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Watchlist actions")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_delete_names_the_watchlist_states_what_goes_and_stays_and_lands_on_another[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10ba10680>
+make_walk = <function make_walk.<locals>.build at 0x10ba10900>
+
+    def test_walk_delete_names_the_watchlist_states_what_goes_and_stays_and_lands_on_another(make_app, make_walk):
+        """test_walk_delete_names_the_watchlist_states_what_goes_and_stays_and_lands_on_another"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        page.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Quiet")).click()
+        page.get_by_role("heading", level=1, name="Quiet").wait_for()
+>       choose(page, "Delete watchlist")
+
+walks/test_watchlist_menu_walk.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_watchlist_menu_walk.py:25: in choose
+    page.get_by_role("button", name="Watchlist actions").click()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b1846e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10ba10540>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Watchlist actions")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_delete_names_the_watchlist_states_what_goes_and_stays_and_lands_on_another[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10b9b9940>
+make_walk = <function make_walk.<locals>.build at 0x10b9b9da0>
+
+    def test_walk_delete_names_the_watchlist_states_what_goes_and_stays_and_lands_on_another(make_app, make_walk):
+        """test_walk_delete_names_the_watchlist_states_what_goes_and_stays_and_lands_on_another"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        page.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Quiet")).click()
+        page.get_by_role("heading", level=1, name="Quiet").wait_for()
+>       choose(page, "Delete watchlist")
+
+walks/test_watchlist_menu_walk.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_watchlist_menu_walk.py:25: in choose
+    page.get_by_role("button", name="Watchlist actions").click()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b1846e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10ba34720>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Watchlist actions")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10ba347c0>
+make_walk = <function make_walk.<locals>.build at 0x10ba35da0>
+
+    def test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check(make_app, make_walk):
+        """test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        assert page.get_by_role("heading", level=1).inner_text() == helper.LONG_NAME
+        meta = page.locator("#watchlist-meta").inner_text()
+        assert meta == "3 trials monitored · Last checked Nov 8, 2026, 11:45 AM EST", meta
+        buttons = page.get_by_role("main").get_by_role("button")
+>       assert [buttons.nth(i).inner_text() for i in range(buttons.count())] == ["Check for updates", "⋯", "Manage"]  # Manage: the saved-search banner (this seed has one)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert ['Check for u...es', 'Manage'] == ['Check for u...'⋯', 'Manage']
+E         
+E         At index 1 diff: 'Manage' != '⋯'
+E         Right contains one more item: 'Manage'
+E         Use -v to get more diff
+
+walks/test_check_walk.py:54: AssertionError
+_ test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10ba3da80>
+make_walk = <function make_walk.<locals>.build at 0x10ba3dbc0>
+
+    def test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check(make_app, make_walk):
+        """test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        assert page.get_by_role("heading", level=1).inner_text() == helper.LONG_NAME
+        meta = page.locator("#watchlist-meta").inner_text()
+        assert meta == "3 trials monitored · Last checked Nov 8, 2026, 11:45 AM EST", meta
+        buttons = page.get_by_role("main").get_by_role("button")
+>       assert [buttons.nth(i).inner_text() for i in range(buttons.count())] == ["Check for updates", "⋯", "Manage"]  # Manage: the saved-search banner (this seed has one)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert ['Check for u...es', 'Manage'] == ['Check for u...'⋯', 'Manage']
+E         
+E         At index 1 diff: 'Manage' != '⋯'
+E         Right contains one more item: 'Manage'
+E         Use -v to get more diff
+
+walks/test_check_walk.py:54: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_watchlist_menu_walk.py::test_walk_the_menu_offers_four_actions_and_each_opens_its_own_dialog[1440x900]
+FAILED walks/test_watchlist_menu_walk.py::test_walk_the_menu_offers_four_actions_and_each_opens_its_own_dialog[1024x768]
+FAILED walks/test_watchlist_menu_walk.py::test_walk_rename_shows_the_current_name_refuses_empty_and_duplicate_inline_and_keeps_the_place[1440x900]
+FAILED walks/test_watchlist_menu_walk.py::test_walk_rename_shows_the_current_name_refuses_empty_and_duplicate_inline_and_keeps_the_place[1024x768]
+FAILED walks/test_watchlist_menu_walk.py::test_walk_full_recheck_explains_itself_runs_once_and_finishes_with_its_own_label[1440x900]
+FAILED walks/test_watchlist_menu_walk.py::test_walk_full_recheck_explains_itself_runs_once_and_finishes_with_its_own_label[1024x768]
+FAILED walks/test_watchlist_menu_walk.py::test_walk_delete_names_the_watchlist_states_what_goes_and_stays_and_lands_on_another[1440x900]
+FAILED walks/test_watchlist_menu_walk.py::test_walk_delete_names_the_watchlist_states_what_goes_and_stays_and_lands_on_another[1024x768]
+FAILED walks/test_check_walk.py::test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check[1440x900]
+FAILED walks/test_check_walk.py::test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check[1024x768]
+10 failed, 10 passed in 80.84s (0:01:20)

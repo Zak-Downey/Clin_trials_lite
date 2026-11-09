@@ -96,3 +96,31 @@ def create_watchlist(ctx, body=None, **_):
         raise ApiError(status, err.kind, message or f"There is already a watchlist called “{name.strip()}”.")
     watchlists = list_watchlists(ctx)["watchlists"]
     return {"watchlist": next(w for w in watchlists if w["id"] == new_id), "watchlists": watchlists}
+
+
+def _named(ctx, name, call):
+    """Run a naming action, turning the monitor's two refusals into the API's words."""
+    name = name if isinstance(name, str) else ""
+    try:
+        return call(name)
+    except monitor.MonitorError as err:
+        status, message = _NAME_WORDS.get(err.kind, (400, str(err)))
+        raise ApiError(status, err.kind, message or f"There is already a watchlist called “{name.strip()}”.")
+
+
+def rename_watchlist(ctx, list_id: str, body=None, **_):
+    """Give a watchlist another name; what it holds is untouched."""
+    list_id = int(list_id)
+    _require(ctx.conn, list_id)
+    _named(ctx, (body or {}).get("name"), lambda name: monitor.rename_list(ctx.conn, list_id, name))
+    watchlists = list_watchlists(ctx)["watchlists"]
+    return {"watchlist": next(w for w in watchlists if w["id"] == list_id), "watchlists": watchlists}
+
+
+def delete_watchlist(ctx, list_id: str, **_):
+    """Delete a watchlist, its saved search and its memberships. Trials, snapshots and
+    changes stay; a trial no other watchlist holds stops being checked."""
+    list_id = int(list_id)
+    _require(ctx.conn, list_id)
+    monitor.delete_list(ctx.conn, list_id)
+    return {"watchlists": list_watchlists(ctx)["watchlists"]}

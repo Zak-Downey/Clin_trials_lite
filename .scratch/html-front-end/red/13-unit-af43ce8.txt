@@ -1,0 +1,91 @@
+# tip af43ce865d6d5d0338984f175bd336b45393ec86
+.......................F................................................ [ 12%]
+....................FFF................................................. [ 25%]
+........................................................................ [ 38%]
+........................................................................ [ 51%]
+........................................................................ [ 64%]
+........................................................................ [ 77%]
+........................................................................ [ 89%]
+.........................................................                [100%]
+=================================== FAILURES ===================================
+_ test_a_normal_check_skips_an_unmoved_stamp_and_a_full_recheck_compares_it_anyway _
+
+watched = <conftest.api.<locals>.Client object at 0x10bedea50>
+fetcher = <function fetcher.<locals>.fetch at 0x10c1e87c0>
+
+    def test_a_normal_check_skips_an_unmoved_stamp_and_a_full_recheck_compares_it_anyway(watched, fetcher):
+        """test_a_normal_check_skips_an_unmoved_stamp_and_a_full_recheck_compares_it_anyway"""
+        _edit_enrollment(fetcher, "NCT00000002", 4321)
+        watched.post(f"/api/watchlists/{LIST_ID}/check")
+        normal = finished(watched)
+        assert normal["state"] == "complete" and normal["kind"] == "check" and normal["changed"] == 0
+        assert storage.list_changes(storage.connect(watched.path), "NCT00000002") == []
+        status, body = watched.post(f"/api/watchlists/{LIST_ID}/recheck")
+        assert status == 200
+        full = finished(watched)
+>       assert full["kind"] == "recheck" and full["changed"] == 1
+E       AssertionError: assert ('check' == 'recheck'
+E         
+E         - recheck
+E         ? --
+E         + check)
+
+tests/test_api_checks.py:222: AssertionError
+_______ test_rename_changes_the_name_and_keeps_what_the_watchlist_holds ________
+
+api = <conftest.api.<locals>.Client object at 0x10bede510>
+record = {'protocolSection': {'identificationModule': {'nctId': 'NCT03412565', 'orgStudyIdInfo': {'id': 'CR108435'}, 'secondary...id': 'D001896', 'term': 'Boron Compounds'}, {'id': 'D009930', 'term': 'Organic Chemicals'}, ...]}}, 'hasResults': True}
+restyled = <function restyled.<locals>.build at 0x10c1fa3e0>
+make_fetcher = <function make_fetcher.<locals>.build at 0x10c29f4c0>
+
+    def test_rename_changes_the_name_and_keeps_what_the_watchlist_holds(api, record, restyled, make_fetcher):
+        """test_rename_changes_the_name_and_keeps_what_the_watchlist_holds"""
+        other, _ = seeded(api, record, restyled, make_fetcher)
+        status, body = api.post("/api/watchlists/1/rename", {"name": "  Myeloma renamed "})
+>       assert status == 200 and body["watchlist"]["name"] == "Myeloma renamed"
+E       assert (404 == 200)
+
+tests/test_api_watchlist_menu.py:32: AssertionError
+_____ test_rename_refuses_an_empty_or_duplicate_name_and_keeps_the_old_one _____
+
+api = <conftest.api.<locals>.Client object at 0x10c1dcad0>
+record = {'protocolSection': {'identificationModule': {'nctId': 'NCT03412565', 'orgStudyIdInfo': {'id': 'CR108435'}, 'secondary...id': 'D001896', 'term': 'Boron Compounds'}, {'id': 'D009930', 'term': 'Organic Chemicals'}, ...]}}, 'hasResults': True}
+restyled = <function restyled.<locals>.build at 0x10c2a1e40>
+make_fetcher = <function make_fetcher.<locals>.build at 0x10c2a1120>
+
+    def test_rename_refuses_an_empty_or_duplicate_name_and_keeps_the_old_one(api, record, restyled, make_fetcher):
+        """test_rename_refuses_an_empty_or_duplicate_name_and_keeps_the_old_one"""
+        seeded(api, record, restyled, make_fetcher)
+        before = api.get("/api/watchlists")[1]["watchlists"][0]["name"]
+>       assert api.post("/api/watchlists/1/rename", {"name": "  "}) [1]["error"]["kind"] == "name_empty"
+E       AssertionError: assert 'not_found' == 'name_empty'
+E         
+E         - name_empty
+E         + not_found
+
+tests/test_api_watchlist_menu.py:41: AssertionError
+_ test_deleting_a_watchlist_keeps_every_trials_history_and_trials_in_another_list_keep_being_checked _
+
+api = <conftest.api.<locals>.Client object at 0x10c1dc830>
+record = {'protocolSection': {'identificationModule': {'nctId': 'NCT03412565', 'orgStudyIdInfo': {'id': 'CR108435'}, 'secondary...id': 'D001896', 'term': 'Boron Compounds'}, {'id': 'D009930', 'term': 'Organic Chemicals'}, ...]}}, 'hasResults': True}
+restyled = <function restyled.<locals>.build at 0x10c2a2d40>
+make_fetcher = <function make_fetcher.<locals>.build at 0x10c2a0ea0>
+
+    def test_deleting_a_watchlist_keeps_every_trials_history_and_trials_in_another_list_keep_being_checked(
+        api, record, restyled, make_fetcher
+    ):
+        """test_deleting_a_watchlist_keeps_every_trials_history_and_trials_in_another_list_keep_being_checked"""
+        other, fetch = seeded(api, record, restyled, make_fetcher)
+        conn = storage.connect(api.path)
+        snapshots = {n: storage.count_snapshots(conn, n) for n in ("NCT00000001", "NCT00000002", "NCT00000003")}
+        status, body = api.post("/api/watchlists/1/delete")
+>       assert status == 200 and [w["id"] for w in body["watchlists"]] == [other]
+E       assert (404 == 200)
+
+tests/test_api_watchlist_menu.py:56: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_api_checks.py::test_a_normal_check_skips_an_unmoved_stamp_and_a_full_recheck_compares_it_anyway
+FAILED tests/test_api_watchlist_menu.py::test_rename_changes_the_name_and_keeps_what_the_watchlist_holds
+FAILED tests/test_api_watchlist_menu.py::test_rename_refuses_an_empty_or_duplicate_name_and_keeps_the_old_one
+FAILED tests/test_api_watchlist_menu.py::test_deleting_a_watchlist_keeps_every_trials_history_and_trials_in_another_list_keep_being_checked
+4 failed, 557 passed in 54.88s

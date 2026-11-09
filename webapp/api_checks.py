@@ -22,7 +22,7 @@ from .times import local
 class Run:
     def __init__(self, list_id: int, kind: str, steps: list[tuple[str, str | None]]):
         self.list_id = list_id
-        self.kind = kind  # "check" or "retry"
+        self.kind = kind  # "check", "recheck" or "retry"
         self.steps = steps  # ("trial", nct) ... then ("search", None)
         self.processed = 0
         self.results: list[dict] = []
@@ -97,11 +97,12 @@ def _start(ctx, list_id: int, kind: str, trials: list[str], search: bool, force:
 
 
 def start(ctx, list_id: str, force: bool = False, **_):
+    """A normal check, or with force a full recheck (its own kind, so the page labels it)."""
     list_id = int(list_id)
     _require(ctx, list_id)
     trials = [t["nct_id"] for t in storage.list_trials(ctx.conn, list_id)]
     searching = monitor.remembered_search(ctx.conn, list_id) is not None
-    return _start(ctx, list_id, "check", trials, searching, force)
+    return _start(ctx, list_id, "recheck" if force else "check", trials, searching, force)
 
 
 def recheck(ctx, list_id: str, **_):
