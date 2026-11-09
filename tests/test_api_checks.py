@@ -1,0 +1,342 @@
+"""Checking a watchlist for updates through the API: a run on a server thread, one at a time,
+failures per trial apart from the saved search, Retry failed.
+
+Uses the captured record restyled into three trials of watchlist 1. Lacks: a run longer than a
+few trials, and the registry's real error bodies.
+"""
+
+from __future__ import annotations
+
+import copy
+import threading
+import time
+import urllib.error
+
+import pytest
+
+import monitor
+import storage
+
+LIST_ID = 1
+GATE = threading.Event()
+
+
+@pytest.fixture(autouse=True)
+def no_pause(monkeypatch):
+    monkeypatch.setattr(monitor, "PAUSE", 0)
+
+
+@pytest.fixture
+def fetcher(record, restyled):
+    """Overrides the suite's fetcher: NCT00000002 fails while FAIL has it, and every
+    fetch waits for GATE when it is closed."""
+    served = {n: restyled(record, n) for n in ("NCT00000001", "NCT00000002", "NCT00000003")}
+    served["NCT03412565"] = record
+    fail = set()
+
+    def fetch(nct_id):
+        GATE.wait(10)
+        if nct_id in fail:
+            raise urllib.error.URLError("connection refused")
+        return served[nct_id]
+
+    fetch.fail = fail
+    fetch.served = served
+    GATE.set()
+    return fetch
+
+
+@pytest.fixture
+def watched(api, fetcher):
+    conn = storage.connect(api.path)
+    for nct in ("NCT00000001", "NCT00000002", "NCT00000003"):
+        monitor.add(conn, nct, LIST_ID, fetch=fetcher, when="2026-11-01T08:00:00+00:00")
+    conn.close()
+    return api
+
+
+def finished(api, route=f"/api/watchlists/{LIST_ID}/check"):
+    for _ in range(100):
+        status, body = api.get(route)
+        assert status == 200
+        if body["state"] not in ("running",):
+            return body
+        time.sleep(0.1)
+    raise AssertionError("the check never finished")
+
+
+def test_a_second_check_for_the_same_watchlist_is_refused_while_one_runs(watched, fetcher):
+    """test_a_second_check_for_the_same_watchlist_is_refused_while_one_runs"""
+    GATE.clear()
+    status, body = watched.post(f"/api/watchlists/{LIST_ID}/check")
+    assert status == 200 and body["state"] == "running" and body["total"] == 3
+    status, body = watched.post(f"/api/watchlists/{LIST_ID}/check")
+    assert (status, body["error"]["kind"]) == (409, "check_running")
+    assert watched.post(f"/api/watchlists/{LIST_ID}/check/retry")[1]["error"]["kind"] == "check_running"
+    GATE.set()
+    assert finished(watched)["state"] == "complete"
+    # Once finished, a new check is accepted.
+    assert watched.post(f"/api/watchlists/{LIST_ID}/check")[0] == 200
+    finished(watched)
+
+
+def test_a_check_reports_progress_while_the_watchlist_stays_readable(watched):
+    """test_a_check_reports_progress_while_the_watchlist_stays_readable"""
+    GATE.clear()
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    status, body = watched.get(f"/api/watchlists/{LIST_ID}/needs-review")
+    assert status == 200  # the queue answers while a fetch is waiting
+    progress = watched.get(f"/api/watchlists/{LIST_ID}/check")[1]
+    assert (progress["state"], progress["processed"], progress["total"]) == ("running", 0, 3)
+    assert progress["next"] == {"kind": "trial", "nct_id": "NCT00000001"}
+    GATE.set()
+    done = finished(watched)
+    assert (done["state"], done["processed"], done["checked"], done["failed"]) == ("complete", 3, 3, 0)
+    assert done["finished_at"] is not None
+
+
+def test_a_failed_trial_makes_the_check_incomplete_and_keeps_the_search_apart(watched, fetcher):
+    """test_a_failed_trial_makes_the_check_incomplete_and_keeps_the_search_apart"""
+    conn = storage.connect(watched.path)
+    monitor.remember_search(conn, LIST_ID, monitor.as_query(cond="myeloma"))
+    conn.close()
+    fetcher.fail.add("NCT00000002")
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    done = finished(watched)
+    assert done["state"] == "incomplete"
+    assert (done["total"], done["checked"], done["failed"]) == (3, 2, 1)
+    (bad,) = [t for t in done["trials"] if t["outcome"] == "error"]
+    assert (bad["nct_id"], bad["error_kind"]) == ("NCT00000002", "unreachable")
+    assert done["search"]["outcome"] == "nothing_found"  # the search's own result, not the trials'
+    assert done["retryable"] == 1
+    conn = storage.connect(watched.path)
+    trial = storage.get_trial(conn, "NCT00000002")
+    assert trial["check_error_kind"] == "unreachable"
+    assert trial["last_checked"] == "2026-11-01T08:00:00+00:00"  # the baseline, never moved by the failure
+
+
+def test_a_saved_search_failure_is_reported_apart_from_the_trials(watched, record):
+    """test_a_saved_search_failure_is_reported_apart_from_the_trials"""
+    conn = storage.connect(watched.path)
+    monitor.remember_search(conn, LIST_ID, monitor.as_query(cond="myeloma"))
+    conn.close()
+    from webapp.server import make_server
+
+    def broken(**_):
+        raise urllib.error.URLError("search down")
+
+    server = make_server(watched.path, fetch=lambda n: record, find=broken)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    import json
+    import urllib.request
+
+    req = urllib.request.Request(f"{base}/api/watchlists/{LIST_ID}/check", data=b"{}", method="POST",
+                                 headers={"Content-Type": "application/json"})
+    urllib.request.urlopen(req).read()
+    for _ in range(100):
+        body = json.load(urllib.request.urlopen(f"{base}/api/watchlists/{LIST_ID}/check"))
+        if body["state"] != "running":
+            break
+        time.sleep(0.1)
+    server.shutdown()
+    assert body["state"] == "incomplete" and body["failed"] == 0
+    assert body["search"]["outcome"] == "error"
+
+
+def test_retry_failed_rechecks_only_the_failed_trials(watched, fetcher):
+    """test_retry_failed_rechecks_only_the_failed_trials"""
+    fetcher.fail.add("NCT00000002")
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    finished(watched)
+    fetcher.fail.clear()
+
+    status, body = watched.post(f"/api/watchlists/{LIST_ID}/check/retry")
+    assert status == 200 and body["total"] == 1
+    done = finished(watched)
+    assert [t["nct_id"] for t in done["trials"]] == ["NCT00000002"]
+    assert done["state"] == "complete" and done["retryable"] == 0
+    conn = storage.connect(watched.path)
+    assert storage.get_trial(conn, "NCT00000002")["check_failed_at"] is None
+    assert watched.post(f"/api/watchlists/{LIST_ID}/check/retry")[1]["error"]["kind"] == "nothing_to_retry"
+
+
+def test_a_check_with_nothing_new_says_how_many_still_need_review_from_earlier(watched):
+    """test_a_check_with_nothing_new_says_how_many_still_need_review_from_earlier"""
+    conn = storage.connect(watched.path)
+    storage.add_change(conn, "NCT00000001", {"field": "enrollment", "previous": 1, "current": 2}, "2026-11-02T00:00:00+00:00")
+    conn.close()
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    done = finished(watched)
+    assert (done["state"], done["changed"], done["still_need_review"]) == ("complete", 0, 1)
+    assert watched.get(f"/api/watchlists/{LIST_ID}/needs-review")[1]["counts"]["trials"] == 1
+
+
+def test_a_check_runs_the_saved_search_even_with_no_trials(api):
+    """test_a_check_runs_the_saved_search_even_with_no_trials"""
+    conn = storage.connect(api.path)
+    monitor.remember_search(conn, LIST_ID, monitor.as_query(cond="myeloma"))
+    conn.close()
+    status, body = api.post(f"/api/watchlists/{LIST_ID}/check")
+    assert status == 200 and body["total"] == 0 and body["has_search"] is True
+    done = finished(api)
+    assert done["search"]["outcome"] == "nothing_found" and len(api.finder.calls) == 1
+
+
+def test_checking_an_unknown_watchlist_is_not_found(api):
+    """test_checking_an_unknown_watchlist_is_not_found"""
+    assert api.post("/api/watchlists/99/check")[1]["error"]["kind"] == "watchlist_not_found"
+    assert api.get("/api/watchlists/99/check")[0] == 404
+
+
+def test_still_need_review_from_earlier_checks_leaves_out_what_this_check_just_found(watched, fetcher):
+    """test_still_need_review_from_earlier_checks_leaves_out_what_this_check_just_found"""
+    conn = storage.connect(watched.path)
+    storage.add_change(conn, "NCT00000002", {"field": "enrollment", "previous": 1, "current": 2}, "2026-11-02T00:00:00+00:00")
+    conn.close()
+    revised = copy.deepcopy(fetcher.served["NCT00000001"])
+    revised["protocolSection"]["designModule"]["enrollmentInfo"]["count"] += 5
+    revised["protocolSection"]["statusModule"]["lastUpdatePostDateStruct"]["date"] = "2026-12-01"
+    fetcher.served["NCT00000001"] = revised
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    done = finished(watched)
+    assert (done["changed"], done["still_need_review"]) == (1, 1)
+    assert watched.get(f"/api/watchlists/{LIST_ID}/needs-review")[1]["counts"]["trials"] == 2
+
+
+def _edit_enrollment(fetcher, nct, count):
+    """Change a monitored field on the served record without moving its registry stamp."""
+    fetcher.served[nct]["protocolSection"]["designModule"]["enrollmentInfo"]["count"] = count
+
+
+def test_a_normal_check_skips_an_unmoved_stamp_and_a_full_recheck_compares_it_anyway(watched, fetcher):
+    """test_a_normal_check_skips_an_unmoved_stamp_and_a_full_recheck_compares_it_anyway"""
+    _edit_enrollment(fetcher, "NCT00000002", 4321)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    normal = finished(watched)
+    assert normal["state"] == "complete" and normal["kind"] == "check" and normal["changed"] == 0
+    assert storage.list_changes(storage.connect(watched.path), "NCT00000002") == []
+    status, body = watched.post(f"/api/watchlists/{LIST_ID}/recheck")
+    assert status == 200
+    full = finished(watched)
+    assert full["kind"] == "recheck" and full["changed"] == 1
+    assert [t["nct_id"] for t in full["trials"] if t["outcome"] == "updated"] == ["NCT00000002"]
+    # Once, not sticky: the next normal check is the cheap one again.
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    assert finished(watched)["kind"] == "check"
+
+
+def test_a_check_pauses_between_trials_and_not_before_the_first(watched, monkeypatch):
+    """test_a_check_pauses_between_trials_and_not_before_the_first"""
+    import types
+
+    import webapp.api_checks as api_checks
+
+    pauses = []
+    monkeypatch.setattr(monitor, "PAUSE", 0.25)
+    monkeypatch.setattr(api_checks, "time", types.SimpleNamespace(sleep=pauses.append))
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    finished(watched)
+    assert pauses == [0.25, 0.25]
+
+
+def test_a_trial_removed_while_a_check_runs_is_not_fetched_marked_checked_or_given_changes(watched, fetcher, record):
+    """test_a_trial_removed_while_a_check_runs_is_not_fetched_marked_checked_or_given_changes"""
+    asked = []
+
+    def fetch(nct):
+        asked.append(nct)
+        if nct == "NCT00000001":
+            watched.post(f"/api/watchlists/{LIST_ID}/trials/NCT00000003/remove")
+        revised = copy.deepcopy(fetcher(nct))
+        revised["protocolSection"]["statusModule"]["overallStatus"] = "TERMINATED"
+        return revised
+
+    watched.fetch_override(fetch)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    finished(watched)
+    assert "NCT00000003" not in asked
+    conn = storage.connect(watched.path)
+    assert storage.get_trial(conn, "NCT00000003")["last_checked"] == "2026-11-01T08:00:00+00:00"
+    assert storage.list_changes(conn, "NCT00000003") == []
+
+
+def test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed(watched, fetcher):
+    """test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed"""
+
+    def fetch(nct):
+        if nct == "NCT00000001":
+            watched.post(f"/api/watchlists/{LIST_ID}/trials/NCT00000003/remove")
+        return fetcher(nct)
+
+    watched.fetch_override(fetch)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    state = finished(watched)
+    assert (state["state"], state["checked"], state["total"]) == ("complete", 2, 2)
+
+
+def test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes(watched, fetcher):
+    """test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes"""
+
+    def fetch(nct):
+        if nct == "NCT00000003":
+            watched.post(f"/api/watchlists/{LIST_ID}/trials/NCT00000003/remove")
+        revised = copy.deepcopy(fetcher(nct))
+        revised["protocolSection"]["statusModule"]["overallStatus"] = "TERMINATED"
+        revised["protocolSection"]["statusModule"]["lastUpdatePostDateStruct"] = {"date": "2030-01-01"}
+        return revised
+
+    watched.fetch_override(fetch)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    state = finished(watched)
+    conn = storage.connect(watched.path)
+    assert storage.get_trial(conn, "NCT00000003")["last_checked"] == "2026-11-01T08:00:00+00:00"
+    assert storage.list_changes(conn, "NCT00000003") == []
+    assert state["total"] == 2
+
+
+def test_a_watchlist_deleted_while_its_check_runs_ends_the_run_without_checking_the_rest(watched, fetcher):
+    """test_a_watchlist_deleted_while_its_check_runs_ends_the_run_without_checking_the_rest"""
+    asked = []
+
+    def fetch(nct):
+        asked.append(nct)
+        if nct == "NCT00000001":
+            watched.post(f"/api/watchlists/{LIST_ID}/delete")
+        return fetcher(nct)
+
+    watched.fetch_override(fetch)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    for _ in range(100):
+        run = watched_run(watched)
+        if run is not None and not run.running:
+            break
+        time.sleep(0.1)
+    assert asked == ["NCT00000001"]
+
+
+def watched_run(api):
+    return getattr(api, "ctx", None) and api.ctx.runs.get(LIST_ID)
+
+
+def test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted(watched, monkeypatch):
+    """test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted"""
+    real = monitor.finish_run
+    calls = []
+
+    def broken(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("disk full")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(monitor, "finish_run", broken)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    for _ in range(100):
+        if calls:
+            break
+        time.sleep(0.1)
+    time.sleep(0.3)
+    status, body = watched.post(f"/api/watchlists/{LIST_ID}/check")
+    assert status == 200, body
+    finished(watched)

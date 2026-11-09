@@ -3,7 +3,7 @@
 Somebody covering two therapy areas keeps myeloma apart from lung, so a trial
 belongs to a *list* rather than to one undifferentiated watchlist -- and to more
 than one at a time, since indications overlap. All of it is tested here without
-running Streamlit: the page only chooses which list to show.
+a page: the page only chooses which list to show.
 """
 
 from __future__ import annotations
@@ -134,13 +134,14 @@ def test_removing_a_trial_from_one_list_leaves_it_in_the_other(conn, myeloma, fe
     assert storage.get_trial(conn, "NCT03412565") is not None
 
 
-def test_a_trial_left_in_no_list_at_all_stops_being_monitored(conn, myeloma, fetcher):
+def test_a_trial_left_in_no_list_at_all_is_kept_but_no_longer_monitored(conn, myeloma, fetcher):
     monitor.add(conn, "NCT03412565", myeloma, fetch=fetcher)
 
     monitor.remove(conn, "NCT03412565", myeloma)
 
-    assert storage.get_trial(conn, "NCT03412565") is None
-    assert storage.count_snapshots(conn, "NCT03412565") == 0
+    assert storage.get_trial(conn, "NCT03412565") is not None
+    assert storage.count_snapshots(conn, "NCT03412565") == 1
+    assert storage.list_trials(conn) == []
 
 
 def test_deleting_a_list_stops_monitoring_only_what_no_other_list_holds(
@@ -156,7 +157,8 @@ def test_deleting_a_list_stops_monitoring_only_what_no_other_list_holds(
     monitor.delete_list(conn, myeloma)
 
     assert storage.get_trial(conn, "NCT03412565") is not None
-    assert storage.get_trial(conn, "NCT00000001") is None
+    assert [t["nct_id"] for t in storage.list_trials(conn)] == ["NCT03412565"]
+    assert storage.get_trial(conn, "NCT00000001") is not None
 
 
 # --- reading one list at a time

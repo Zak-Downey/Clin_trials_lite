@@ -1,0 +1,309 @@
+# tip 0a2ca89591d05541ec1c5e5daa8dd67c97908ee7
+FFFFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+_ test_walk_view_details_from_find_trials_presets_add_to_the_find_destination_and_adds_there[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x1090b5080>
+make_walk = <function make_walk.<locals>.build at 0x1090b53a0>
+
+    def test_walk_view_details_from_find_trials_presets_add_to_the_find_destination_and_adds_there(make_app, make_walk):
+        """test_walk_view_details_from_find_trials_presets_add_to_the_find_destination_and_adds_there"""
+        app = make_app(seed=find_seed.seed)
+        walk = make_walk(app)
+        page = walk.page
+        search_from_elsewhere(page, app)
+        page.locator('li.card[data-nct="NCT10000001"]').get_by_role("link", name=re.compile("^View details")).click()
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+>       assert page.locator("#add-to").evaluate("(s) => s.selectedOptions[0].textContent") == "Elsewhere"
+E       AssertionError: assert 'Myeloma' == 'Elsewhere'
+E         
+E         - Elsewhere
+E         + Myeloma
+
+walks/test_origin_walk.py:33: AssertionError
+_ test_walk_view_details_from_find_trials_presets_add_to_the_find_destination_and_adds_there[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x1092c25c0>
+make_walk = <function make_walk.<locals>.build at 0x1092c2700>
+
+    def test_walk_view_details_from_find_trials_presets_add_to_the_find_destination_and_adds_there(make_app, make_walk):
+        """test_walk_view_details_from_find_trials_presets_add_to_the_find_destination_and_adds_there"""
+        app = make_app(seed=find_seed.seed)
+        walk = make_walk(app)
+        page = walk.page
+        search_from_elsewhere(page, app)
+        page.locator('li.card[data-nct="NCT10000001"]').get_by_role("link", name=re.compile("^View details")).click()
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+>       assert page.locator("#add-to").evaluate("(s) => s.selectedOptions[0].textContent") == "Elsewhere"
+E       AssertionError: assert 'Myeloma' == 'Elsewhere'
+E         
+E         - Elsewhere
+E         + Myeloma
+
+walks/test_origin_walk.py:33: AssertionError
+_ test_walk_view_details_from_a_new_matches_card_presets_that_watchlist_and_back_returns_to_its_tab[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x1092c39c0>
+make_walk = <function make_walk.<locals>.build at 0x10928c7c0>
+
+    def test_walk_view_details_from_a_new_matches_card_presets_that_watchlist_and_back_returns_to_its_tab(make_app, make_walk):
+        """test_walk_view_details_from_a_new_matches_card_presets_that_watchlist_and_back_returns_to_its_tab"""
+        app, walk = matches_seed.open_tab(make_app, make_walk, watchlist="Quiet")
+        page = walk.page
+        tab = page.evaluate("location.hash")
+        assert tab.endswith("/new-matches")
+        page.locator('li.card[data-nct="NCT00000002"] h3 a').click()
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+>       assert page.locator("#add-to").evaluate("(s) => s.selectedOptions[0].textContent") == "Quiet"
+E       AssertionError: assert 'Myeloma' == 'Quiet'
+E         
+E         - Quiet
+E         + Myeloma
+
+walks/test_origin_walk.py:48: AssertionError
+_ test_walk_view_details_from_a_new_matches_card_presets_that_watchlist_and_back_returns_to_its_tab[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10eb822a0>
+make_walk = <function make_walk.<locals>.build at 0x10eb82660>
+
+    def test_walk_view_details_from_a_new_matches_card_presets_that_watchlist_and_back_returns_to_its_tab(make_app, make_walk):
+        """test_walk_view_details_from_a_new_matches_card_presets_that_watchlist_and_back_returns_to_its_tab"""
+        app, walk = matches_seed.open_tab(make_app, make_walk, watchlist="Quiet")
+        page = walk.page
+        tab = page.evaluate("location.hash")
+        assert tab.endswith("/new-matches")
+        page.locator('li.card[data-nct="NCT00000002"] h3 a').click()
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+>       assert page.locator("#add-to").evaluate("(s) => s.selectedOptions[0].textContent") == "Quiet"
+E       AssertionError: assert 'Myeloma' == 'Quiet'
+E         
+E         - Quiet
+E         + Myeloma
+
+walks/test_origin_walk.py:48: AssertionError
+_ test_walk_a_registry_failure_on_add_by_nct_id_is_an_error_beside_the_field_and_keeps_and_focuses_the_id[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10eba82c0>
+make_walk = <function make_walk.<locals>.build at 0x10ec5cae0>
+
+    def test_walk_a_registry_failure_on_add_by_nct_id_is_an_error_beside_the_field_and_keeps_and_focuses_the_id(make_app, make_walk):
+        """test_walk_a_registry_failure_on_add_by_nct_id_is_an_error_beside_the_field_and_keeps_and_focuses_the_id"""
+        app = make_app()
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/find/1/id")
+        page.get_by_label("NCT ID").fill("NCT00000002")
+        page.get_by_role("button", name="Look up trial").click()
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+        app.registry.set("server_error")
+        page.get_by_role("button", name="Add to watchlist").click()
+>       page.locator("#nct-error").filter(has_text=re.compile(".")).wait_for()
+
+walks/test_origin_walk.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x108d606e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10ec3fb00>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("#nct-error").filter(has_text=re.compile(r".")) to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_registry_failure_on_add_by_nct_id_is_an_error_beside_the_field_and_keeps_and_focuses_the_id[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10ebe6a20>
+make_walk = <function make_walk.<locals>.build at 0x10ebe7920>
+
+    def test_walk_a_registry_failure_on_add_by_nct_id_is_an_error_beside_the_field_and_keeps_and_focuses_the_id(make_app, make_walk):
+        """test_walk_a_registry_failure_on_add_by_nct_id_is_an_error_beside_the_field_and_keeps_and_focuses_the_id"""
+        app = make_app()
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/find/1/id")
+        page.get_by_label("NCT ID").fill("NCT00000002")
+        page.get_by_role("button", name="Look up trial").click()
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+        app.registry.set("server_error")
+        page.get_by_role("button", name="Add to watchlist").click()
+>       page.locator("#nct-error").filter(has_text=re.compile(".")).wait_for()
+
+walks/test_origin_walk.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x108d606e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10ec3f6a0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("#nct-error").filter(has_text=re.compile(r".")) to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_registry_failure_on_add_from_trial_details_is_an_error_with_no_link_to_a_trial_page[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10ebe5580>
+make_walk = <function make_walk.<locals>.build at 0x1092977e0>
+
+    def test_walk_a_registry_failure_on_add_from_trial_details_is_an_error_with_no_link_to_a_trial_page(make_app, make_walk):
+        """test_walk_a_registry_failure_on_add_from_trial_details_is_an_error_with_no_link_to_a_trial_page"""
+        app = make_app()
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/registry/NCT00000002")
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+        app.registry.set("server_error")
+        page.get_by_role("button", name="Add to watchlist").click()
+>       page.locator("#add-error").filter(has_text=re.compile(".")).wait_for()
+
+walks/test_origin_walk.py:85: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x108d606e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x109297b00>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("#add-error").filter(has_text=re.compile(r".")) to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_registry_failure_on_add_from_trial_details_is_an_error_with_no_link_to_a_trial_page[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10eb80220>
+make_walk = <function make_walk.<locals>.build at 0x10eb80900>
+
+    def test_walk_a_registry_failure_on_add_from_trial_details_is_an_error_with_no_link_to_a_trial_page(make_app, make_walk):
+        """test_walk_a_registry_failure_on_add_from_trial_details_is_an_error_with_no_link_to_a_trial_page"""
+        app = make_app()
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/registry/NCT00000002")
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+        app.registry.set("server_error")
+        page.get_by_role("button", name="Add to watchlist").click()
+>       page.locator("#add-error").filter(has_text=re.compile(".")).wait_for()
+
+walks/test_origin_walk.py:85: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x108d606e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x1092af560>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("#add-error").filter(has_text=re.compile(r".")) to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+=========================== short test summary info ============================
+FAILED walks/test_origin_walk.py::test_walk_view_details_from_find_trials_presets_add_to_the_find_destination_and_adds_there[1440x900]
+FAILED walks/test_origin_walk.py::test_walk_view_details_from_find_trials_presets_add_to_the_find_destination_and_adds_there[1024x768]
+FAILED walks/test_origin_walk.py::test_walk_view_details_from_a_new_matches_card_presets_that_watchlist_and_back_returns_to_its_tab[1440x900]
+FAILED walks/test_origin_walk.py::test_walk_view_details_from_a_new_matches_card_presets_that_watchlist_and_back_returns_to_its_tab[1024x768]
+FAILED walks/test_origin_walk.py::test_walk_a_registry_failure_on_add_by_nct_id_is_an_error_beside_the_field_and_keeps_and_focuses_the_id[1440x900]
+FAILED walks/test_origin_walk.py::test_walk_a_registry_failure_on_add_by_nct_id_is_an_error_beside_the_field_and_keeps_and_focuses_the_id[1024x768]
+FAILED walks/test_origin_walk.py::test_walk_a_registry_failure_on_add_from_trial_details_is_an_error_with_no_link_to_a_trial_page[1440x900]
+FAILED walks/test_origin_walk.py::test_walk_a_registry_failure_on_add_from_trial_details_is_an_error_with_no_link_to_a_trial_page[1024x768]
+8 failed in 26.59s

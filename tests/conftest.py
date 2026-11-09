@@ -102,3 +102,59 @@ def restyled():
         return copied
 
     return build
+
+
+@pytest.fixture
+def api(tmp_path, fetcher, make_finder):
+    """The local server, running in-process on a free port over a temporary database.
+
+    Built by the same factory `run.py` uses, with the suite's stub fetcher and
+    finder, so nothing here reaches the live registry. Returns a client whose
+    `get`/`post` give back (status, parsed JSON body).
+    """
+    import json as _json
+    import threading
+    import urllib.error
+    import urllib.request
+
+    from webapp.server import make_server
+
+    db = str(tmp_path / "api.db")
+    find = make_finder()
+    server = make_server(db, fetch=fetcher, find=find)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    class Client:
+        path = db
+        ctx = server.ctx
+        fetch = fetcher
+        finder = find
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+
+        def fetch_override(self, fn):
+            """Serve registry lookups from `fn` from now on (the server reads it per call)."""
+            server.ctx.fetch = fn
+
+        def request(self, method, route, body=None):
+            data = None if body is None else _json.dumps(body).encode()
+            req = urllib.request.Request(self.base + route, data=data, method=method)
+            if method == "POST":
+                req.add_header("Content-Type", "application/json")
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    raw, status = resp.read(), resp.status
+            except urllib.error.HTTPError as err:
+                raw, status = err.read(), err.code
+            return status, _json.loads(raw)
+
+        def get(self, route):
+            return self.request("GET", route)
+
+        def post(self, route, body=None):
+            return self.request("POST", route, body)
+
+    yield Client()
+    server.shutdown()
+    server.server_close()
+    thread.join(timeout=5)

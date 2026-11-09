@@ -1,0 +1,107 @@
+# tip 89b111f313afaf075580e9489e65ea3718040813
+.......................FFFFFFF.......................................... [ 13%]
+........................................................................ [ 26%]
+........................................................................ [ 39%]
+........................................................................ [ 53%]
+........................................................................ [ 66%]
+........................................................................ [ 79%]
+........................................................................ [ 93%]
+.....................................                                    [100%]
+=================================== FAILURES ===================================
+__________ test_looking_up_a_trial_returns_its_facts_and_adds_nothing __________
+
+api = <conftest.api.<locals>.Client object at 0x1088186e0>
+
+    def test_looking_up_a_trial_returns_its_facts_and_adds_nothing(api):
+        """test_looking_up_a_trial_returns_its_facts_and_adds_nothing"""
+        status, body = lookup(api, "nct00000005")
+>       assert status == 200
+E       assert 404 == 200
+
+tests/test_api_lookup.py:22: AssertionError
+____________ test_the_four_lookup_failures_are_distinct_error_kinds ____________
+
+api = <conftest.api.<locals>.Client object at 0x108819a90>
+
+    def test_the_four_lookup_failures_are_distinct_error_kinds(api):
+        """test_the_four_lookup_failures_are_distinct_error_kinds"""
+>       assert lookup(api, "NCT123")[1]["error"]["kind"] == "invalid_format"
+E       AssertionError: assert 'not_found' == 'invalid_format'
+E         
+E         - invalid_format
+E         + not_found
+
+tests/test_api_lookup.py:32: AssertionError
+____ test_the_invalid_format_message_explains_nct_followed_by_eight_digits _____
+
+api = <conftest.api.<locals>.Client object at 0x1088186e0>
+
+    def test_the_invalid_format_message_explains_nct_followed_by_eight_digits(api):
+        """test_the_invalid_format_message_explains_nct_followed_by_eight_digits"""
+>       assert "NCT followed by 8 digits" in lookup(api, "abc")[1]["error"]["message"]
+E       AssertionError: assert 'NCT followed by 8 digits' in 'There is nothing at this address.'
+
+tests/test_api_lookup.py:52: AssertionError
+__________ test_lookup_in_a_watchlist_that_does_not_exist_is_refused ___________
+
+api = <conftest.api.<locals>.Client object at 0x108818590>
+
+    def test_lookup_in_a_watchlist_that_does_not_exist_is_refused(api):
+        """test_lookup_in_a_watchlist_that_does_not_exist_is_refused"""
+        status, body = lookup(api, "NCT00000005", list_id=99)
+>       assert (status, body["error"]["kind"]) == (404, "watchlist_not_found")
+E       AssertionError: assert (404, 'not_found') == (404, 'watchlist_not_found')
+E         
+E         At index 1 diff: 'not_found' != 'watchlist_not_found'
+E         Use -v to get more diff
+
+tests/test_api_lookup.py:58: AssertionError
+__________ test_creating_a_watchlist_returns_it_and_the_updated_list ___________
+
+api = <conftest.api.<locals>.Client object at 0x1088186e0>
+
+    def test_creating_a_watchlist_returns_it_and_the_updated_list(api):
+        """test_creating_a_watchlist_returns_it_and_the_updated_list"""
+        status, body = api.post("/api/watchlists", {"name": "  Lung  "})
+>       assert status == 200
+E       assert 405 == 200
+
+tests/test_api_lookup.py:64: AssertionError
+____ test_an_empty_or_duplicate_watchlist_name_is_refused_with_its_own_kind ____
+
+api = <conftest.api.<locals>.Client object at 0x108819e80>
+
+    def test_an_empty_or_duplicate_watchlist_name_is_refused_with_its_own_kind(api):
+        """test_an_empty_or_duplicate_watchlist_name_is_refused_with_its_own_kind"""
+        status, body = api.post("/api/watchlists", {"name": "   "})
+>       assert (status, body["error"]["kind"]) == (400, "name_empty")
+E       AssertionError: assert (405, 'method_not_allowed') == (400, 'name_empty')
+E         
+E         At index 0 diff: 405 != 400
+E         Use -v to get more diff
+
+tests/test_api_lookup.py:73: AssertionError
+_________________ test_monitor_lookup_names_the_failure_kinds __________________
+
+conn = <sqlite3.Connection object at 0x108682d40>
+fetcher = <function make_fetcher.<locals>.build.<locals>.fetch at 0x1089be340>
+
+    def test_monitor_lookup_names_the_failure_kinds(conn, fetcher):
+        """test_monitor_lookup_names_the_failure_kinds"""
+        import pytest
+    
+        with pytest.raises(monitor.MonitorError) as err:
+>           monitor.lookup(conn, "x", 1, fetch=fetcher)
+            ^^^^^^^^^^^^^^
+E           AttributeError: module 'monitor' has no attribute 'lookup'
+
+tests/test_api_lookup.py:86: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_api_lookup.py::test_looking_up_a_trial_returns_its_facts_and_adds_nothing
+FAILED tests/test_api_lookup.py::test_the_four_lookup_failures_are_distinct_error_kinds
+FAILED tests/test_api_lookup.py::test_the_invalid_format_message_explains_nct_followed_by_eight_digits
+FAILED tests/test_api_lookup.py::test_lookup_in_a_watchlist_that_does_not_exist_is_refused
+FAILED tests/test_api_lookup.py::test_creating_a_watchlist_returns_it_and_the_updated_list
+FAILED tests/test_api_lookup.py::test_an_empty_or_duplicate_watchlist_name_is_refused_with_its_own_kind
+FAILED tests/test_api_lookup.py::test_monitor_lookup_names_the_failure_kinds
+7 failed, 534 passed in 43.55s

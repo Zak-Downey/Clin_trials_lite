@@ -1,6 +1,6 @@
 """Pure formatting helpers shared by the view layer.
 
-Kept out of the Streamlit page so they can be tested without running the app.
+Kept out of the web layer so they can be tested without running the app.
 """
 
 from __future__ import annotations
@@ -35,8 +35,8 @@ def show(value) -> str:
     return str(value)
 
 
-# Streamlit's own colour directives, so the highlight is markdown rather than
-# injected HTML. Which of the two a move gets is decided in field_line.
+# Colour directives in markdown, so the highlight is not injected HTML.
+# Which of the two a move gets is decided in field_line.
 HIGHLIGHT = "orange-background"
 HIGHLIGHT_HIGH_SIGNAL = "red-background"
 
@@ -127,11 +127,11 @@ def field_line(row: dict, nct_id: str | None = None) -> str:
     """One marked-up profile row, as a single line of the card holding it.
 
     Label beside value rather than above it: the profile's vertical white was
-    one Streamlit block per field, and a card only reads compactly if a field
+    one block per field, and a card only reads compactly if a field
     costs one line rather than two.
 
     Kept here rather than in the page so what a highlight looks like can be
-    tested without running Streamlit. Dates are shown as they are: the
+    tested on its own. Dates are shown as they are: the
     direction of a move is the intelligence, and no arithmetic is done on it.
 
     The trial is named only so the criteria can link out to their full wording;
@@ -249,13 +249,80 @@ def card_title(title: str, rows: list[dict]) -> str:
 def render_card(title: str, rows: list[dict], nct_id: str | None = None) -> str:
     """A whole card as the single markdown block the page renders.
 
-    One block, not one per field: Streamlit puts a margin around every block it
-    draws, so rendering a card field by field would reproduce the vertical
+    One block, not one per field: a margin around every block would
+    add up, so rendering a card field by field would reproduce the vertical
     white this layout exists to remove.
     """
     return "  \n".join(
         [card_title(title, rows)] + [field_line(row, nct_id) for row in rows]
     )
+
+
+# --- the trial page's details
+#
+# The eight cards above regrouped into the design's five sections, plus the four
+# facts kept in view in At a glance. A display mapping only: the monitored fields
+# are the same. Every field of CARDS sits in exactly one place here (a test says so).
+
+NOT_REPORTED = "Not reported"
+
+GLANCE_FIELDS = ("overallStatus", "phases", "leadSponsor", "enrollment")
+
+DETAIL_SECTIONS = [
+    ("Identity & study design", ("nctId", "briefTitle", "officialTitle", "acronym", "orgStudyId",
+                                 "secondaryIds", "sponsorClass", "collaborators", "responsibleParty",
+                                 "studyType", "allocation", "primaryPurpose", "masking")),
+    ("Conditions & eligibility", ("conditions", "conditionMeshTerms", "sex", "minimumAge",
+                                  "eligibilityCriteria")),
+    ("Interventions & arms", ("interventions", "interventionTypes", "armGroups", "drugMeshTerms")),
+    ("Endpoints", ("primaryOutcomes", "primaryOutcomeTimeFrames", "secondaryOutcomeCount")),
+    ("Dates & results", ("whyStopped", "startDate", "primaryCompletionDate", "completionDate",
+                         "studyFirstPostDate", "resultsFirstPostDate", "lastUpdatePostDate",
+                         "hasResults", "resultsUrl")),
+]
+
+# A value's registry qualifier lives in a field of its own in the profile.
+QUALIFIER_OF = {
+    "startDate": "startDateType", "primaryCompletionDate": "primaryCompletionDateType",
+    "completionDate": "completionDateType", "enrollment": "enrollmentType",
+}
+
+
+def _detail(field: str, profile: dict, changed: set) -> dict:
+    value = profile.get(field)
+    if field == "phases":
+        value = phase_label(value) if value else None
+    elif field == "overallStatus":
+        value = status_label(value) if value else None
+    elif field == "hasResults":
+        value = None if value is None else ("Yes" if value else "No")
+    items = value if isinstance(value, list) and value else None
+    reported = value not in (None, "", [])
+    if not reported:
+        shown = NOT_REPORTED
+    elif items:
+        shown = "; ".join(str(i) for i in items)
+    else:
+        qualifier = profile.get(QUALIFIER_OF.get(field, ""))
+        shown = f"{value} · {str(qualifier).capitalize()}" if qualifier else str(value)
+    return {"field": field, "label": label(field), "value": shown, "reported": reported,
+            "items": [str(i) for i in items] if items and len(items) > 1 else None,
+            "changed": field in changed}
+
+
+def detail_sections(profile: dict, changed=()) -> dict:
+    """At a glance and the five sections, a missing value shown as "Not reported".
+
+    `changed` names the fields with an unreviewed change; a section holding one
+    is `locked_open`, so the details never hide what is new.
+    """
+    changed = set(changed)
+    sections = []
+    for title, fields in DETAIL_SECTIONS:
+        rows = [_detail(f, profile, changed) for f in fields]
+        count = sum(1 for r in rows if r["changed"])
+        sections.append({"title": title, "fields": rows, "unreviewed": count, "locked_open": count > 0})
+    return {"glance": [_detail(f, profile, changed) for f in GLANCE_FIELDS], "sections": sections}
 
 
 # --- a card's history
@@ -332,7 +399,7 @@ def render_history(moves: list[dict]) -> str:
 #
 # One line per trial, so every cell is a single short string. Pure functions
 # over a row from monitor.watchlist, kept here so the table's wording can be
-# tested without running Streamlit.
+# tested on its own.
 #
 # Two tables are drawn from this: the watchlist, and the search results that
 # fill it. They share the columns below so a result reads as the line it is
@@ -348,7 +415,7 @@ CHANGE_CAP = 3
 # a spelled month cannot be misread as a day.
 DATE_FORMAT = "DD MMMM YYYY"
 
-# How a date box is typed into. Streamlit's date_input takes only a handful of
+# How a date box is typed into. A date input takes only a handful of
 # orders and the table's spelled-out month is not one of them, so this is the
 # nearest unambiguous form -- day first, the way it is written here.
 INPUT_DATE_FORMAT = "DD/MM/YYYY"
@@ -584,8 +651,8 @@ def study_line(row: dict) -> dict:
     }
 
 
-# How wide each shared column is dealt. Named widths rather than Streamlit
-# column objects, so this module stays runnable without Streamlit and both
+# How wide each shared column is dealt. Named widths rather than
+# a UI library's column objects, so both
 # pages lay the same columns out the same way.
 #
 # The two reference columns are the ones given up when a table runs out of

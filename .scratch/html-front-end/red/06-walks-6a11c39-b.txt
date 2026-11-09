@@ -1,0 +1,33 @@
+# tip 6a11c3900640cb95ef2da893be0ea19ee8bae6a0
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("table") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+=========================== short test summary info ============================
+FAILED walks/test_all_trials_walk.py::test_walk_a_title_opens_trial_details_with_changes_one_click_away[1440x900]
+FAILED walks/test_all_trials_walk.py::test_walk_a_title_opens_trial_details_with_changes_one_click_away[1024x768]
+FAILED walks/test_all_trials_walk.py::test_walk_a_watchlist_opens_on_needs_review_and_remembers_all_trials[1440x900]
+FAILED walks/test_all_trials_walk.py::test_walk_a_watchlist_opens_on_needs_review_and_remembers_all_trials[1024x768]
+4 failed, 125 passed in 57.54s
+
+## Result
+walks/test_all_trials_walk.py::test_walk_a_title_opens_trial_details_with_changes_one_click_away[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/alone-test-walk-a-title-opens-trial-details-with-changes-one-click-away-1440x900.txt)
+walks/test_all_trials_walk.py::test_walk_a_title_opens_trial_details_with_changes_one_click_away[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/alone-test-walk-a-title-opens-trial-details-with-changes-one-click-away-1024x768.txt)
+walks/test_all_trials_walk.py::test_walk_a_watchlist_opens_on_needs_review_and_remembers_all_trials[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/alone-test-walk-a-watchlist-opens-on-needs-review-and-remembers-all-trials-1440x900.txt)
+walks/test_all_trials_walk.py::test_walk_a_watchlist_opens_on_needs_review_and_remembers_all_trials[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-red-tmp/.scratch/html-front-end/walks/alone-test-walk-a-watchlist-opens-on-needs-review-and-remembers-all-trials-1024x768.txt)

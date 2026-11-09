@@ -1,0 +1,667 @@
+# tip 6b05a7fc25cd1fa50599ada316191170a2022bc0
+FFFFFFFFFFFFFF                                                           [100%]
+=================================== FAILURES ===================================
+_ test_walk_each_result_has_a_real_checkbox_and_a_separate_title_link_and_long_titles_wrap[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10703d300>
+make_walk = <function make_walk.<locals>.build at 0x10703d620>
+
+    def test_walk_each_result_has_a_real_checkbox_and_a_separate_title_link_and_long_titles_wrap(make_app, make_walk):
+        """test_walk_each_result_has_a_real_checkbox_and_a_separate_title_link_and_long_titles_wrap"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        first = page.locator("li.card").first
+>       assert first.get_by_role("checkbox").count() == 1 and first.get_by_role("link", name=re.compile("^View details")).count() == 1
+E       AssertionError: assert (0 == 1)
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:55512/#/find?cond=many&page=1'> selector='li.card >> nth=0 >> internal:role=checkbox'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:55512/#/find?cond=many&page=1'> selector='li.card >> nth=0 >> internal:role=checkbox'> = get_by_role('checkbox')
+E        +        where get_by_role = <Locator frame=<Frame name= url='http://127.0.0.1:55512/#/find?cond=many&page=1'> selector='li.card >> nth=0'>.get_by_role
+
+walks/test_find_select_walk.py:51: AssertionError
+_ test_walk_each_result_has_a_real_checkbox_and_a_separate_title_link_and_long_titles_wrap[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10717bc40>
+make_walk = <function make_walk.<locals>.build at 0x10717be20>
+
+    def test_walk_each_result_has_a_real_checkbox_and_a_separate_title_link_and_long_titles_wrap(make_app, make_walk):
+        """test_walk_each_result_has_a_real_checkbox_and_a_separate_title_link_and_long_titles_wrap"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        first = page.locator("li.card").first
+>       assert first.get_by_role("checkbox").count() == 1 and first.get_by_role("link", name=re.compile("^View details")).count() == 1
+E       AssertionError: assert (0 == 1)
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:55534/#/find?cond=many&page=1'> selector='li.card >> nth=0 >> internal:role=checkbox'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:55534/#/find?cond=many&page=1'> selector='li.card >> nth=0 >> internal:role=checkbox'> = get_by_role('checkbox')
+E        +        where get_by_role = <Locator frame=<Frame name= url='http://127.0.0.1:55534/#/find?cond=many&page=1'> selector='li.card >> nth=0'>.get_by_role
+
+walks/test_find_select_walk.py:51: AssertionError
+_ test_walk_select_ten_on_this_page_selects_only_the_page_and_selections_survive_paging_details_and_leaving[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10717a980>
+make_walk = <function make_walk.<locals>.build at 0x1071fa520>
+
+    def test_walk_select_ten_on_this_page_selects_only_the_page_and_selections_survive_paging_details_and_leaving(make_app, make_walk):
+        """test_walk_select_ten_on_this_page_selects_only_the_page_and_selections_survive_paging_details_and_leaving"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+>       page.get_by_label("Select 10 on this page").check()
+
+walks/test_find_select_walk.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10703d3a0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_label("Select 10 on this page")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_select_ten_on_this_page_selects_only_the_page_and_selections_survive_paging_details_and_leaving[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x107248040>
+make_walk = <function make_walk.<locals>.build at 0x107244ae0>
+
+    def test_walk_select_ten_on_this_page_selects_only_the_page_and_selections_survive_paging_details_and_leaving(make_app, make_walk):
+        """test_walk_select_ten_on_this_page_selects_only_the_page_and_selections_survive_paging_details_and_leaving"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+>       page.get_by_label("Select 10 on this page").check()
+
+walks/test_find_select_walk.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10724a160>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_label("Select 10 on this page")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_the_action_bar_names_count_clear_and_destination_and_leaves_the_last_result_reachable[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10724bf60>
+make_walk = <function make_walk.<locals>.build at 0x10724b880>
+
+    def test_walk_the_action_bar_names_count_clear_and_destination_and_leaves_the_last_result_reachable(make_app, make_walk):
+        """test_walk_the_action_bar_names_count_clear_and_destination_and_leaves_the_last_result_reachable"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        bar = page.get_by_role("region", name="Add selected trials")
+        assert not bar.is_visible() or bar.inner_text().strip() == ""
+>       box(page, "NCT10000001").check()
+
+walks/test_find_select_walk.py:107: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10724b420>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("li.card[data-nct=\"NCT10000001\"] input[type=checkbox]")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_the_action_bar_names_count_clear_and_destination_and_leaves_the_last_result_reachable[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x1071fa980>
+make_walk = <function make_walk.<locals>.build at 0x107158d60>
+
+    def test_walk_the_action_bar_names_count_clear_and_destination_and_leaves_the_last_result_reachable(make_app, make_walk):
+        """test_walk_the_action_bar_names_count_clear_and_destination_and_leaves_the_last_result_reachable"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        bar = page.get_by_role("region", name="Add selected trials")
+        assert not bar.is_visible() or bar.inner_text().strip() == ""
+>       box(page, "NCT10000001").check()
+
+walks/test_find_select_walk.py:107: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x1071f82c0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("li.card[data-nct=\"NCT10000001\"] input[type=checkbox]")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_opened_from_add_trials_the_destination_is_that_watchlist[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10728c860>
+make_walk = <function make_walk.<locals>.build at 0x10728c680>
+
+    def test_walk_opened_from_add_trials_the_destination_is_that_watchlist(make_app, make_walk):
+        """test_walk_opened_from_add_trials_the_destination_is_that_watchlist"""
+        app = make_app(seed=seed)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Elsewhere")).click()
+        page.get_by_role("link", name="Add trials").click()
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        page.get_by_label("Condition").fill("many")
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_role("heading", name="134 matches").wait_for()
+>       box(page, "NCT10000001").check()
+
+walks/test_find_select_walk.py:134: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10d52c680>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("li.card[data-nct=\"NCT10000001\"] input[type=checkbox]")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_opened_from_add_trials_the_destination_is_that_watchlist[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10d5c4220>
+make_walk = <function make_walk.<locals>.build at 0x10d5c4400>
+
+    def test_walk_opened_from_add_trials_the_destination_is_that_watchlist(make_app, make_walk):
+        """test_walk_opened_from_add_trials_the_destination_is_that_watchlist"""
+        app = make_app(seed=seed)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Elsewhere")).click()
+        page.get_by_role("link", name="Add trials").click()
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        page.get_by_label("Condition").fill("many")
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_role("heading", name="134 matches").wait_for()
+>       box(page, "NCT10000001").check()
+
+walks/test_find_select_walk.py:134: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10d53f1a0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("li.card[data-nct=\"NCT10000001\"] input[type=checkbox]")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_adding_reports_added_and_already_in_this_list_links_the_watchlist_and_clears_the_selection[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10d5c4360>
+make_walk = <function make_walk.<locals>.build at 0x10d5c8180>
+
+    def test_walk_adding_reports_added_and_already_in_this_list_links_the_watchlist_and_clears_the_selection(make_app, make_walk):
+        """test_walk_adding_reports_added_and_already_in_this_list_links_the_watchlist_and_clears_the_selection"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+>       add_three(page)
+
+walks/test_find_select_walk.py:152: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_find_select_walk.py:144: in add_three
+    box(page, nct).check()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10d5cbec0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("li.card[data-nct=\"NCT10000001\"] input[type=checkbox]")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_adding_reports_added_and_already_in_this_list_links_the_watchlist_and_clears_the_selection[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10d5c9c60>
+make_walk = <function make_walk.<locals>.build at 0x10d54e700>
+
+    def test_walk_adding_reports_added_and_already_in_this_list_links_the_watchlist_and_clears_the_selection(make_app, make_walk):
+        """test_walk_adding_reports_added_and_already_in_this_list_links_the_watchlist_and_clears_the_selection"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+>       add_three(page)
+
+walks/test_find_select_walk.py:152: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_find_select_walk.py:144: in add_three
+    box(page, nct).check()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10d5fe7a0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("li.card[data-nct=\"NCT10000001\"] input[type=checkbox]")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_newly_added_trial_is_monitored_with_no_changes_and_does_not_enter_needs_review[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10d53f380>
+make_walk = <function make_walk.<locals>.build at 0x10d53f560>
+
+    def test_walk_a_newly_added_trial_is_monitored_with_no_changes_and_does_not_enter_needs_review(make_app, make_walk):
+        """test_walk_a_newly_added_trial_is_monitored_with_no_changes_and_does_not_enter_needs_review"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+>       box(page, "NCT10000001").check()
+
+walks/test_find_select_walk.py:168: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10d52cae0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("li.card[data-nct=\"NCT10000001\"] input[type=checkbox]")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_newly_added_trial_is_monitored_with_no_changes_and_does_not_enter_needs_review[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10d52fa60>
+make_walk = <function make_walk.<locals>.build at 0x10d52fe20>
+
+    def test_walk_a_newly_added_trial_is_monitored_with_no_changes_and_does_not_enter_needs_review(make_app, make_walk):
+        """test_walk_a_newly_added_trial_is_monitored_with_no_changes_and_does_not_enter_needs_review"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+>       box(page, "NCT10000001").check()
+
+walks/test_find_select_walk.py:168: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x107159760>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("li.card[data-nct=\"NCT10000001\"] input[type=checkbox]")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_view_details_of_a_trial_not_monitored_shows_sections_without_changes_or_history_and_stores_nothing_until_added[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x106d64540>
+make_walk = <function make_walk.<locals>.build at 0x10725bb00>
+
+    def test_walk_view_details_of_a_trial_not_monitored_shows_sections_without_changes_or_history_and_stores_nothing_until_added(make_app, make_walk):
+        """test_walk_view_details_of_a_trial_not_monitored_shows_sections_without_changes_or_history_and_stores_nothing_until_added"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+>       page.locator('li.card[data-nct="NCT10000005"]').get_by_role("link", name=re.compile("^View details")).click()
+
+walks/test_find_select_walk.py:189: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10d54e020>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("li.card[data-nct=\"NCT10000005\"]").get_by_role("link", name=re.compile(r"^View details"))
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_view_details_of_a_trial_not_monitored_shows_sections_without_changes_or_history_and_stores_nothing_until_added[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x107258d60>
+make_walk = <function make_walk.<locals>.build at 0x10d59d4e0>
+
+    def test_walk_view_details_of_a_trial_not_monitored_shows_sections_without_changes_or_history_and_stores_nothing_until_added(make_app, make_walk):
+        """test_walk_view_details_of_a_trial_not_monitored_shows_sections_without_changes_or_history_and_stores_nothing_until_added"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+>       page.locator('li.card[data-nct="NCT10000005"]').get_by_role("link", name=re.compile("^View details")).click()
+
+walks/test_find_select_walk.py:189: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x106d601a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10d555800>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("li.card[data-nct=\"NCT10000005\"]").get_by_role("link", name=re.compile(r"^View details"))
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+=========================== short test summary info ============================
+FAILED walks/test_find_select_walk.py::test_walk_each_result_has_a_real_checkbox_and_a_separate_title_link_and_long_titles_wrap[1440x900]
+FAILED walks/test_find_select_walk.py::test_walk_each_result_has_a_real_checkbox_and_a_separate_title_link_and_long_titles_wrap[1024x768]
+FAILED walks/test_find_select_walk.py::test_walk_select_ten_on_this_page_selects_only_the_page_and_selections_survive_paging_details_and_leaving[1440x900]
+FAILED walks/test_find_select_walk.py::test_walk_select_ten_on_this_page_selects_only_the_page_and_selections_survive_paging_details_and_leaving[1024x768]
+FAILED walks/test_find_select_walk.py::test_walk_the_action_bar_names_count_clear_and_destination_and_leaves_the_last_result_reachable[1440x900]
+FAILED walks/test_find_select_walk.py::test_walk_the_action_bar_names_count_clear_and_destination_and_leaves_the_last_result_reachable[1024x768]
+FAILED walks/test_find_select_walk.py::test_walk_opened_from_add_trials_the_destination_is_that_watchlist[1440x900]
+FAILED walks/test_find_select_walk.py::test_walk_opened_from_add_trials_the_destination_is_that_watchlist[1024x768]
+FAILED walks/test_find_select_walk.py::test_walk_adding_reports_added_and_already_in_this_list_links_the_watchlist_and_clears_the_selection[1440x900]
+FAILED walks/test_find_select_walk.py::test_walk_adding_reports_added_and_already_in_this_list_links_the_watchlist_and_clears_the_selection[1024x768]
+FAILED walks/test_find_select_walk.py::test_walk_a_newly_added_trial_is_monitored_with_no_changes_and_does_not_enter_needs_review[1440x900]
+FAILED walks/test_find_select_walk.py::test_walk_a_newly_added_trial_is_monitored_with_no_changes_and_does_not_enter_needs_review[1024x768]
+FAILED walks/test_find_select_walk.py::test_walk_view_details_of_a_trial_not_monitored_shows_sections_without_changes_or_history_and_stores_nothing_until_added[1440x900]
+FAILED walks/test_find_select_walk.py::test_walk_view_details_of_a_trial_not_monitored_shows_sections_without_changes_or_history_and_stores_nothing_until_added[1024x768]
+14 failed in 71.03s (0:01:11)

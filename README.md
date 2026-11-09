@@ -5,182 +5,81 @@ plus a prototype tool for monitoring competitors' trials for changes. No API key
 
 ## Setup
 
+You need Python 3.10 or newer.
+
 ```bash
 pip install -r requirements.txt
 ```
 
-`ctgov.py` itself is stdlib-only; the requirements are `truststore` (needed on this
-machine, see below), `pandas` (only for `to_frame()` / `--csv`), and `streamlit` +
-`pytest` for the monitoring app.
+`ctgov.py` itself uses only the standard library; the requirements are `truststore`
+(needed on this machine, see below), `pandas` (only for `to_frame()` / `--csv`) and
+`pytest`.
+
+## Browser walks (development only)
+
+The app needs none of this. The walk suite drives the pages in a real browser:
+
+```bash
+pip install -r requirements-dev.txt
+python -m playwright install chromium webkit
+python walks/run_walks.py
+```
+
+`requirements-dev.txt` holds Playwright and pytest-xdist; the second line installs the
+Chromium and WebKit builds the walks use. The unit tests run with `python -m pytest -q`
+and need no browser.
 
 ## Trial Change Monitor
 
 ```bash
-streamlit run app.py
+python run.py
 ```
 
-Two pages. On **Search**, query ClinicalTrials.gov on any of condition, intervention,
-sponsor and phase; results come back as a table reading like the watchlist they feed,
-and the rows you tick are filed into a list you choose *afterwards* — existing, or named
-on the spot — so one search can be split across two lists. Below it, an NCT ID box
-(e.g. `NCT03412565`) for the study whose number you already have. Either way the app
-fetches each trial and records a baseline of its current state.
+This starts the app on your own computer and opens it in your browser. Leave the
+terminal window open while you use it; press Ctrl+C there to stop it. `python run.py
+--no-browser` starts it without opening a page, and `--port N` picks the port.
 
-A second row of controls narrows what comes back rather than describing it. **Sponsor
-type** is the registry's classification of the *lead* sponsor — a different question
-from typing a sponsor's name, which finds one company rather than every company like
-them. **Status** is where the study has got to, in lifecycle order. **Started on or
-after / on or before** is a window on the study start date, either end of which may be
-left blank; a study with no start date on record falls outside any window. All three
-combine with each other and with the four above: on "chronic lymphocytic leukemia",
-industry-sponsored and recruiting and started since 2024 takes 2,614 records down to 44.
+**Find trials** searches ClinicalTrials.gov by condition, intervention, sponsor and
+phase, and can narrow by sponsor type, status and start date. The trials you tick are
+filed into a watchlist you choose afterwards, or name on the spot. A box for an NCT ID
+(for example `NCT03412565`) adds the study whose number you already have. Either way the
+app fetches each trial and records a baseline of its current state.
 
-None of the three asks a question on its own — a class, a status and a date window say
-*which* studies of a kind you want, not which kind — so a search still has to name one
-of condition, intervention, sponsor or phase.
+**Watchlists** are the folders you keep: one per therapy area, say. A trial can sit in
+several at once, and a trial in none stops being monitored. Each list has tabs: a summary,
+the trials that need review, all trials, and new matches. A trial's page shows its full
+profile, with a history of every change since monitoring began. A field that moved stays
+highlighted until you mark the trial reviewed.
 
-One caveat worth knowing, because it is a property of the registry rather than of this
-tool. A study is classified by its lead sponsor only. When a company funds a trial that
-an academic centre runs, the company is a *collaborator* and the study is classed under
-`OTHER` — offered here as *Other (incl. academic)*. So *Industry* is not the whole of
-commercial activity: for CLL it returns 725 studies, and a further 326 with an industry
-collaborator sit under *Other*. Tick both to see all of it.
+The Summary's **Export CSV** file opens in a spreadsheet with its characters intact. A
+cell that would begin with `=`, `+`, `-`, `@`, a tab or a carriage return is written
+with a leading `'` so a spreadsheet shows it as text rather than running it; the page
+and the copied text show the value as it is.
 
-On **Watchlist**, pick a list and read it: one line per trial, carrying what identifies
-the study alongside what last moved on it and when, and selecting a line opens that
-trial's full profile underneath.
+A list can carry a **remembered search**. Each check re-runs it and offers back trials
+that match but are not yet on the list, as new matches. Nothing joins the list until you
+add it, and one you dismiss is not offered again. From a list's menu you can rename it,
+delete it, or run a full recheck.
 
-A field that moved is highlighted until you press *Mark as reviewed*, which clears the
-highlighting and nothing else. Every card of the profile keeps its own **history**
-folded away underneath it: each move its fields have made since monitoring began, by
-day, marked read or unread, so a reviewed trial reads clean without its record going
-anywhere.
+## Where your data lives
 
-Lists are how somebody covering two therapy areas keeps myeloma apart from lung. A trial
-can sit in several at once, and taking it out of one leaves the others alone; a trial in
-no list at all stops being monitored. A database written before lists existed opens with
-everything it already had in one default list.
+Everything you build up is kept in one file, `monitor.db`, in the folder you ran
+`python run.py` from. Set the `MONITOR_DB` environment variable to use another file
+(its folder must already exist).
 
-A list can also carry a **remembered search** — tick *Save this as the list's remembered
-search* as you file the results, or press *Save the remembered search only* to point an
-existing list at a new query without adding anything. The narrowing axes are saved with
-it, and read back under *Manage lists* in words rather than registry codes. Every later
-check re-runs that search and offers back whatever matches it that the list does not
-already hold, as a **new trial found**: the same feed and the same bell a changed field
-gets, reported separately because a competitor *starting* something is different news
-from a competitor revising something. Nothing joins the list until you adopt it, and a
-trial you dismiss is never offered again. Forget the search under *Manage lists* and the
-list behaves exactly as it did before.
+**To back it up, copy that file** while the app is stopped, the same as any other
+file. To move to another machine, copy it there. To start afresh, move it aside.
 
-State lives in a local SQLite file, `monitor.db`, which is git-ignored. Set `MONITOR_DB`
-to point somewhere else.
+The app runs on this machine only. It listens on `127.0.0.1`, so nobody else on your
+network can reach it, and there is no account or login. It runs one copy at a time per
+database file; starting it a second time points you at the one already running.
 
-Run the tests with `python -m pytest`. They drive the app and the monitor through an
-injectable fetcher and never touch the network.
+The old version, which was published as a web page on GitHub Pages and kept its data
+inside the browser, is retired. Lists made in it are not carried over. The reasoning is
+in [ADR 0003](docs/adr/0003-the-app-runs-locally-with-a-database-file.md).
 
-## In a browser, with no Python installed
-
-The same app also runs as a static page, with its Python compiled to WebAssembly by
-[stlite](https://stlite.net) and executed in the visitor's own browser. There is no
-server behind it: the page talks to ClinicalTrials.gov directly, which is possible
-because the v2 API answers cross-origin requests.
-
-```bash
-python build_site.py            # assemble site/
-python -m http.server -d site   # then open http://localhost:8000
-```
-
-It has to be *served*. Opening `site/index.html` by double-clicking it does not work,
-and fails in the way that wastes the most time: a page loaded from `file://` is not
-allowed to load the code it is made of — neither the stlite module it imports nor the
-app's own `.py` files — so you get the starting-up message, and then a blank page two
-minutes later when the page stops waiting for an app that was never going to arrive. Any
-static server will do; the line above is just the one that needs nothing installed.
-
-`web/index.html` names, one at a time, the modules it mounts, and `build_site.py` copies
-exactly those. Nothing else travels — not the working database, the tests, the internal
-notes under `.scratch/`, or the simulator. A file nobody names is a file nobody ships.
-
-Three things are different in the browser and nothing else is:
-
-- **The transport.** There are no sockets, so `browser.py` asks the browser to make the
-  request. It raises the same `urllib` errors the socket transport does, so a missing
-  study still reads *"NCT99999999 was not found on ClinicalTrials.gov"* and an
-  unreachable registry still reads *"Could not reach ClinicalTrials.gov"* — the two
-  sentences an analyst needs to tell apart.
-- **The pause between registry calls.** Working through a watchlist leaves half a second
-  between trials, and that wait is the app's own — `browser.wait` spins on the clock rather
-  than calling `time.sleep`, because whether sleeping waits at all under WebAssembly is a
-  property of the runtime and not something to rest a courtesy to a public registry on.
-- **Streamlit's version.** The published app runs whichever Streamlit its stlite
-  carries, so the stlite version is pinned in `web/index.html` rather than floating:
-  1.9.1, carrying Streamlit 1.62 on Python 3.13. A local checkout is not pinned and
-  runs whatever its Python allows — Streamlit 1.62 needs Python 3.10, so a checkout on
-  3.9 gets 1.50 instead. The app's top page navigation works in both; `sqlite3` is not
-  in WebAssembly's standard library and is fetched as a package.
-
-The first load pulls down a Python runtime and its libraries, which takes the better
-part of a minute, so the page says it is starting up until the app is on screen.
-
-## Where your watchlists live
-
-**In that browser alone.** There is no server and no account, so there is nowhere else
-for a watchlist to be. It is a SQLite database held in the browser's own storage, on the
-machine you are sitting at. That is what lets the tool ask nothing of you before you use
-it, and it has consequences worth knowing *before* you build up months of monitoring
-rather than after:
-
-- **Your watchlists are not backed up.** Nobody is holding a copy — not us, not GitHub.
-  If they go, there is nothing to restore them from.
-- **They do not follow you.** A list built on your desktop is not on your laptop, and is
-  not in a different browser on the same machine. Two machines means two unrelated sets
-  of lists.
-- **Clearing site data destroys them.** Your browser's *Clear browsing data* — and
-  anything that acts like it, such as a reset profile or a "clear cookies and site data
-  on close" setting — is a delete button for your monitoring. A private or incognito
-  window keeps nothing at all once it is closed.
-- **One tab at a time.** Each tab syncs its whole database over what is stored when it
-  finishes what it is doing, so two tabs open at once are two copies drifting apart and
-  the one that acts last wins.
-
-What survives is ordinary use: refreshing the page, closing the tab, quitting the
-browser, restarting the machine. Come back to the same browser and your lists are there.
-
-The reasoning behind this, and what it would take to change it, is recorded in
-[ADR 0002](docs/adr/0002-the-app-is-published-as-webassembly-with-browser-local-storage.md).
-Running the app locally instead (`streamlit run app.py`) keeps the same data in an
-ordinary `monitor.db` file you can copy, back up and move like any other file.
-
-## Published to GitHub Pages
-
-Pushing to `main` or `master` builds the site and publishes it, through
-`.github/workflows/deploy.yml`. There is no manual build step and nothing to remember:
-the published app is whatever was last committed. The workflow runs `build_site.py` and
-uploads only what it wrote, so the same list that governs a local build governs the
-public one. It needs no secret, token or account — the only credential involved is the
-one GitHub mints for the run itself.
-
-Two things cannot be done from the code, and somebody has to do them once, in the
-repository's **Settings → Pages**:
-
-1. **Turn Pages on and set its source to *GitHub Actions***, not to a branch. Until that
-   is done the workflow runs green and publishes nothing, which is the failure worth
-   knowing about because it does not look like one.
-2. **Check which branch you actually push to.** `main` is this repository's default
-   branch and the one the site is published from today. The workflow also watches
-   `master`, the name this repository went by before it was renamed, because a workflow
-   watching only the wrong one of two names publishes nothing and says nothing — which
-   looks exactly like a repository nobody pushed to. If both names ever carry work, the
-   live site is whichever was pushed last, so narrow the `branches:` list to the one you
-   mean. If you push to a third name, add it, or nothing will ever publish.
-
-The site is live at **<https://zak-downey.github.io/Clin_trials_lite/>**, and the
-Actions tab shows the run and the URL it deployed to. **Run workflow** on the *Publish
-the site* workflow publishes on demand, without inventing a commit to trigger one.
-
-It is worth repeating the local checks against the real URL once it is up — search the
-registry, add a trial, refresh the page and confirm the watchlist is still there —
-because the deployed thing is what people use.
+Run the tests with `python -m pytest`. They use a stand-in for the registry and never
+touch the network.
 
 ## From the command line
 

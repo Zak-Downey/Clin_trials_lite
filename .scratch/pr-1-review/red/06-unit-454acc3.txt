@@ -1,0 +1,71 @@
+# tip 454acc3b9b4e628e37eb8f344682ca6146cb66b0
+........................................................................ [ 15%]
+................F....................................................... [ 30%]
+........................................................................ [ 46%]
+........................................................................ [ 61%]
+........................................................................ [ 76%]
+.......................................................F................ [ 92%]
+.....................................                                    [100%]
+=================================== FAILURES ===================================
+_____ test_the_refusal_kind_survives_a_reworded_message_on_both_endpoints ______
+
+search_api = <test_api_search.search_api.<locals>.Client object at 0x10bb40d70>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10bbee710>
+
+    def test_the_refusal_kind_survives_a_reworded_message_on_both_endpoints(search_api, monkeypatch):
+        """test_the_refusal_kind_survives_a_reworded_message_on_both_endpoints"""
+        monkeypatch.setattr("monitor.NOTHING_ASKED", "Type something first.")
+        status, body = search_api.get("/api/search?status=RECRUITING")
+>       assert status == 400 and body["error"] == {"kind": "nothing_asked", "message": "Type something first."}
+E       AssertionError: assert (400 == 400 and {'kind': 'bad...thing first.'} == {'kind': 'not...thing first.'}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'kind': 'bad_dates'} != {'kind': 'nothing_asked'}
+E         Use -v to get more diff)
+
+tests/test_api_search.py:134: AssertionError
+___ test_the_two_refusals_carry_their_own_kinds_whatever_their_wording_says ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b95f000>
+
+    def test_the_two_refusals_carry_their_own_kinds_whatever_their_wording_says(monkeypatch):
+        """test_the_two_refusals_carry_their_own_kinds_whatever_their_wording_says"""
+        with pytest.raises(monitor.MonitorError) as empty:
+            monitor._refuse_unanswerable(monitor.as_query())
+        with pytest.raises(monitor.MonitorError) as inverted:
+            monitor._refuse_unanswerable(monitor.as_query(cond="x", started_from="2022-01", started_to="2020-01"))
+>       assert empty.value.kind == "nothing_asked" and inverted.value.kind == "bad_dates"
+E       AssertionError: assert ('error' == 'nothing_asked'
+E         
+E         - nothing_asked
+E         + error)
+
+tests/test_search.py:420: AssertionError
+=============================== warnings summary ===============================
+tests/test_api_checks.py::test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted
+  /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.13/site-packages/_pytest/threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-83 (_work)
+  
+  Traceback (most recent call last):
+    File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+      self.run()
+      ~~~~~~~~^^
+    File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 995, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-find-trials-keeps-every-sponsor-type-and-shows-a-refusal-by-its-kind/webapp/api_checks.py", line 85, in _work
+      monitor.finish_run(ctx.conn, run.list_id, run.results)
+      ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/06-find-trials-keeps-every-sponsor-type-and-shows-a-refusal-by-its-kind/tests/test_api_checks.py", line 296, in broken
+      raise RuntimeError("disk full")
+  RuntimeError: disk full
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_api_search.py::test_the_refusal_kind_survives_a_reworded_message_on_both_endpoints
+FAILED tests/test_search.py::test_the_two_refusals_carry_their_own_kinds_whatever_their_wording_says
+2 failed, 467 passed, 1 warning in 51.64s

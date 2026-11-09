@@ -1,0 +1,30 @@
+# tip 37ea56c4c9053218b73ee67e8304235c4eedc8a7
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-walk-runner-reruns-a-failed-walk-alone/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+    def test_runner_reports_red_alone_and_red_under_load_green_alone_in_one_run(tmp_path, capsys):
+        """test_runner_reports_red_alone_and_red_under_load_green_alone_in_one_run"""
+        (tmp_path / "test_always.py").write_text("def test_always():\n    assert False\n")
+        (tmp_path / "test_once.py").write_text(
+            "import pathlib\n"
+            "def test_once():\n"
+            "    m = pathlib.Path(__file__).with_name('seen')\n"
+            "    first = not m.exists()\n"
+            "    m.write_text('x')\n"
+            "    assert not first\n"
+            "def test_bystander_fails_only_in_the_full_run():\n"
+            "    assert True\n")
+        code = run_walks.main([], targets=(str(tmp_path),), cwd=tmp_path, shots=tmp_path / "out")
+        out = capsys.readouterr().out
+        result = out.split("## Result")[1]
+        assert re.search(r"test_always\.py::test_always -- red alone", result)
+>       assert re.search(r"test_once\.py::test_once -- red under load, green alone", result)
+E       AssertionError: assert None
+E        +  where None = <function search at 0x1017bdbc0>('test_once\\.py::test_once -- red under load, green alone', '\ntest_always.py::test_always -- red alone (/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdow...c8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-964/popen-gw3/test_runner_reports_red_alone_0/out/alone-test-once.txt)\n')
+E        +    where <function search at 0x1017bdbc0> = re.search
+
+walks/test_run_walks.py:53: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_run_walks.py::test_runner_reports_red_alone_and_red_under_load_green_alone_in_one_run
+1 failed, 279 passed in 111.52s (0:01:51)
+
+## Result
+walks/test_run_walks.py::test_runner_reports_red_alone_and_red_under_load_green_alone_in_one_run -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-walk-runner-reruns-a-failed-walk-alone/.scratch/html-front-end/walks/alone-test-runner-reports-red-alone-and-red-under-load-green-alone-in-one-run.txt)

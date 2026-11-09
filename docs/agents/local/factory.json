@@ -22,6 +22,15 @@
       ],
       "red_marker": "FAIL:|ERROR:",
       "timeout_s": 600
+    },
+    {
+      "name": "walks",
+      "command": ".venv/bin/python walks/run_walks.py",
+      "proves": [
+        "walk"
+      ],
+      "red_marker": "FAILED|ERROR",
+      "timeout_s": 900
     }
   ],
   "evidence": {
@@ -29,7 +38,9 @@
       "tests",
       ".claude/factory/tests"
     ],
-    "walk": []
+    "walk": [
+      "walks"
+    ]
   },
   "forbid": [],
   "legacy_features": [
@@ -37,7 +48,9 @@
     "trial-change-monitor"
   ],
   "standins_doc": "docs/agents/local/repo.md",
-  "user_facing": [],
+  "user_facing": [
+    "webapp/static/**"
+  ],
   "user_facing_except": [],
   "mutate_paths": [],
   "mutate_except": [],

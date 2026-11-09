@@ -7,12 +7,13 @@ the network.
 
 from __future__ import annotations
 
+import datetime
 import re
 import sqlite3
+import time
 import urllib.error
 from collections.abc import Iterator
 
-import browser
 import ctgov
 import diff
 import medical_affairs
@@ -22,15 +23,20 @@ NCT_ID = re.compile(r"^NCT\d{8}$")
 
 # Seconds to wait between trials when working through the watchlist. The
 # registry is a free public service; a burst of back-to-back requests is rude.
-#
-# Waited through `browser.wait` rather than `time.sleep`, which is where the
-# reason lives: the app also runs as WebAssembly, and the pause has to be ours
-# there rather than the runtime's.
 PAUSE = 0.5
 
 
 class MonitorError(Exception):
-    """Something went wrong that the analyst needs to see, in their words."""
+    """Something went wrong that the analyst needs to see, in their words.
+
+    `kind` names what went wrong for a caller that must tell causes apart
+    (not_found, registry_error, unreachable, bad_record, nothing_asked,
+    bad_dates, error).
+    """
+
+    def __init__(self, message: str = "", kind: str = "error"):
+        super().__init__(message)
+        self.kind = kind
 
 
 def _default_fetch(nct_id: str) -> dict:
@@ -41,7 +47,9 @@ def normalise(nct_id: str) -> str:
     """Tidy a pasted ID. Raises MonitorError if it isn't shaped like an NCT ID."""
     cleaned = nct_id.strip().upper()
     if not NCT_ID.match(cleaned):
-        raise MonitorError(f"{nct_id.strip()!r} is not an NCT ID (expected e.g. NCT03412565).")
+        raise MonitorError(
+            f"{nct_id.strip()!r} is not an NCT ID (expected e.g. NCT03412565).", "invalid_format"
+        )
     return cleaned
 
 
@@ -54,17 +62,19 @@ def _fetch_record(nct: str, fetch) -> dict:
         record = (fetch or _default_fetch)(nct)
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
-            raise MonitorError(f"{nct} was not found on ClinicalTrials.gov.") from exc
-        raise MonitorError(f"ClinicalTrials.gov returned an error for {nct} ({exc.code}).") from exc
+            raise MonitorError(f"{nct} was not found on ClinicalTrials.gov.", "not_found") from exc
+        raise MonitorError(
+            f"ClinicalTrials.gov returned an error for {nct} ({exc.code}).", "registry_error"
+        ) from exc
     except urllib.error.URLError as exc:
-        raise MonitorError(f"Could not reach ClinicalTrials.gov: {exc.reason}") from exc
+        raise MonitorError(f"Could not reach ClinicalTrials.gov: {exc.reason}", "unreachable") from exc
     except Exception as exc:
         # A timeout, a TLS failure, a malformed response. The analyst gets a
         # readable message rather than a traceback.
-        raise MonitorError(f"Could not fetch {nct}: {exc}") from exc
+        raise MonitorError(f"Could not fetch {nct}: {exc}", "unreachable") from exc
 
     if not record or "protocolSection" not in record:
-        raise MonitorError(f"ClinicalTrials.gov returned no usable record for {nct}.")
+        raise MonitorError(f"ClinicalTrials.gov returned no usable record for {nct}.", "bad_record")
     return record
 
 
@@ -78,7 +88,7 @@ def _fetch_record(nct: str, fetch) -> dict:
 def _clean_name(name: str) -> str:
     cleaned = name.strip()
     if not cleaned:
-        raise MonitorError("Give the list a name.")
+        raise MonitorError("Give the list a name.", "name_empty")
     return cleaned
 
 
@@ -88,7 +98,7 @@ def create_list(conn: sqlite3.Connection, name: str, when: str | None = None) ->
     try:
         return storage.create_list(conn, cleaned, when)
     except sqlite3.IntegrityError as exc:
-        raise MonitorError(f"There is already a list called “{cleaned}”.") from exc
+        raise MonitorError(f"There is already a list called “{cleaned}”.", "name_taken") from exc
 
 
 def rename_list(conn: sqlite3.Connection, list_id: int, name: str) -> None:
@@ -97,21 +107,12 @@ def rename_list(conn: sqlite3.Connection, list_id: int, name: str) -> None:
     try:
         storage.rename_list(conn, list_id, cleaned)
     except sqlite3.IntegrityError as exc:
-        raise MonitorError(f"There is already a list called “{cleaned}”.") from exc
+        raise MonitorError(f"There is already a list called “{cleaned}”.", "name_taken") from exc
 
 
 def delete_list(conn: sqlite3.Connection, list_id: int) -> None:
-    """Remove a list, and stop monitoring whatever no other list still holds."""
-    held = [t["nct_id"] for t in storage.list_trials(conn, list_id)]
+    """Remove a list. Whatever no other list holds stops being monitored but keeps its history."""
     storage.delete_list(conn, list_id)
-    for nct in held:
-        _forget_if_unlisted(conn, nct)
-
-
-def _forget_if_unlisted(conn: sqlite3.Connection, nct_id: str) -> None:
-    """A trial in no list is nobody's business, so it stops being monitored."""
-    if not storage.lists_holding(conn, nct_id):
-        storage.delete_trial(conn, nct_id)
 
 
 def _default_list(conn: sqlite3.Connection) -> int:
@@ -149,7 +150,7 @@ def add(
 
     if storage.is_member(conn, target, nct):
         name = storage.get_list(conn, target)["name"]
-        raise MonitorError(f"{nct} is already in “{name}”.")
+        raise MonitorError(f"{nct} is already in “{name}”.", "already_in_list")
 
     stamp = when or storage.now()
     if storage.get_trial(conn, nct) is None:
@@ -160,6 +161,32 @@ def add(
 
     storage.add_member(conn, target, nct, stamp)
     return nct
+
+
+def lookup(conn: sqlite3.Connection, nct_id: str, list_id: int, fetch=None) -> dict:
+    """Look a trial up in the registry for a list without adding it: nothing is stored.
+
+    Raises MonitorError whose kind is one of invalid_format, already_in_list, not_found
+    or registry_unavailable.
+    """
+    nct = normalise(nct_id)
+    if storage.is_member(conn, list_id, nct):
+        name = storage.get_list(conn, list_id)["name"]
+        raise MonitorError(f"{nct} is already in “{name}”.", "already_in_list")
+    try:
+        record = _fetch_record(nct, fetch)
+    except MonitorError as exc:
+        if exc.kind != "not_found":
+            raise MonitorError(str(exc), "registry_unavailable") from exc
+        raise
+    profile = medical_affairs.profile(record)
+    return {
+        "nct_id": nct,
+        "heading": profile.get("acronym") or profile.get("briefTitle") or nct,
+        "official_title": profile.get("officialTitle"),
+        "sponsor": profile.get("leadSponsor"),
+        "status": profile.get("overallStatus"),
+    }
 
 
 def add_many(
@@ -285,11 +312,21 @@ def summarise_adds(outcome: dict, list_name: str) -> dict:
     return {"level": level, "message": " ".join(parts), "failed": failed}
 
 
-def remove(conn: sqlite3.Connection, nct_id: str, list_id: int) -> None:
-    """Take a trial out of one list, leaving any other list holding it alone."""
-    nct = normalise(nct_id)
-    storage.remove_member(conn, list_id, nct)
-    _forget_if_unlisted(conn, nct)
+def remove(conn: sqlite3.Connection, nct_id: str, list_id: int) -> int | None:
+    """Take a trial out of one list, leaving any other list holding it alone.
+
+    A trial left in no list keeps its snapshots and changes and is skipped by
+    every check until a list takes it back. Returns the id of the 'stopped'
+    event that left, if any (what undoing the removal needs).
+    """
+    return storage.remove_member(conn, list_id, normalise(nct_id))
+
+
+def restore(conn: sqlite3.Connection, nct_id: str, list_id: int, stopped_id: int | None = None) -> None:
+    """Undo a removal: the membership returns, and the gap it opened is not recorded."""
+    if stopped_id:
+        storage.forget_monitoring_event(conn, stopped_id)
+    storage.add_member(conn, list_id, normalise(nct_id))
 
 
 # --- searching the registry
@@ -301,7 +338,7 @@ def remove(conn: sqlite3.Connection, nct_id: str, list_id: int) -> None:
 # How many results one search shows. Enough that a real query is answered in
 # one screenful, few enough that the reader is choosing rather than wading; a
 # search matching more than this says so, so a cap never reads as a total.
-RESULT_CAP = 40
+RESULT_CAP = 100
 
 # The codes a search can be narrowed by, in the order a reader expects them
 # offered. Re-stated here rather than reached for in the client, because what
@@ -418,7 +455,7 @@ def _refuse_unanswerable(query: dict) -> None:
     query rejected in one of those places must not be accepted in the other.
     """
     if _asks_nothing(query):
-        raise MonitorError(NOTHING_ASKED)
+        raise MonitorError(NOTHING_ASKED, "nothing_asked")
     # The registry answers an inverted range with zero studies, which is
     # exactly what a genuine miss looks like: the analyst would be told
     # "nothing found" about a window that could never have found anything.
@@ -427,7 +464,8 @@ def _refuse_unanswerable(query: dict) -> None:
     if start and end and start > end:
         raise MonitorError(
             f"The start-date window ends before it begins ({start} to {end}). "
-            "Swap the two dates."
+            "Swap the two dates.",
+            "bad_dates",
         )
 
 
@@ -494,6 +532,66 @@ def search(
         profile = medical_affairs.profile(study)
         rows.append({"nct_id": profile["nctId"], **_identity(profile)})
     return {"rows": rows, "capped": capped}
+
+
+PAGE_SIZE = 10
+SEARCH_CAP = 100
+
+
+def _default_find_page(**params) -> dict:
+    return ctgov.find_page(**params)
+
+
+def search_page(
+    cond: str = "",
+    intr: str = "",
+    spons: str = "",
+    phases=(),
+    sponsor_types=(),
+    statuses=(),
+    started_from: str = "",
+    started_to: str = "",
+    page: int = 1,
+    find_page=None,
+) -> dict:
+    """One page (ten rows) of a search, the registry's true total for the same
+    query, and whether the 100-result cap applies. Refuses what search() refuses.
+    """
+    query = as_query(
+        cond, intr, spons, phases, sponsor_types, statuses, started_from, started_to
+    )
+    _refuse_unanswerable(query)
+    try:
+        answer = (find_page or _default_find_page)(
+            cond=query["cond"],
+            intr=query["intr"],
+            spons=query["spons"],
+            phases=tuple(query["phases"]),
+            sponsor_types=tuple(query["sponsor_types"]),
+            statuses=tuple(query["statuses"]),
+            started_from=query["started_from"],
+            started_to=query["started_to"],
+            page=page,
+            page_size=PAGE_SIZE,
+        )
+    except urllib.error.URLError as exc:
+        raise MonitorError(f"Could not reach ClinicalTrials.gov: {exc.reason}") from exc
+    except Exception as exc:
+        raise MonitorError(f"The search failed: {exc}") from exc
+    rows = []
+    for study in answer["studies"]:
+        profile = medical_affairs.profile(study)
+        rows.append({"nct_id": profile["nctId"], **_identity(profile)})
+    total = answer["total"]
+    shown = min(total, SEARCH_CAP)
+    return {
+        "rows": rows,
+        "total": total,
+        "capped": total > SEARCH_CAP,
+        "page": page,
+        "pages": -(-shown // PAGE_SIZE),
+        "page_size": PAGE_SIZE,
+    }
 
 
 # --- a list's remembered search
@@ -580,6 +678,7 @@ def find_new(
         # analyst the rest of the run, and it must not read as "nothing new".
         return {"kind": "search", "outcome": "error", "found": [], "detail": str(exc)}
 
+    storage.set_search_capped(conn, list_id, capped)
     stamp = when or storage.now()
     found = []
     for study in studies:
@@ -618,7 +717,12 @@ def find_new(
     }
 
 
-def found_trials(conn: sqlite3.Connection, list_id: int) -> list[dict]:
+def restore_match(conn: sqlite3.Connection, list_id: int, nct_id: str) -> bool:
+    """Offer a dismissed found trial to this list again."""
+    return storage.restore_found(conn, list_id, normalise(nct_id))
+
+
+def found_trials(conn: sqlite3.Connection, list_id: int, dismissed: bool = False) -> list[dict]:
     """Trials on offer to a list, described the way its own lines are.
 
     The columns the watchlist and the search results share: the analyst is
@@ -626,7 +730,7 @@ def found_trials(conn: sqlite3.Connection, list_id: int) -> list[dict]:
     facts a study is listed by rather than on an NCT number.
     """
     rows = []
-    for offer in storage.list_found(conn, list_id):
+    for offer in storage.list_found(conn, list_id, dismissed=dismissed):
         profile = medical_affairs.profile(offer["record"])
         rows.append(
             {
@@ -827,6 +931,52 @@ def check(
     return _unchanged(nct)
 
 
+def check_one(
+    conn: sqlite3.Connection,
+    nct_id: str,
+    fetch=None,
+    when: str | None = None,
+    force: bool = False,
+) -> dict:
+    """Check one trial, reporting a failure as a result instead of raising.
+
+    A failure is recorded against the trial (its time and kind) and leaves the
+    trial's last successful check and stored data alone; a later success clears it.
+    """
+    try:
+        return check(conn, nct_id, fetch=fetch, when=when, force=force)
+    except MonitorError as exc:
+        if storage.get_trial(conn, nct_id) is not None:
+            storage.mark_check_failed(conn, nct_id, exc.kind, when)
+        return {
+            "kind": "trial",
+            "nct_id": nct_id,
+            "outcome": "error",
+            "error_kind": exc.kind,
+            "changes": 0,
+            "detail": str(exc),
+        }
+
+
+def finish_run(
+    conn: sqlite3.Connection, list_id: int, results: list[dict], when: str | None = None
+) -> None:
+    """Record that a list's check for updates finished: when, and which trials failed."""
+    failed = [
+        r["nct_id"] for r in results if r.get("kind") != "search" and r["outcome"] == "error"
+    ]
+    storage.finish_check_run(conn, list_id, failed, when)
+
+
+def failed_in_last_run(conn: sqlite3.Connection, list_id: int) -> list[str]:
+    """The trials Retry failed re-checks: those whose check failed in the list's last
+    run and has not succeeded since, and that the list still holds."""
+    still_failing = {
+        t["nct_id"] for t in storage.list_trials(conn, list_id) if t["check_failed_at"]
+    }
+    return [n for n in storage.last_check_run(conn, list_id)["failed"] if n in still_failing]
+
+
 def check_size(conn: sqlite3.Connection, list_id: int | None = None) -> int:
     """How many results a check run will yield, for the page's progress bar.
 
@@ -870,19 +1020,8 @@ def check_all(
 
     for index, trial in enumerate(storage.list_trials(conn, list_id)):
         if index:
-            browser.wait(pause)
-        nct = trial["nct_id"]
-        try:
-            result = check(conn, nct, fetch=fetch, when=when, force=force)
-        except MonitorError as exc:
-            result = {
-                "kind": "trial",
-                "nct_id": nct,
-                "outcome": "error",
-                "changes": 0,
-                "detail": str(exc),
-            }
-        yield result
+            time.sleep(pause)
+        yield check_one(conn, trial["nct_id"], fetch=fetch, when=when, force=force)
 
 
 def summarise(results: list[dict]) -> dict:
@@ -1108,15 +1247,59 @@ def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
         profile = medical_affairs.profile(snapshot["record"]) if snapshot else {}
         for folded in diff.fold_moves(found, profile):
             change = folded.pop("change")
+            rows = folded.pop("changes")
             moves.append(
                 {
                     **folded,
+                    # Every change row the move folds, so reviewing by ID
+                    # reaches the qualifier as well as the value.
+                    "ids": [row["id"] for row in rows],
+                    "registry_updated": profile.get("lastUpdatePostDate"),
+                    # One check of one trial is identified by its detection time.
+                    "check": when,
                     "detected_at": when,
-                    "reviewed": change["reviewed"],
+                    "reviewed": all(row["reviewed"] for row in rows),
                     "synthetic": change["synthetic"],
                 }
             )
     return moves
+
+
+def _when(stamp: str) -> datetime.datetime:
+    parsed = datetime.datetime.fromisoformat(stamp)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=datetime.timezone.utc)
+
+
+def timeline(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+    """One newest-first record of a trial: each check that found changes (with every
+    transition, reviewed or not), each review and undone review, the start of
+    monitoring and any stretch it was not monitored."""
+    moves = history(conn, nct_id)
+    checks: dict[str, list[dict]] = {}
+    for move in moves:
+        checks.setdefault(move["check"], []).append(move)
+    entries = [
+        {"kind": "detection", "at": at, "count": len(found), "moves": found,
+         "fields": diff.by_signal(m["field"] for m in found),
+         "reviewed": all(m["reviewed"] for m in found),
+         "synthetic": any(m["synthetic"] for m in found)}
+        for at, found in checks.items()
+    ]
+    for event in storage.review_events(conn, nct_id):
+        ids = set(event["change_ids"])
+        touched = [m for m in moves if ids & set(m["ids"])]
+        base = {"count": len(touched), "from_checks": sorted({m["check"] for m in touched}),
+                "event_id": event["id"]}
+        entries.append({"kind": "review", "at": event["reviewed_at"], **base})
+        if event["undone_at"]:
+            entries.append({"kind": "undo", "at": event["undone_at"], **base})
+    for event in storage.monitoring_events(conn, nct_id):
+        entries.append({"kind": event["kind"], "at": event["at"]})
+    trial = storage.get_trial(conn, nct_id)
+    entries.append({"kind": "start", "at": trial["monitoring_began"]})
+    # Newest first; on a tie the later-made kind (undo after review) leads.
+    order = {"start": 0, "detection": 1, "review": 2, "undo": 3, "stopped": 4, "resumed": 5}
+    return sorted(entries, key=lambda e: (_when(e["at"]), order[e["kind"]]), reverse=True)
 
 
 def watchlist(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:
@@ -1130,8 +1313,7 @@ def watchlist(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict
     stored snapshot.
 
     The whole of the watchlist table, derived here rather than in the page, so
-    the table can be tested without running Streamlit and a later move off
-    Streamlit rewrites only the rendering.
+    the table can be tested on its own and the page only draws it.
     """
     rows = []
     for trial in storage.list_trials(conn, list_id):
@@ -1167,3 +1349,86 @@ def review(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> in
         raise MonitorError(f"{nct} is not on the watchlist.")
 
     return storage.mark_reviewed(conn, nct, when)
+
+
+def review_changes(
+    conn: sqlite3.Connection, nct_id: str, ids: list[int], when: str | None = None
+) -> dict | None:
+    """Mark exactly the changes whose IDs are given, and record the review.
+
+    Changes not listed (one found by a check that finished after the caller
+    read the page) stay unreviewed. Returns the review event, or None if
+    nothing was marked. Raises MonitorError if the trial isn't watched.
+    """
+    nct = normalise(nct_id)
+    if storage.get_trial(conn, nct) is None:
+        raise MonitorError(f"{nct} is not on the watchlist.")
+    return storage.review_changes(conn, nct, ids, when)
+
+
+def undo_review(conn: sqlite3.Connection, event_id: int, when: str | None = None) -> dict | None:
+    """Undo one review event: its changes return to unreviewed; the undo is recorded."""
+    return storage.undo_review(conn, event_id, when)
+
+
+def needs_review(conn: sqlite3.Connection, list_id: int) -> list[dict]:
+    """The list's trials with unreviewed changes, newest detection first.
+
+    One entry per trial, carrying what the queue row shows: the heading
+    (acronym, else brief title), identity facts, the names of the fields
+    outstanding (high-signal first), when the newest was detected, how many
+    field changes are outstanding (a value and its qualifier count once per
+    check) and whether any is simulated. `moves` lists those folded moves, each
+    with the IDs of the change rows it folds.
+    """
+    entries = []
+    for trial in storage.list_trials(conn, list_id):
+        nct = trial["nct_id"]
+        unreviewed = [c for c in storage.list_changes(conn, nct) if not c["reviewed"]]
+        if not unreviewed:
+            continue
+        profile = profile_of(conn, nct) or {}
+        per_check: dict[str, list[dict]] = {}
+        for change in unreviewed:
+            per_check.setdefault(change["detected_at"], []).append(change)
+        moves = [
+            {"field": m["field"], "ids": [r["id"] for r in m["changes"]], "check": when}
+            for when, found in per_check.items()
+            for m in diff.fold_moves(found, profile)
+        ]
+        entries.append(
+            {
+                "nct_id": nct,
+                "heading": profile.get("acronym") or profile.get("briefTitle"),
+                **_identity(profile),
+                "changed_fields": diff.by_signal(
+                    diff.fold_qualifiers(c["field"] for c in unreviewed)
+                ),
+                "detected_at": max(per_check),
+                "change_count": len(moves),
+                "moves": moves,
+                "synthetic": any(c["synthetic"] for c in unreviewed),
+            }
+        )
+    return sorted(entries, key=lambda e: e["detected_at"], reverse=True)
+
+
+def watchlist_overview(conn: sqlite3.Connection) -> list[dict]:
+    """Every list with its trial count, trials needing review and last check."""
+    overview = []
+    for row in storage.list_lists(conn):
+        trials = storage.list_trials(conn, row["id"])
+        overview.append(
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "trial_count": len(trials),
+                "needs_review_count": sum(
+                    1 for t in trials if storage.count_unreviewed(conn, t["nct_id"])
+                ),
+                "last_checked": storage.last_check_run(conn, row["id"])["finished"],
+                "saved_search": storage.get_list_search(conn, row["id"]) is not None,
+                "new_match_count": len(storage.list_found(conn, row["id"])),
+            }
+        )
+    return overview

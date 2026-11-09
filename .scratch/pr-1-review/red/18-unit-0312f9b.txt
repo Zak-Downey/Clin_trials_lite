@@ -1,0 +1,88 @@
+# tip 0312f9b8a56247057cb4d6e04897899c1d26d4de
+..........................FF............................................ [ 15%]
+........................................................................ [ 30%]
+........................................................................ [ 45%]
+........................................................................ [ 61%]
+........................................................................ [ 76%]
+........................................................................ [ 91%]
+........................................                                 [100%]
+=================================== FAILURES ===================================
+_ test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed _
+
+watched = <conftest.api.<locals>.Client object at 0x10910a7b0>
+fetcher = <function fetcher.<locals>.fetch at 0x1091f2340>
+
+    def test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed(watched, fetcher):
+        """test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed"""
+    
+        def fetch(nct):
+            if nct == "NCT00000001":
+                watched.post(f"/api/watchlists/{LIST_ID}/trials/NCT00000003/remove")
+            return fetcher(nct)
+    
+        watched.fetch_override(fetch)
+        watched.post(f"/api/watchlists/{LIST_ID}/check")
+        state = finished(watched)
+>       assert (state["state"], state["checked"], state["total"]) == ("complete", 2, 2)
+E       AssertionError: assert ('complete', 2, 3) == ('complete', 2, 2)
+E         
+E         At index 2 diff: 3 != 2
+E         Use -v to get more diff
+
+tests/test_api_checks.py:275: AssertionError
+_ test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes _
+
+watched = <conftest.api.<locals>.Client object at 0x10910aba0>
+fetcher = <function fetcher.<locals>.fetch at 0x108ffccc0>
+
+    def test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes(watched, fetcher):
+        """test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes"""
+    
+        def fetch(nct):
+            if nct == "NCT00000003":
+                watched.post(f"/api/watchlists/{LIST_ID}/trials/NCT00000003/remove")
+            revised = copy.deepcopy(fetcher(nct))
+            revised["protocolSection"]["statusModule"]["overallStatus"] = "TERMINATED"
+            revised["protocolSection"]["statusModule"]["lastUpdatePostDateStruct"] = {"date": "2030-01-01"}
+            return revised
+    
+        watched.fetch_override(fetch)
+        watched.post(f"/api/watchlists/{LIST_ID}/check")
+        state = finished(watched)
+        conn = storage.connect(watched.path)
+>       assert storage.get_trial(conn, "NCT00000003")["last_checked"] == "2026-11-01T08:00:00+00:00"
+E       AssertionError: assert '2026-11-09T06:18:59+00:00' == '2026-11-01T08:00:00+00:00'
+E         
+E         - 2026-11-01T08:00:00+00:00
+E         ?          ^    ^^^^^
+E         + 2026-11-09T06:18:59+00:00
+E         ?          ^  +++  ^^
+
+tests/test_api_checks.py:293: AssertionError
+=============================== warnings summary ===============================
+tests/test_api_checks.py::test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted
+  /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.13/site-packages/_pytest/threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-95 (_work)
+  
+  Traceback (most recent call last):
+    File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+      self.run()
+      ~~~~~~~~^^
+    File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 995, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/private/tmp/wt18/webapp/api_checks.py", line 85, in _work
+      monitor.finish_run(ctx.conn, run.list_id, run.results)
+      ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/private/tmp/wt18/tests/test_api_checks.py", line 330, in broken
+      raise RuntimeError("disk full")
+  RuntimeError: disk full
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_api_checks.py::test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed
+FAILED tests/test_api_checks.py::test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes
+2 failed, 470 passed, 1 warning in 53.58s

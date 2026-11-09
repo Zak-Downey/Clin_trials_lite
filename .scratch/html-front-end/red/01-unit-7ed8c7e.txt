@@ -1,0 +1,64 @@
+# tip 7ed8c7e43f3b1e3641022b8bed01e8f8d41163fc
+........................................................................ [ 14%]
+........................................................................ [ 29%]
+........................................................................ [ 44%]
+........................................................................ [ 59%]
+........................................................................ [ 74%]
+FFF..................................................................... [ 89%]
+..................................................                       [100%]
+=================================== FAILURES ===================================
+___ test_a_second_start_waits_for_the_address_the_first_is_about_to_publish ____
+
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-84/test_a_second_start_waits_for_0')
+
+    def test_a_second_start_waits_for_the_address_the_first_is_about_to_publish(tmp_path):
+        """test_a_second_start_waits_for_the_address_the_first_is_about_to_publish"""
+        db = str(tmp_path / "m.db")
+        first = instance.claim(db)
+        assert isinstance(first, instance.Claim)
+        threading.Timer(0.3, first.publish, args=("http://127.0.0.1:5555/",)).start()
+        started = time.monotonic()
+>       assert instance.claim(db, wait=5) == "http://127.0.0.1:5555/"
+E       AssertionError: assert None == 'http://127.0.0.1:5555/'
+E        +  where None = <function claim at 0x1092ef8b0>('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-84/test_a_second_start_waits_for_0/m.db', wait=5)
+E        +    where <function claim at 0x1092ef8b0> = instance.claim
+
+tests/test_instance.py:19: AssertionError
+_____ test_a_second_start_gives_up_with_none_when_no_address_ever_arrives ______
+
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-84/test_a_second_start_gives_up_w0')
+
+    def test_a_second_start_gives_up_with_none_when_no_address_ever_arrives(tmp_path):
+        """test_a_second_start_gives_up_with_none_when_no_address_ever_arrives"""
+        db = str(tmp_path / "m.db")
+        first = instance.claim(db)
+        assert isinstance(first, instance.Claim)
+        started = time.monotonic()
+        assert instance.claim(db, wait=0.3) is None
+>       assert 0.25 <= time.monotonic() - started < 3
+E       assert 0.25 <= (14.114577208 - 14.114548)
+E        +  where 14.114577208 = <built-in function monotonic>()
+E        +    where <built-in function monotonic> = time.monotonic
+
+tests/test_instance.py:30: AssertionError
+_ test_a_dead_runs_address_is_not_offered_by_a_new_holder_that_has_not_published _
+
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-84/test_a_dead_runs_address_is_no0')
+
+    def test_a_dead_runs_address_is_not_offered_by_a_new_holder_that_has_not_published(tmp_path):
+        """test_a_dead_runs_address_is_not_offered_by_a_new_holder_that_has_not_published"""
+        db = str(tmp_path / "m.db")
+        (tmp_path / "m.db.lock").write_text("http://127.0.0.1:1/")
+        first = instance.claim(db)
+        assert isinstance(first, instance.Claim)
+>       assert instance.claim(db, wait=0.2) is None
+E       AssertionError: assert 'http://127.0.0.1:1/' is None
+E        +  where 'http://127.0.0.1:1/' = <function claim at 0x1092ef8b0>('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-84/test_a_dead_runs_address_is_no0/m.db', wait=0.2)
+E        +    where <function claim at 0x1092ef8b0> = instance.claim
+
+tests/test_instance.py:39: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_instance.py::test_a_second_start_waits_for_the_address_the_first_is_about_to_publish
+FAILED tests/test_instance.py::test_a_second_start_gives_up_with_none_when_no_address_ever_arrives
+FAILED tests/test_instance.py::test_a_dead_runs_address_is_not_offered_by_a_new_holder_that_has_not_published
+3 failed, 479 passed in 15.30s

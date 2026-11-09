@@ -1,0 +1,42 @@
+# tip a348fc2f19744e60fe4f3aec33de866ead99522f
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Check for updates")
+
+../../../.venv/lib/python3.9/site-packages/playwright/_impl/_connection.py:559: TimeoutError
+=========================== short test summary info ============================
+FAILED walks/test_check_walk.py::test_walk_with_nothing_to_review_the_queue_says_all_caught_up_and_stays_on_its_tab[1024x768]
+FAILED walks/test_check_walk.py::test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check[1440x900]
+FAILED walks/test_check_walk.py::test_walk_during_a_check_progress_shows_and_the_queue_and_a_trial_stay_usable[1024x768]
+FAILED walks/test_check_walk.py::test_walk_a_check_that_finds_nothing_says_so_and_keeps_earlier_entries_in_the_queue[1440x900]
+FAILED walks/test_check_walk.py::test_walk_a_check_with_one_failed_trial_is_incomplete_and_never_an_all_clear[1440x900]
+FAILED walks/test_check_walk.py::test_walk_a_check_that_finds_nothing_says_so_and_keeps_earlier_entries_in_the_queue[1024x768]
+FAILED walks/test_check_walk.py::test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check[1024x768]
+FAILED walks/test_check_walk.py::test_walk_with_nothing_to_review_the_queue_says_all_caught_up_and_stays_on_its_tab[1440x900]
+FAILED walks/test_check_walk.py::test_walk_a_check_with_one_failed_trial_is_incomplete_and_never_an_all_clear[1024x768]
+FAILED walks/test_check_walk.py::test_walk_during_a_check_progress_shows_and_the_queue_and_a_trial_stay_usable[1440x900]
+FAILED walks/test_standin_registry.py::test_standin_fail_switch_fails_only_the_listed_studies
+FAILED walks/test_check_walk.py::test_walk_a_revised_trial_joins_needs_review_after_a_check_without_a_tab_change[1440x900]
+FAILED walks/test_check_walk.py::test_walk_a_revised_trial_joins_needs_review_after_a_check_without_a_tab_change[1024x768]
+13 failed, 39 passed in 38.24s
+
+## Result
+walks/test_check_walk.py::test_walk_with_nothing_to_review_the_queue_says_all_caught_up_and_stays_on_its_tab[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-with-nothing-to-review-the-queue-says-all-caught-up-and-stays-on-its-tab-1024x768.txt)
+walks/test_check_walk.py::test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-the-header-names-the-watchlist-and-offers-only-a-manual-check-1440x900.txt)
+walks/test_check_walk.py::test_walk_during_a_check_progress_shows_and_the_queue_and_a_trial_stay_usable[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-during-a-check-progress-shows-and-the-queue-and-a-trial-stay-usable-1024x768.txt)
+walks/test_check_walk.py::test_walk_a_check_that_finds_nothing_says_so_and_keeps_earlier_entries_in_the_queue[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-a-check-that-finds-nothing-says-so-and-keeps-earlier-entries-in-the-queue-1440x900.txt)
+walks/test_check_walk.py::test_walk_a_check_with_one_failed_trial_is_incomplete_and_never_an_all_clear[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-a-check-with-one-failed-trial-is-incomplete-and-never-an-all-clear-1440x900.txt)
+walks/test_check_walk.py::test_walk_a_check_that_finds_nothing_says_so_and_keeps_earlier_entries_in_the_queue[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-a-check-that-finds-nothing-says-so-and-keeps-earlier-entries-in-the-queue-1024x768.txt)
+walks/test_check_walk.py::test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-the-header-names-the-watchlist-and-offers-only-a-manual-check-1024x768.txt)
+walks/test_check_walk.py::test_walk_with_nothing_to_review_the_queue_says_all_caught_up_and_stays_on_its_tab[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-with-nothing-to-review-the-queue-says-all-caught-up-and-stays-on-its-tab-1440x900.txt)
+walks/test_check_walk.py::test_walk_a_check_with_one_failed_trial_is_incomplete_and_never_an_all_clear[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-a-check-with-one-failed-trial-is-incomplete-and-never-an-all-clear-1024x768.txt)
+walks/test_check_walk.py::test_walk_during_a_check_progress_shows_and_the_queue_and_a_trial_stay_usable[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-during-a-check-progress-shows-and-the-queue-and-a-trial-stay-usable-1440x900.txt)
+walks/test_standin_registry.py::test_standin_fail_switch_fails_only_the_listed_studies -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-standin-fail-switch-fails-only-the-listed-studies.txt)
+walks/test_check_walk.py::test_walk_a_revised_trial_joins_needs_review_after_a_check_without_a_tab_change[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-a-revised-trial-joins-needs-review-after-a-check-without-a-tab-change-1440x900.txt)
+walks/test_check_walk.py::test_walk_a_revised_trial_joins_needs_review_after_a_check_without_a_tab_change[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/03-check-for-updates/.scratch/html-front-end/walks/alone-test-walk-a-revised-trial-joins-needs-review-after-a-check-without-a-tab-change-1024x768.txt)

@@ -1,0 +1,363 @@
+# tip ba89d7537a9023ac68ce3f6322a16d3ab057aae1
+....FFFF..FF                                                             [100%]
+=================================== FAILURES ===================================
+_ test_walk_add_by_nct_id_names_its_destination_and_shows_the_trial_before_adding_it[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x109ffe520>
+make_walk = <function make_walk.<locals>.build at 0x10a5c2a20>
+
+    def test_walk_add_by_nct_id_names_its_destination_and_shows_the_trial_before_adding_it(make_app, make_walk):
+        """test_walk_add_by_nct_id_names_its_destination_and_shows_the_trial_before_adding_it"""
+        app, walk = open_by_id(make_app, make_walk, seed=seed)
+        page = walk.page
+        assert page.locator("#destination").evaluate("(s) => s.selectedOptions[0].textContent") == "Myeloma"
+        page.get_by_label("NCT ID").fill("nct00000002")
+        page.get_by_role("button", name="Look up trial").click()
+>       page.get_by_role("button", name="Add to watchlist").wait_for()
+
+walks/test_add_by_id_walk.py:116: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x1099c7cb0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10a5e5300>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Add to watchlist") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_add_by_nct_id_names_its_destination_and_shows_the_trial_before_adding_it[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x109fbd760>
+make_walk = <function make_walk.<locals>.build at 0x109fbfce0>
+
+    def test_walk_add_by_nct_id_names_its_destination_and_shows_the_trial_before_adding_it(make_app, make_walk):
+        """test_walk_add_by_nct_id_names_its_destination_and_shows_the_trial_before_adding_it"""
+        app, walk = open_by_id(make_app, make_walk, seed=seed)
+        page = walk.page
+        assert page.locator("#destination").evaluate("(s) => s.selectedOptions[0].textContent") == "Myeloma"
+        page.get_by_label("NCT ID").fill("nct00000002")
+        page.get_by_role("button", name="Look up trial").click()
+>       page.get_by_role("button", name="Add to watchlist").wait_for()
+
+walks/test_add_by_id_walk.py:116: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x1099c7cb0>
+cb = <function Channel.send.<locals>.<lambda> at 0x109ffcd60>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Add to watchlist") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_each_lookup_failure_shows_its_own_message_in_place_keeps_the_id_and_focuses_the_input[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x109fbe0c0>
+make_walk = <function make_walk.<locals>.build at 0x109f92a20>
+
+    def test_walk_each_lookup_failure_shows_its_own_message_in_place_keeps_the_id_and_focuses_the_input(make_app, make_walk):
+        """test_walk_each_lookup_failure_shows_its_own_message_in_place_keeps_the_id_and_focuses_the_input"""
+        app, walk = open_by_id(make_app, make_walk)
+        page = walk.page
+        registry = app.registry
+        path = "/api/watchlists/1/lookup"
+        field, look = page.get_by_label("NCT ID"), page.get_by_role("button", name="Look up trial")
+    
+        def attempt(text, expect):
+            if expect:
+                walk.expect(expect, path)
+            field.fill(text)
+            look.click()
+            page.locator("#nct-error").filter(has_text=re.compile(".")).wait_for()
+            assert field.input_value() == text and page.evaluate("document.activeElement.id") == "nct-id"
+            return page.locator("#nct-error").inner_text()
+    
+        invalid = attempt("NCT123", 400)
+        assert "NCT followed by 8 digits" in invalid
+        walk.shot("invalid")
+        registry.set("not_found")
+        missing = attempt("NCT00000002", 404)
+        registry.set("not_found", False)
+        assert "No trial with that ID was found" in missing
+        page.get_by_role("link", name="Find trials").first.hover()  # keep the page honest
+        field.fill("NCT00000002")
+        look.click()
+>       page.get_by_role("button", name="Add to watchlist").wait_for()
+
+walks/test_add_by_id_walk.py:155: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x1099c7cb0>
+cb = <function Channel.send.<locals>.<lambda> at 0x1097e5080>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Add to watchlist") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_each_lookup_failure_shows_its_own_message_in_place_keeps_the_id_and_focuses_the_input[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x109f93ce0>
+make_walk = <function make_walk.<locals>.build at 0x109fdb420>
+
+    def test_walk_each_lookup_failure_shows_its_own_message_in_place_keeps_the_id_and_focuses_the_input(make_app, make_walk):
+        """test_walk_each_lookup_failure_shows_its_own_message_in_place_keeps_the_id_and_focuses_the_input"""
+        app, walk = open_by_id(make_app, make_walk)
+        page = walk.page
+        registry = app.registry
+        path = "/api/watchlists/1/lookup"
+        field, look = page.get_by_label("NCT ID"), page.get_by_role("button", name="Look up trial")
+    
+        def attempt(text, expect):
+            if expect:
+                walk.expect(expect, path)
+            field.fill(text)
+            look.click()
+            page.locator("#nct-error").filter(has_text=re.compile(".")).wait_for()
+            assert field.input_value() == text and page.evaluate("document.activeElement.id") == "nct-id"
+            return page.locator("#nct-error").inner_text()
+    
+        invalid = attempt("NCT123", 400)
+        assert "NCT followed by 8 digits" in invalid
+        walk.shot("invalid")
+        registry.set("not_found")
+        missing = attempt("NCT00000002", 404)
+        registry.set("not_found", False)
+        assert "No trial with that ID was found" in missing
+        page.get_by_role("link", name="Find trials").first.hover()  # keep the page honest
+        field.fill("NCT00000002")
+        look.click()
+>       page.get_by_role("button", name="Add to watchlist").wait_for()
+
+walks/test_add_by_id_walk.py:155: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x1099c7cb0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10a631b20>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Add to watchlist") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_the_first_trial_added_takes_its_baseline_and_is_not_in_needs_review[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10a67c040>
+make_walk = <function make_walk.<locals>.build at 0x10a677740>
+
+    def test_walk_the_first_trial_added_takes_its_baseline_and_is_not_in_needs_review(make_app, make_walk):
+        """test_walk_the_first_trial_added_takes_its_baseline_and_is_not_in_needs_review"""
+        app = make_app()
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("link", name="Add by NCT ID").click()
+        page.get_by_label("NCT ID").fill("NCT00000002")
+        page.get_by_role("button", name="Look up trial").click()
+>       page.get_by_role("button", name="Add to watchlist").click()
+
+walks/test_add_by_id_walk.py:205: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x1099c7cb0>
+cb = <function Channel.send.<locals>.<lambda> at 0x1103728e0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Add to watchlist")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_the_first_trial_added_takes_its_baseline_and_is_not_in_needs_review[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x110339f80>
+make_walk = <function make_walk.<locals>.build at 0x110339c60>
+
+    def test_walk_the_first_trial_added_takes_its_baseline_and_is_not_in_needs_review(make_app, make_walk):
+        """test_walk_the_first_trial_added_takes_its_baseline_and_is_not_in_needs_review"""
+        app = make_app()
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("link", name="Add by NCT ID").click()
+        page.get_by_label("NCT ID").fill("NCT00000002")
+        page.get_by_role("button", name="Look up trial").click()
+>       page.get_by_role("button", name="Add to watchlist").click()
+
+walks/test_add_by_id_walk.py:205: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x1099c7cb0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10a6774c0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("button", name="Add to watchlist")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+=========================== short test summary info ============================
+FAILED walks/test_add_by_id_walk.py::test_walk_add_by_nct_id_names_its_destination_and_shows_the_trial_before_adding_it[1440x900]
+FAILED walks/test_add_by_id_walk.py::test_walk_add_by_nct_id_names_its_destination_and_shows_the_trial_before_adding_it[1024x768]
+FAILED walks/test_add_by_id_walk.py::test_walk_each_lookup_failure_shows_its_own_message_in_place_keeps_the_id_and_focuses_the_input[1440x900]
+FAILED walks/test_add_by_id_walk.py::test_walk_each_lookup_failure_shows_its_own_message_in_place_keeps_the_id_and_focuses_the_input[1024x768]
+FAILED walks/test_add_by_id_walk.py::test_walk_the_first_trial_added_takes_its_baseline_and_is_not_in_needs_review[1440x900]
+FAILED walks/test_add_by_id_walk.py::test_walk_the_first_trial_added_takes_its_baseline_and_is_not_in_needs_review[1024x768]
+6 failed, 6 passed in 39.24s

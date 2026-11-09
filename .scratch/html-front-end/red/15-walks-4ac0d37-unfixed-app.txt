@@ -1,0 +1,482 @@
+# tip 4ac0d37e0f5bce6d9abb08b6b80e859cb6102940
+FFFFFF...                                                                [100%]
+=================================== FAILURES ===================================
+_______ test_walk_the_whole_journey_by_keyboard_alone[chromium-1440x900] _______
+
+make_app = <function make_app.<locals>.build at 0x10ad6d580>
+make_walk = <function make_walk.<locals>.build at 0x10b29c860>
+engine = 'chromium-1440x900'
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-817/test_walk_the_whole_journey_by0')
+
+    def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, tmp_path):
+        """test_walk_the_whole_journey_by_keyboard_alone"""
+        app, walk, keys = open_empty(make_app, make_walk, engine)
+        page = walk.page
+        pending = []
+    
+        # 1. Create a watchlist from the sidebar.
+        keys.press(page.get_by_role("button", name="+ New watchlist"))
+        dialog = page.get_by_role("dialog", name="New watchlist")
+        dialog.wait_for()
+        assert page.evaluate("document.activeElement.id") == "new-watchlist-name"  # focus lands in the dialog
+        page.keyboard.type("Myeloma")
+        page.keyboard.press("Enter")  # submits the form
+        dialog.wait_for(state="detached")
+        sidebar(page, "Myeloma").wait_for()
+        walk.shot("created")
+    
+        # 2. Search; select across two pages; add.
+        keys.press(page.get_by_role("navigation").get_by_role("link", name="Find trials"))
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        keys.type(page.get_by_label("Condition"), "many", submit=True)
+        page.get_by_role("heading", name="134 matches").wait_for()
+        box = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731
+        for nct in ("NCT10000001", "NCT10000002"):
+            keys.press(box(nct), "Space")
+        page.get_by_text("2 trials selected").wait_for()
+        keys.press(page.get_by_role("button", name="Next"))
+        page.get_by_text("11–20 of 134 matches").wait_for()
+        keys.press(box("NCT10000011"), "Space")
+        page.get_by_text("3 trials selected").wait_for()
+        assert box("NCT10000011").is_checked()
+        walk.shot("selected")
+        keys.choose(page.get_by_label("Add to"), "Myeloma")
+        keys.press(page.get_by_role("button", name="Add 3 trials"))
+        page.get_by_text("3 added").wait_for()
+        assert sidebar(page, "Myeloma").locator(".counts").inner_text() == "3 trials"
+        walk.shot("added")
+    
+        # 3. The trial the registry will revise comes in by its ID.
+        keys.press(page.get_by_role("tab", name="Add by NCT ID"))
+        keys.choose(page.get_by_label("Destination"), "Myeloma")
+        keys.type(page.get_by_label("NCT ID"), "NCT03412565", submit=True)
+        page.locator(".found", has_text="NCT03412565").wait_for()
+        keys.press(page.get_by_role("button", name="Add to watchlist"))
+        page.get_by_text("Added NCT03412565 to Myeloma.").wait_for()
+    
+        # 4. Save a search that finds the registry's three studies.
+        keys.press(page.get_by_role("tab", name="Search"))
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        keys.type(page.get_by_label("Condition"), "myeloma", submit=True)
+        page.get_by_role("heading", name="3 matches").wait_for()
+        keys.press(page.get_by_role("button", name="Watch this search"))
+        watch = page.get_by_role("dialog", name="Watch this search")
+        watch.wait_for()
+        keys.choose(watch.get_by_label("Watchlist"), "Myeloma")
+        keys.press(watch.get_by_role("button", name="Watch this search"))
+        watch.get_by_role("heading", name="Search saved").wait_for()
+        keys.press(watch.get_by_role("link", name=re.compile("^Open watchlist")))
+        page.get_by_role("heading", level=1, name="Myeloma").wait_for()
+        page.get_by_text("Saved search is on").wait_for()
+        walk.shot("saved-search")
+    
+        # 5. Check for updates: nothing has moved yet.
+        keys.press(page.get_by_role("button", name="Check for updates"))
+        status = page.locator("#check-status")
+        status.get_by_text("Check complete · No new changes detected").wait_for(timeout=30000)
+        assert "Saved search succeeded: 2 new trials found." in status.inner_text(), status.inner_text()
+        page.get_by_text("All caught up").wait_for()
+    
+        # 6. The registry moves (the walk's one step off the page), and the next check sees it.
+        app.registry.set("revise", True)
+        app.registry.set("register", True)
+        keys.press(page.get_by_role("button", name="Check for updates"))
+        status.get_by_text("Check complete · 1 trial changed").wait_for(timeout=30000)
+        assert "Saved search succeeded: 1 new trial found." in status.inner_text(), status.inner_text()
+        card = page.locator('li.card[data-nct="NCT03412565"]')
+        card.wait_for()
+        assert sidebar(page, "Myeloma").locator(".badge").get_attribute("title") == "1 to review"
+        walk.shot("changed")
+    
+        # 7. Open the changed trial; review it; undo; review again.
+        keys.press(card.locator("h3 a"))
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        changes = page.locator("article.change")
+        assert changes.count() >= 3
+        walk.shot("trial")
+        keys.press(page.get_by_role("button", name="Mark reviewed"))
+        page.get_by_text(re.compile(r"\d+ changes? marked reviewed")).wait_for()
+>       assert page.evaluate("document.activeElement.textContent") == "Undo"  # the pressed button is now disabled: focus moves on, not to <body>
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert '\n\n  Trial ...wed\n\n\n\n\n' == 'Undo'
+E         
+E         - Undo
+E         + 
+E         + 
+E         +   Trial Change Monitor
+E         +   
+E         +     Watchlists...
+E         
+E         ...Full output truncated, use '-vv' to show
+
+walks/test_acceptance_walk.py:226: AssertionError
+_______ test_walk_the_whole_journey_by_keyboard_alone[chromium-1024x768] _______
+
+make_app = <function make_app.<locals>.build at 0x10b011080>
+make_walk = <function make_walk.<locals>.build at 0x10b4405e0>
+engine = 'chromium-1024x768'
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-817/test_walk_the_whole_journey_by1')
+
+    def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, tmp_path):
+        """test_walk_the_whole_journey_by_keyboard_alone"""
+        app, walk, keys = open_empty(make_app, make_walk, engine)
+        page = walk.page
+        pending = []
+    
+        # 1. Create a watchlist from the sidebar.
+        keys.press(page.get_by_role("button", name="+ New watchlist"))
+        dialog = page.get_by_role("dialog", name="New watchlist")
+        dialog.wait_for()
+        assert page.evaluate("document.activeElement.id") == "new-watchlist-name"  # focus lands in the dialog
+        page.keyboard.type("Myeloma")
+        page.keyboard.press("Enter")  # submits the form
+        dialog.wait_for(state="detached")
+        sidebar(page, "Myeloma").wait_for()
+        walk.shot("created")
+    
+        # 2. Search; select across two pages; add.
+        keys.press(page.get_by_role("navigation").get_by_role("link", name="Find trials"))
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        keys.type(page.get_by_label("Condition"), "many", submit=True)
+        page.get_by_role("heading", name="134 matches").wait_for()
+        box = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731
+        for nct in ("NCT10000001", "NCT10000002"):
+            keys.press(box(nct), "Space")
+        page.get_by_text("2 trials selected").wait_for()
+        keys.press(page.get_by_role("button", name="Next"))
+        page.get_by_text("11–20 of 134 matches").wait_for()
+        keys.press(box("NCT10000011"), "Space")
+        page.get_by_text("3 trials selected").wait_for()
+        assert box("NCT10000011").is_checked()
+        walk.shot("selected")
+        keys.choose(page.get_by_label("Add to"), "Myeloma")
+        keys.press(page.get_by_role("button", name="Add 3 trials"))
+        page.get_by_text("3 added").wait_for()
+        assert sidebar(page, "Myeloma").locator(".counts").inner_text() == "3 trials"
+        walk.shot("added")
+    
+        # 3. The trial the registry will revise comes in by its ID.
+        keys.press(page.get_by_role("tab", name="Add by NCT ID"))
+        keys.choose(page.get_by_label("Destination"), "Myeloma")
+        keys.type(page.get_by_label("NCT ID"), "NCT03412565", submit=True)
+        page.locator(".found", has_text="NCT03412565").wait_for()
+        keys.press(page.get_by_role("button", name="Add to watchlist"))
+        page.get_by_text("Added NCT03412565 to Myeloma.").wait_for()
+    
+        # 4. Save a search that finds the registry's three studies.
+        keys.press(page.get_by_role("tab", name="Search"))
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        keys.type(page.get_by_label("Condition"), "myeloma", submit=True)
+        page.get_by_role("heading", name="3 matches").wait_for()
+        keys.press(page.get_by_role("button", name="Watch this search"))
+        watch = page.get_by_role("dialog", name="Watch this search")
+        watch.wait_for()
+        keys.choose(watch.get_by_label("Watchlist"), "Myeloma")
+        keys.press(watch.get_by_role("button", name="Watch this search"))
+        watch.get_by_role("heading", name="Search saved").wait_for()
+        keys.press(watch.get_by_role("link", name=re.compile("^Open watchlist")))
+        page.get_by_role("heading", level=1, name="Myeloma").wait_for()
+        page.get_by_text("Saved search is on").wait_for()
+        walk.shot("saved-search")
+    
+        # 5. Check for updates: nothing has moved yet.
+        keys.press(page.get_by_role("button", name="Check for updates"))
+        status = page.locator("#check-status")
+        status.get_by_text("Check complete · No new changes detected").wait_for(timeout=30000)
+        assert "Saved search succeeded: 2 new trials found." in status.inner_text(), status.inner_text()
+        page.get_by_text("All caught up").wait_for()
+    
+        # 6. The registry moves (the walk's one step off the page), and the next check sees it.
+        app.registry.set("revise", True)
+        app.registry.set("register", True)
+        keys.press(page.get_by_role("button", name="Check for updates"))
+        status.get_by_text("Check complete · 1 trial changed").wait_for(timeout=30000)
+        assert "Saved search succeeded: 1 new trial found." in status.inner_text(), status.inner_text()
+        card = page.locator('li.card[data-nct="NCT03412565"]')
+        card.wait_for()
+        assert sidebar(page, "Myeloma").locator(".badge").get_attribute("title") == "1 to review"
+        walk.shot("changed")
+    
+        # 7. Open the changed trial; review it; undo; review again.
+        keys.press(card.locator("h3 a"))
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        changes = page.locator("article.change")
+        assert changes.count() >= 3
+        walk.shot("trial")
+        keys.press(page.get_by_role("button", name="Mark reviewed"))
+        page.get_by_text(re.compile(r"\d+ changes? marked reviewed")).wait_for()
+>       assert page.evaluate("document.activeElement.textContent") == "Undo"  # the pressed button is now disabled: focus moves on, not to <body>
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert '\n\n  Trial ...wed\n\n\n\n\n' == 'Undo'
+E         
+E         - Undo
+E         + 
+E         + 
+E         +   Trial Change Monitor
+E         +   
+E         +     Watchlists...
+E         
+E         ...Full output truncated, use '-vv' to show
+
+walks/test_acceptance_walk.py:226: AssertionError
+________ test_walk_the_whole_journey_by_keyboard_alone[webkit-1440x900] ________
+
+make_app = <function make_app.<locals>.build at 0x10b8d5940>
+make_walk = <function make_walk.<locals>.build at 0x10b324fe0>
+engine = 'webkit-1440x900'
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-817/test_walk_the_whole_journey_by2')
+
+    def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, tmp_path):
+        """test_walk_the_whole_journey_by_keyboard_alone"""
+        app, walk, keys = open_empty(make_app, make_walk, engine)
+        page = walk.page
+        pending = []
+    
+        # 1. Create a watchlist from the sidebar.
+        keys.press(page.get_by_role("button", name="+ New watchlist"))
+        dialog = page.get_by_role("dialog", name="New watchlist")
+        dialog.wait_for()
+        assert page.evaluate("document.activeElement.id") == "new-watchlist-name"  # focus lands in the dialog
+        page.keyboard.type("Myeloma")
+        page.keyboard.press("Enter")  # submits the form
+        dialog.wait_for(state="detached")
+        sidebar(page, "Myeloma").wait_for()
+        walk.shot("created")
+    
+        # 2. Search; select across two pages; add.
+        keys.press(page.get_by_role("navigation").get_by_role("link", name="Find trials"))
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        keys.type(page.get_by_label("Condition"), "many", submit=True)
+        page.get_by_role("heading", name="134 matches").wait_for()
+        box = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731
+        for nct in ("NCT10000001", "NCT10000002"):
+            keys.press(box(nct), "Space")
+        page.get_by_text("2 trials selected").wait_for()
+        keys.press(page.get_by_role("button", name="Next"))
+        page.get_by_text("11–20 of 134 matches").wait_for()
+        keys.press(box("NCT10000011"), "Space")
+        page.get_by_text("3 trials selected").wait_for()
+        assert box("NCT10000011").is_checked()
+        walk.shot("selected")
+        keys.choose(page.get_by_label("Add to"), "Myeloma")
+        keys.press(page.get_by_role("button", name="Add 3 trials"))
+        page.get_by_text("3 added").wait_for()
+        assert sidebar(page, "Myeloma").locator(".counts").inner_text() == "3 trials"
+        walk.shot("added")
+    
+        # 3. The trial the registry will revise comes in by its ID.
+        keys.press(page.get_by_role("tab", name="Add by NCT ID"))
+        keys.choose(page.get_by_label("Destination"), "Myeloma")
+        keys.type(page.get_by_label("NCT ID"), "NCT03412565", submit=True)
+        page.locator(".found", has_text="NCT03412565").wait_for()
+        keys.press(page.get_by_role("button", name="Add to watchlist"))
+        page.get_by_text("Added NCT03412565 to Myeloma.").wait_for()
+    
+        # 4. Save a search that finds the registry's three studies.
+        keys.press(page.get_by_role("tab", name="Search"))
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        keys.type(page.get_by_label("Condition"), "myeloma", submit=True)
+        page.get_by_role("heading", name="3 matches").wait_for()
+        keys.press(page.get_by_role("button", name="Watch this search"))
+        watch = page.get_by_role("dialog", name="Watch this search")
+        watch.wait_for()
+        keys.choose(watch.get_by_label("Watchlist"), "Myeloma")
+        keys.press(watch.get_by_role("button", name="Watch this search"))
+        watch.get_by_role("heading", name="Search saved").wait_for()
+        keys.press(watch.get_by_role("link", name=re.compile("^Open watchlist")))
+        page.get_by_role("heading", level=1, name="Myeloma").wait_for()
+        page.get_by_text("Saved search is on").wait_for()
+        walk.shot("saved-search")
+    
+        # 5. Check for updates: nothing has moved yet.
+        keys.press(page.get_by_role("button", name="Check for updates"))
+        status = page.locator("#check-status")
+        status.get_by_text("Check complete · No new changes detected").wait_for(timeout=30000)
+        assert "Saved search succeeded: 2 new trials found." in status.inner_text(), status.inner_text()
+        page.get_by_text("All caught up").wait_for()
+    
+        # 6. The registry moves (the walk's one step off the page), and the next check sees it.
+        app.registry.set("revise", True)
+        app.registry.set("register", True)
+        keys.press(page.get_by_role("button", name="Check for updates"))
+        status.get_by_text("Check complete · 1 trial changed").wait_for(timeout=30000)
+        assert "Saved search succeeded: 1 new trial found." in status.inner_text(), status.inner_text()
+        card = page.locator('li.card[data-nct="NCT03412565"]')
+        card.wait_for()
+        assert sidebar(page, "Myeloma").locator(".badge").get_attribute("title") == "1 to review"
+        walk.shot("changed")
+    
+        # 7. Open the changed trial; review it; undo; review again.
+        keys.press(card.locator("h3 a"))
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        changes = page.locator("article.change")
+        assert changes.count() >= 3
+        walk.shot("trial")
+        keys.press(page.get_by_role("button", name="Mark reviewed"))
+        page.get_by_text(re.compile(r"\d+ changes? marked reviewed")).wait_for()
+>       assert page.evaluate("document.activeElement.textContent") == "Undo"  # the pressed button is now disabled: focus moves on, not to <body>
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert '\n\n  Trial ...wed\n\n\n\n\n' == 'Undo'
+E         
+E         - Undo
+E         + 
+E         + 
+E         +   Trial Change Monitor
+E         +   
+E         +     Watchlists...
+E         
+E         ...Full output truncated, use '-vv' to show
+
+walks/test_acceptance_walk.py:226: AssertionError
+_ test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone[chromium-1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10b386340>
+make_walk = <function make_walk.<locals>.build at 0x10bacd8a0>
+engine = 'chromium-1440x900'
+
+    def test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone(make_app, make_walk, engine):
+        """test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone"""
+        from walks.test_trial_page_walk import seed_trial_page
+    
+        app = make_app(seed=seed_trial_page)
+        walk = make_walk(app)
+        page, keys = walk.page, None
+        keys = Keys(page, engine)
+        page.goto(app.url)
+        page.locator("ul.queue > li.card").first.wait_for()
+        stops = {}
+        for name, hash_, ready in (
+            ("needs-review", "#/watchlists/1/needs-review", 'li.card[data-nct="NCT03412565"]'),
+            ("all-trials", "#/watchlists/1/all-trials", 'tr[data-nct="NCT03412565"]'),
+            ("summary", "#/watchlists/1/summary", "#summary-heading"),
+            ("trial", "#/trials/NCT03412565", 'article.change'),
+            ("find", "#/find", 'input#find-cond, [name=cond]'),
+        ):
+            page.evaluate("(h) => { location.hash = h }", hash_)
+            page.locator(ready).first.wait_for()
+            before = len(keys.reached)
+            stops[name] = crawl(page, keys)
+            assert stops[name] >= 8, (name, stops)
+            assert_controls(keys, before)
+            walk.shot(f"crawl-{name}")
+        # The tab and the sidebar link that are current differ from the others by more than colour.
+        page.evaluate("(h) => { location.hash = h }", "#/watchlists/1/needs-review")
+        page.locator("li.card").first.wait_for()
+        tabs = page.get_by_role("tablist", name="Watchlist views").get_by_role("tab")
+        assert tabs.nth(0).get_attribute("aria-selected") == "true"
+        assert differs_beyond_colour(tabs.nth(0), tabs.nth(1))
+        assert tabs.nth(0).get_attribute("aria-selected") != tabs.nth(1).get_attribute("aria-selected")
+        links = page.get_by_label("Watchlists").get_by_role("link")
+        current = page.get_by_label("Watchlists").locator("a.active")
+        other = page.get_by_label("Watchlists").locator("a:not(.active)")
+>       assert differs_beyond_colour(current.first, other.first)
+E       assert False
+E        +  where False = differs_beyond_colour(<Locator frame=<Frame name= url='http://127.0.0.1:52494/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a.active >> nth=0'>, <Locator frame=<Frame name= url='http://127.0.0.1:52494/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a:not(.active) >> nth=0'>)
+E        +    where <Locator frame=<Frame name= url='http://127.0.0.1:52494/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a.active >> nth=0'> = <Locator frame=<Frame name= url='http://127.0.0.1:52494/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a.active'>.first
+E        +    and   <Locator frame=<Frame name= url='http://127.0.0.1:52494/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a:not(.active) >> nth=0'> = <Locator frame=<Frame name= url='http://127.0.0.1:52494/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a:not(.active)'>.first
+
+walks/test_acceptance_walk.py:362: AssertionError
+_ test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone[chromium-1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10bacc2c0>
+make_walk = <function make_walk.<locals>.build at 0x10b84fce0>
+engine = 'chromium-1024x768'
+
+    def test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone(make_app, make_walk, engine):
+        """test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone"""
+        from walks.test_trial_page_walk import seed_trial_page
+    
+        app = make_app(seed=seed_trial_page)
+        walk = make_walk(app)
+        page, keys = walk.page, None
+        keys = Keys(page, engine)
+        page.goto(app.url)
+        page.locator("ul.queue > li.card").first.wait_for()
+        stops = {}
+        for name, hash_, ready in (
+            ("needs-review", "#/watchlists/1/needs-review", 'li.card[data-nct="NCT03412565"]'),
+            ("all-trials", "#/watchlists/1/all-trials", 'tr[data-nct="NCT03412565"]'),
+            ("summary", "#/watchlists/1/summary", "#summary-heading"),
+            ("trial", "#/trials/NCT03412565", 'article.change'),
+            ("find", "#/find", 'input#find-cond, [name=cond]'),
+        ):
+            page.evaluate("(h) => { location.hash = h }", hash_)
+            page.locator(ready).first.wait_for()
+            before = len(keys.reached)
+            stops[name] = crawl(page, keys)
+            assert stops[name] >= 8, (name, stops)
+            assert_controls(keys, before)
+            walk.shot(f"crawl-{name}")
+        # The tab and the sidebar link that are current differ from the others by more than colour.
+        page.evaluate("(h) => { location.hash = h }", "#/watchlists/1/needs-review")
+        page.locator("li.card").first.wait_for()
+        tabs = page.get_by_role("tablist", name="Watchlist views").get_by_role("tab")
+        assert tabs.nth(0).get_attribute("aria-selected") == "true"
+        assert differs_beyond_colour(tabs.nth(0), tabs.nth(1))
+        assert tabs.nth(0).get_attribute("aria-selected") != tabs.nth(1).get_attribute("aria-selected")
+        links = page.get_by_label("Watchlists").get_by_role("link")
+        current = page.get_by_label("Watchlists").locator("a.active")
+        other = page.get_by_label("Watchlists").locator("a:not(.active)")
+>       assert differs_beyond_colour(current.first, other.first)
+E       assert False
+E        +  where False = differs_beyond_colour(<Locator frame=<Frame name= url='http://127.0.0.1:52556/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a.active >> nth=0'>, <Locator frame=<Frame name= url='http://127.0.0.1:52556/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a:not(.active) >> nth=0'>)
+E        +    where <Locator frame=<Frame name= url='http://127.0.0.1:52556/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a.active >> nth=0'> = <Locator frame=<Frame name= url='http://127.0.0.1:52556/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a.active'>.first
+E        +    and   <Locator frame=<Frame name= url='http://127.0.0.1:52556/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a:not(.active) >> nth=0'> = <Locator frame=<Frame name= url='http://127.0.0.1:52556/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a:not(.active)'>.first
+
+walks/test_acceptance_walk.py:362: AssertionError
+_ test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone[webkit-1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10b84c900>
+make_walk = <function make_walk.<locals>.build at 0x10baccea0>
+engine = 'webkit-1440x900'
+
+    def test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone(make_app, make_walk, engine):
+        """test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone"""
+        from walks.test_trial_page_walk import seed_trial_page
+    
+        app = make_app(seed=seed_trial_page)
+        walk = make_walk(app)
+        page, keys = walk.page, None
+        keys = Keys(page, engine)
+        page.goto(app.url)
+        page.locator("ul.queue > li.card").first.wait_for()
+        stops = {}
+        for name, hash_, ready in (
+            ("needs-review", "#/watchlists/1/needs-review", 'li.card[data-nct="NCT03412565"]'),
+            ("all-trials", "#/watchlists/1/all-trials", 'tr[data-nct="NCT03412565"]'),
+            ("summary", "#/watchlists/1/summary", "#summary-heading"),
+            ("trial", "#/trials/NCT03412565", 'article.change'),
+            ("find", "#/find", 'input#find-cond, [name=cond]'),
+        ):
+            page.evaluate("(h) => { location.hash = h }", hash_)
+            page.locator(ready).first.wait_for()
+            before = len(keys.reached)
+            stops[name] = crawl(page, keys)
+            assert stops[name] >= 8, (name, stops)
+            assert_controls(keys, before)
+            walk.shot(f"crawl-{name}")
+        # The tab and the sidebar link that are current differ from the others by more than colour.
+        page.evaluate("(h) => { location.hash = h }", "#/watchlists/1/needs-review")
+        page.locator("li.card").first.wait_for()
+        tabs = page.get_by_role("tablist", name="Watchlist views").get_by_role("tab")
+        assert tabs.nth(0).get_attribute("aria-selected") == "true"
+        assert differs_beyond_colour(tabs.nth(0), tabs.nth(1))
+        assert tabs.nth(0).get_attribute("aria-selected") != tabs.nth(1).get_attribute("aria-selected")
+        links = page.get_by_label("Watchlists").get_by_role("link")
+        current = page.get_by_label("Watchlists").locator("a.active")
+        other = page.get_by_label("Watchlists").locator("a:not(.active)")
+>       assert differs_beyond_colour(current.first, other.first)
+E       assert False
+E        +  where False = differs_beyond_colour(<Locator frame=<Frame name= url='http://127.0.0.1:52618/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a.active >> nth=0'>, <Locator frame=<Frame name= url='http://127.0.0.1:52618/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a:not(.active) >> nth=0'>)
+E        +    where <Locator frame=<Frame name= url='http://127.0.0.1:52618/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a.active >> nth=0'> = <Locator frame=<Frame name= url='http://127.0.0.1:52618/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a.active'>.first
+E        +    and   <Locator frame=<Frame name= url='http://127.0.0.1:52618/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a:not(.active) >> nth=0'> = <Locator frame=<Frame name= url='http://127.0.0.1:52618/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a:not(.active)'>.first
+
+walks/test_acceptance_walk.py:362: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_acceptance_walk.py::test_walk_the_whole_journey_by_keyboard_alone[chromium-1440x900]
+FAILED walks/test_acceptance_walk.py::test_walk_the_whole_journey_by_keyboard_alone[chromium-1024x768]
+FAILED walks/test_acceptance_walk.py::test_walk_the_whole_journey_by_keyboard_alone[webkit-1440x900]
+FAILED walks/test_acceptance_walk.py::test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone[chromium-1440x900]
+FAILED walks/test_acceptance_walk.py::test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone[chromium-1024x768]
+FAILED walks/test_acceptance_walk.py::test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_ring_and_states_are_not_colour_alone[webkit-1440x900]
+6 failed, 3 passed in 37.69s
