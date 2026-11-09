@@ -2,7 +2,7 @@
 
 **Blocked by:** None
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Touches:** webapp/static/views/find.js, webapp/static/views/add_by_id.js, walks/
 
@@ -12,7 +12,7 @@
 
 **What to build:** When every trial in a Find bar add fails, the bar shows an error (not the added-outcome status) with the reason and no Open link, and the Add button stays. The failure sentence beside the Add by NCT ID field is removed when the ID is edited.
 
-- [ ] Walk: a wholly failed add in the Find bar is an error with a reason and no Open link, and Add is still offered — walk: test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link; todo until this ticket is built: the walk is in the suite as `xfail(strict)` in walks/test_explore_find_and_add_failed_add_in_the_bar_reads_as_an_outcome_with_an_open_link.py against ledger row E-034; remove the mark when it passes
-- [ ] Walk: the Add by NCT ID error is cleared when the ID is edited — walk: test_explore_the_add_error_is_cleared_when_the_id_is_edited; todo until this ticket is built: the walk is in the suite as `xfail(strict)` in walks/test_explore_find_and_add_error_after_a_failed_add_by_id_outlives_the_edit.py against ledger row E-035; remove the mark when it passes
+- [x] Walk: a wholly failed add in the Find bar is an error with a reason and no Open link, and Add is still offered — walk: test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link; red: .scratch/pr-1-review/red/16-walks-a7f99be.txt
+- [x] Walk: the Add by NCT ID error is cleared when the ID is edited — walk: test_explore_the_add_error_is_cleared_when_the_id_is_edited; red: .scratch/pr-1-review/red/16-walks-a7f99be.txt
 
 ## Comments

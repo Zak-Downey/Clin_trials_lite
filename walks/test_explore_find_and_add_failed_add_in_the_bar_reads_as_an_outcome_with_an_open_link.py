@@ -11,7 +11,6 @@ import pytest
 from walks.test_find_select_walk import box, results
 
 
-@pytest.mark.xfail(strict=True, reason="todo: known defect E-034, fixed by ticket 16 of pr-1-review")
 def test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link(make_app, make_walk):
     """test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link"""
     app, walk = results(make_app, make_walk)
