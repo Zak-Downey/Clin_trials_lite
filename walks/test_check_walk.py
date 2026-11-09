@@ -91,6 +91,27 @@ def test_walk_during_a_check_progress_shows_and_the_queue_and_a_trial_stay_usabl
     walk.shot("done")
 
 
+def test_walk_pressing_check_for_updates_during_a_check_starts_no_second_check_and_shows_no_error(make_app, make_walk):
+    """test_walk_pressing_check_for_updates_during_a_check_starts_no_second_check_and_shows_no_error"""
+    app, walk = open_app(make_app, make_walk)
+    page = walk.page
+    starts = []
+    page.on("request", lambda r: starts.append(r.url) if r.method == "POST" and r.url.endswith("/check") else None)
+    app.registry.set("revise", True)
+    app.registry.set("slow", True, delay=1.5)
+    button = page.get_by_role("button", name="Check for updates")
+    button.click()
+    page.get_by_role("status").get_by_text("Checking for updates…").wait_for()
+    assert button.is_disabled()
+    button.click(force=True)  # an aria-disabled button still takes a click; the page must ignore it
+    button.click(force=True)
+    page.get_by_text("Check complete").wait_for(timeout=30000)
+    assert len(starts) == 1, starts
+    assert page.get_by_role("alert").count() == 0, page.get_by_role("alert").all_inner_texts()
+    assert page.locator("#check-reason").inner_text() == ""
+    walk.shot("pressed-twice")
+
+
 def test_walk_a_check_with_one_failed_trial_is_incomplete_and_never_an_all_clear(make_app, make_walk):
     """test_walk_a_check_with_one_failed_trial_is_incomplete_and_never_an_all_clear"""
     app, walk = open_app(make_app, make_walk)

@@ -1,0 +1,37 @@
+# tip 5a1f34a9ff62023f1e3e1f1a739d66e42ec00076
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-sweep/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+E         FAILED walks/broken/broken_pages.py::test_broken_region_that_scrolls_sideways[1024x768]
+E         FAILED walks/broken/broken_pages.py::test_broken_first_of_two_pages_has_an_error[1440x900]
+E         FAILED walks/broken/broken_pages.py::test_broken_first_of_two_pages_has_an_error[1024x768]
+E         FAILED walks/broken/broken_pages.py::test_broken_expected_response_that_never_comes[1440x900]
+E         FAILED walks/broken/broken_pages.py::test_broken_expected_response_that_never_comes[1024x768]
+E         FAILED walks/broken/broken_pages.py::test_broken_other_status_than_the_expected_one[1440x900]
+E         FAILED walks/broken/broken_pages.py::test_broken_other_status_than_the_expected_one[1024x768]
+E         FAILED walks/broken/broken_pages.py::test_broken_page_closed_after_an_error[1440x900]
+E         FAILED walks/broken/broken_pages.py::test_broken_page_closed_after_an_error[1024x768]
+E         24 failed in 25.40s
+E         
+E       assert False
+E        +  where False = in_block('FFFFFFFFFFFFFFFFFFFFFFFF                                                 [100%]\n=================================== ...440x900]\nFAILED walks/broken/broken_pages.py::test_broken_page_closed_after_an_error[1024x768]\n24 failed in 25.40s\n', 'test_broken_console_error', 'console error: deliberate console error')
+
+walks/test_walk_guards.py:60: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_acceptance_walk.py::test_walk_the_whole_journey_by_keyboard_alone[chromium-1440x900]
+FAILED walks/test_acceptance_walk.py::test_walk_the_whole_journey_by_keyboard_alone[chromium-1024x768]
+FAILED walks/test_check_walk.py::test_walk_pressing_check_for_updates_during_a_check_starts_no_second_check_and_shows_no_error[1440x900]
+FAILED walks/test_acceptance_walk.py::test_walk_the_whole_journey_by_keyboard_alone[webkit-1440x900]
+FAILED walks/test_check_walk.py::test_walk_pressing_check_for_updates_during_a_check_starts_no_second_check_and_shows_no_error[1024x768]
+FAILED walks/test_find_trials_walk.py::test_walk_a_filtered_search_reaches_the_registry_with_its_phase_status_and_dates[1440x900]
+FAILED walks/test_find_trials_walk.py::test_walk_a_filtered_search_reaches_the_registry_with_its_phase_status_and_dates[1024x768]
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_a_console_error
+8 failed, 330 passed in 135.24s (0:02:15)
+
+## Result
+walks/test_acceptance_walk.py › test_walk_the_whole_journey_by_keyboard_alone[chromium-1440x900]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-sweep/.scratch/html-front-end/walks/alone-test_acceptance_walk-test-walk-the-whole-journey-by-keyboard-alone-chromium-1440x900.txt)
+walks/test_acceptance_walk.py › test_walk_the_whole_journey_by_keyboard_alone[chromium-1024x768]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-sweep/.scratch/html-front-end/walks/alone-test_acceptance_walk-test-walk-the-whole-journey-by-keyboard-alone-chromium-1024x768.txt)
+walks/test_check_walk.py › test_walk_pressing_check_for_updates_during_a_check_starts_no_second_check_and_shows_no_error[1440x900]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-sweep/.scratch/html-front-end/walks/alone-test_check_walk-test-walk-pressing-check-for-updates-during-a-check-starts-no-second-check-and-shows-no-error-1440x900.txt)
+walks/test_acceptance_walk.py › test_walk_the_whole_journey_by_keyboard_alone[webkit-1440x900]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-sweep/.scratch/html-front-end/walks/alone-test_acceptance_walk-test-walk-the-whole-journey-by-keyboard-alone-webkit-1440x900.txt)
+walks/test_check_walk.py › test_walk_pressing_check_for_updates_during_a_check_starts_no_second_check_and_shows_no_error[1024x768]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-sweep/.scratch/html-front-end/walks/alone-test_check_walk-test-walk-pressing-check-for-updates-during-a-check-starts-no-second-check-and-shows-no-error-1024x768.txt)
+walks/test_find_trials_walk.py › test_walk_a_filtered_search_reaches_the_registry_with_its_phase_status_and_dates[1440x900]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-sweep/.scratch/html-front-end/walks/alone-test_find_trials_walk-test-walk-a-filtered-search-reaches-the-registry-with-its-phase-status-and-dates-1440x900.txt)
+walks/test_find_trials_walk.py › test_walk_a_filtered_search_reaches_the_registry_with_its_phase_status_and_dates[1024x768]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-sweep/.scratch/html-front-end/walks/alone-test_find_trials_walk-test-walk-a-filtered-search-reaches-the-registry-with-its-phase-status-and-dates-1024x768.txt)
+walks/test_walk_guards.py › test_walk_guard_fails_a_walk_on_a_console_error: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-sweep/.scratch/html-front-end/walks/alone-test_walk_guards-test-walk-guard-fails-a-walk-on-a-console-error.txt)

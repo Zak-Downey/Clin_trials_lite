@@ -423,3 +423,21 @@ def test_the_two_refusals_carry_their_own_kinds_whatever_their_wording_says(monk
     with pytest.raises(monitor.MonitorError) as reworded:
         monitor._refuse_unanswerable(monitor.as_query())
     assert reworded.value.kind == "nothing_asked" and str(reworded.value) == "Type something first."
+
+
+def test_find_page_asks_for_every_page_up_to_this_one_and_returns_only_this_pages_ten(monkeypatch):
+    """test_find_page_asks_for_every_page_up_to_this_one_and_returns_only_this_pages_ten"""
+    seen = []
+
+    def fake_get(path, params):
+        seen.append((path, params))
+        return {"studies": [{"n": n} for n in range(25)], "totalCount": 137}
+
+    monkeypatch.setattr(ctgov, "_get", fake_get)
+    answer = ctgov.find_page(cond="myeloma", page=2)
+    assert seen[0][0] == "/studies"
+    assert seen[0][1]["pageSize"] == 20
+    assert seen[0][1]["countTotal"] == "true"
+    assert seen[0][1]["query.cond"] == "myeloma"
+    assert answer["studies"] == [{"n": n} for n in range(10, 20)]
+    assert answer["total"] == 137
