@@ -1,0 +1,437 @@
+# tip 0a2ca89591d05541ec1c5e5daa8dd67c97908ee7
+FFFFF...FFF...FFFFFF                                                     [100%]
+=================================== FAILURES ===================================
+_ test_walk_a_delayed_trial_answer_leaves_the_watchlist_the_address_names[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x107282b60>
+make_walk = <function make_walk.<locals>.build at 0x107282e80>
+
+    def test_walk_a_delayed_trial_answer_leaves_the_watchlist_the_address_names(make_app, make_walk):
+        """test_walk_a_delayed_trial_answer_leaves_the_watchlist_the_address_names"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        pattern = "**/api/trials/NCT03412565"
+        held = hold_first(page, pattern)
+        page.get_by_role("link", name="Review changes").first.click()
+        page.wait_for_function("location.hash.startsWith('#/trials/')")
+        sidebar_link(page, "Quiet").click()
+        page.wait_for_url(re.compile(r"#/watchlists/2/"))
+        page.get_by_role("heading", name="All caught up").wait_for()
+        assert held, "the trial's answer was never asked for"
+        release(page, held, pattern)
+        walk.shot("after-late-trial")
+        assert page.url.endswith("#/watchlists/2/needs-review"), page.url
+>       assert page.get_by_role("heading", name="All caught up").count() == 1, "the address names Quiet but the page shows the trial"
+E       AssertionError: the address names Quiet but the page shows the trial
+E       assert 0 == 1
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:49384/#/watchlists/2/needs-review'> selector='internal:role=heading[name="All caught up"i]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:49384/#/watchlists/2/needs-review'> selector='internal:role=heading[name="All caught up"i]'> = get_by_role('heading', name='All caught up')
+E        +        where get_by_role = <Page url='http://127.0.0.1:49384/#/watchlists/2/needs-review'>.get_by_role
+
+walks/test_late_answer_walk.py:66: AssertionError
+_ test_walk_a_delayed_trial_answer_leaves_the_watchlist_the_address_names[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x1074f89a0>
+make_walk = <function make_walk.<locals>.build at 0x1074f8b80>
+
+    def test_walk_a_delayed_trial_answer_leaves_the_watchlist_the_address_names(make_app, make_walk):
+        """test_walk_a_delayed_trial_answer_leaves_the_watchlist_the_address_names"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        pattern = "**/api/trials/NCT03412565"
+        held = hold_first(page, pattern)
+        page.get_by_role("link", name="Review changes").first.click()
+        page.wait_for_function("location.hash.startsWith('#/trials/')")
+        sidebar_link(page, "Quiet").click()
+        page.wait_for_url(re.compile(r"#/watchlists/2/"))
+        page.get_by_role("heading", name="All caught up").wait_for()
+        assert held, "the trial's answer was never asked for"
+        release(page, held, pattern)
+        walk.shot("after-late-trial")
+        assert page.url.endswith("#/watchlists/2/needs-review"), page.url
+>       assert page.get_by_role("heading", name="All caught up").count() == 1, "the address names Quiet but the page shows the trial"
+E       AssertionError: the address names Quiet but the page shows the trial
+E       assert 0 == 1
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:49571/#/watchlists/2/needs-review'> selector='internal:role=heading[name="All caught up"i]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:49571/#/watchlists/2/needs-review'> selector='internal:role=heading[name="All caught up"i]'> = get_by_role('heading', name='All caught up')
+E        +        where get_by_role = <Page url='http://127.0.0.1:49571/#/watchlists/2/needs-review'>.get_by_role
+
+walks/test_late_answer_walk.py:66: AssertionError
+_ test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1440x900-Needs review-All trials-True] _
+
+make_app = <function make_app.<locals>.build at 0x1074fa5c0>
+make_walk = <function make_walk.<locals>.build at 0x10755b6a0>
+tab = 'Needs review', start = 'All trials', side = True
+
+    @pytest.mark.parametrize("tab, start, side", [("Needs review", "All trials", True), ("All trials", "Needs review", True), ("Summary", "Needs review", True),
+                                                   ("Needs review", "All trials", False), ("All trials", "Needs review", False), ("Summary", "Needs review", False)])
+    def test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names(make_app, make_walk, tab, start, side):
+        """test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        if start != "Needs review":
+            page.get_by_role("tab", name=re.compile(start)).click()
+            page.get_by_label("Filter by title, NCT ID or sponsor").wait_for()
+        # The tab's own answers, and the sidebar's, are held for the first click only: the tab is left before they land.
+        held_tab = hold_first(page, tab_answer(tab))
+        held_side = hold_first(page, "**/api/watchlists") if side else []
+        page.get_by_role("tab", name=re.compile(tab)).click()
+        page.wait_for_function("(t) => location.hash.includes(t)", arg={"Needs review": "needs-review", "All trials": "all-trials", "Summary": "summary"}[tab])
+        sidebar_link(page, "Quiet").click()
+        page.wait_for_url(re.compile(r"#/watchlists/2/"))
+        page.get_by_role("heading", name="All caught up").wait_for()
+        for held, pattern in ((held_side, "**/api/watchlists"), (held_tab, tab_answer(tab))):
+            if held:
+                release(page, held, pattern)
+        walk.shot(f"after-late-{tab.lower().replace(' ', '-')}-{'sidebar' if side else 'tab'}")
+>       assert "#/watchlists/2/" in page.url, (tab, page.url)
+E       AssertionError: ('Needs review', 'http://127.0.0.1:49827/#/watchlists/1/needs-review')
+E       assert '#/watchlists/2/' in 'http://127.0.0.1:49827/#/watchlists/1/needs-review'
+E        +  where 'http://127.0.0.1:49827/#/watchlists/1/needs-review' = <Page url='http://127.0.0.1:49827/#/watchlists/1/needs-review'>.url
+
+walks/test_late_answer_walk.py:96: AssertionError
+_ test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1440x900-All trials-Needs review-True] _
+
+make_app = <function make_app.<locals>.build at 0x107748220>
+make_walk = <function make_walk.<locals>.build at 0x1077a2020>
+tab = 'All trials', start = 'Needs review', side = True
+
+    @pytest.mark.parametrize("tab, start, side", [("Needs review", "All trials", True), ("All trials", "Needs review", True), ("Summary", "Needs review", True),
+                                                   ("Needs review", "All trials", False), ("All trials", "Needs review", False), ("Summary", "Needs review", False)])
+    def test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names(make_app, make_walk, tab, start, side):
+        """test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        if start != "Needs review":
+            page.get_by_role("tab", name=re.compile(start)).click()
+            page.get_by_label("Filter by title, NCT ID or sponsor").wait_for()
+        # The tab's own answers, and the sidebar's, are held for the first click only: the tab is left before they land.
+        held_tab = hold_first(page, tab_answer(tab))
+        held_side = hold_first(page, "**/api/watchlists") if side else []
+        page.get_by_role("tab", name=re.compile(tab)).click()
+        page.wait_for_function("(t) => location.hash.includes(t)", arg={"Needs review": "needs-review", "All trials": "all-trials", "Summary": "summary"}[tab])
+        sidebar_link(page, "Quiet").click()
+        page.wait_for_url(re.compile(r"#/watchlists/2/"))
+        page.get_by_role("heading", name="All caught up").wait_for()
+        for held, pattern in ((held_side, "**/api/watchlists"), (held_tab, tab_answer(tab))):
+            if held:
+                release(page, held, pattern)
+        walk.shot(f"after-late-{tab.lower().replace(' ', '-')}-{'sidebar' if side else 'tab'}")
+>       assert "#/watchlists/2/" in page.url, (tab, page.url)
+E       AssertionError: ('All trials', 'http://127.0.0.1:50055/#/watchlists/1/all-trials')
+E       assert '#/watchlists/2/' in 'http://127.0.0.1:50055/#/watchlists/1/all-trials'
+E        +  where 'http://127.0.0.1:50055/#/watchlists/1/all-trials' = <Page url='http://127.0.0.1:50055/#/watchlists/1/all-trials'>.url
+
+walks/test_late_answer_walk.py:96: AssertionError
+_ test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1440x900-Summary-Needs review-True] _
+
+make_app = <function make_app.<locals>.build at 0x1077a3740>
+make_walk = <function make_walk.<locals>.build at 0x10c81d940>, tab = 'Summary'
+start = 'Needs review', side = True
+
+    @pytest.mark.parametrize("tab, start, side", [("Needs review", "All trials", True), ("All trials", "Needs review", True), ("Summary", "Needs review", True),
+                                                   ("Needs review", "All trials", False), ("All trials", "Needs review", False), ("Summary", "Needs review", False)])
+    def test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names(make_app, make_walk, tab, start, side):
+        """test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        if start != "Needs review":
+            page.get_by_role("tab", name=re.compile(start)).click()
+            page.get_by_label("Filter by title, NCT ID or sponsor").wait_for()
+        # The tab's own answers, and the sidebar's, are held for the first click only: the tab is left before they land.
+        held_tab = hold_first(page, tab_answer(tab))
+        held_side = hold_first(page, "**/api/watchlists") if side else []
+        page.get_by_role("tab", name=re.compile(tab)).click()
+        page.wait_for_function("(t) => location.hash.includes(t)", arg={"Needs review": "needs-review", "All trials": "all-trials", "Summary": "summary"}[tab])
+        sidebar_link(page, "Quiet").click()
+        page.wait_for_url(re.compile(r"#/watchlists/2/"))
+        page.get_by_role("heading", name="All caught up").wait_for()
+        for held, pattern in ((held_side, "**/api/watchlists"), (held_tab, tab_answer(tab))):
+            if held:
+                release(page, held, pattern)
+        walk.shot(f"after-late-{tab.lower().replace(' ', '-')}-{'sidebar' if side else 'tab'}")
+        assert "#/watchlists/2/" in page.url, (tab, page.url)
+        hrefs = page.get_by_role("tablist", name="Watchlist views").get_by_role("tab").evaluate_all("(a) => a.map((x) => x.getAttribute('href'))")
+>       assert hrefs and all("/watchlists/2/" in h for h in hrefs), (tab, hrefs)
+E       AssertionError: ('Summary', ['#/watchlists/1/needs-review', '#/watchlists/1/all-trials', '#/watchlists/1/new-matches', '#/watchlists/1/summary'])
+E       assert (['#/watchlists/1/needs-review', '#/watchlists/1/all-trials', '#/watchlists/1/new-matches', '#/watchlists/1/summary'] and False)
+E        +  where False = all(<generator object test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names.<locals>.<genexpr> at 0x10c8f5d80>)
+
+walks/test_late_answer_walk.py:98: AssertionError
+_ test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1024x768-Needs review-All trials-True] _
+
+make_app = <function make_app.<locals>.build at 0x107467b00>
+make_walk = <function make_walk.<locals>.build at 0x10774b420>
+tab = 'Needs review', start = 'All trials', side = True
+
+    @pytest.mark.parametrize("tab, start, side", [("Needs review", "All trials", True), ("All trials", "Needs review", True), ("Summary", "Needs review", True),
+                                                   ("Needs review", "All trials", False), ("All trials", "Needs review", False), ("Summary", "Needs review", False)])
+    def test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names(make_app, make_walk, tab, start, side):
+        """test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        if start != "Needs review":
+            page.get_by_role("tab", name=re.compile(start)).click()
+            page.get_by_label("Filter by title, NCT ID or sponsor").wait_for()
+        # The tab's own answers, and the sidebar's, are held for the first click only: the tab is left before they land.
+        held_tab = hold_first(page, tab_answer(tab))
+        held_side = hold_first(page, "**/api/watchlists") if side else []
+        page.get_by_role("tab", name=re.compile(tab)).click()
+        page.wait_for_function("(t) => location.hash.includes(t)", arg={"Needs review": "needs-review", "All trials": "all-trials", "Summary": "summary"}[tab])
+        sidebar_link(page, "Quiet").click()
+        page.wait_for_url(re.compile(r"#/watchlists/2/"))
+        page.get_by_role("heading", name="All caught up").wait_for()
+        for held, pattern in ((held_side, "**/api/watchlists"), (held_tab, tab_answer(tab))):
+            if held:
+                release(page, held, pattern)
+        walk.shot(f"after-late-{tab.lower().replace(' ', '-')}-{'sidebar' if side else 'tab'}")
+>       assert "#/watchlists/2/" in page.url, (tab, page.url)
+E       AssertionError: ('Needs review', 'http://127.0.0.1:50955/#/watchlists/1/needs-review')
+E       assert '#/watchlists/2/' in 'http://127.0.0.1:50955/#/watchlists/1/needs-review'
+E        +  where 'http://127.0.0.1:50955/#/watchlists/1/needs-review' = <Page url='http://127.0.0.1:50955/#/watchlists/1/needs-review'>.url
+
+walks/test_late_answer_walk.py:96: AssertionError
+_ test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1024x768-All trials-Needs review-True] _
+
+make_app = <function make_app.<locals>.build at 0x1074fbec0>
+make_walk = <function make_walk.<locals>.build at 0x10751d260>
+tab = 'All trials', start = 'Needs review', side = True
+
+    @pytest.mark.parametrize("tab, start, side", [("Needs review", "All trials", True), ("All trials", "Needs review", True), ("Summary", "Needs review", True),
+                                                   ("Needs review", "All trials", False), ("All trials", "Needs review", False), ("Summary", "Needs review", False)])
+    def test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names(make_app, make_walk, tab, start, side):
+        """test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        if start != "Needs review":
+            page.get_by_role("tab", name=re.compile(start)).click()
+            page.get_by_label("Filter by title, NCT ID or sponsor").wait_for()
+        # The tab's own answers, and the sidebar's, are held for the first click only: the tab is left before they land.
+        held_tab = hold_first(page, tab_answer(tab))
+        held_side = hold_first(page, "**/api/watchlists") if side else []
+        page.get_by_role("tab", name=re.compile(tab)).click()
+        page.wait_for_function("(t) => location.hash.includes(t)", arg={"Needs review": "needs-review", "All trials": "all-trials", "Summary": "summary"}[tab])
+        sidebar_link(page, "Quiet").click()
+        page.wait_for_url(re.compile(r"#/watchlists/2/"))
+        page.get_by_role("heading", name="All caught up").wait_for()
+        for held, pattern in ((held_side, "**/api/watchlists"), (held_tab, tab_answer(tab))):
+            if held:
+                release(page, held, pattern)
+        walk.shot(f"after-late-{tab.lower().replace(' ', '-')}-{'sidebar' if side else 'tab'}")
+>       assert "#/watchlists/2/" in page.url, (tab, page.url)
+E       AssertionError: ('All trials', 'http://127.0.0.1:51185/#/watchlists/1/all-trials')
+E       assert '#/watchlists/2/' in 'http://127.0.0.1:51185/#/watchlists/1/all-trials'
+E        +  where 'http://127.0.0.1:51185/#/watchlists/1/all-trials' = <Page url='http://127.0.0.1:51185/#/watchlists/1/all-trials'>.url
+
+walks/test_late_answer_walk.py:96: AssertionError
+_ test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1024x768-Summary-Needs review-True] _
+
+make_app = <function make_app.<locals>.build at 0x107759580>
+make_walk = <function make_walk.<locals>.build at 0x10c98cc20>, tab = 'Summary'
+start = 'Needs review', side = True
+
+    @pytest.mark.parametrize("tab, start, side", [("Needs review", "All trials", True), ("All trials", "Needs review", True), ("Summary", "Needs review", True),
+                                                   ("Needs review", "All trials", False), ("All trials", "Needs review", False), ("Summary", "Needs review", False)])
+    def test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names(make_app, make_walk, tab, start, side):
+        """test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        if start != "Needs review":
+            page.get_by_role("tab", name=re.compile(start)).click()
+            page.get_by_label("Filter by title, NCT ID or sponsor").wait_for()
+        # The tab's own answers, and the sidebar's, are held for the first click only: the tab is left before they land.
+        held_tab = hold_first(page, tab_answer(tab))
+        held_side = hold_first(page, "**/api/watchlists") if side else []
+        page.get_by_role("tab", name=re.compile(tab)).click()
+        page.wait_for_function("(t) => location.hash.includes(t)", arg={"Needs review": "needs-review", "All trials": "all-trials", "Summary": "summary"}[tab])
+        sidebar_link(page, "Quiet").click()
+        page.wait_for_url(re.compile(r"#/watchlists/2/"))
+        page.get_by_role("heading", name="All caught up").wait_for()
+        for held, pattern in ((held_side, "**/api/watchlists"), (held_tab, tab_answer(tab))):
+            if held:
+                release(page, held, pattern)
+        walk.shot(f"after-late-{tab.lower().replace(' ', '-')}-{'sidebar' if side else 'tab'}")
+        assert "#/watchlists/2/" in page.url, (tab, page.url)
+        hrefs = page.get_by_role("tablist", name="Watchlist views").get_by_role("tab").evaluate_all("(a) => a.map((x) => x.getAttribute('href'))")
+>       assert hrefs and all("/watchlists/2/" in h for h in hrefs), (tab, hrefs)
+E       AssertionError: ('Summary', ['#/watchlists/1/needs-review', '#/watchlists/1/all-trials', '#/watchlists/1/new-matches', '#/watchlists/1/summary'])
+E       assert (['#/watchlists/1/needs-review', '#/watchlists/1/all-trials', '#/watchlists/1/new-matches', '#/watchlists/1/summary'] and False)
+E        +  where False = all(<generator object test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names.<locals>.<genexpr> at 0x10c9e3850>)
+
+walks/test_late_answer_walk.py:98: AssertionError
+_ test_walk_rename_from_the_header_menu_keeps_the_open_watchlist_marked_in_the_sidebar[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10ca0dd00>
+make_walk = <function make_walk.<locals>.build at 0x10ca7bc40>
+
+    def test_walk_rename_from_the_header_menu_keeps_the_open_watchlist_marked_in_the_sidebar(make_app, make_walk):
+        """test_walk_rename_from_the_header_menu_keeps_the_open_watchlist_marked_in_the_sidebar"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        assert marked(page).count() == 1
+        page.get_by_role("button", name="Watchlist actions").click()
+        page.get_by_role("menuitem", name="Rename watchlist").click()
+        dialog = page.get_by_role("dialog", name="Rename watchlist")
+        dialog.get_by_label("Watchlist name").fill("Lung, renamed")
+        dialog.get_by_role("button", name="Save name").click()
+        dialog.wait_for(state="detached")
+        page.get_by_role("heading", level=1, name="Lung, renamed").wait_for()
+        sidebar_link(page, "Lung, renamed").wait_for()
+        walk.shot("renamed")
+>       assert marked(page).count() == 1 and "Lung, renamed" in marked(page).inner_text()
+E       assert (0 == 1)
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:52253/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:52253/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'> = marked(<Page url='http://127.0.0.1:52253/#/watchlists/1/needs-review'>)
+
+walks/test_late_answer_walk.py:121: AssertionError
+_ test_walk_rename_from_the_header_menu_keeps_the_open_watchlist_marked_in_the_sidebar[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10ca97740>
+make_walk = <function make_walk.<locals>.build at 0x10caa9760>
+
+    def test_walk_rename_from_the_header_menu_keeps_the_open_watchlist_marked_in_the_sidebar(make_app, make_walk):
+        """test_walk_rename_from_the_header_menu_keeps_the_open_watchlist_marked_in_the_sidebar"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        assert marked(page).count() == 1
+        page.get_by_role("button", name="Watchlist actions").click()
+        page.get_by_role("menuitem", name="Rename watchlist").click()
+        dialog = page.get_by_role("dialog", name="Rename watchlist")
+        dialog.get_by_label("Watchlist name").fill("Lung, renamed")
+        dialog.get_by_role("button", name="Save name").click()
+        dialog.wait_for(state="detached")
+        page.get_by_role("heading", level=1, name="Lung, renamed").wait_for()
+        sidebar_link(page, "Lung, renamed").wait_for()
+        walk.shot("renamed")
+>       assert marked(page).count() == 1 and "Lung, renamed" in marked(page).inner_text()
+E       assert (0 == 1)
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:52409/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:52409/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'> = marked(<Page url='http://127.0.0.1:52409/#/watchlists/1/needs-review'>)
+
+walks/test_late_answer_walk.py:121: AssertionError
+_ test_walk_new_watchlist_keeps_the_open_watchlist_marked_in_the_sidebar[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10caa9260>
+make_walk = <function make_walk.<locals>.build at 0x10caa8f40>
+
+    def test_walk_new_watchlist_keeps_the_open_watchlist_marked_in_the_sidebar(make_app, make_walk):
+        """test_walk_new_watchlist_keeps_the_open_watchlist_marked_in_the_sidebar"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="+ New watchlist").click()
+        dialog = page.get_by_role("dialog", name="New watchlist")
+        dialog.get_by_label("Name").fill("Kidney")
+        dialog.get_by_role("button", name="Create watchlist").click()
+        dialog.wait_for(state="detached")
+        sidebar_link(page, "Kidney").wait_for()
+        walk.shot("created")
+>       assert marked(page).count() == 1 and helper.LONG_NAME[:20] in marked(page).inner_text()
+E       assert (0 == 1)
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:52540/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:52540/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'> = marked(<Page url='http://127.0.0.1:52540/#/watchlists/1/needs-review'>)
+
+walks/test_late_answer_walk.py:136: AssertionError
+_ test_walk_new_watchlist_keeps_the_open_watchlist_marked_in_the_sidebar[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10ca78ea0>
+make_walk = <function make_walk.<locals>.build at 0x10ca79c60>
+
+    def test_walk_new_watchlist_keeps_the_open_watchlist_marked_in_the_sidebar(make_app, make_walk):
+        """test_walk_new_watchlist_keeps_the_open_watchlist_marked_in_the_sidebar"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="+ New watchlist").click()
+        dialog = page.get_by_role("dialog", name="New watchlist")
+        dialog.get_by_label("Name").fill("Kidney")
+        dialog.get_by_role("button", name="Create watchlist").click()
+        dialog.wait_for(state="detached")
+        sidebar_link(page, "Kidney").wait_for()
+        walk.shot("created")
+>       assert marked(page).count() == 1 and helper.LONG_NAME[:20] in marked(page).inner_text()
+E       assert (0 == 1)
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:52611/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:52611/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'> = marked(<Page url='http://127.0.0.1:52611/#/watchlists/1/needs-review'>)
+
+walks/test_late_answer_walk.py:136: AssertionError
+_ test_walk_removing_a_trial_and_its_undo_leave_the_sidebar_marking_where_the_address_points[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10c802b60>
+make_walk = <function make_walk.<locals>.build at 0x10c8020c0>
+
+    def test_walk_removing_a_trial_and_its_undo_leave_the_sidebar_marking_where_the_address_points(make_app, make_walk):
+        """test_walk_removing_a_trial_and_its_undo_leave_the_sidebar_marking_where_the_address_points"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("link", name="Review changes").first.click()
+        page.get_by_role("button", name="More actions").click()
+        held = hold_first(page, "**/api/watchlists")  # the sidebar answer to the removal is held
+        page.get_by_role("menuitem", name="Remove from this list").click()
+        page.get_by_role("button", name="Undo").wait_for()
+        assert held, "the removal did not ask for the sidebar"
+        assert marked(page).count() == 0  # a trial page names no watchlist, so the sidebar marks none
+        page.get_by_role("button", name="Undo").click()
+        page.get_by_role("button", name="Undo").wait_for(state="detached")
+        page.get_by_role("link", name=re.compile("^‹ Back to")).click()
+        page.get_by_role("tab", name=re.compile("Needs review")).wait_for()
+        assert marked(page).count() == 1
+        release(page, held, "**/api/watchlists")  # the removal's sidebar answer lands on the watchlist page
+        walk.shot("back-after-undo")
+>       assert marked(page).count() == 1 and helper.LONG_NAME[:20] in marked(page).inner_text()
+E       assert (0 == 1)
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:52715/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:52715/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'> = marked(<Page url='http://127.0.0.1:52715/#/watchlists/1/needs-review'>)
+
+walks/test_late_answer_walk.py:158: AssertionError
+_ test_walk_removing_a_trial_and_its_undo_leave_the_sidebar_marking_where_the_address_points[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10ca60fe0>
+make_walk = <function make_walk.<locals>.build at 0x10ca613a0>
+
+    def test_walk_removing_a_trial_and_its_undo_leave_the_sidebar_marking_where_the_address_points(make_app, make_walk):
+        """test_walk_removing_a_trial_and_its_undo_leave_the_sidebar_marking_where_the_address_points"""
+        _, walk = open_app(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("link", name="Review changes").first.click()
+        page.get_by_role("button", name="More actions").click()
+        held = hold_first(page, "**/api/watchlists")  # the sidebar answer to the removal is held
+        page.get_by_role("menuitem", name="Remove from this list").click()
+        page.get_by_role("button", name="Undo").wait_for()
+        assert held, "the removal did not ask for the sidebar"
+        assert marked(page).count() == 0  # a trial page names no watchlist, so the sidebar marks none
+        page.get_by_role("button", name="Undo").click()
+        page.get_by_role("button", name="Undo").wait_for(state="detached")
+        page.get_by_role("link", name=re.compile("^‹ Back to")).click()
+        page.get_by_role("tab", name=re.compile("Needs review")).wait_for()
+        assert marked(page).count() == 1
+        release(page, held, "**/api/watchlists")  # the removal's sidebar answer lands on the watchlist page
+        walk.shot("back-after-undo")
+>       assert marked(page).count() == 1 and helper.LONG_NAME[:20] in marked(page).inner_text()
+E       assert (0 == 1)
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:52831/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:52831/#/watchlists/1/needs-review'> selector='internal:label="Watchlists"i >> a[aria-current="page"]'> = marked(<Page url='http://127.0.0.1:52831/#/watchlists/1/needs-review'>)
+
+walks/test_late_answer_walk.py:158: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_late_answer_walk.py::test_walk_a_delayed_trial_answer_leaves_the_watchlist_the_address_names[1440x900]
+FAILED walks/test_late_answer_walk.py::test_walk_a_delayed_trial_answer_leaves_the_watchlist_the_address_names[1024x768]
+FAILED walks/test_late_answer_walk.py::test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1440x900-Needs review-All trials-True]
+FAILED walks/test_late_answer_walk.py::test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1440x900-All trials-Needs review-True]
+FAILED walks/test_late_answer_walk.py::test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1440x900-Summary-Needs review-True]
+FAILED walks/test_late_answer_walk.py::test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1024x768-Needs review-All trials-True]
+FAILED walks/test_late_answer_walk.py::test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1024x768-All trials-Needs review-True]
+FAILED walks/test_late_answer_walk.py::test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_the_address_names[1024x768-Summary-Needs review-True]
+FAILED walks/test_late_answer_walk.py::test_walk_rename_from_the_header_menu_keeps_the_open_watchlist_marked_in_the_sidebar[1440x900]
+FAILED walks/test_late_answer_walk.py::test_walk_rename_from_the_header_menu_keeps_the_open_watchlist_marked_in_the_sidebar[1024x768]
+FAILED walks/test_late_answer_walk.py::test_walk_new_watchlist_keeps_the_open_watchlist_marked_in_the_sidebar[1440x900]
+FAILED walks/test_late_answer_walk.py::test_walk_new_watchlist_keeps_the_open_watchlist_marked_in_the_sidebar[1024x768]
+FAILED walks/test_late_answer_walk.py::test_walk_removing_a_trial_and_its_undo_leave_the_sidebar_marking_where_the_address_points[1440x900]
+FAILED walks/test_late_answer_walk.py::test_walk_removing_a_trial_and_its_undo_leave_the_sidebar_marking_where_the_address_points[1024x768]
+14 failed, 6 passed in 18.84s

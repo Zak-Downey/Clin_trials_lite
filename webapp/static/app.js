@@ -33,8 +33,15 @@ function newButton() {
   return button;
 }
 
-async function drawSidebar(activeId) {
+// activeId: the watchlist to mark, null for none, undefined for the one the address names now.
+// alive(): is this still the page the address names? A late answer for a page the analyst left is not drawn.
+async function drawSidebar(activeId, alive = () => true) {
   const { watchlists } = await get("/api/watchlists");
+  if (!alive()) return watchlists;
+  if (activeId === undefined) {
+    const parts = location.hash.replace(/^#\/?/, "").split("?")[0].split("/");
+    activeId = parts[0] === "watchlists" ? (Number(parts[1]) || (watchlists[0] && watchlists[0].id)) : null;
+  }
   const heading = document.createElement("h2");
   heading.className = "sidebar-title";
   heading.textContent = "Your watchlists";
@@ -78,7 +85,7 @@ document.addEventListener("click", (event) => {
   if (back && origin) pendingScroll = origin.scroll;
 }, true);
 
-window.addEventListener("reviewchange", () => drawSidebar(null).catch(() => {}));
+window.addEventListener("reviewchange", () => drawSidebar(undefined).catch(() => {}));
 
 const remembered = (id) => {
   try { return localStorage.getItem(`tab:${id}`); } catch { return null; }
@@ -123,26 +130,32 @@ async function route() {
   const parts = hashPath.split("/");
   document.querySelectorAll("[data-dest]").forEach((a) =>
     a.classList.toggle("active", a.dataset.dest === (parts[0] === "find" || parts[0] === "registry" ? "find" : "watchlists")));
+  const alive = () => generation === mine;
   try {
     if (parts[0] === "find") {
-      await drawSidebar(null);
+      await drawSidebar(null, alive);
+      if (!alive()) return;
       const tab = parts[1] === "id" || parts[2] === "id" ? "id" : "search";
-      await renderFind(view, hashQuery, Number(parts[1]) || null, tab, () => generation === mine);
+      await renderFind(view, hashQuery, Number(parts[1]) || null, tab, alive);
       return;
     }
     if (parts[0] === "registry" && parts[1]) {
-      await drawSidebar(null);
-      await renderRegistryTrial(view, parts[1].toUpperCase(), () => generation === mine);
+      await drawSidebar(null, alive);
+      if (!alive()) return;
+      await renderRegistryTrial(view, parts[1].toUpperCase(), alive);
       window.scrollTo(0, 0);
       return;
     }
     if (parts[0] === "trials" && parts[1]) {
-      await drawSidebar(null);
-      await renderTrial(view, parts[1].toUpperCase(), parts[2] || "changes", origin);
+      await drawSidebar(null, alive);
+      if (!alive()) return;
+      await renderTrial(view, parts[1].toUpperCase(), parts[2] || "changes", origin, alive);
+      if (!alive()) return;
       window.scrollTo(0, 0);
       return;
     }
-    const lists = await drawSidebar(null);
+    const lists = await drawSidebar(null, alive);
+    if (!alive()) return;
     const id = parts[0] === "watchlists" && parts[1] ? Number(parts[1]) : (lists[0] && lists[0].id);
     if (id === undefined) {
       view.textContent = "No watchlists yet. Use + New watchlist to make one.";
@@ -160,9 +173,11 @@ async function route() {
     if (tab !== "summary" && location.hash !== canonical) history.replaceState(null, "", canonical);
     if (tab === "summary" && !parts[2]) history.replaceState(null, "", canonical);
     const draw = tab === "summary"
-      ? (node, listId, current) => renderSummary(node, listId, current, location.hash.split("?")[1] || "") // read now: Summary moves the period with replaceState
-      : tab === "all-trials" ? renderAll : tab === "new-matches" ? renderNewMatches : renderQueue;
-    await drawSidebar(id);
+      ? (node, listId, current) => renderSummary(node, listId, current, location.hash.split("?")[1] || "", alive) // read now: Summary moves the period with replaceState
+      : tab === "all-trials" ? (node, listId, current) => renderAll(node, listId, current, alive)
+        : tab === "new-matches" ? renderNewMatches : (node, listId, current) => renderQueue(node, listId, current, alive);
+    await drawSidebar(id, alive);
+    if (!alive()) return;
     const watchlist = lists.find((w) => w.id === id);
     if (watchlist && !watchlist.trial_count && !watchlist.saved_search) { drawFirstUse(watchlist); return; }
     const header = el("div", { class: "watchlist-header" });
@@ -170,12 +185,13 @@ async function route() {
     const queue = el("div", { id: "queue" });
     view.replaceChildren(header, ...(watchlist && watchlist.saved_search ? [savedSearchBanner(watchlist, route)] : []), status, queue);
     await draw(queue, id, watchlist);
+    if (!alive()) return;
     mountCheck(header, status, id, watchlist, {
-      alive: () => generation === mine,
+      alive,
       changed: route, // the saved search was turned off: redraw the watchlist
       deleted: () => { location.hash = "#/watchlists"; }, // the first remaining watchlist, or none
       refresh: async () => {
-        const fresh = await drawSidebar(id);
+        const fresh = await drawSidebar(id, alive);
         const current = fresh.find((w) => w.id === id);
         await draw(queue, id, current);
         return current;

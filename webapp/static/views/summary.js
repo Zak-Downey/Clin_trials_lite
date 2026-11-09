@@ -64,7 +64,7 @@ function trialCard(trial) {
 // Whether Custom dates is open and what was typed in it, kept per watchlist so a redraw while a check finishes does not clear them.
 const kept = new Map();
 
-export async function render(root, listId, watchlist, hashQuery = "") {
+export async function render(root, listId, watchlist, hashQuery = "", alive = () => true) {
   const params = new URLSearchParams(hashQuery);
   let period = { kind: ["week", "month", "custom"].includes(params.get("period")) ? params.get("period") : "week" };
   if (period.kind === "custom") {
@@ -72,6 +72,7 @@ export async function render(root, listId, watchlist, hashQuery = "") {
     if (!period.from || !period.to) period = { kind: "week" };
   }
   let data = await get(`/api/watchlists/${listId}/summary?${queryOf(period)}`);
+  if (!alive()) return; // the analyst has moved on while the answer was on its way
   const mine = kept.get(listId) || { editing: false };
   kept.set(listId, mine);
   const closeForm = () => { mine.editing = false; delete mine.from; delete mine.to; };

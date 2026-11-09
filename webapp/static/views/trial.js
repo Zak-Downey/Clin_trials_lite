@@ -10,8 +10,10 @@ const el = (tag, attrs = {}, ...kids) => {
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // The trial page: header, tabs, and the Changes tab with its review action bar.
-export async function render(root, nct, tab, origin) {
+// alive(): is this still the page the address names? A slow answer for a page the analyst left is dropped.
+export async function render(root, nct, tab, origin, alive = () => true) {
   const trial = await get(`/api/trials/${nct}`);
+  if (!alive()) return;
   // The list the analyst came from, else the first watchlist holding the trial.
   const home = trial.watchlists.find((w) => origin && w.id === origin.listId) || trial.watchlists[0];
   const others = trial.watchlists.filter((w) => !home || w.id !== home.id);
