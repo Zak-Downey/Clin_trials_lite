@@ -1,5 +1,7 @@
 // Find trials: the Search tab. The address (#/find?cond=...&page=2) holds the submitted query.
 import { get, post } from "/static/api.js";
+import { withNewEntry } from "/static/views/new_watchlist.js";
+import { renderAddById } from "/static/views/add_by_id.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -24,6 +26,14 @@ let destination = null; // the watchlist chosen to add to
 let cameFrom = null; // the watchlist whose "Add trials" opened Find trials last
 let outcome = null; // what the last add did, shown in the bar until the next selection
 export let lastFind = "#/find"; // where "Back to results" goes
+
+// A watchlist made elsewhere (the sidebar) becomes the destination; the open view, if it
+// shows one, is told so it can redraw its picker without being rebuilt.
+let refreshDestination = () => {};
+export function chooseDestination(id) {
+  destination = id;
+  refreshDestination();
+}
 
 const name = (table, code) => (table.find((row) => row[0] === code) || [code, code])[1];
 const number = (n) => n.toLocaleString("en-US");
@@ -180,14 +190,27 @@ function results(q, data, page, go, edit, clearOptional, changed) {
   return out;
 }
 
-export async function render(root, search, listId) {
+export async function render(root, search, listId, tab = "search") {
   const base = listId ? `#/find/${listId}` : "#/find";
-  lastFind = location.hash || base;
+  refreshDestination = () => {};
+  if (tab === "id") lastFind = base;
+  else lastFind = location.hash || base;
   if (listId && listId !== cameFrom) destination = listId;
   cameFrom = listId || null;
   let lists = [];
   try { lists = (await get("/api/watchlists")).watchlists; } catch { lists = []; }
   if (!lists.some((w) => w.id === destination)) destination = lists[0] ? lists[0].id : null;
+  const created = (watchlist, all) => {
+    lists = all;
+    destination = watchlist.id;
+    window.dispatchEvent(new Event("reviewchange"));
+    drawBar();
+    const again = root.querySelector("#add-to");
+    if (again) again.focus({ preventScroll: true });
+  };
+  const tabBar = () => el("nav", { class: "tabs", role: "tablist", "aria-label": "Find trials views" },
+    el("a", { role: "tab", "aria-selected": String(tab === "search"), href: base }, "Search"),
+    el("a", { role: "tab", "aria-selected": String(tab === "id"), href: `${base}/id` }, "Add by NCT ID"));
   const syncChecks = () => {
     const boxes = [...root.querySelectorAll("li.result input[type=checkbox]")];
     boxes.forEach((box) => { box.checked = selected.has(box.dataset.nct); box.closest("li").classList.toggle("selected", box.checked); });
@@ -211,7 +234,8 @@ export async function render(root, search, listId) {
     clear.addEventListener("click", () => { selected.clear(); drawBar(); syncChecks(); });
     const pick = el("select", { id: "add-to" }, ...lists.map((w) => el("option", { value: String(w.id) }, w.name)));
     pick.value = String(destination);
-    pick.addEventListener("change", () => { destination = Number(pick.value); });
+    pick.addEventListener("change", () => { if (pick.value !== "new") destination = Number(pick.value); });
+    withNewEntry(pick, created);
     const add = el("button", { type: "button", class: "primary" }, `Add ${count}`);
     const note = el("span", { class: "meta", role: "alert" });
     add.addEventListener("click", async () => {
@@ -232,6 +256,21 @@ export async function render(root, search, listId) {
     bar.replaceChildren(el("strong", { class: "count" }, `${count} selected`), clear, note,
       el("label", { for: "add-to" }, "Add to"), pick, add);
   };
+  if (tab === "id") {
+    root.replaceChildren(el("h1", {}, "Find trials"), el("p", { class: "meta" }, "Search ClinicalTrials.gov, then choose what to monitor."), tabBar());
+    const handle = renderAddById(root, {
+      lists: () => lists, destination: () => destination,
+      setDestination: (id) => { destination = id; },
+      created: (watchlist, all) => { lists = all; destination = watchlist.id; window.dispatchEvent(new Event("reviewchange")); },
+    });
+    refreshDestination = () => get("/api/watchlists").then((r) => { lists = r.watchlists; handle.redraw(); }).catch(() => {});
+    return;
+  }
+  refreshDestination = () => {
+    if (!lists.some((w) => w.id === destination)) {
+      get("/api/watchlists").then((r) => { lists = r.watchlists; drawBar(); }).catch(() => {});
+    } else drawBar();
+  };
   drawBar();
   const params = new URLSearchParams(search || "");
   const q = readQuery(params);
@@ -239,8 +278,7 @@ export async function render(root, search, listId) {
   const submitted = named(q) && (params.has("page") || params.has("cond") || params.has("intr") || params.has("spons") || params.has("phase"));
   const rerender = () => render(root, search, listId);
   const head = [el("h1", {}, "Find trials"), el("p", { class: "meta" }, "Search ClinicalTrials.gov, then choose what to monitor."),
-    el("nav", { class: "tabs", role: "tablist", "aria-label": "Find trials views" },
-      el("a", { role: "tab", "aria-selected": "true", href: base }, "Search"))];
+    tabBar()];
   const open = (query, error, below) => {
     root.replaceChildren(...head, form(query, error, (typed) => {
       if (!named(typed)) { open(typed, "Add a condition, intervention, sponsor or phase to search.", below); return; }

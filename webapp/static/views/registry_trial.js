@@ -1,6 +1,7 @@
 // Details of a trial that is not monitored: one registry fetch, nothing stored.
 import { get, post } from "/static/api.js";
 import { drawSections } from "/static/views/trial.js";
+import { withNewEntry } from "/static/views/new_watchlist.js";
 import { lastFind } from "/static/views/find.js";
 
 const el = (tag, attrs = {}, ...kids) => {
@@ -18,6 +19,12 @@ export async function render(root, nct) {
   const pick = el("select", { id: "add-to" }, ...watchlists.map((w) => el("option", { value: String(w.id) }, w.name)));
   const first = watchlists.find((w) => !trial.watchlists.some((h) => h.id === w.id)) || watchlists[0];
   if (first) pick.value = String(first.id);
+  withNewEntry(pick, (watchlist) => {
+    pick.insertBefore(el("option", { value: String(watchlist.id) }, watchlist.name), pick.lastChild);
+    pick.value = String(watchlist.id);
+    window.dispatchEvent(new Event("reviewchange"));
+    pick.focus({ preventScroll: true });
+  });
   const add = el("button", { type: "button", class: "primary" }, "Add to watchlist");
   add.addEventListener("click", async () => {
     add.disabled = true;

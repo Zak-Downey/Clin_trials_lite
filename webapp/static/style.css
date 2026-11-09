@@ -211,3 +211,17 @@ table.trials .identity { margin-top: 2px; }
 .review-state { display: inline-block; white-space: nowrap; border-radius: 6px; padding: 1px 8px; font-size: 12px; font-weight: 600; background: var(--page); color: var(--muted); }
 .review-state.unreviewed { background: var(--accent-soft); color: var(--accent); }
 table.trials .warning { color: #b42318; font-size: 12px; margin-top: 2px; }
+
+/* Dialogs, first use, Add by NCT ID */
+#sidebar .new-watchlist { display: block; width: 100%; margin-top: 12px; font-weight: 600; text-align: left; }
+dialog.dialog { border: 1px solid var(--line); border-radius: 8px; padding: 20px 24px; width: min(420px, calc(100vw - 32px)); color: var(--ink); }
+dialog.dialog::backdrop { background: rgba(16, 24, 40, .4); }
+dialog.dialog h2 { margin: 0 0 12px; font-size: 18px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.first-use, .card-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px 24px; max-width: 760px; margin-top: 16px; }
+.first-use h2, .card-panel h2 { margin: 0 0 8px; font-size: 20px; }
+.actions-row { display: flex; gap: 8px; margin: 16px 0 8px; }
+.inline { display: flex; gap: 8px; align-items: center; }
+.inline input { flex: 1; }
+.lookup-result { margin-top: 16px; }
+.next { color: var(--accent); font-weight: 600; }

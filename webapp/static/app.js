@@ -1,11 +1,12 @@
 // Shell and router. The URL hash holds the state: #/watchlists/<id>, #/find.
 import { get } from "/static/api.js";
-import { render as renderFind } from "/static/views/find.js";
+import { render as renderFind, chooseDestination } from "/static/views/find.js";
 import { render as renderAll } from "/static/views/all_trials.js";
 import { render as renderQueue } from "/static/views/needs_review.js";
 import { render as renderSummary } from "/static/views/summary.js";
 import { mount as mountCheck } from "/static/views/check.js";
 import { render as renderTrial } from "/static/views/trial.js";
+import { newWatchlistDialog } from "/static/views/new_watchlist.js";
 import { render as renderRegistryTrial } from "/static/views/registry_trial.js";
 
 const sidebar = document.getElementById("sidebar");
@@ -17,6 +18,16 @@ const el = (tag, attrs = {}) => {
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
   return node;
 };
+
+function newButton() {
+  const button = el("button", { type: "button", id: "new-watchlist", class: "new-watchlist" });
+  button.textContent = "+ New watchlist";
+  button.addEventListener("click", () => newWatchlistDialog(button, async (made) => {
+    chooseDestination(made.id); // a Find trials view open behind the dialog now adds here
+    window.dispatchEvent(new Event("reviewchange"));
+  }));
+  return button;
+}
 
 async function drawSidebar(activeId) {
   const { watchlists } = await get("/api/watchlists");
@@ -42,7 +53,7 @@ async function drawSidebar(activeId) {
     badge.title = `${w.needs_review_count} to review`;
     link.append(name, trials, badge);
     return link;
-  }), note);
+  }), newButton(), note);
   return watchlists;
 }
 
@@ -72,6 +83,27 @@ const remember = (id, tab) => {
   try { localStorage.setItem(`tab:${id}`, tab); } catch { /* the choice just is not kept */ }
 };
 
+// A watchlist with nothing in it teaches one next step: no tabs, summary, activity or checking.
+function drawFirstUse(watchlist) {
+  const find = el("a", { class: "button primary", href: `#/find/${watchlist.id}` });
+  find.textContent = "Find trials";
+  const byId = el("a", { class: "button", href: `#/find/${watchlist.id}/id` });
+  byId.textContent = "Add by NCT ID";
+  const title = el("h1");
+  title.textContent = watchlist.name;
+  const card = el("section", { class: "first-use", "aria-labelledby": "first-use-title" });
+  const heading = el("h2", { id: "first-use-title" });
+  heading.textContent = "Monitor your first trial";
+  const why = el("p");
+  why.textContent = "Add a trial from ClinicalTrials.gov. This saves a starting point; future checks show what has changed.";
+  const buttons = el("div", { class: "actions-row" });
+  buttons.append(find, byId);
+  const note = el("p", { class: "help" });
+  note.textContent = "You choose when to check for updates.";
+  card.append(heading, why, buttons, note);
+  view.replaceChildren(title, card);
+}
+
 async function route() {
   const mine = ++generation;
   const [hashPath, hashQuery = ""] = location.hash.replace(/^#\/?/, "").split("?");
@@ -81,7 +113,8 @@ async function route() {
   try {
     if (parts[0] === "find") {
       await drawSidebar(null);
-      await renderFind(view, hashQuery, Number(parts[1]) || null);
+      const tab = parts[1] === "id" || parts[2] === "id" ? "id" : "search";
+      await renderFind(view, hashQuery, Number(parts[1]) || null, tab);
       return;
     }
     if (parts[0] === "registry" && parts[1]) {
@@ -113,6 +146,7 @@ async function route() {
       : tab === "all-trials" ? renderAll : renderQueue;
     await drawSidebar(id);
     const watchlist = lists.find((w) => w.id === id);
+    if (watchlist && !watchlist.trial_count && !watchlist.saved_search) { drawFirstUse(watchlist); return; }
     const header = el("div", { class: "watchlist-header" });
     const status = el("div", { id: "check-status" });
     const queue = el("div", { id: "queue" });
