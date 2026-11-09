@@ -56,7 +56,7 @@ def add_trials(ctx, list_id: str, body=None, **_):
             raise value
         return value
 
-    outcome = monitor.add_many(ctx.conn, ids, target["id"], fetch=replay)
+    outcome = monitor.adopt_many(ctx.conn, target["id"], ids, fetch=replay)
     outcome["list"] = {"id": target["id"], "name": target["name"]}
     del outcome["list_id"]
     return outcome
