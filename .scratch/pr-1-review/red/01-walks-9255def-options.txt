@@ -1,0 +1,30 @@
+# tip 9255def6ce74286a9339a86468964f3f3a71c0c3
+Walk output written to /private/tmp/tw9255/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+        (tmp_path / "test_wanted.py").write_text("def test_wanted():\n    assert False\n")
+        (tmp_path / "test_other.py").write_text("def test_other():\n    assert False\n")
+        monkeypatch.chdir(tmp_path)
+        _, out = run_in(tmp_path, capsys, args=["test_wanted.py::test_wanted", "--tb=short", "-k", "wanted"], targets=())
+        names = [t for _, t, _, _ in checks.walk_results(out)]
+        assert names == ["test_wanted"]
+        alone = (tmp_path / "out" / "alone-test_wanted-test-wanted.txt").read_text()
+        assert "1 failed" in alone
+>       assert "def test_wanted" not in alone  # the short traceback reached the re-run (the default one prints the source)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert 'def test_wanted' not in 'F          ...d in 0.01s\n'
+E         
+E         'def test_wanted' is contained here:
+E           ____
+E           
+E               def test_wanted():
+E           >       assert False
+E           E       assert False...
+E         
+E         ...Full output truncated, use '-vv' to show
+
+/private/tmp/tw9255/walks/test_run_walks.py:125: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_run_walks.py::test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re_run
+1 failed, 283 passed in 112.57s (0:01:52)
+
+## Result
+walks/test_run_walks.py › test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re_run: red alone (retry: /private/tmp/tw9255/.scratch/html-front-end/walks/alone-test_run_walks-test-runner-takes-targets-from-its-command-line-and-gives-options-to-each-re-run.txt)

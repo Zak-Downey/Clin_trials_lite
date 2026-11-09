@@ -28,3 +28,12 @@ Counts: blocking 1, design 1, sweep 1, nit 2.
 ## Not read
 
 The full walk suite through `run_walks.py` (not re-run; ticket review 01 relied on the red file's 279 passed). Spec sections other than F1. `gate.py ready` / `handover` code paths beyond `walk_results` and the `run_checks` loop that calls it. `walks/conftest.py` and `walks/helper.py` beyond `shot_name`, `SHOTS` and the final-shot line.
+
+
+## Status (follow-up)
+
+1. fixed — walk: test_gate_reads_the_runner_verdicts_with_walk_results — red: .scratch/pr-1-review/red/01-walks-45a3a90.txt
+2. fixed — walk: test_runner_re_runs_at_most_ten_red_walks_alone_and_lists_the_rest_as_red — red: .scratch/pr-1-review/red/01-walks-45a3a90.txt
+3. fixed — walk: test_runner_keeps_the_alone_output_of_same_named_walks_in_different_files_apart — red: .scratch/pr-1-review/red/01-walks-45a3a90.txt
+4. fixed — the two unfailable assertions replaced by `"passed" not in text`; bystander renamed
+5. fixed — walk: test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re_run — red: .scratch/pr-1-review/red/01-walks-45a3a90.txt
