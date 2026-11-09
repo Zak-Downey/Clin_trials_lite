@@ -234,3 +234,18 @@ dialog.dialog h2 { margin: 0 0 12px; font-size: 18px; }
 .saved-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 14px; margin: 0 0 12px; background: var(--accent-soft); border-radius: 6px; font-size: 14px; }
 .saved-banner span { flex: 1 1 320px; }
 button.danger { color: #b42318; }
+
+/* New matches (ticket 11) */
+.tab-count { margin-left: 2px; font-weight: 600; }
+.matches-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
+.matches-head h2 { margin: 24px 0 2px; font-size: 18px; }
+.matches-head .link { flex: none; }
+ul.matches { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 12px; }
+li.card.match { align-items: center; }
+li.card.match.selected { background: var(--accent-soft, #e4f3f0); }
+li.card.match input[type=checkbox] { width: 20px; height: 20px; flex: none; }
+li.card.match .card-body { flex: 1 1 auto; }
+.matches-bar { flex-wrap: wrap; justify-content: flex-start; }
+.matches-bar[hidden] { display: none; }
+.matches-bar .buttons { margin-left: auto; }
+.matches-bar .consequence { flex: 1 1 100%; margin: 0; }

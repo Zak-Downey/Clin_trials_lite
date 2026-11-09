@@ -16,7 +16,7 @@ const SORTS = {
   status: ["Trial status", (a, b) => a.status.localeCompare(b.status, "en") || byText(a, b)],
 };
 
-export async function render(root, listId) {
+export async function render(root, listId, watchlist) {
   const { trials } = await get(`/api/watchlists/${listId}/all-trials`);
   const filter = el("input", { type: "text", id: "trial-filter", "aria-describedby": "filter-note", autocomplete: "off" });
   const sort = el("select", { id: "trial-sort" },
@@ -55,7 +55,7 @@ export async function render(root, listId) {
   draw();
 
   root.replaceChildren(
-    tabBar(listId, "all-trials"),
+    tabBar(listId, "all-trials", watchlist),
     el("div", { class: "table-tools" },
       el("div", { class: "field" },
         el("label", { for: "trial-filter" }, "Filter by title, NCT ID or sponsor"), filter,

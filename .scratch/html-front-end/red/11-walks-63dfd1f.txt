@@ -1,0 +1,332 @@
+# tip 63dfd1fb173ad9d1d374798c9346a1c7cfd24806
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+_ test_walk_new_matches_is_its_own_tab_with_a_count_and_never_called_a_change[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x107f71b20>
+make_walk = <function make_walk.<locals>.build at 0x107f71e40>
+
+    def test_walk_new_matches_is_its_own_tab_with_a_count_and_never_called_a_change(make_app, make_walk):
+        """test_walk_new_matches_is_its_own_tab_with_a_count_and_never_called_a_change"""
+>       _, walk = open_tab(make_app, make_walk)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+walks/test_new_matches_walk.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_new_matches_walk.py:65: in open_tab
+    page.get_by_role("tab", name=re.compile("^New matches")).click()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x107ca0440>
+cb = <function Channel.send.<locals>.<lambda> at 0x107c9e700>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("tab", name=re.compile(r"^New matches"))
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_after_the_register_switch_a_check_adds_the_new_study_to_new_matches_and_needs_review_is_unaffected[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x1080e1f80>
+make_walk = <function make_walk.<locals>.build at 0x1080e20c0>
+
+    def test_walk_after_the_register_switch_a_check_adds_the_new_study_to_new_matches_and_needs_review_is_unaffected(make_app, make_walk):
+        """test_walk_after_the_register_switch_a_check_adds_the_new_study_to_new_matches_and_needs_review_is_unaffected"""
+        app, walk = open_tab(make_app, make_walk, seed=seed_empty, tab=None)
+        page = walk.page
+>       page.get_by_role("tab", name=re.compile("^New matches")).click()
+
+walks/test_new_matches_walk.py:99: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x107ca0440>
+cb = <function Channel.send.<locals>.<lambda> at 0x10803db20>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("tab", name=re.compile(r"^New matches"))
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_selecting_matches_shows_an_action_bar_that_never_covers_the_last_match_and_adding_takes_baselines[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x108191260>
+make_walk = <function make_walk.<locals>.build at 0x1081919e0>
+
+    def test_walk_selecting_matches_shows_an_action_bar_that_never_covers_the_last_match_and_adding_takes_baselines(make_app, make_walk):
+        """test_walk_selecting_matches_shows_an_action_bar_that_never_covers_the_last_match_and_adding_takes_baselines"""
+>       _, walk = open_tab(make_app, make_walk)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+walks/test_new_matches_walk.py:116: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_new_matches_walk.py:65: in open_tab
+    page.get_by_role("tab", name=re.compile("^New matches")).click()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x107ca0440>
+cb = <function Channel.send.<locals>.<lambda> at 0x10814cd60>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("tab", name=re.compile(r"^New matches"))
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_dismiss_states_the_consequence_before_committing_and_then_offers_undo[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x108193420>
+make_walk = <function make_walk.<locals>.build at 0x1081909a0>
+
+    def test_walk_dismiss_states_the_consequence_before_committing_and_then_offers_undo(make_app, make_walk):
+        """test_walk_dismiss_states_the_consequence_before_committing_and_then_offers_undo"""
+>       _, walk = open_tab(make_app, make_walk)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+walks/test_new_matches_walk.py:145: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_new_matches_walk.py:65: in open_tab
+    page.get_by_role("tab", name=re.compile("^New matches")).click()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x107ca0440>
+cb = <function Channel.send.<locals>.<lambda> at 0x10814d3a0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("tab", name=re.compile(r"^New matches"))
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_view_dismissed_lists_dismissed_matches_with_restore_and_a_restored_one_returns[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x1081780e0>
+make_walk = <function make_walk.<locals>.build at 0x1081789a0>
+
+    def test_walk_view_dismissed_lists_dismissed_matches_with_restore_and_a_restored_one_returns(make_app, make_walk):
+        """test_walk_view_dismissed_lists_dismissed_matches_with_restore_and_a_restored_one_returns"""
+>       _, walk = open_tab(make_app, make_walk)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+walks/test_new_matches_walk.py:173: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+walks/test_new_matches_walk.py:65: in open_tab
+    page.get_by_role("tab", name=re.compile("^New matches")).click()
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x107ca0440>
+cb = <function Channel.send.<locals>.<lambda> at 0x1080f3ec0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("tab", name=re.compile(r"^New matches"))
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_watchlist_with_a_saved_search_and_no_trials_offers_check_for_new_matches[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10811f880>
+make_walk = <function make_walk.<locals>.build at 0x107a00e00>
+
+    def test_walk_a_watchlist_with_a_saved_search_and_no_trials_offers_check_for_new_matches(make_app, make_walk):
+        """test_walk_a_watchlist_with_a_saved_search_and_no_trials_offers_check_for_new_matches"""
+        app, walk = open_tab(make_app, make_walk, tab=None, watchlist="Bare")
+        page = walk.page
+        assert page.get_by_role("heading", name="Monitor your first trial").count() == 0
+>       assert page.get_by_role("button", name="Check for updates").count() == 0
+E       assert 1 == 0
+E        +  where 1 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:50780/#/watchlists/3/needs-review'> selector='internal:role=button[name="Check for updates"i]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:50780/#/watchlists/3/needs-review'> selector='internal:role=button[name="Check for updates"i]'> = get_by_role('button', name='Check for updates')
+E        +        where get_by_role = <Page url='http://127.0.0.1:50780/#/watchlists/3/needs-review'>.get_by_role
+
+walks/test_new_matches_walk.py:198: AssertionError
+_ test_walk_a_search_that_found_more_than_a_hundred_says_so_on_the_tab_and_in_the_check_result[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x1085049a0>
+make_walk = <function make_walk.<locals>.build at 0x108504040>
+
+    def test_walk_a_search_that_found_more_than_a_hundred_says_so_on_the_tab_and_in_the_check_result(make_app, make_walk):
+        """test_walk_a_search_that_found_more_than_a_hundred_says_so_on_the_tab_and_in_the_check_result"""
+        _, walk = open_tab(make_app, make_walk, seed=seed_many, tab=None)
+        page = walk.page
+        page.get_by_role("button", name="Check for updates").click()
+        status = page.locator("#check-status")
+        status.get_by_text("Check complete").wait_for(timeout=60000)
+        assert "more than 100" in status.inner_text(), status.inner_text()
+>       page.get_by_role("tab", name=re.compile("^New matches")).click()
+
+walks/test_new_matches_walk.py:217: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x107ca0440>
+cb = <function Channel.send.<locals>.<lambda> at 0x1084839c0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("tab", name=re.compile(r"^New matches"))
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+=========================== short test summary info ============================
+FAILED walks/test_new_matches_walk.py::test_walk_new_matches_is_its_own_tab_with_a_count_and_never_called_a_change[1440x900]
+FAILED walks/test_new_matches_walk.py::test_walk_after_the_register_switch_a_check_adds_the_new_study_to_new_matches_and_needs_review_is_unaffected[1440x900]
+FAILED walks/test_new_matches_walk.py::test_walk_selecting_matches_shows_an_action_bar_that_never_covers_the_last_match_and_adding_takes_baselines[1440x900]
+FAILED walks/test_new_matches_walk.py::test_walk_dismiss_states_the_consequence_before_committing_and_then_offers_undo[1440x900]
+FAILED walks/test_new_matches_walk.py::test_walk_view_dismissed_lists_dismissed_matches_with_restore_and_a_restored_one_returns[1440x900]
+FAILED walks/test_new_matches_walk.py::test_walk_a_watchlist_with_a_saved_search_and_no_trials_offers_check_for_new_matches[1440x900]
+FAILED walks/test_new_matches_walk.py::test_walk_a_search_that_found_more_than_a_hundred_says_so_on_the_tab_and_in_the_check_result[1440x900]
+7 failed, 7 deselected in 35.41s

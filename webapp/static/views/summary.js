@@ -73,7 +73,7 @@ export async function render(root, listId, watchlist, hashQuery = "") {
   let notice = "";
 
   const body = el("div", { class: "summary-body" });
-  root.replaceChildren(tabs(listId, "summary"), body);
+  root.replaceChildren(tabs(listId, "summary", watchlist), body);
 
   const remember = () => history.replaceState(history.state, "", `#/watchlists/${listId}/summary?${queryOf(period)}`);
 
