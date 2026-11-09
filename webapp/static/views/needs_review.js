@@ -12,7 +12,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export async function render(root, listId, watchlist) {
   const { trials, counts } = await get(`/api/watchlists/${listId}/needs-review`);
-  const tabs = tabBar(listId, "needs-review");
+  const tabs = tabBar(listId, "needs-review", watchlist);
   root.replaceChildren(
     tabs,
     el("h2", { class: "queue-title", id: "queue-title" }, `${plural(counts.trials, "trial")} ${counts.trials === 1 ? "needs" : "need"} review`),

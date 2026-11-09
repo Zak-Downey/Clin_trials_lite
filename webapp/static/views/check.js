@@ -31,6 +31,8 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
 
   function drawHeader() {
     const n = current.trial_count;
+    // A watchlist with a saved search and no trials has one thing to check: the search.
+    button.textContent = !n && current.saved_search ? "Check for new matches" : "Check for updates";
     const last = current.last_checked ? `Last checked ${when(current.last_checked)}` : "Not checked yet";
     const add = el("a", { class: "button primary", href: `#/find/${listId}` }, "Add trials");
     const actions = el("div", { class: "actions" }, add, button, reason);
@@ -60,7 +62,7 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
     panel("running", [
       el("div", { class: "status-main" },
         el("h2", {}, "Checking for updates…"),
-        el("p", {}, `${state.processed} of ${state.total} trials checked · ${nextLine(state.next)}`),
+        el("p", {}, state.total ? `${state.processed} of ${state.total} trials checked · ${nextLine(state.next)}` : "Searching for new matches"),
         progress),
     ]);
   }
@@ -73,7 +75,7 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
     if (incomplete) {
       main.append(el("h2", {}, "Check incomplete"));
       const failed = state.failed ? ` · ${plural(state.failed, "trial")} could not be checked` : "";
-      main.append(el("p", { class: "strong" }, `${state.checked} of ${state.total} trials checked${failed}`));
+      if (state.total) main.append(el("p", { class: "strong" }, `${state.checked} of ${state.total} trials checked${failed}`));
       if (search) main.append(el("p", { class: "search-line" }, search));
       if (state.failed) main.append(el("p", { class: "small" }, "Previous data for the failed trials are retained."));
       if (state.retryable) {
@@ -101,7 +103,7 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
       : "Check complete · No new changes detected";
     main.append(el("h2", {}, headline));
     const when_ = state.finished_at ? ` at ${when(state.finished_at)}` : "";
-    let line = `${state.checked} of ${state.total} checked${when_}`;
+    let line = state.total ? `${state.checked} of ${state.total} checked${when_}` : `Finished${when_}`;
     if (state.still_need_review) line += ` · ${plural(state.still_need_review, "trial")} still ${state.still_need_review === 1 ? "needs" : "need"} review from earlier checks`;
     main.append(el("p", {}, line));
     if (search) main.append(el("p", { class: "search-line" }, search));

@@ -146,6 +146,8 @@ LATE_COLUMNS = (
     # failed in it (a JSON list of NCT IDs): what "Retry failed" re-checks.
     ("lists", "last_check_finished", "TEXT"),
     ("lists", "last_check_failed", "TEXT"),
+    # Whether the saved search's last run matched more than the cap of new matches.
+    ("lists", "search_capped", "INTEGER NOT NULL DEFAULT 0"),
 )
 
 
@@ -263,10 +265,21 @@ def delete_list(conn: sqlite3.Connection, list_id: int) -> None:
 def set_list_search(conn: sqlite3.Connection, list_id: int, search: dict | None) -> None:
     """Give a list the search it re-runs on every check, or take it away."""
     conn.execute(
-        "UPDATE lists SET search = ? WHERE id = ?",
+        "UPDATE lists SET search = ?, search_capped = 0 WHERE id = ?",
         (json.dumps(search) if search else None, list_id),
     )
     conn.commit()
+
+
+def set_search_capped(conn: sqlite3.Connection, list_id: int, capped: bool) -> None:
+    """Record whether the saved search's latest run matched more than it could offer."""
+    conn.execute("UPDATE lists SET search_capped = ? WHERE id = ?", (int(capped), list_id))
+    conn.commit()
+
+
+def search_capped(conn: sqlite3.Connection, list_id: int) -> bool:
+    row = conn.execute("SELECT search_capped FROM lists WHERE id = ?", (list_id,)).fetchone()
+    return bool(row and row["search_capped"])
 
 
 def get_list_search(conn: sqlite3.Connection, list_id: int) -> dict | None:
@@ -437,6 +450,16 @@ def dismiss_found(conn: sqlite3.Connection, list_id: int, nct_id: str) -> None:
         (list_id, nct_id),
     )
     conn.commit()
+
+
+def restore_found(conn: sqlite3.Connection, list_id: int, nct_id: str) -> bool:
+    """Offer a dismissed trial again. True if it was dismissed."""
+    done = conn.execute(
+        "UPDATE found SET dismissed = 0 WHERE list_id = ? AND nct_id = ? AND dismissed = 1",
+        (list_id, nct_id),
+    )
+    conn.commit()
+    return done.rowcount > 0
 
 
 def delete_found(conn: sqlite3.Connection, list_id: int, nct_id: str) -> None:

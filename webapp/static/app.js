@@ -3,6 +3,7 @@ import { get } from "/static/api.js";
 import { render as renderFind, chooseDestination } from "/static/views/find.js";
 import { render as renderAll } from "/static/views/all_trials.js";
 import { render as renderQueue } from "/static/views/needs_review.js";
+import { render as renderNewMatches } from "/static/views/new_matches.js";
 import { render as renderSummary } from "/static/views/summary.js";
 import { mount as mountCheck } from "/static/views/check.js";
 import { render as renderTrial } from "/static/views/trial.js";
@@ -136,7 +137,7 @@ async function route() {
     // The address always names the watchlist and the tab, so reload and Back land where you were.
     // A tab chosen is remembered per watchlist; a bare address opens the remembered one,
     // else Needs review. A count that changes never changes the tab.
-    const known = ["needs-review", "all-trials", "summary"];
+    const known = ["needs-review", "all-trials", "summary", "new-matches"];
     const tab = known.includes(parts[2]) ? parts[2] : (remembered(id) || "needs-review");
     remember(id, tab);
     const canonical = `#/watchlists/${id}/${tab}`;
@@ -144,7 +145,7 @@ async function route() {
     if (tab === "summary" && !parts[2]) history.replaceState(null, "", canonical);
     const draw = tab === "summary"
       ? (node, listId, current) => renderSummary(node, listId, current, hashQuery)
-      : tab === "all-trials" ? renderAll : renderQueue;
+      : tab === "all-trials" ? renderAll : tab === "new-matches" ? renderNewMatches : renderQueue;
     await drawSidebar(id);
     const watchlist = lists.find((w) => w.id === id);
     if (watchlist && !watchlist.trial_count && !watchlist.saved_search) { drawFirstUse(watchlist); return; }

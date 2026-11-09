@@ -341,7 +341,7 @@ def restore(conn: sqlite3.Connection, nct_id: str, list_id: int, stopped_id: int
 # How many results one search shows. Enough that a real query is answered in
 # one screenful, few enough that the reader is choosing rather than wading; a
 # search matching more than this says so, so a cap never reads as a total.
-RESULT_CAP = 40
+RESULT_CAP = 100
 
 # The codes a search can be narrowed by, in the order a reader expects them
 # offered. Re-stated here rather than reached for in the client, because what
@@ -680,6 +680,7 @@ def find_new(
         # analyst the rest of the run, and it must not read as "nothing new".
         return {"kind": "search", "outcome": "error", "found": [], "detail": str(exc)}
 
+    storage.set_search_capped(conn, list_id, capped)
     stamp = when or storage.now()
     found = []
     for study in studies:
@@ -718,7 +719,12 @@ def find_new(
     }
 
 
-def found_trials(conn: sqlite3.Connection, list_id: int) -> list[dict]:
+def restore_match(conn: sqlite3.Connection, list_id: int, nct_id: str) -> bool:
+    """Offer a dismissed found trial to this list again."""
+    return storage.restore_found(conn, list_id, normalise(nct_id))
+
+
+def found_trials(conn: sqlite3.Connection, list_id: int, dismissed: bool = False) -> list[dict]:
     """Trials on offer to a list, described the way its own lines are.
 
     The columns the watchlist and the search results share: the analyst is
@@ -726,7 +732,7 @@ def found_trials(conn: sqlite3.Connection, list_id: int) -> list[dict]:
     facts a study is listed by rather than on an NCT number.
     """
     rows = []
-    for offer in storage.list_found(conn, list_id):
+    for offer in storage.list_found(conn, list_id, dismissed=dismissed):
         profile = medical_affairs.profile(offer["record"])
         rows.append(
             {
@@ -1425,6 +1431,7 @@ def watchlist_overview(conn: sqlite3.Connection) -> list[dict]:
                 ),
                 "last_checked": storage.last_check_run(conn, row["id"])["finished"],
                 "saved_search": storage.get_list_search(conn, row["id"]) is not None,
+                "new_match_count": len(storage.list_found(conn, row["id"])),
             }
         )
     return overview
