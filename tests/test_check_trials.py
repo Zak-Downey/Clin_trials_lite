@@ -285,10 +285,7 @@ def test_trials_are_checked_one_at_a_time_with_a_pause_between(conn, fetcher, mo
     monitor.add(conn, "NCT03412565", fetch=fetcher, when="2026-01-01T00:00:00+00:00")
     monitor.add(conn, "NCT00000001", fetch=fetcher, when="2026-01-02T00:00:00+00:00")
     pauses = []
-    # The pause goes through `browser.wait` rather than `time.sleep`, so that
-    # it waits under WebAssembly too. Patched there, so a run that went back to
-    # a bare sleep would record no pauses and fail here.
-    monkeypatch.setattr(monitor.browser, "wait", pauses.append)
+    monkeypatch.setattr(monitor.time, "sleep", pauses.append)
 
     list(monitor.check_all(conn, fetch=fetcher))
 
@@ -533,3 +530,46 @@ def test_a_change_recorded_against_a_field_no_longer_monitored_stays_clearable(
     monitor.review(changed_trial, "NCT03412565", when="2026-01-16T00:00:00+00:00")
 
     assert monitor.marked_profile(changed_trial, "NCT03412565")["unreviewed"] == 0
+
+
+def test_a_failed_check_records_its_time_and_kind_and_a_later_success_clears_it(conn, fetcher, make_fetcher):
+    """test_a_failed_check_records_its_time_and_kind_and_a_later_success_clears_it"""
+    monitor.add(conn, "NCT03412565", fetch=fetcher, when="2026-01-01T00:00:00+00:00")
+    down = make_fetcher(failures={"NCT03412565": urllib.error.URLError("down")})
+
+    result = monitor.check_one(conn, "NCT03412565", fetch=down, when="2026-02-01T00:00:00+00:00")
+
+    trial = storage.get_trial(conn, "NCT03412565")
+    assert result["outcome"] == "error" and result["error_kind"] == "unreachable"
+    assert (trial["check_failed_at"], trial["check_error_kind"]) == ("2026-02-01T00:00:00+00:00", "unreachable")
+    assert trial["last_checked"] == "2026-01-01T00:00:00+00:00"  # not moved
+    monitor.check_one(conn, "NCT03412565", fetch=fetcher, when="2026-03-01T00:00:00+00:00")
+    trial = storage.get_trial(conn, "NCT03412565")
+    assert (trial["check_failed_at"], trial["check_error_kind"]) == (None, None)
+    assert trial["last_checked"] == "2026-03-01T00:00:00+00:00"
+
+
+def test_error_kinds_tell_not_found_from_a_registry_error(conn, fetcher, make_fetcher):
+    """test_error_kinds_tell_not_found_from_a_registry_error"""
+    monitor.add(conn, "NCT03412565", fetch=fetcher)
+    for code, kind in ((404, "not_found"), (500, "registry_error")):
+        err = urllib.error.HTTPError("http://x", code, "no", None, None)
+        result = monitor.check_one(conn, "NCT03412565", fetch=make_fetcher(failures={"NCT03412565": err}))
+        assert result["error_kind"] == kind
+
+
+def test_retry_failed_rechecks_only_the_trials_that_failed_in_the_last_run(conn, record, fetcher, make_fetcher):
+    """test_retry_failed_rechecks_only_the_trials_that_failed_in_the_last_run"""
+    for nct in ("NCT00000001", "NCT00000002", "NCT00000003"):
+        monitor.add(conn, nct, fetch=fetcher, when="2026-01-01T00:00:00+00:00")
+    down = make_fetcher({"NCT00000001": record}, failures={"NCT00000002": urllib.error.URLError("x")}, default=record)
+    results = list(monitor.check_all(conn, fetch=down, pause=0))
+    monitor.finish_run(conn, 1, results, "2026-02-01T00:00:00+00:00")
+
+    assert monitor.failed_in_last_run(conn, 1) == ["NCT00000002"]
+    # A trial that failed in an earlier run is not retried: only the last run's failures.
+    storage.mark_check_failed(conn, "NCT00000003", "unreachable", "2025-12-01T00:00:00+00:00")
+    assert monitor.failed_in_last_run(conn, 1) == ["NCT00000002"]
+    # Once it has succeeded it is no longer failed.
+    monitor.check_one(conn, "NCT00000002", fetch=fetcher)
+    assert monitor.failed_in_last_run(conn, 1) == []

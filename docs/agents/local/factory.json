@@ -1,0 +1,57 @@
+{
+  "$comment": "Clin_trials_lite's gate config. `python3 .claude/factory/gate.py config --keys` lists every key; `config` validates this file.",
+  "tracker": ".scratch",
+  "protected_branches": [
+    "main"
+  ],
+  "checks": [
+    {
+      "name": "unit",
+      "command": ".venv/bin/python -m pytest -q",
+      "proves": [
+        "test"
+      ],
+      "red_marker": "FAILED|ERROR",
+      "timeout_s": 600
+    },
+    {
+      "name": "gate-tests",
+      "command": "python3 -B -m unittest discover -s .claude/factory/tests",
+      "proves": [
+        "test"
+      ],
+      "red_marker": "FAIL:|ERROR:",
+      "timeout_s": 600
+    },
+    {
+      "name": "walks",
+      "command": ".venv/bin/python walks/run_walks.py",
+      "proves": [
+        "walk"
+      ],
+      "red_marker": "FAILED|ERROR",
+      "timeout_s": 900
+    }
+  ],
+  "evidence": {
+    "test": [
+      "tests",
+      ".claude/factory/tests"
+    ],
+    "walk": [
+      "walks"
+    ]
+  },
+  "forbid": [],
+  "legacy_features": [
+    "github-pages-deployment",
+    "trial-change-monitor"
+  ],
+  "standins_doc": "docs/agents/local/repo.md",
+  "user_facing": [
+    "webapp/static/**"
+  ],
+  "user_facing_except": [],
+  "mutate_paths": [],
+  "mutate_except": []
+}

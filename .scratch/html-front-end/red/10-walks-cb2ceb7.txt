@@ -1,0 +1,659 @@
+# tip cb2ceb72cb7c09b5cde11168384d90d13fde4f3c
+FFFFFFFFFFFF                                                             [100%]
+=================================== FAILURES ===================================
+_ test_walk_watch_this_search_saves_the_query_with_nothing_selected_to_an_empty_watchlist_and_adds_no_trials[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x109fe22a0>
+make_walk = <function make_walk.<locals>.build at 0x109fe25c0>
+
+    def test_walk_watch_this_search_saves_the_query_with_nothing_selected_to_an_empty_watchlist_and_adds_no_trials(make_app, make_walk):
+        """test_walk_watch_this_search_saves_the_query_with_nothing_selected_to_an_empty_watchlist_and_adds_no_trials"""
+        app, walk = results(make_app, make_walk, start="#/find")
+        page = walk.page
+        assert page.get_by_role("region", name="Add selected trials").is_hidden()  # nothing selected
+        page.get_by_role("button", name="Watch this search").click()
+        watch = dialog(page)
+        watch.wait_for()
+        assert "many" in watch.locator(".query-box").inner_text()  # the submitted query
+        assert page.evaluate("document.activeElement.id") == "watch-destination"
+        watch.get_by_label("Watchlist").select_option(label="Elsewhere")  # a watchlist with no trials
+        watch.get_by_role("button", name="Watch this search").wait_for()
+        assert watch.get_by_text("already has a saved search").count() == 0
+        walk.shot("dialog")
+>       watch.get_by_role("button", name="Watch this search").click()
+
+walks/test_saved_search_walk.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x109d081a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x109a5d4e0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("dialog", name="Watch this search").get_by_role("button", name="Watch this search")
+E               - locator resolved to <button disabled type="submit" class="primary">Watch this search</button>
+E             - attempting click action
+E               2 × waiting for element to be visible, enabled and stable
+E                 - element is not enabled
+E               - retrying click action
+E               - waiting 20ms
+E               2 × waiting for element to be visible, enabled and stable
+E                 - element is not enabled
+E               - retrying click action
+E                 - waiting 100ms
+E               10 × waiting for element to be visible, enabled and stable
+E                  - element is not enabled
+E                - retrying click action
+E                  - waiting 500ms
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_watch_this_search_saves_the_query_with_nothing_selected_to_an_empty_watchlist_and_adds_no_trials[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10a0d9ee0>
+make_walk = <function make_walk.<locals>.build at 0x10a1a7740>
+
+    def test_walk_watch_this_search_saves_the_query_with_nothing_selected_to_an_empty_watchlist_and_adds_no_trials(make_app, make_walk):
+        """test_walk_watch_this_search_saves_the_query_with_nothing_selected_to_an_empty_watchlist_and_adds_no_trials"""
+        app, walk = results(make_app, make_walk, start="#/find")
+        page = walk.page
+        assert page.get_by_role("region", name="Add selected trials").is_hidden()  # nothing selected
+        page.get_by_role("button", name="Watch this search").click()
+        watch = dialog(page)
+        watch.wait_for()
+        assert "many" in watch.locator(".query-box").inner_text()  # the submitted query
+        assert page.evaluate("document.activeElement.id") == "watch-destination"
+        watch.get_by_label("Watchlist").select_option(label="Elsewhere")  # a watchlist with no trials
+        watch.get_by_role("button", name="Watch this search").wait_for()
+        assert watch.get_by_text("already has a saved search").count() == 0
+        walk.shot("dialog")
+>       watch.get_by_role("button", name="Watch this search").click()
+
+walks/test_saved_search_walk.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x109d081a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10a1fdb20>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("dialog", name="Watch this search").get_by_role("button", name="Watch this search")
+E               - locator resolved to <button disabled type="submit" class="primary">Watch this search</button>
+E             - attempting click action
+E               2 × waiting for element to be visible, enabled and stable
+E                 - element is not enabled
+E               - retrying click action
+E               - waiting 20ms
+E               2 × waiting for element to be visible, enabled and stable
+E                 - element is not enabled
+E               - retrying click action
+E                 - waiting 100ms
+E               10 × waiting for element to be visible, enabled and stable
+E                  - element is not enabled
+E                - retrying click action
+E                  - waiting 500ms
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_watchlist_that_already_has_a_saved_search_shows_it_and_replace_is_deliberate[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10a1dcae0>
+make_walk = <function make_walk.<locals>.build at 0x10a1fed40>
+
+    def test_walk_a_watchlist_that_already_has_a_saved_search_shows_it_and_replace_is_deliberate(make_app, make_walk):
+        """test_walk_a_watchlist_that_already_has_a_saved_search_shows_it_and_replace_is_deliberate"""
+        app, walk = results(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Watch this search").click()
+        watch = dialog(page)
+        watch.get_by_label("Watchlist").select_option(label="Prior")
+>       watch.get_by_text("This watchlist already has a saved search.").wait_for()
+
+walks/test_saved_search_walk.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x109d081a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10a1fdd00>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("dialog", name="Watch this search").get_by_text("This watchlist already has a saved search.") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_watchlist_that_already_has_a_saved_search_shows_it_and_replace_is_deliberate[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10a22e7a0>
+make_walk = <function make_walk.<locals>.build at 0x10a22e520>
+
+    def test_walk_a_watchlist_that_already_has_a_saved_search_shows_it_and_replace_is_deliberate(make_app, make_walk):
+        """test_walk_a_watchlist_that_already_has_a_saved_search_shows_it_and_replace_is_deliberate"""
+        app, walk = results(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Watch this search").click()
+        watch = dialog(page)
+        watch.get_by_label("Watchlist").select_option(label="Prior")
+>       watch.get_by_text("This watchlist already has a saved search.").wait_for()
+
+walks/test_saved_search_walk.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x109d081a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10a23ff60>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("dialog", name="Watch this search").get_by_text("This watchlist already has a saved search.") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_____ test_walk_the_picker_can_create_a_watchlist_and_save_to_it[1440x900] _____
+
+make_app = <function make_app.<locals>.build at 0x10a23eac0>
+make_walk = <function make_walk.<locals>.build at 0x109a31c60>
+
+    def test_walk_the_picker_can_create_a_watchlist_and_save_to_it(make_app, make_walk):
+        """test_walk_the_picker_can_create_a_watchlist_and_save_to_it"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Watch this search").click()
+        watch = dialog(page)
+        watch.get_by_role("button", name="+ Create a new watchlist").click()
+        dialog(page, "New watchlist").get_by_label("Name").fill("Brand new")
+        dialog(page, "New watchlist").get_by_role("button", name="Create watchlist").click()
+        dialog(page, "New watchlist").wait_for(state="detached")
+        assert watch.get_by_label("Watchlist").evaluate("(s) => s.selectedOptions[0].textContent") == "Brand new"
+>       watch.get_by_role("button", name="Watch this search").click()
+
+walks/test_saved_search_walk.py:126: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x109d081a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10a23dd00>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("dialog", name="Watch this search").get_by_role("button", name="Watch this search")
+E               - locator resolved to <button disabled type="submit" class="primary">Watch this search</button>
+E             - attempting click action
+E               2 × waiting for element to be visible, enabled and stable
+E                 - element is not enabled
+E               - retrying click action
+E               - waiting 20ms
+E               2 × waiting for element to be visible, enabled and stable
+E                 - element is not enabled
+E               - retrying click action
+E                 - waiting 100ms
+E               10 × waiting for element to be visible, enabled and stable
+E                  - element is not enabled
+E                - retrying click action
+E                  - waiting 500ms
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_____ test_walk_the_picker_can_create_a_watchlist_and_save_to_it[1024x768] _____
+
+make_app = <function make_app.<locals>.build at 0x10a09cb80>
+make_walk = <function make_walk.<locals>.build at 0x10a09cc20>
+
+    def test_walk_the_picker_can_create_a_watchlist_and_save_to_it(make_app, make_walk):
+        """test_walk_the_picker_can_create_a_watchlist_and_save_to_it"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Watch this search").click()
+        watch = dialog(page)
+        watch.get_by_role("button", name="+ Create a new watchlist").click()
+        dialog(page, "New watchlist").get_by_label("Name").fill("Brand new")
+        dialog(page, "New watchlist").get_by_role("button", name="Create watchlist").click()
+        dialog(page, "New watchlist").wait_for(state="detached")
+        assert watch.get_by_label("Watchlist").evaluate("(s) => s.selectedOptions[0].textContent") == "Brand new"
+>       watch.get_by_role("button", name="Watch this search").click()
+
+walks/test_saved_search_walk.py:126: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x109d081a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x110411940>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("dialog", name="Watch this search").get_by_role("button", name="Watch this search")
+E               - locator resolved to <button disabled type="submit" class="primary">Watch this search</button>
+E             - attempting click action
+E               2 × waiting for element to be visible, enabled and stable
+E                 - element is not enabled
+E               - retrying click action
+E               - waiting 20ms
+E               2 × waiting for element to be visible, enabled and stable
+E                 - element is not enabled
+E               - retrying click action
+E                 - waiting 100ms
+E               10 × waiting for element to be visible, enabled and stable
+E                  - element is not enabled
+E                - retrying click action
+E                  - waiting 500ms
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_saved_search_banner_sits_above_the_tabs_and_leaves_the_review_list_in_view[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10a22d3a0>
+make_walk = <function make_walk.<locals>.build at 0x10a1f2b60>
+
+    def test_walk_a_saved_search_banner_sits_above_the_tabs_and_leaves_the_review_list_in_view(make_app, make_walk):
+        """test_walk_a_saved_search_banner_sits_above_the_tabs_and_leaves_the_review_list_in_view"""
+        app, walk = results(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Watch this search").click()
+        watch = dialog(page)
+        watch.get_by_label("Watchlist").select_option(label="Myeloma")
+>       watch.get_by_role("button", name="Watch this search").click()
+
+walks/test_saved_search_walk.py:137: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x109d081a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10a1f14e0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("dialog", name="Watch this search").get_by_role("button", name="Watch this search")
+E               - locator resolved to <button disabled type="submit" class="primary">Watch this search</button>
+E             - attempting click action
+E               - waiting for element to be visible, enabled and stable
+E               - element is not stable
+E             - retrying click action
+E               - waiting for element to be visible, enabled and stable
+E               - element is not enabled
+E             - retrying click action
+E               - waiting 20ms
+E               2 × waiting for element to be visible, enabled and stable
+E                 - element is not enabled
+E               - retrying click action
+E                 - waiting 100ms
+E               10 × waiting for element to be visible, enabled and stable
+E                  - element is not enabled
+E                - retrying click action
+E                  - waiting 500ms
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_saved_search_banner_sits_above_the_tabs_and_leaves_the_review_list_in_view[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x1104320c0>
+make_walk = <function make_walk.<locals>.build at 0x110431760>
+
+    def test_walk_a_saved_search_banner_sits_above_the_tabs_and_leaves_the_review_list_in_view(make_app, make_walk):
+        """test_walk_a_saved_search_banner_sits_above_the_tabs_and_leaves_the_review_list_in_view"""
+        app, walk = results(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Watch this search").click()
+        watch = dialog(page)
+        watch.get_by_label("Watchlist").select_option(label="Myeloma")
+>       watch.get_by_role("button", name="Watch this search").click()
+
+walks/test_saved_search_walk.py:137: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:11021: in click
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:174: in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:598: in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x109d081a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x1104bdbc0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("dialog", name="Watch this search").get_by_role("button", name="Watch this search")
+E               - locator resolved to <button disabled type="submit" class="primary">Watch this search</button>
+E             - attempting click action
+E               - waiting for element to be visible, enabled and stable
+E               - element is not stable
+E             - retrying click action
+E               - waiting for element to be visible, enabled and stable
+E               - element is not enabled
+E             - retrying click action
+E               - waiting 20ms
+E               2 × waiting for element to be visible, enabled and stable
+E                 - element is not enabled
+E               - retrying click action
+E                 - waiting 100ms
+E               10 × waiting for element to be visible, enabled and stable
+E                  - element is not enabled
+E                - retrying click action
+E                  - waiting 500ms
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_manage_shows_the_query_edit_search_prefills_find_and_turn_off_keeps_every_trial[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x1104ea700>
+make_walk = <function make_walk.<locals>.build at 0x1104ea200>
+
+    def test_walk_manage_shows_the_query_edit_search_prefills_find_and_turn_off_keeps_every_trial(make_app, make_walk):
+        """test_walk_manage_shows_the_query_edit_search_prefills_find_and_turn_off_keeps_every_trial"""
+        app, walk = results(make_app, make_walk)
+        page = walk.page
+        page.goto(app.url + "#/watchlists/3/needs-review")  # Prior
+        page.get_by_role("heading", level=1, name="Prior").wait_for()
+        page.get_by_role("button", name="Manage").click()
+        manage = dialog(page, "Manage saved search")
+>       assert "lymphoma" in manage.locator(".query-box").inner_text()
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+walks/test_saved_search_walk.py:163: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:12419: in inner_text
+    self._sync(self._impl_obj.inner_text(timeout=to_milliseconds(timeout)))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:514: in inner_text
+    return await self._frame.inner_text(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:748: in inner_text
+    return await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x109d081a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10a107f60>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.inner_text: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("dialog", name="Manage saved search").locator(".query-box")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_manage_shows_the_query_edit_search_prefills_find_and_turn_off_keeps_every_trial[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10a0dbf60>
+make_walk = <function make_walk.<locals>.build at 0x10a0d9ee0>
+
+    def test_walk_manage_shows_the_query_edit_search_prefills_find_and_turn_off_keeps_every_trial(make_app, make_walk):
+        """test_walk_manage_shows_the_query_edit_search_prefills_find_and_turn_off_keeps_every_trial"""
+        app, walk = results(make_app, make_walk)
+        page = walk.page
+        page.goto(app.url + "#/watchlists/3/needs-review")  # Prior
+        page.get_by_role("heading", level=1, name="Prior").wait_for()
+        page.get_by_role("button", name="Manage").click()
+        manage = dialog(page, "Manage saved search")
+>       assert "lymphoma" in manage.locator(".query-box").inner_text()
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+walks/test_saved_search_walk.py:163: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:12419: in inner_text
+    self._sync(self._impl_obj.inner_text(timeout=to_milliseconds(timeout)))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:514: in inner_text
+    return await self._frame.inner_text(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:748: in inner_text
+    return await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x109d081a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10a107f60>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.inner_text: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("dialog", name="Manage saved search").locator(".query-box")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen[1440x900] _
+walk guard tripped:
+  failed request: http://127.0.0.1:63045/api/watchlists/1/saved-search (status 404)
+  console error: Failed to load resource: the server responded with a status of 404 (Not Found)
+  failed request: http://127.0.0.1:63045/api/watchlists/3/saved-search (status 404)
+_ test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen[1024x768] _
+walk guard tripped:
+  failed request: http://127.0.0.1:63073/api/watchlists/1/saved-search (status 404)
+  console error: Failed to load resource: the server responded with a status of 404 (Not Found)
+  failed request: http://127.0.0.1:63073/api/watchlists/3/saved-search (status 404)
+=========================== short test summary info ============================
+FAILED walks/test_saved_search_walk.py::test_walk_watch_this_search_saves_the_query_with_nothing_selected_to_an_empty_watchlist_and_adds_no_trials[1440x900]
+FAILED walks/test_saved_search_walk.py::test_walk_watch_this_search_saves_the_query_with_nothing_selected_to_an_empty_watchlist_and_adds_no_trials[1024x768]
+FAILED walks/test_saved_search_walk.py::test_walk_a_watchlist_that_already_has_a_saved_search_shows_it_and_replace_is_deliberate[1440x900]
+FAILED walks/test_saved_search_walk.py::test_walk_a_watchlist_that_already_has_a_saved_search_shows_it_and_replace_is_deliberate[1024x768]
+FAILED walks/test_saved_search_walk.py::test_walk_the_picker_can_create_a_watchlist_and_save_to_it[1440x900]
+FAILED walks/test_saved_search_walk.py::test_walk_the_picker_can_create_a_watchlist_and_save_to_it[1024x768]
+FAILED walks/test_saved_search_walk.py::test_walk_a_saved_search_banner_sits_above_the_tabs_and_leaves_the_review_list_in_view[1440x900]
+FAILED walks/test_saved_search_walk.py::test_walk_a_saved_search_banner_sits_above_the_tabs_and_leaves_the_review_list_in_view[1024x768]
+FAILED walks/test_saved_search_walk.py::test_walk_manage_shows_the_query_edit_search_prefills_find_and_turn_off_keeps_every_trial[1440x900]
+FAILED walks/test_saved_search_walk.py::test_walk_manage_shows_the_query_edit_search_prefills_find_and_turn_off_keeps_every_trial[1024x768]
+FAILED walks/test_saved_search_walk.py::test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen[1440x900]
+FAILED walks/test_saved_search_walk.py::test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen[1024x768]
+12 failed in 59.24s

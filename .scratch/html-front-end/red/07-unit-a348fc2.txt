@@ -1,0 +1,120 @@
+# tip a348fc2f19744e60fe4f3aec33de866ead99522f
+............................FFFFFFFFF................................... [ 14%]
+........................................................................ [ 29%]
+........................................................................ [ 43%]
+........................................................................ [ 58%]
+........................................................................ [ 73%]
+........................................................................ [ 87%]
+...........................................................              [100%]
+=================================== FAILURES ===================================
+____________ test_a_search_returns_ten_rows_and_the_registrys_total ____________
+
+search_api = <test_api_search.search_api.<locals>.Client object at 0x10b2025e0>
+
+    def test_a_search_returns_ten_rows_and_the_registrys_total(search_api):
+        search_api.s["total"] = 27
+        status, body = search_api.get("/api/search?cond=myeloma")
+>       assert status == 200
+E       assert 500 == 200
+
+tests/test_api_search.py:55: AssertionError
+__________ test_the_last_page_is_short_and_page_two_starts_at_eleven ___________
+
+search_api = <test_api_search.search_api.<locals>.Client object at 0x10b31e460>
+
+    def test_the_last_page_is_short_and_page_two_starts_at_eleven(search_api):
+        search_api.s["total"] = 27
+        _, body = search_api.get("/api/search?cond=myeloma&page=3")
+>       assert [r["nct_id"] for r in body["rows"]][0] == "NCT00000021"
+E       KeyError: 'rows'
+
+tests/test_api_search.py:66: KeyError
+____ test_over_one_hundred_matches_the_cap_applies_and_the_total_stays_true ____
+
+search_api = <test_api_search.search_api.<locals>.Client object at 0x10b31fc10>
+
+    def test_over_one_hundred_matches_the_cap_applies_and_the_total_stays_true(search_api):
+        search_api.s["total"] = 5214
+        _, body = search_api.get("/api/search?cond=myeloma&page=10")
+>       assert body["total"] == 5214 and body["capped"] is True and body["pages"] == 10
+E       KeyError: 'total'
+
+tests/test_api_search.py:73: KeyError
+____________________ test_exactly_one_hundred_is_not_capped ____________________
+
+search_api = <test_api_search.search_api.<locals>.Client object at 0x10b1c37f0>
+
+    def test_exactly_one_hundred_is_not_capped(search_api):
+        search_api.s["total"] = 100
+        _, body = search_api.get("/api/search?cond=myeloma")
+>       assert body["capped"] is False and body["pages"] == 10
+E       KeyError: 'capped'
+
+tests/test_api_search.py:80: KeyError
+_____________________ test_a_page_past_the_cap_is_refused ______________________
+
+search_api = <test_api_search.search_api.<locals>.Client object at 0x10b2d35b0>
+
+    def test_a_page_past_the_cap_is_refused(search_api):
+        search_api.s["total"] = 5214
+        status, body = search_api.get("/api/search?cond=myeloma&page=11")
+>       assert status == 400 and body["error"]["kind"] == "bad_page"
+E       assert (500 == 400)
+
+tests/test_api_search.py:86: AssertionError
+______________________ test_every_axis_reaches_the_finder ______________________
+
+search_api = <test_api_search.search_api.<locals>.Client object at 0x10b31c310>
+
+    def test_every_axis_reaches_the_finder(search_api):
+        search_api.s["total"] = 1
+        search_api.get(
+            "/api/search?cond=a&intr=b&spons=c&phase=PHASE2&phase=PHASE3&sponsor_type=INDUSTRY"
+            "&status=RECRUITING&status=COMPLETED&started_from=2020-01&started_to=2021-01&page=1")
+>       call = search_api.s["calls"][0]
+E       IndexError: list index out of range
+
+tests/test_api_search.py:94: IndexError
+_ test_a_query_with_none_of_the_four_naming_fields_is_refused_without_a_registry_call _
+
+search_api = <test_api_search.search_api.<locals>.Client object at 0x10b2d3df0>
+
+    def test_a_query_with_none_of_the_four_naming_fields_is_refused_without_a_registry_call(search_api):
+        status, body = search_api.get("/api/search?status=RECRUITING")
+>       assert status == 400 and body["error"]["kind"] == "nothing_asked"
+E       assert (500 == 400)
+
+tests/test_api_search.py:105: AssertionError
+_______________ test_zero_matches_is_an_empty_page_not_an_error ________________
+
+search_api = <test_api_search.search_api.<locals>.Client object at 0x10b3204f0>
+
+    def test_zero_matches_is_an_empty_page_not_an_error(search_api):
+        search_api.s["total"] = 0
+        status, body = search_api.get("/api/search?cond=zzz")
+>       assert status == 200 and body["rows"] == [] and body["total"] == 0 and body["pages"] == 0
+E       assert (500 == 200)
+
+tests/test_api_search.py:112: AssertionError
+________________ test_a_registry_failure_is_a_502_with_its_kind ________________
+
+search_api = <test_api_search.search_api.<locals>.Client object at 0x10b1c39a0>
+
+    def test_a_registry_failure_is_a_502_with_its_kind(search_api):
+        search_api.s["failure"] = RuntimeError("boom")
+        status, body = search_api.get("/api/search?cond=x")
+>       assert status == 502 and body["error"]["kind"] == "registry_error"
+E       assert (500 == 502)
+
+tests/test_api_search.py:118: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_api_search.py::test_a_search_returns_ten_rows_and_the_registrys_total
+FAILED tests/test_api_search.py::test_the_last_page_is_short_and_page_two_starts_at_eleven
+FAILED tests/test_api_search.py::test_over_one_hundred_matches_the_cap_applies_and_the_total_stays_true
+FAILED tests/test_api_search.py::test_exactly_one_hundred_is_not_capped - Key...
+FAILED tests/test_api_search.py::test_a_page_past_the_cap_is_refused - assert...
+FAILED tests/test_api_search.py::test_every_axis_reaches_the_finder - IndexEr...
+FAILED tests/test_api_search.py::test_a_query_with_none_of_the_four_naming_fields_is_refused_without_a_registry_call
+FAILED tests/test_api_search.py::test_zero_matches_is_an_empty_page_not_an_error
+FAILED tests/test_api_search.py::test_a_registry_failure_is_a_502_with_its_kind
+9 failed, 482 passed in 21.59s

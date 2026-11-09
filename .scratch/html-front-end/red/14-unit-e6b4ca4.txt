@@ -1,0 +1,107 @@
+# tip e6b4ca4a91b657172398bcbff4689ca5e6c95671
+........................................................................ [ 15%]
+........................................................................ [ 31%]
+........................................................................ [ 47%]
+........................................................................ [ 63%]
+....FFFF................................................................ [ 79%]
+........................................................................ [ 95%]
+....................                                                     [100%]
+=================================== FAILURES ===================================
+__________________ test_the_readme_says_how_to_start_the_app ___________________
+
+readme = '# clin_trials_lite\n\na thin wrapper over the [clinicaltrials.gov v2 api](https://clinicaltrials.gov/data-api/api),\n...ons[2].name` are ragged across studies. fine for browsing; reshape if\n  you need to analyse interventions properly.\n'
+
+    def test_the_readme_says_how_to_start_the_app(readme):
+        """test_the_readme_says_how_to_start_the_app: the one command, in its section."""
+>       assert "python run.py" in section(readme, "trial change monitor")
+E       AssertionError: assert 'python run.py' in '\n```bash\nstreamlit run app.py\n```\n\ntwo pages. on **search**, query clinicaltrials.gov on any of condition, inter...`python -m pytest`. they drive the app and the monitor through an\ninjectable fetcher and never touch the network.\n\n'
+E        +  where '\n```bash\nstreamlit run app.py\n```\n\ntwo pages. on **search**, query clinicaltrials.gov on any of condition, inter...`python -m pytest`. they drive the app and the monitor through an\ninjectable fetcher and never touch the network.\n\n' = section('# clin_trials_lite\n\na thin wrapper over the [clinicaltrials.gov v2 api](https://clinicaltrials.gov/data-api/api),\n...ons[2].name` are ragged across studies. fine for browsing; reshape if\n  you need to analyse interventions properly.\n', 'trial change monitor')
+
+tests/test_docs.py:38: AssertionError
+___ test_the_readme_says_where_the_database_file_lives_and_how_to_back_it_up ___
+
+readme = '# clin_trials_lite\n\na thin wrapper over the [clinicaltrials.gov v2 api](https://clinicaltrials.gov/data-api/api),\n...ons[2].name` are ragged across studies. fine for browsing; reshape if\n  you need to analyse interventions properly.\n'
+
+    def test_the_readme_says_where_the_database_file_lives_and_how_to_back_it_up(readme):
+        """test_the_readme_says_where_the_database_file_lives_and_how_to_back_it_up: a file, copied."""
+>       lives = section(readme, "where your data lives")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_docs.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+text = '# clin_trials_lite\n\na thin wrapper over the [clinicaltrials.gov v2 api](https://clinicaltrials.gov/data-api/api),\n...ons[2].name` are ragged across studies. fine for browsing; reshape if\n  you need to analyse interventions properly.\n'
+heading = 'where your data lives'
+
+    def section(text: str, heading: str) -> str:
+        """The body of one `##` section, up to the next heading of that level."""
+        found = re.search(
+            rf"^## {re.escape(heading)}\s*$(.*?)(?=^## |\Z)",
+            text,
+            re.MULTILINE | re.DOTALL,
+        )
+        if not found:
+>           raise AssertionError(f"no section headed {heading!r}")
+E           AssertionError: no section headed 'where your data lives'
+
+tests/test_docs.py:32: AssertionError
+____________ test_the_readme_says_the_app_runs_on_this_machine_only ____________
+
+readme = '# clin_trials_lite\n\na thin wrapper over the [clinicaltrials.gov v2 api](https://clinicaltrials.gov/data-api/api),\n...ons[2].name` are ragged across studies. fine for browsing; reshape if\n  you need to analyse interventions properly.\n'
+
+    def test_the_readme_says_the_app_runs_on_this_machine_only(readme):
+        """test_the_readme_says_the_app_runs_on_this_machine_only: nobody else can reach it."""
+>       lives = section(readme, "where your data lives")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_docs.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+text = '# clin_trials_lite\n\na thin wrapper over the [clinicaltrials.gov v2 api](https://clinicaltrials.gov/data-api/api),\n...ons[2].name` are ragged across studies. fine for browsing; reshape if\n  you need to analyse interventions properly.\n'
+heading = 'where your data lives'
+
+    def section(text: str, heading: str) -> str:
+        """The body of one `##` section, up to the next heading of that level."""
+        found = re.search(
+            rf"^## {re.escape(heading)}\s*$(.*?)(?=^## |\Z)",
+            text,
+            re.MULTILINE | re.DOTALL,
+        )
+        if not found:
+>           raise AssertionError(f"no section headed {heading!r}")
+E           AssertionError: no section headed 'where your data lives'
+
+tests/test_docs.py:32: AssertionError
+____________ test_the_readme_says_the_old_published_site_is_retired ____________
+
+readme = '# clin_trials_lite\n\na thin wrapper over the [clinicaltrials.gov v2 api](https://clinicaltrials.gov/data-api/api),\n...ons[2].name` are ragged across studies. fine for browsing; reshape if\n  you need to analyse interventions properly.\n'
+
+    def test_the_readme_says_the_old_published_site_is_retired(readme):
+        """test_the_readme_says_the_old_published_site_is_retired: no live URL is left behind."""
+>       lives = section(readme, "where your data lives")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_docs.py:58: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+text = '# clin_trials_lite\n\na thin wrapper over the [clinicaltrials.gov v2 api](https://clinicaltrials.gov/data-api/api),\n...ons[2].name` are ragged across studies. fine for browsing; reshape if\n  you need to analyse interventions properly.\n'
+heading = 'where your data lives'
+
+    def section(text: str, heading: str) -> str:
+        """The body of one `##` section, up to the next heading of that level."""
+        found = re.search(
+            rf"^## {re.escape(heading)}\s*$(.*?)(?=^## |\Z)",
+            text,
+            re.MULTILINE | re.DOTALL,
+        )
+        if not found:
+>           raise AssertionError(f"no section headed {heading!r}")
+E           AssertionError: no section headed 'where your data lives'
+
+tests/test_docs.py:32: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_docs.py::test_the_readme_says_how_to_start_the_app - Assert...
+FAILED tests/test_docs.py::test_the_readme_says_where_the_database_file_lives_and_how_to_back_it_up
+FAILED tests/test_docs.py::test_the_readme_says_the_app_runs_on_this_machine_only
+FAILED tests/test_docs.py::test_the_readme_says_the_old_published_site_is_retired
+4 failed, 448 passed in 46.53s

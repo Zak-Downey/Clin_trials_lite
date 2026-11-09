@@ -1,0 +1,54 @@
+# tip 5a1f34a9ff62023f1e3e1f1a739d66e42ec00076
+........................................................................ [ 15%]
+........................................................................ [ 30%]
+........................................................................ [ 45%]
+........................................................................ [ 61%]
+........................................................................ [ 76%]
+........................................................F............... [ 91%]
+......................................                                   [100%]
+=================================== FAILURES ===================================
+_ test_find_page_asks_for_every_page_up_to_this_one_and_returns_only_this_pages_ten _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106ee2900>
+
+    def test_find_page_asks_for_every_page_up_to_this_one_and_returns_only_this_pages_ten(monkeypatch):
+        """test_find_page_asks_for_every_page_up_to_this_one_and_returns_only_this_pages_ten"""
+        seen = []
+    
+        def fake_get(path, params):
+            seen.append((path, params))
+            return {"studies": [{"n": n} for n in range(25)], "totalCount": 137}
+    
+        monkeypatch.setattr(ctgov, "_get", fake_get)
+        answer = ctgov.find_page(cond="myeloma", page=2)
+        assert seen[0][0] == "/studies"
+>       assert seen[0][1]["pageSize"] == 20
+E       assert 10 == 20
+
+tests/test_search.py:439: AssertionError
+=============================== warnings summary ===============================
+tests/test_api_checks.py::test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted
+  /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.13/site-packages/_pytest/threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-80 (_work)
+  
+  Traceback (most recent call last):
+    File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+      self.run()
+      ~~~~~~~~^^
+    File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 995, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-sweep/webapp/api_checks.py", line 85, in _work
+      monitor.finish_run(ctx.conn, run.list_id, run.results)
+      ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/12-sweep/tests/test_api_checks.py", line 296, in broken
+      raise RuntimeError("disk full")
+  RuntimeError: disk full
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_search.py::test_find_page_asks_for_every_page_up_to_this_one_and_returns_only_this_pages_ten
+1 failed, 469 passed, 1 warning in 51.75s

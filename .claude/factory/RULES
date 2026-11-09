@@ -1,0 +1,8 @@
+# A rule that judges merged work more strictly is a new line here (for example `red-audit-2`), never a change to what
+# an old line means: the era check asks only whether a rule's name was listed at the merge commit, so a stricter rule
+# under an old name would judge every earlier ticket by the stricter form.
+red-audit
+doc-anchor
+review-grammar
+mutants
+follow-up

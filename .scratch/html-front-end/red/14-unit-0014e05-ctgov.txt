@@ -1,0 +1,34 @@
+# tip 0014e05d9632dffffe8c8a9407ced47de2dee4fd
+........................................................................ [ 15%]
+........................................................................ [ 31%]
+........................................................................ [ 47%]
+........................................................................ [ 63%]
+........................................................................ [ 79%]
+........................................F............................... [ 95%]
+......................                                                   [100%]
+=================================== FAILURES ===================================
+_______ test_the_registry_is_reached_with_the_machines_certificate_store _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107203540>
+
+    def test_the_registry_is_reached_with_the_machines_certificate_store(monkeypatch):
+        """test_the_registry_is_reached_with_the_machines_certificate_store"""
+        import io
+        import urllib.request
+    
+        seen = {}
+    
+        def fake_urlopen(req, timeout=None, context=None):
+            seen["context"] = context
+            return io.BytesIO(b"{}")
+    
+        monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+        ctgov._get("/version", {})
+>       assert seen["context"] is ctgov._SSL_CTX
+E       assert None is <truststore._api.SSLContext object at 0x106cccf50>
+E        +  where <truststore._api.SSLContext object at 0x106cccf50> = ctgov._SSL_CTX
+
+tests/test_search.py:411: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_search.py::test_the_registry_is_reached_with_the_machines_certificate_store
+1 failed, 453 passed in 47.06s

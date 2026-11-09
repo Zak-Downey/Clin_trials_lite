@@ -1,0 +1,37 @@
+# tip beffd04ab4e29b17a5498d43271ab8a106ab3490
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/09-summary-walk-checks-the-count-it-names/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+        for name in ("This week", "This month", "Custom dates"):
+            page.get_by_role("button", name=name).wait_for()
+        assert page.get_by_role("button", name="This week").get_attribute("aria-pressed") == "true"
+        heading, trials, changes = numbers(page)
+        today = datetime.date.today()
+        monday = today - datetime.timedelta(days=today.weekday())
+>       assert str(monday.year) in heading and (trials, changes) == (2, EXPECTED_CHANGES)
+E       AssertionError: assert ('2026' in '2–8 Nov 2026 · 2 trials · 4 field changes' and (2, 4) == (2, 5)
+E        +  where '2026' = str(2026)
+E        +    where 2026 = datetime.date(2026, 11, 9).year
+E         
+E         At index 1 diff: 4 != 5
+E         Use -v to get more diff)
+
+walks/test_summary_walk.py:83: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_copy_summary_does_not_collapse_the_open_trial[1440x900]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_copy_summary_does_not_collapse_the_open_trial[1024x768]
+FAILED walks/test_summary_walk.py::test_walk_export_csv_downloads_the_file_for_the_shown_period[1440x900]
+FAILED walks/test_summary_walk.py::test_walk_the_summary_groups_by_trial_then_check_and_expands_to_every_transition[1440x900]
+FAILED walks/test_summary_walk.py::test_walk_export_csv_downloads_the_file_for_the_shown_period[1024x768]
+FAILED walks/test_summary_walk.py::test_walk_summary_offers_three_periods_and_a_heading_with_the_period_counts_and_zone[1440x900]
+FAILED walks/test_summary_walk.py::test_walk_the_summary_groups_by_trial_then_check_and_expands_to_every_transition[1024x768]
+FAILED walks/test_summary_walk.py::test_walk_summary_offers_three_periods_and_a_heading_with_the_period_counts_and_zone[1024x768]
+8 failed, 276 passed in 114.87s (0:01:54)
+
+## Result
+walks/test_explore_summary_and_export_summary_explore.py › test_copy_summary_does_not_collapse_the_open_trial[1440x900]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/09-summary-walk-checks-the-count-it-names/.scratch/html-front-end/walks/alone-test_explore_summary_and_export_summary_explore-test-copy-summary-does-not-collapse-the-open-trial-1440x900.txt)
+walks/test_explore_summary_and_export_summary_explore.py › test_copy_summary_does_not_collapse_the_open_trial[1024x768]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/09-summary-walk-checks-the-count-it-names/.scratch/html-front-end/walks/alone-test_explore_summary_and_export_summary_explore-test-copy-summary-does-not-collapse-the-open-trial-1024x768.txt)
+walks/test_summary_walk.py › test_walk_export_csv_downloads_the_file_for_the_shown_period[1440x900]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/09-summary-walk-checks-the-count-it-names/.scratch/html-front-end/walks/alone-test_summary_walk-test-walk-export-csv-downloads-the-file-for-the-shown-period-1440x900.txt)
+walks/test_summary_walk.py › test_walk_the_summary_groups_by_trial_then_check_and_expands_to_every_transition[1440x900]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/09-summary-walk-checks-the-count-it-names/.scratch/html-front-end/walks/alone-test_summary_walk-test-walk-the-summary-groups-by-trial-then-check-and-expands-to-every-transition-1440x900.txt)
+walks/test_summary_walk.py › test_walk_export_csv_downloads_the_file_for_the_shown_period[1024x768]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/09-summary-walk-checks-the-count-it-names/.scratch/html-front-end/walks/alone-test_summary_walk-test-walk-export-csv-downloads-the-file-for-the-shown-period-1024x768.txt)
+walks/test_summary_walk.py › test_walk_summary_offers_three_periods_and_a_heading_with_the_period_counts_and_zone[1440x900]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/09-summary-walk-checks-the-count-it-names/.scratch/html-front-end/walks/alone-test_summary_walk-test-walk-summary-offers-three-periods-and-a-heading-with-the-period-counts-and-zone-1440x900.txt)
+walks/test_summary_walk.py › test_walk_the_summary_groups_by_trial_then_check_and_expands_to_every_transition[1024x768]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/09-summary-walk-checks-the-count-it-names/.scratch/html-front-end/walks/alone-test_summary_walk-test-walk-the-summary-groups-by-trial-then-check-and-expands-to-every-transition-1024x768.txt)
+walks/test_summary_walk.py › test_walk_summary_offers_three_periods_and_a_heading_with_the_period_counts_and_zone[1024x768]: red alone (retry: /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/09-summary-walk-checks-the-count-it-names/.scratch/html-front-end/walks/alone-test_summary_walk-test-walk-summary-offers-three-periods-and-a-heading-with-the-period-counts-and-zone-1024x768.txt)

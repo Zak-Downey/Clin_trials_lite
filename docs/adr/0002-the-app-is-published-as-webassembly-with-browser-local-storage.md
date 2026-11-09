@@ -1,6 +1,6 @@
 # 2. The app is published as WebAssembly with browser-local storage
 
-**Status:** accepted (2026-09-20)
+**Status:** superseded by ADR 0003 (2026-11-08); accepted 2026-09-20
 
 ## The question
 

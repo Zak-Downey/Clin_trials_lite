@@ -1,0 +1,113 @@
+# tip a7f99bebb85d87dbc4ea672d057d57e752193e7f
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10b916a20>
+make_walk = <function make_walk.<locals>.build at 0x10b916d40>
+
+    def test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link(make_app, make_walk):
+        """test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link"""
+        app, walk = results(make_app, make_walk)
+        page = walk.page
+        app.registry.set("server_error", True)
+        box(page, "NCT10000001").check()
+        page.get_by_role("button", name="Add 1 trial").click()
+        page.get_by_text("could not be added").wait_for()
+        walk.shot("all-failed")
+        bar = page.get_by_role("region", name="Add selected trials")
+>       assert bar.get_by_role("link", name="Open Myeloma").count() == 0, "an Open link to a list that gained nothing"
+E       AssertionError: an Open link to a list that gained nothing
+E       assert 1 == 0
+E        +  where 1 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:60584/#/find?cond=many&page=1'> selector='internal:role=region[name="Add selected trials"i] >> internal:role=link[name="Open Myeloma"i]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:60584/#/find?cond=many&page=1'> selector='internal:role=region[name="Add selected trials"i] >> internal:role=link[name="Open Myeloma"i]'> = get_by_role('link', name='Open Myeloma')
+E        +        where get_by_role = <Locator frame=<Frame name= url='http://127.0.0.1:60584/#/find?cond=many&page=1'> selector='internal:role=region[name="Add selected trials"i]'>.get_by_role
+
+walks/test_explore_find_and_add_failed_add_in_the_bar_reads_as_an_outcome_with_an_open_link.py:24: AssertionError
+_ test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10bb607c0>
+make_walk = <function make_walk.<locals>.build at 0x10bb609a0>
+
+    def test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link(make_app, make_walk):
+        """test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link"""
+        app, walk = results(make_app, make_walk)
+        page = walk.page
+        app.registry.set("server_error", True)
+        box(page, "NCT10000001").check()
+        page.get_by_role("button", name="Add 1 trial").click()
+        page.get_by_text("could not be added").wait_for()
+        walk.shot("all-failed")
+        bar = page.get_by_role("region", name="Add selected trials")
+>       assert bar.get_by_role("link", name="Open Myeloma").count() == 0, "an Open link to a list that gained nothing"
+E       AssertionError: an Open link to a list that gained nothing
+E       assert 1 == 0
+E        +  where 1 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:60619/#/find?cond=many&page=1'> selector='internal:role=region[name="Add selected trials"i] >> internal:role=link[name="Open Myeloma"i]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:60619/#/find?cond=many&page=1'> selector='internal:role=region[name="Add selected trials"i] >> internal:role=link[name="Open Myeloma"i]'> = get_by_role('link', name='Open Myeloma')
+E        +        where get_by_role = <Locator frame=<Frame name= url='http://127.0.0.1:60619/#/find?cond=many&page=1'> selector='internal:role=region[name="Add selected trials"i]'>.get_by_role
+
+walks/test_explore_find_and_add_failed_add_in_the_bar_reads_as_an_outcome_with_an_open_link.py:24: AssertionError
+____ test_explore_the_add_error_is_cleared_when_the_id_is_edited[1440x900] _____
+
+make_app = <function make_app.<locals>.build at 0x10bb600e0>
+make_walk = <function make_walk.<locals>.build at 0x10bbfc720>
+
+    def test_explore_the_add_error_is_cleared_when_the_id_is_edited(make_app, make_walk):
+        """test_explore_the_add_error_is_cleared_when_the_id_is_edited"""
+        app = make_app()
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/find/id")
+        page.get_by_label("NCT ID").fill("NCT00000002")
+        page.get_by_role("button", name="Look up trial").click()
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+        app.registry.set("server_error", True)
+        page.get_by_role("button", name="Add to watchlist").click()
+        page.get_by_text("ClinicalTrials.gov returned an error for NCT00000002").wait_for()
+        page.get_by_label("NCT ID").fill("NCT0000000")
+        walk.shot("edited")
+>       assert page.get_by_text("returned an error for NCT00000002").count() == 0, "the sentence about NCT00000002 stays beside a different ID"
+E       AssertionError: the sentence about NCT00000002 stays beside a different ID
+E       assert 1 == 0
+E        +  where 1 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:60651/#/find/id'> selector='internal:text="returned an error for NCT00000002"i'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:60651/#/find/id'> selector='internal:text="returned an error for NCT00000002"i'> = get_by_text('returned an error for NCT00000002')
+E        +        where get_by_text = <Page url='http://127.0.0.1:60651/#/find/id'>.get_by_text
+
+walks/test_explore_find_and_add_error_after_a_failed_add_by_id_outlives_the_edit.py:24: AssertionError
+____ test_explore_the_add_error_is_cleared_when_the_id_is_edited[1024x768] _____
+
+make_app = <function make_app.<locals>.build at 0x10bbea3e0>
+make_walk = <function make_walk.<locals>.build at 0x10bbeb1a0>
+
+    def test_explore_the_add_error_is_cleared_when_the_id_is_edited(make_app, make_walk):
+        """test_explore_the_add_error_is_cleared_when_the_id_is_edited"""
+        app = make_app()
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/find/id")
+        page.get_by_label("NCT ID").fill("NCT00000002")
+        page.get_by_role("button", name="Look up trial").click()
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+        app.registry.set("server_error", True)
+        page.get_by_role("button", name="Add to watchlist").click()
+        page.get_by_text("ClinicalTrials.gov returned an error for NCT00000002").wait_for()
+        page.get_by_label("NCT ID").fill("NCT0000000")
+        walk.shot("edited")
+>       assert page.get_by_text("returned an error for NCT00000002").count() == 0, "the sentence about NCT00000002 stays beside a different ID"
+E       AssertionError: the sentence about NCT00000002 stays beside a different ID
+E       assert 1 == 0
+E        +  where 1 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:60680/#/find/id'> selector='internal:text="returned an error for NCT00000002"i'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:60680/#/find/id'> selector='internal:text="returned an error for NCT00000002"i'> = get_by_text('returned an error for NCT00000002')
+E        +        where get_by_text = <Page url='http://127.0.0.1:60680/#/find/id'>.get_by_text
+
+walks/test_explore_find_and_add_error_after_a_failed_add_by_id_outlives_the_edit.py:24: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_explore_find_and_add_failed_add_in_the_bar_reads_as_an_outcome_with_an_open_link.py::test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link[1440x900]
+FAILED walks/test_explore_find_and_add_failed_add_in_the_bar_reads_as_an_outcome_with_an_open_link.py::test_explore_a_wholly_failed_add_in_the_bar_is_an_error_with_a_reason_and_no_open_link[1024x768]
+FAILED walks/test_explore_find_and_add_error_after_a_failed_add_by_id_outlives_the_edit.py::test_explore_the_add_error_is_cleared_when_the_id_is_edited[1440x900]
+FAILED walks/test_explore_find_and_add_error_after_a_failed_add_by_id_outlives_the_edit.py::test_explore_the_add_error_is_cleared_when_the_id_is_edited[1024x768]
+4 failed in 3.33s

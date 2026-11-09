@@ -1,0 +1,365 @@
+# tip 8ad29bcaa4e421d7ef0c24707213d65f0599ad81
+............FFFFFF                                                       [100%]
+=================================== FAILURES ===================================
+_ test_walk_a_check_state_that_cannot_be_read_at_open_is_stated_in_words[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10bb88540>
+make_walk = <function make_walk.<locals>.build at 0x10bb88360>
+
+    def test_walk_a_check_state_that_cannot_be_read_at_open_is_stated_in_words(make_app, make_walk):
+        """test_walk_a_check_state_that_cannot_be_read_at_open_is_stated_in_words"""
+        app = make_app(seed=seed_checked)
+        walk = make_walk(app)
+        page = walk.page
+        walk.expect(500, "/api/watchlists/1/check")
+        page.route(CHECK_URL, lambda route: route.fulfill(
+            status=500, content_type="application/json",
+            body='{"error": {"kind": "server_error", "message": "The database is unavailable."}}'))
+        page.goto(app.url)
+        page.get_by_role("heading", level=1).wait_for()
+        box = page.locator("#check-status")
+>       box.get_by_text("could not be read").wait_for()
+
+walks/test_check_walk.py:196: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b6802f0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10bb88e00>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("#check-status").get_by_text("could not be read") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_check_state_that_cannot_be_read_at_open_is_stated_in_words[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10bc49580>
+make_walk = <function make_walk.<locals>.build at 0x10bc49760>
+
+    def test_walk_a_check_state_that_cannot_be_read_at_open_is_stated_in_words(make_app, make_walk):
+        """test_walk_a_check_state_that_cannot_be_read_at_open_is_stated_in_words"""
+        app = make_app(seed=seed_checked)
+        walk = make_walk(app)
+        page = walk.page
+        walk.expect(500, "/api/watchlists/1/check")
+        page.route(CHECK_URL, lambda route: route.fulfill(
+            status=500, content_type="application/json",
+            body='{"error": {"kind": "server_error", "message": "The database is unavailable."}}'))
+        page.goto(app.url)
+        page.get_by_role("heading", level=1).wait_for()
+        box = page.locator("#check-status")
+>       box.get_by_text("could not be read").wait_for()
+
+walks/test_check_walk.py:196: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b6802f0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10bf689a0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("#check-status").get_by_text("could not be read") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_failed_progress_poll_says_so_and_gives_the_button_back[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10bc205e0>
+make_walk = <function make_walk.<locals>.build at 0x10baa2520>
+
+    def test_walk_a_failed_progress_poll_says_so_and_gives_the_button_back(make_app, make_walk):
+        """test_walk_a_failed_progress_poll_says_so_and_gives_the_button_back"""
+        app, walk = open_app(make_app, make_walk)
+        page = walk.page
+        walk.expect(500, "/api/watchlists/1/check")
+        app.registry.set("revise", True)
+        app.registry.set("slow", True, delay=1.5)
+        armed = []
+    
+        def handler(route):
+            if armed and route.request.method == "GET":
+                armed.clear()
+                route.fulfill(status=500, content_type="application/json",
+                              body='{"error": {"kind": "server_error", "message": "The database is unavailable."}}')
+            else:
+                route.continue_()
+    
+        page.route(CHECK_URL, handler)
+        button = page.get_by_role("button", name="Check for updates")
+        button.click()
+        page.get_by_role("status").get_by_text("Checking for updates…").wait_for()
+        armed.append(True)
+        box = page.locator("#check-status")
+>       box.get_by_text("progress could not be read").wait_for()
+
+walks/test_check_walk.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b6802f0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10bf7c9a0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("#check-status").get_by_text("progress could not be read") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_failed_progress_poll_says_so_and_gives_the_button_back[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10bc55440>
+make_walk = <function make_walk.<locals>.build at 0x10bf7d080>
+
+    def test_walk_a_failed_progress_poll_says_so_and_gives_the_button_back(make_app, make_walk):
+        """test_walk_a_failed_progress_poll_says_so_and_gives_the_button_back"""
+        app, walk = open_app(make_app, make_walk)
+        page = walk.page
+        walk.expect(500, "/api/watchlists/1/check")
+        app.registry.set("revise", True)
+        app.registry.set("slow", True, delay=1.5)
+        armed = []
+    
+        def handler(route):
+            if armed and route.request.method == "GET":
+                armed.clear()
+                route.fulfill(status=500, content_type="application/json",
+                              body='{"error": {"kind": "server_error", "message": "The database is unavailable."}}')
+            else:
+                route.continue_()
+    
+        page.route(CHECK_URL, handler)
+        button = page.get_by_role("button", name="Check for updates")
+        button.click()
+        page.get_by_role("status").get_by_text("Checking for updates…").wait_for()
+        armed.append(True)
+        box = page.locator("#check-status")
+>       box.get_by_text("progress could not be read").wait_for()
+
+walks/test_check_walk.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b6802f0>
+cb = <function Channel.send.<locals>.<lambda> at 0x1120149a0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for locator("#check-status").get_by_text("progress could not be read") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_adding_a_new_match_updates_the_header_count_and_button_label[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10bf7f100>
+make_walk = <function make_walk.<locals>.build at 0x10bf73ce0>
+
+    def test_walk_adding_a_new_match_updates_the_header_count_and_button_label(make_app, make_walk):
+        """test_walk_adding_a_new_match_updates_the_header_count_and_button_label"""
+        _, walk = open_app(make_app, make_walk, seed=seed_bare_with_offer)
+        page = walk.page
+        assert page.locator("#watchlist-meta").inner_text().startswith("0 trials monitored")
+        page.get_by_role("button", name="Check for new matches").wait_for()
+        page.get_by_role("tab", name=re.compile("^New matches")).click()
+        page.get_by_role("heading", level=2, name=re.compile("new match")).wait_for()
+        page.locator('li.card[data-nct="NCT00000002"] input[type=checkbox]').check()
+        page.get_by_role("region", name="New matches actions").get_by_role("button", name=re.compile("^Add")).click()
+>       page.get_by_text("1 trial monitored").wait_for()
+
+walks/test_check_walk.py:253: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b6802f0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10beab560>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_text("1 trial monitored") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_adding_a_new_match_updates_the_header_count_and_button_label[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x112042020>
+make_walk = <function make_walk.<locals>.build at 0x112042f20>
+
+    def test_walk_adding_a_new_match_updates_the_header_count_and_button_label(make_app, make_walk):
+        """test_walk_adding_a_new_match_updates_the_header_count_and_button_label"""
+        _, walk = open_app(make_app, make_walk, seed=seed_bare_with_offer)
+        page = walk.page
+        assert page.locator("#watchlist-meta").inner_text().startswith("0 trials monitored")
+        page.get_by_role("button", name="Check for new matches").wait_for()
+        page.get_by_role("tab", name=re.compile("^New matches")).click()
+        page.get_by_role("heading", level=2, name=re.compile("new match")).wait_for()
+        page.locator('li.card[data-nct="NCT00000002"] input[type=checkbox]').check()
+        page.get_by_role("region", name="New matches actions").get_by_role("button", name=re.compile("^Add")).click()
+>       page.get_by_text("1 trial monitored").wait_for()
+
+walks/test_check_walk.py:253: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:13635: in wait_for
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:767: in wait_for
+    await self._frame.wait_for_selector(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10b6802f0>
+cb = <function Channel.send.<locals>.<lambda> at 0x10bf72480>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_text("1 trial monitored") to be visible
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+=========================== short test summary info ============================
+FAILED walks/test_check_walk.py::test_walk_a_check_state_that_cannot_be_read_at_open_is_stated_in_words[1440x900]
+FAILED walks/test_check_walk.py::test_walk_a_check_state_that_cannot_be_read_at_open_is_stated_in_words[1024x768]
+FAILED walks/test_check_walk.py::test_walk_a_failed_progress_poll_says_so_and_gives_the_button_back[1440x900]
+FAILED walks/test_check_walk.py::test_walk_a_failed_progress_poll_says_so_and_gives_the_button_back[1024x768]
+FAILED walks/test_check_walk.py::test_walk_adding_a_new_match_updates_the_header_count_and_button_label[1440x900]
+FAILED walks/test_check_walk.py::test_walk_adding_a_new_match_updates_the_header_count_and_button_label[1024x768]
+6 failed, 12 passed in 71.12s (0:01:11)

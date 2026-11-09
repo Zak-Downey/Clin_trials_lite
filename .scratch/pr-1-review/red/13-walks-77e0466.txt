@@ -1,0 +1,181 @@
+# tip 77e04663500463e85344e60657460eeb5cbeec09
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_walk_a_check_finishing_after_leaving_new_matches_does_not_change_where_find_trials_details_came_from[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x107406fc0>
+make_walk = <function make_walk.<locals>.build at 0x1074072e0>
+
+    def test_walk_a_check_finishing_after_leaving_new_matches_does_not_change_where_find_trials_details_came_from(make_app, make_walk):
+        app, walk = nm.open_tab(make_app, make_walk)
+        page = walk.page
+        held = []
+    
+        def handler(route):
+            if route.request.method == "GET" and route.request.url.endswith("/api/watchlists") and armed and not held:
+                held.append(route)
+            else:
+                route.continue_()
+    
+        armed = []
+        page.route("**/api/watchlists", handler)
+        armed.append(1)
+        page.get_by_role("button", name="Check for updates").click()
+        page.wait_for_function("true")  # let the click run
+        deadline = 0
+        while not held and deadline < 100:
+            page.wait_for_timeout(100)
+            deadline += 1
+        assert held, "the check never asked for the sidebar after finishing"
+        page.goto(app.url + "#/find/2")
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        page.get_by_label("Condition").fill("many")
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_role("heading", name="134 matches").wait_for()
+        with page.expect_response(re.compile(r"/api/watchlists$")):
+            held[0].continue_()
+        page.wait_for_timeout(500)  # the late refresh has now drawn or not
+        page.locator("li.card").first.get_by_role("link", name=re.compile("^View details")).click()
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+        walk.shot("details")
+>       assert page.locator("#add-to").evaluate("(s) => s.selectedOptions[0].textContent") == "Quiet", \
+            "Add to is preset to the New matches watchlist, not the Find trials destination"
+E       AssertionError: Add to is preset to the New matches watchlist, not the Find trials destination
+E       assert 'Myeloma' == 'Quiet'
+E         
+E         - Quiet
+E         + Myeloma
+
+walks/test_explore_wr_check_refresh_clobbers_trial_origin.py:47: AssertionError
+_ test_walk_a_check_finishing_after_leaving_new_matches_does_not_change_where_find_trials_details_came_from[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10769c5e0>
+make_walk = <function make_walk.<locals>.build at 0x10769cb80>
+
+    def test_walk_a_check_finishing_after_leaving_new_matches_does_not_change_where_find_trials_details_came_from(make_app, make_walk):
+        app, walk = nm.open_tab(make_app, make_walk)
+        page = walk.page
+        held = []
+    
+        def handler(route):
+            if route.request.method == "GET" and route.request.url.endswith("/api/watchlists") and armed and not held:
+                held.append(route)
+            else:
+                route.continue_()
+    
+        armed = []
+        page.route("**/api/watchlists", handler)
+        armed.append(1)
+        page.get_by_role("button", name="Check for updates").click()
+        page.wait_for_function("true")  # let the click run
+        deadline = 0
+        while not held and deadline < 100:
+            page.wait_for_timeout(100)
+            deadline += 1
+        assert held, "the check never asked for the sidebar after finishing"
+        page.goto(app.url + "#/find/2")
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        page.get_by_label("Condition").fill("many")
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_role("heading", name="134 matches").wait_for()
+        with page.expect_response(re.compile(r"/api/watchlists$")):
+            held[0].continue_()
+        page.wait_for_timeout(500)  # the late refresh has now drawn or not
+        page.locator("li.card").first.get_by_role("link", name=re.compile("^View details")).click()
+        page.get_by_role("button", name="Add to watchlist").wait_for()
+        walk.shot("details")
+>       assert page.locator("#add-to").evaluate("(s) => s.selectedOptions[0].textContent") == "Quiet", \
+            "Add to is preset to the New matches watchlist, not the Find trials destination"
+E       AssertionError: Add to is preset to the New matches watchlist, not the Find trials destination
+E       assert 'Myeloma' == 'Quiet'
+E         
+E         - Quiet
+E         + Myeloma
+
+walks/test_explore_wr_check_refresh_clobbers_trial_origin.py:47: AssertionError
+_ test_walk_a_late_older_sidebar_answer_does_not_overwrite_the_newer_badges[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10769d800>
+make_walk = <function make_walk.<locals>.build at 0x107dfc540>
+
+    def test_walk_a_late_older_sidebar_answer_does_not_overwrite_the_newer_badges(make_app, make_walk):
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/trials/NCT00000002")
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        page.wait_for_timeout(300)
+        held = []
+    
+        def handler(route):
+            if route.request.method == "GET" and not held:
+                held.append((route, route.fetch()))  # the answer as it stands after Mark reviewed
+            else:
+                route.continue_()
+    
+        page.route("**/api/watchlists", handler)
+        page.get_by_role("button", name="Mark reviewed").click()
+        page.get_by_role("button", name="Undo").wait_for()
+        page.wait_for_timeout(200)
+        assert held, "Mark reviewed did not re-read the watchlists"
+        page.get_by_role("button", name="Undo").click()
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        page.wait_for_timeout(500)
+        assert badges(page) == ["2", "0"]
+        held[0][0].fulfill(response=held[0][1])  # the older answer arrives last
+        page.wait_for_timeout(500)
+        walk.shot("after-late-answer")
+>       assert badges(page) == ["2", "0"], f"the sidebar shows {badges(page)}: an older answer overwrote the newer one"
+E       AssertionError: the sidebar shows ['1', '0']: an older answer overwrote the newer one
+E       assert ['1', '0'] == ['2', '0']
+E         
+E         At index 0 diff: '1' != '2'
+E         Use -v to get more diff
+
+walks/test_explore_wr_an_older_sidebar_answer_overwrites_a_newer_one.py:44: AssertionError
+_ test_walk_a_late_older_sidebar_answer_does_not_overwrite_the_newer_badges[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x107e02840>
+make_walk = <function make_walk.<locals>.build at 0x107e02a20>
+
+    def test_walk_a_late_older_sidebar_answer_does_not_overwrite_the_newer_badges(make_app, make_walk):
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/trials/NCT00000002")
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        page.wait_for_timeout(300)
+        held = []
+    
+        def handler(route):
+            if route.request.method == "GET" and not held:
+                held.append((route, route.fetch()))  # the answer as it stands after Mark reviewed
+            else:
+                route.continue_()
+    
+        page.route("**/api/watchlists", handler)
+        page.get_by_role("button", name="Mark reviewed").click()
+        page.get_by_role("button", name="Undo").wait_for()
+        page.wait_for_timeout(200)
+        assert held, "Mark reviewed did not re-read the watchlists"
+        page.get_by_role("button", name="Undo").click()
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        page.wait_for_timeout(500)
+        assert badges(page) == ["2", "0"]
+        held[0][0].fulfill(response=held[0][1])  # the older answer arrives last
+        page.wait_for_timeout(500)
+        walk.shot("after-late-answer")
+>       assert badges(page) == ["2", "0"], f"the sidebar shows {badges(page)}: an older answer overwrote the newer one"
+E       AssertionError: the sidebar shows ['1', '0']: an older answer overwrote the newer one
+E       assert ['1', '0'] == ['2', '0']
+E         
+E         At index 0 diff: '1' != '2'
+E         Use -v to get more diff
+
+walks/test_explore_wr_an_older_sidebar_answer_overwrites_a_newer_one.py:44: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_explore_wr_check_refresh_clobbers_trial_origin.py::test_walk_a_check_finishing_after_leaving_new_matches_does_not_change_where_find_trials_details_came_from[1440x900]
+FAILED walks/test_explore_wr_check_refresh_clobbers_trial_origin.py::test_walk_a_check_finishing_after_leaving_new_matches_does_not_change_where_find_trials_details_came_from[1024x768]
+FAILED walks/test_explore_wr_an_older_sidebar_answer_overwrites_a_newer_one.py::test_walk_a_late_older_sidebar_answer_does_not_overwrite_the_newer_badges[1440x900]
+FAILED walks/test_explore_wr_an_older_sidebar_answer_overwrites_a_newer_one.py::test_walk_a_late_older_sidebar_answer_does_not_overwrite_the_newer_badges[1024x768]
+4 failed in 9.06s

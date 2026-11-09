@@ -1,0 +1,35 @@
+# tip 0014e05d9632dffffe8c8a9407ced47de2dee4fd
+........................F............................................... [ 15%]
+........................................................................ [ 31%]
+........................................................................ [ 47%]
+........................................................................ [ 63%]
+........................................................................ [ 79%]
+........................................................................ [ 95%]
+......................                                                   [100%]
+=================================== FAILURES ===================================
+_________ test_a_check_pauses_between_trials_and_not_before_the_first __________
+
+watched = <conftest.api.<locals>.Client object at 0x10b57de80>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b6834d0>
+
+    def test_a_check_pauses_between_trials_and_not_before_the_first(watched, monkeypatch):
+        """test_a_check_pauses_between_trials_and_not_before_the_first"""
+        import types
+    
+        import webapp.api_checks as api_checks
+    
+        pauses = []
+        monkeypatch.setattr(monitor, "PAUSE", 0.25)
+        monkeypatch.setattr(api_checks, "time", types.SimpleNamespace(sleep=pauses.append))
+        watched.post(f"/api/watchlists/{LIST_ID}/check")
+        finished(watched)
+>       assert pauses == [0.25, 0.25]
+E       assert [0, 0] == [0.25, 0.25]
+E         
+E         At index 0 diff: 0 != 0.25
+E         Use -v to get more diff
+
+tests/test_api_checks.py:240: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_api_checks.py::test_a_check_pauses_between_trials_and_not_before_the_first
+1 failed, 453 passed in 47.09s

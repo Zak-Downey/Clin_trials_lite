@@ -1,0 +1,34 @@
+# tip 45a3a90e361cd2690e815af2973cab67fec19b71
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-walk-runner-reruns-a-failed-walk-alone-followup/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+tmp_path = PosixPath('/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-1043/popen-gw2/test_runner_takes_targets_from0')
+capsys = <_pytest.capture.CaptureFixture object at 0x10bc74e90>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10bc75220>
+
+    def test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re_run(tmp_path, capsys, monkeypatch):
+        """test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re_run"""
+        (tmp_path / "test_wanted.py").write_text("def test_wanted():\n    assert False\n")
+        (tmp_path / "test_other.py").write_text("def test_other():\n    assert False\n")
+        monkeypatch.chdir(tmp_path)
+        _, out = run_in(tmp_path, capsys, args=["test_wanted.py", "--tb=short"], targets=())
+        names = [t for _, t, _, _ in checks.walk_results(out)]
+>       assert names == ["test_wanted"]
+E       AssertionError: assert [] == ['test_wanted']
+E         
+E         Right contains one more item: 'test_wanted'
+E         Use -v to get more diff
+
+/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-walk-runner-reruns-a-failed-walk-alone-followup/walks/test_run_walks.py:122: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_run_walks.py::test_runner_reports_red_alone_and_red_under_load_green_alone_in_one_run
+FAILED walks/test_run_walks.py::test_gate_reads_the_runner_verdicts_with_walk_results
+FAILED walks/test_run_walks.py::test_runner_re_runs_at_most_ten_red_walks_alone_and_lists_the_rest_as_red
+FAILED walks/test_run_walks.py::test_runner_keeps_the_alone_output_of_same_named_walks_in_different_files_apart
+FAILED walks/test_run_walks.py::test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re_run
+5 failed, 279 passed in 112.59s (0:01:52)
+
+## Result
+walks/test_run_walks.py::test_runner_reports_red_alone_and_red_under_load_green_alone_in_one_run -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-walk-runner-reruns-a-failed-walk-alone-followup/.scratch/html-front-end/walks/alone-test-runner-reports-red-alone-and-red-under-load-green-alone-in-one-run.txt)
+walks/test_run_walks.py::test_gate_reads_the_runner_verdicts_with_walk_results -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-walk-runner-reruns-a-failed-walk-alone-followup/.scratch/html-front-end/walks/alone-test-gate-reads-the-runner-verdicts-with-walk-results.txt)
+walks/test_run_walks.py::test_runner_re_runs_at_most_ten_red_walks_alone_and_lists_the_rest_as_red -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-walk-runner-reruns-a-failed-walk-alone-followup/.scratch/html-front-end/walks/alone-test-runner-re-runs-at-most-ten-red-walks-alone-and-lists-the-rest-as-red.txt)
+walks/test_run_walks.py::test_runner_keeps_the_alone_output_of_same_named_walks_in_different_files_apart -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-walk-runner-reruns-a-failed-walk-alone-followup/.scratch/html-front-end/walks/alone-test-runner-keeps-the-alone-output-of-same-named-walks-in-different-files-apart.txt)
+walks/test_run_walks.py::test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re_run -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-walk-runner-reruns-a-failed-walk-alone-followup/.scratch/html-front-end/walks/alone-test-runner-takes-targets-from-its-command-line-and-gives-options-to-each-re-run.txt)

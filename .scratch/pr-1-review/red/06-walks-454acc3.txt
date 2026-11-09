@@ -1,0 +1,445 @@
+# tip 454acc3b9b4e628e37eb8f344682ca6146cb66b0
+..FF..FF..FF......FF............FF                                       [100%]
+=================================== FAILURES ===================================
+_ test_walk_submitting_with_none_of_the_four_shows_the_error_and_keeps_every_value[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10c0b4ea0>
+make_walk = <function make_walk.<locals>.build at 0x10c074f40>
+
+    def test_walk_submitting_with_none_of_the_four_shows_the_error_and_keeps_every_value(make_app, make_walk):
+        """test_walk_submitting_with_none_of_the_four_shows_the_error_and_keeps_every_value"""
+        _, walk = open_find(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="More filters").click()
+>       page.get_by_role("group", name="Lead sponsor type").get_by_label("Industry").check()
+
+walks/test_find_trials_walk.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10bc94980>
+cb = <function Channel.send.<locals>.<lambda> at 0x10c0dde40>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("group", name="Lead sponsor type").get_by_label("Industry")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_submitting_with_none_of_the_four_shows_the_error_and_keeps_every_value[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10c126d40>
+make_walk = <function make_walk.<locals>.build at 0x10c126a20>
+
+    def test_walk_submitting_with_none_of_the_four_shows_the_error_and_keeps_every_value(make_app, make_walk):
+        """test_walk_submitting_with_none_of_the_four_shows_the_error_and_keeps_every_value"""
+        _, walk = open_find(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="More filters").click()
+>       page.get_by_role("group", name="Lead sponsor type").get_by_label("Industry").check()
+
+walks/test_find_trials_walk.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10bc94980>
+cb = <function Channel.send.<locals>.<lambda> at 0x10c156a20>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("group", name="Lead sponsor type").get_by_label("Industry")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_more_filters_starts_folded_and_opens_with_its_help_visible[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10c1cee80>
+make_walk = <function make_walk.<locals>.build at 0x10c12d300>
+
+    def test_walk_more_filters_starts_folded_and_opens_with_its_help_visible(make_app, make_walk):
+        """test_walk_more_filters_starts_folded_and_opens_with_its_help_visible"""
+        _, walk = open_find(make_app, make_walk)
+        page = walk.page
+        sponsor_help = page.get_by_text("Sponsor type uses the lead sponsor, not collaborators")
+        date_help = page.get_by_text("Date filters exclude trials without a reported start date")
+        assert not sponsor_help.is_visible() and not date_help.is_visible()
+        toggle = page.get_by_role("button", name="More filters")
+        assert toggle.get_attribute("aria-expanded") == "false"
+        toggle.click()
+        assert toggle.get_attribute("aria-expanded") == "true"
+        assert sponsor_help.is_visible() and date_help.is_visible()
+>       assert page.get_by_role("group", name="Lead sponsor type").is_visible()
+E       assert False
+E        +  where False = is_visible()
+E        +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:60715/#/find'> selector='internal:role=group[name="Lead sponsor type"i]'>.is_visible
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:60715/#/find'> selector='internal:role=group[name="Lead sponsor type"i]'> = get_by_role('group', name='Lead sponsor type')
+E        +        where get_by_role = <Page url='http://127.0.0.1:60715/#/find'>.get_by_role
+
+walks/test_find_trials_walk.py:89: AssertionError
+_ test_walk_more_filters_starts_folded_and_opens_with_its_help_visible[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10c230e00>
+make_walk = <function make_walk.<locals>.build at 0x10c2311c0>
+
+    def test_walk_more_filters_starts_folded_and_opens_with_its_help_visible(make_app, make_walk):
+        """test_walk_more_filters_starts_folded_and_opens_with_its_help_visible"""
+        _, walk = open_find(make_app, make_walk)
+        page = walk.page
+        sponsor_help = page.get_by_text("Sponsor type uses the lead sponsor, not collaborators")
+        date_help = page.get_by_text("Date filters exclude trials without a reported start date")
+        assert not sponsor_help.is_visible() and not date_help.is_visible()
+        toggle = page.get_by_role("button", name="More filters")
+        assert toggle.get_attribute("aria-expanded") == "false"
+        toggle.click()
+        assert toggle.get_attribute("aria-expanded") == "true"
+        assert sponsor_help.is_visible() and date_help.is_visible()
+>       assert page.get_by_role("group", name="Lead sponsor type").is_visible()
+E       assert False
+E        +  where False = is_visible()
+E        +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:60814/#/find'> selector='internal:role=group[name="Lead sponsor type"i]'>.is_visible
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:60814/#/find'> selector='internal:role=group[name="Lead sponsor type"i]'> = get_by_role('group', name='Lead sponsor type')
+E        +        where get_by_role = <Page url='http://127.0.0.1:60814/#/find'>.get_by_role
+
+walks/test_find_trials_walk.py:89: AssertionError
+_ test_walk_after_results_the_form_is_a_one_line_summary_and_edit_search_keeps_every_value[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10bd10400>
+make_walk = <function make_walk.<locals>.build at 0x10c37eca0>
+
+    def test_walk_after_results_the_form_is_a_one_line_summary_and_edit_search_keeps_every_value(make_app, make_walk):
+        """test_walk_after_results_the_form_is_a_one_line_summary_and_edit_search_keeps_every_value"""
+        _, walk = open_find(make_app, make_walk)
+        page = walk.page
+        page.get_by_label("Condition").fill("Multiple myeloma")
+        page.get_by_label("Sponsor", exact=True).fill("Janssen")
+        page.get_by_role("button", name="Phase 3", exact=True).click()
+        page.get_by_role("button", name="More filters").click()
+>       page.get_by_role("group", name="Lead sponsor type").get_by_label("Industry").check()
+
+walks/test_find_trials_walk.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10bc94980>
+cb = <function Channel.send.<locals>.<lambda> at 0x10c34bd80>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("group", name="Lead sponsor type").get_by_label("Industry")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_after_results_the_form_is_a_one_line_summary_and_edit_search_keeps_every_value[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10c37ccc0>
+make_walk = <function make_walk.<locals>.build at 0x10c37d1c0>
+
+    def test_walk_after_results_the_form_is_a_one_line_summary_and_edit_search_keeps_every_value(make_app, make_walk):
+        """test_walk_after_results_the_form_is_a_one_line_summary_and_edit_search_keeps_every_value"""
+        _, walk = open_find(make_app, make_walk)
+        page = walk.page
+        page.get_by_label("Condition").fill("Multiple myeloma")
+        page.get_by_label("Sponsor", exact=True).fill("Janssen")
+        page.get_by_role("button", name="Phase 3", exact=True).click()
+        page.get_by_role("button", name="More filters").click()
+>       page.get_by_role("group", name="Lead sponsor type").get_by_label("Industry").check()
+
+walks/test_find_trials_walk.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:10875: in check
+    self._sync(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:157: in check
+    return await self._frame.check(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:913: in check
+    await self._channel.send("check", self._timeout, locals_to_params(locals()))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10bc94980>
+cb = <function Channel.send.<locals>.<lambda> at 0x10c212c00>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.check: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("group", name="Lead sponsor type").get_by_label("Industry")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_dates_with_no_retry[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10c1844a0>
+make_walk = <function make_walk.<locals>.build at 0x10c3c5440>
+
+    def test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_dates_with_no_retry(make_app, make_walk):
+        """test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_dates_with_no_retry"""
+        app, walk = open_find(make_app, make_walk)
+        page = walk.page
+        walk.expect(400, "/api/search")
+        page.get_by_label("Condition").fill("many")
+        page.get_by_role("button", name="More filters").click()
+        page.get_by_label("Study started from").fill("2022-01-01")
+        page.get_by_label("Study started to").fill("2020-01-01")
+        page.get_by_role("button", name="Search trials").click()
+        message = page.get_by_text("Swap the two dates.")
+        message.wait_for()
+        assert page.get_by_role("button", name="More filters").get_attribute("aria-expanded") == "true"
+        assert page.get_by_label("Study started from").is_visible() and message.is_visible()
+        dates = page.locator(".dates")
+>       assert dates.get_by_text("Swap the two dates.").count() == 1  # beside the date fields
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert 0 == 1
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:64114/#/find?cond=many&started_from=2022-01-01&started_to=2020-01-01&page=1'> selector='.dates >> internal:text="Swap the two dates."i'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64114/#/find?cond=many&started_from=2022-01-01&started_to=2020-01-01&page=1'> selector='.dates >> internal:text="Swap the two dates."i'> = get_by_text('Swap the two dates.')
+E        +        where get_by_text = <Locator frame=<Frame name= url='http://127.0.0.1:64114/#/find?cond=many&started_from=2022-01-01&started_to=2020-01-01&page=1'> selector='.dates'>.get_by_text
+
+walks/test_find_trials_walk.py:221: AssertionError
+_ test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_dates_with_no_retry[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10c245440>
+make_walk = <function make_walk.<locals>.build at 0x10c2458a0>
+
+    def test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_dates_with_no_retry(make_app, make_walk):
+        """test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_dates_with_no_retry"""
+        app, walk = open_find(make_app, make_walk)
+        page = walk.page
+        walk.expect(400, "/api/search")
+        page.get_by_label("Condition").fill("many")
+        page.get_by_role("button", name="More filters").click()
+        page.get_by_label("Study started from").fill("2022-01-01")
+        page.get_by_label("Study started to").fill("2020-01-01")
+        page.get_by_role("button", name="Search trials").click()
+        message = page.get_by_text("Swap the two dates.")
+        message.wait_for()
+        assert page.get_by_role("button", name="More filters").get_attribute("aria-expanded") == "true"
+        assert page.get_by_label("Study started from").is_visible() and message.is_visible()
+        dates = page.locator(".dates")
+>       assert dates.get_by_text("Swap the two dates.").count() == 1  # beside the date fields
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert 0 == 1
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:64203/#/find?cond=many&started_from=2022-01-01&started_to=2020-01-01&page=1'> selector='.dates >> internal:text="Swap the two dates."i'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64203/#/find?cond=many&started_from=2022-01-01&started_to=2020-01-01&page=1'> selector='.dates >> internal:text="Swap the two dates."i'> = get_by_text('Swap the two dates.')
+E        +        where get_by_text = <Locator frame=<Frame name= url='http://127.0.0.1:64203/#/find?cond=many&started_from=2022-01-01&started_to=2020-01-01&page=1'> selector='.dates'>.get_by_text
+
+walks/test_find_trials_walk.py:221: AssertionError
+_ test_walk_a_saved_search_with_two_sponsor_types_keeps_both_through_manage_edit_search_and_search_trials[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10d36d760>
+make_walk = <function make_walk.<locals>.build at 0x10d4e1d00>
+
+    def test_walk_a_saved_search_with_two_sponsor_types_keeps_both_through_manage_edit_search_and_search_trials(make_app, make_walk):
+        """test_walk_a_saved_search_with_two_sponsor_types_keeps_both_through_manage_edit_search_and_search_trials"""
+        app = make_app(seed=seed_two_sponsor_types)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/watchlists/3/needs-review")  # Funded
+        page.get_by_role("heading", level=1, name="Funded").wait_for()
+        page.get_by_role("button", name="Manage").click()
+        dialog(page, "Manage saved search").get_by_role("link", name="Edit search").click()
+        page.get_by_role("heading", name="134 matches").wait_for()
+        assert "Industry or NIH" in page.locator(".summary .meta").inner_text()
+        page.get_by_role("button", name="Edit search").click()
+        sponsors = page.get_by_role("group", name="Lead sponsor type")
+>       assert sponsors.get_by_label("Industry").is_checked() and sponsors.get_by_label("NIH", exact=True).is_checked()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+walks/test_saved_search_walk.py:246: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:12492: in is_checked
+    self._sync(self._impl_obj.is_checked(timeout=to_milliseconds(timeout)))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:530: in is_checked
+    return await self._frame.is_checked(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:403: in is_checked
+    return await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10bc94980>
+cb = <function Channel.send.<locals>.<lambda> at 0x10d4e0040>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.is_checked: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("group", name="Lead sponsor type").get_by_label("Industry")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+_ test_walk_a_saved_search_with_two_sponsor_types_keeps_both_through_manage_edit_search_and_search_trials[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10d4137e0>
+make_walk = <function make_walk.<locals>.build at 0x10d412f20>
+
+    def test_walk_a_saved_search_with_two_sponsor_types_keeps_both_through_manage_edit_search_and_search_trials(make_app, make_walk):
+        """test_walk_a_saved_search_with_two_sponsor_types_keeps_both_through_manage_edit_search_and_search_trials"""
+        app = make_app(seed=seed_two_sponsor_types)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/watchlists/3/needs-review")  # Funded
+        page.get_by_role("heading", level=1, name="Funded").wait_for()
+        page.get_by_role("button", name="Manage").click()
+        dialog(page, "Manage saved search").get_by_role("link", name="Edit search").click()
+        page.get_by_role("heading", name="134 matches").wait_for()
+        assert "Industry or NIH" in page.locator(".summary .meta").inner_text()
+        page.get_by_role("button", name="Edit search").click()
+        sponsors = page.get_by_role("group", name="Lead sponsor type")
+>       assert sponsors.get_by_label("Industry").is_checked() and sponsors.get_by_label("NIH", exact=True).is_checked()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+walks/test_saved_search_walk.py:246: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py:12492: in is_checked
+    self._sync(self._impl_obj.is_checked(timeout=to_milliseconds(timeout)))
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py:530: in is_checked
+    return await self._frame.is_checked(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py:403: in is_checked
+    return await self._channel.send(
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x10bc94980>
+cb = <function Channel.send.<locals>.<lambda> at 0x10d38f4c0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Locator.is_checked: Timeout 5000ms exceeded.
+E           Call log:
+E             - waiting for get_by_role("group", name="Lead sponsor type").get_by_label("Industry")
+
+../../../.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py:636: TimeoutError
+=========================== short test summary info ============================
+FAILED walks/test_find_trials_walk.py::test_walk_submitting_with_none_of_the_four_shows_the_error_and_keeps_every_value[1440x900]
+FAILED walks/test_find_trials_walk.py::test_walk_submitting_with_none_of_the_four_shows_the_error_and_keeps_every_value[1024x768]
+FAILED walks/test_find_trials_walk.py::test_walk_more_filters_starts_folded_and_opens_with_its_help_visible[1440x900]
+FAILED walks/test_find_trials_walk.py::test_walk_more_filters_starts_folded_and_opens_with_its_help_visible[1024x768]
+FAILED walks/test_find_trials_walk.py::test_walk_after_results_the_form_is_a_one_line_summary_and_edit_search_keeps_every_value[1440x900]
+FAILED walks/test_find_trials_walk.py::test_walk_after_results_the_form_is_a_one_line_summary_and_edit_search_keeps_every_value[1024x768]
+FAILED walks/test_find_trials_walk.py::test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_dates_with_no_retry[1440x900]
+FAILED walks/test_find_trials_walk.py::test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_dates_with_no_retry[1024x768]
+FAILED walks/test_saved_search_walk.py::test_walk_a_saved_search_with_two_sponsor_types_keeps_both_through_manage_edit_search_and_search_trials[1440x900]
+FAILED walks/test_saved_search_walk.py::test_walk_a_saved_search_with_two_sponsor_types_keeps_both_through_manage_edit_search_and_search_trials[1024x768]
+10 failed, 24 passed in 57.11s

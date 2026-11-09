@@ -2,7 +2,7 @@
 
 The table is one row per trial carrying the study's identity and what last
 moved on it. Both are derived here, in monitor, so the page stays a thin view
-and the derivation can be tested without running Streamlit.
+and the derivation can be tested on its own.
 """
 
 from __future__ import annotations

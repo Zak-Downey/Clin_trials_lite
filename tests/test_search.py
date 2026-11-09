@@ -393,3 +393,51 @@ def test_a_window_ending_on_the_day_it_starts_is_allowed(make_finder):
     monitor.search(cond="cll", started_from="2024-01-01", started_to="2024-01-01", find=finder)
 
     assert finder.calls
+
+
+def test_the_registry_is_reached_with_the_machines_certificate_store(monkeypatch):
+    """test_the_registry_is_reached_with_the_machines_certificate_store"""
+    import io
+    import urllib.request
+
+    seen = {}
+
+    def fake_urlopen(req, timeout=None, context=None):
+        seen["context"] = context
+        return io.BytesIO(b"{}")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    ctgov._get("/version", {})
+    assert seen["context"] is ctgov._SSL_CTX
+
+
+def test_the_two_refusals_carry_their_own_kinds_whatever_their_wording_says(monkeypatch):
+    """test_the_two_refusals_carry_their_own_kinds_whatever_their_wording_says"""
+    with pytest.raises(monitor.MonitorError) as empty:
+        monitor._refuse_unanswerable(monitor.as_query())
+    with pytest.raises(monitor.MonitorError) as inverted:
+        monitor._refuse_unanswerable(monitor.as_query(cond="x", started_from="2022-01", started_to="2020-01"))
+    assert empty.value.kind == "nothing_asked" and inverted.value.kind == "bad_dates"
+    # reworded, each keeps its kind: nothing reads the message to tell them apart
+    monkeypatch.setattr(monitor, "NOTHING_ASKED", "Type something first.")
+    with pytest.raises(monitor.MonitorError) as reworded:
+        monitor._refuse_unanswerable(monitor.as_query())
+    assert reworded.value.kind == "nothing_asked" and str(reworded.value) == "Type something first."
+
+
+def test_find_page_asks_for_every_page_up_to_this_one_and_returns_only_this_pages_ten(monkeypatch):
+    """test_find_page_asks_for_every_page_up_to_this_one_and_returns_only_this_pages_ten"""
+    seen = []
+
+    def fake_get(path, params):
+        seen.append((path, params))
+        return {"studies": [{"n": n} for n in range(25)], "totalCount": 137}
+
+    monkeypatch.setattr(ctgov, "_get", fake_get)
+    answer = ctgov.find_page(cond="myeloma", page=2)
+    assert seen[0][0] == "/studies"
+    assert seen[0][1]["pageSize"] == 20
+    assert seen[0][1]["countTotal"] == "true"
+    assert seen[0][1]["query.cond"] == "myeloma"
+    assert answer["studies"] == [{"n": n} for n in range(10, 20)]
+    assert answer["total"] == 137

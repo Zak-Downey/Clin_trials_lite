@@ -1,0 +1,322 @@
+# tip e6f6d7c56cea6f6085d54db35bb162e7911de5eb
+..................................................FFFFFFFFF............. [ 13%]
+........................................................................ [ 27%]
+......F......FF.......FFF............................................... [ 41%]
+........................................................................ [ 55%]
+........................................................................ [ 69%]
+........................................................................ [ 83%]
+........................................................................ [ 97%]
+...............                                                          [100%]
+=================================== FAILURES ===================================
+_ test_this_week_runs_monday_to_sunday_and_filters_on_detection_in_the_local_zone _
+
+seeded = <conftest.api.<locals>.Client object at 0x106d2c3a0>
+
+    def test_this_week_runs_monday_to_sunday_and_filters_on_detection_in_the_local_zone(seeded):
+        """test_this_week_runs_monday_to_sunday_and_filters_on_detection_in_the_local_zone"""
+>       body = summary(seeded, "period=week")
+
+tests/test_api_summary.py:65: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+api = <conftest.api.<locals>.Client object at 0x106d2c3a0>
+query = 'period=week'
+
+    def summary(api, query):
+        status, body = api.get(f"/api/watchlists/{LIST_ID}/summary?today={TODAY}&{query}")
+>       assert status == 200, body
+E       AssertionError: {'error': {'kind': 'not_found', 'message': 'There is nothing at this address.'}}
+E       assert 404 == 200
+
+tests/test_api_summary.py:59: AssertionError
+______ test_this_month_is_the_calendar_month_and_reviewed_changes_stay_in ______
+
+seeded = <conftest.api.<locals>.Client object at 0x106e98550>
+
+    def test_this_month_is_the_calendar_month_and_reviewed_changes_stay_in(seeded):
+        """test_this_month_is_the_calendar_month_and_reviewed_changes_stay_in"""
+>       body = summary(seeded, "period=month")
+
+tests/test_api_summary.py:75: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+api = <conftest.api.<locals>.Client object at 0x106e98550>
+query = 'period=month'
+
+    def summary(api, query):
+        status, body = api.get(f"/api/watchlists/{LIST_ID}/summary?today={TODAY}&{query}")
+>       assert status == 200, body
+E       AssertionError: {'error': {'kind': 'not_found', 'message': 'There is nothing at this address.'}}
+E       assert 404 == 200
+
+tests/test_api_summary.py:59: AssertionError
+________________ test_a_custom_range_is_inclusive_and_validated ________________
+
+seeded = <conftest.api.<locals>.Client object at 0x106ef1430>
+
+    def test_a_custom_range_is_inclusive_and_validated(seeded):
+        """test_a_custom_range_is_inclusive_and_validated"""
+>       body = summary(seeded, "period=custom&from=2026-10-20&to=2026-10-20")
+
+tests/test_api_summary.py:85: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+api = <conftest.api.<locals>.Client object at 0x106ef1430>
+query = 'period=custom&from=2026-10-20&to=2026-10-20'
+
+    def summary(api, query):
+        status, body = api.get(f"/api/watchlists/{LIST_ID}/summary?today={TODAY}&{query}")
+>       assert status == 200, body
+E       AssertionError: {'error': {'kind': 'not_found', 'message': 'There is nothing at this address.'}}
+E       assert 404 == 200
+
+tests/test_api_summary.py:59: AssertionError
+___________________ test_an_unknown_watchlist_has_no_summary ___________________
+
+seeded = <conftest.api.<locals>.Client object at 0x106e86a90>
+
+    def test_an_unknown_watchlist_has_no_summary(seeded):
+        """test_an_unknown_watchlist_has_no_summary"""
+        status, err = seeded.get("/api/watchlists/99/summary?period=week")
+>       assert status == 404 and err["error"]["kind"] == "watchlist_not_found"
+E       AssertionError: assert (404 == 404 and 'not_found' == 'watchlist_not_found'
+E         
+E         - watchlist_not_found
+E         + not_found)
+
+tests/test_api_summary.py:96: AssertionError
+_ test_the_summary_keeps_every_transition_of_a_field_that_moved_in_two_checks_in_order _
+
+seeded = <conftest.api.<locals>.Client object at 0x106e83670>
+
+    def test_the_summary_keeps_every_transition_of_a_field_that_moved_in_two_checks_in_order(seeded):
+        """test_the_summary_keeps_every_transition_of_a_field_that_moved_in_two_checks_in_order"""
+>       body = summary(seeded, "period=month")
+
+tests/test_api_summary.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+api = <conftest.api.<locals>.Client object at 0x106e83670>
+query = 'period=month'
+
+    def summary(api, query):
+        status, body = api.get(f"/api/watchlists/{LIST_ID}/summary?today={TODAY}&{query}")
+>       assert status == 200, body
+E       AssertionError: {'error': {'kind': 'not_found', 'message': 'There is nothing at this address.'}}
+E       assert 404 == 200
+
+tests/test_api_summary.py:59: AssertionError
+______________ test_trials_carry_heading_link_and_simulated_flag _______________
+
+seeded = <conftest.api.<locals>.Client object at 0x106e98250>
+
+    def test_trials_carry_heading_link_and_simulated_flag(seeded):
+        """test_trials_carry_heading_link_and_simulated_flag"""
+>       body = summary(seeded, "period=week")
+
+tests/test_api_summary.py:118: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+api = <conftest.api.<locals>.Client object at 0x106e98250>
+query = 'period=week'
+
+    def summary(api, query):
+        status, body = api.get(f"/api/watchlists/{LIST_ID}/summary?today={TODAY}&{query}")
+>       assert status == 200, body
+E       AssertionError: {'error': {'kind': 'not_found', 'message': 'There is nothing at this address.'}}
+E       assert 404 == 200
+
+tests/test_api_summary.py:59: AssertionError
+_________________ test_the_text_has_each_trials_registry_link __________________
+
+seeded = <conftest.api.<locals>.Client object at 0x106e839a0>
+
+    def test_the_text_has_each_trials_registry_link(seeded):
+        """test_the_text_has_each_trials_registry_link"""
+>       body = summary(seeded, "period=week")
+
+tests/test_api_summary.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+api = <conftest.api.<locals>.Client object at 0x106e839a0>
+query = 'period=week'
+
+    def summary(api, query):
+        status, body = api.get(f"/api/watchlists/{LIST_ID}/summary?today={TODAY}&{query}")
+>       assert status == 200, body
+E       AssertionError: {'error': {'kind': 'not_found', 'message': 'There is nothing at this address.'}}
+E       assert 404 == 200
+
+tests/test_api_summary.py:59: AssertionError
+______ test_the_csv_has_one_row_per_field_change_with_the_agreed_columns _______
+
+seeded = <conftest.api.<locals>.Client object at 0x106e72ee0>
+
+    def test_the_csv_has_one_row_per_field_change_with_the_agreed_columns(seeded):
+        """test_the_csv_has_one_row_per_field_change_with_the_agreed_columns"""
+>       body = summary(seeded, "period=month")
+
+tests/test_api_summary.py:135: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+api = <conftest.api.<locals>.Client object at 0x106e72ee0>
+query = 'period=month'
+
+    def summary(api, query):
+        status, body = api.get(f"/api/watchlists/{LIST_ID}/summary?today={TODAY}&{query}")
+>       assert status == 200, body
+E       AssertionError: {'error': {'kind': 'not_found', 'message': 'There is nothing at this address.'}}
+E       assert 404 == 200
+
+tests/test_api_summary.py:59: AssertionError
+_________________ test_an_empty_period_has_no_file_and_says_so _________________
+
+seeded = <conftest.api.<locals>.Client object at 0x106e72970>
+
+    def test_an_empty_period_has_no_file_and_says_so(seeded):
+        """test_an_empty_period_has_no_file_and_says_so"""
+>       body = summary(seeded, "period=custom&from=2026-01-01&to=2026-01-31")
+
+tests/test_api_summary.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+api = <conftest.api.<locals>.Client object at 0x106e72970>
+query = 'period=custom&from=2026-01-01&to=2026-01-31'
+
+    def summary(api, query):
+        status, body = api.get(f"/api/watchlists/{LIST_ID}/summary?today={TODAY}&{query}")
+>       assert status == 200, body
+E       AssertionError: {'error': {'kind': 'not_found', 'message': 'There is nothing at this address.'}}
+E       assert 404 == 200
+
+tests/test_api_summary.py:59: AssertionError
+____________ test_the_csv_carries_one_row_per_move_with_both_dates _____________
+
+watched = <sqlite3.Connection object at 0x1110fa300>
+detect = <function detect.<locals>.run at 0x110fffdc0>
+
+    def test_the_csv_carries_one_row_per_move_with_both_dates(watched, detect):
+        detect("2026-03-10T09:00:00+00:00", "2026-02-14", enrolment=300)
+    
+        rows = rows_of(briefing.as_csv(summary(watched, "2026-03-01", "2026-03-31")))
+    
+        assert len(rows) == 1
+        assert rows[0]["NCT ID"] == NCT
+        assert rows[0]["Field"] == display.label("enrollment")
+        # Enrolment carries the registry's word for it, which travels with the value.
+>       assert rows[0]["New value"].startswith("300")
+E       KeyError: 'New value'
+
+tests/test_briefing.py:284: KeyError
+_______________ test_a_simulated_move_is_marked_in_every_csv_row _______________
+
+simulated = <sqlite3.Connection object at 0x1110faa80>
+
+    def test_a_simulated_move_is_marked_in_every_csv_row(simulated):
+        rows = rows_of(briefing.as_csv(summary(simulated, "2026-03-01", "2026-03-31")))
+    
+        assert rows
+>       assert all(row["Simulated"] == briefing.SYNTHETIC for row in rows)
+
+tests/test_briefing.py:379: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x111029e80>
+
+>   assert all(row["Simulated"] == briefing.SYNTHETIC for row in rows)
+E   KeyError: 'Simulated'
+
+tests/test_briefing.py:379: KeyError
+_________________ test_a_real_move_is_not_marked_as_simulated __________________
+
+watched = <sqlite3.Connection object at 0x1110fa030>
+detect = <function detect.<locals>.run at 0x111106280>
+
+    def test_a_real_move_is_not_marked_as_simulated(watched, detect):
+        detect("2026-03-10T09:00:00+00:00", "2026-03-09", enrolment=300)
+    
+        reported = summary(watched, "2026-03-01", "2026-03-31")
+    
+        assert display.SYNTHETIC not in briefing.as_text(reported)
+>       assert rows_of(briefing.as_csv(reported))[0]["Simulated"] == ""
+E       KeyError: 'Simulated'
+
+tests/test_briefing.py:388: KeyError
+________ test_period_ranges_run_monday_to_sunday_and_the_calendar_month ________
+
+    def test_period_ranges_run_monday_to_sunday_and_the_calendar_month():
+        """test_period_ranges_run_monday_to_sunday_and_the_calendar_month"""
+        wednesday = datetime.date(2026, 9, 9)
+>       assert briefing.period_range("week", wednesday) == (datetime.date(2026, 9, 7), datetime.date(2026, 9, 13))
+E       AttributeError: module 'briefing' has no attribute 'period_range'
+
+tests/test_briefing.py:447: AttributeError
+______________ test_a_range_is_read_in_the_zone_given_not_in_utc _______________
+
+watched = <sqlite3.Connection object at 0x106f8e210>
+detect = <function detect.<locals>.run at 0x111404ca0>
+
+    def test_a_range_is_read_in_the_zone_given_not_in_utc(watched, detect):
+        """test_a_range_is_read_in_the_zone_given_not_in_utc"""
+        detect("2026-03-31T20:00:00+00:00", "2026-03-30", enrolment=300)  # 1 April in Tokyo
+        tokyo = datetime.timezone(datetime.timedelta(hours=9))
+    
+        def over(start, end, zone):
+            return briefing.summarise(watched, only_list(watched), datetime.date.fromisoformat(start),
+                                      datetime.date.fromisoformat(end), zone)
+    
+>       assert over("2026-03-01", "2026-03-31", tokyo)["entries"] == []
+
+tests/test_briefing.py:465: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+start = '2026-03-01', end = '2026-03-31'
+zone = datetime.timezone(datetime.timedelta(seconds=32400))
+
+    def over(start, end, zone):
+>       return briefing.summarise(watched, only_list(watched), datetime.date.fromisoformat(start),
+                                  datetime.date.fromisoformat(end), zone)
+E       TypeError: summarise() takes 4 positional arguments but 5 were given
+
+tests/test_briefing.py:462: TypeError
+___________________ test_a_move_says_whether_it_was_reviewed ___________________
+
+watched = <sqlite3.Connection object at 0x110fe26c0>
+detect = <function detect.<locals>.run at 0x1112a39d0>
+
+    def test_a_move_says_whether_it_was_reviewed(watched, detect):
+        """test_a_move_says_whether_it_was_reviewed"""
+        detect("2026-03-05T09:00:00+00:00", "2026-03-04", enrolment=300)
+        monitor.review(watched, NCT)
+        detect("2026-03-20T09:00:00+00:00", "2026-03-19", status="TERMINATED")
+    
+        moves = summary(watched, "2026-03-01", "2026-03-31")["entries"][0]["moves"]
+    
+>       assert {m["field"]: m["reviewed"] for m in moves} == {"enrollment": True, "overallStatus": False}
+
+tests/test_briefing.py:478: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x111052a30>
+
+>   assert {m["field"]: m["reviewed"] for m in moves} == {"enrollment": True, "overallStatus": False}
+E   KeyError: 'reviewed'
+
+tests/test_briefing.py:478: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_api_summary.py::test_this_week_runs_monday_to_sunday_and_filters_on_detection_in_the_local_zone
+FAILED tests/test_api_summary.py::test_this_month_is_the_calendar_month_and_reviewed_changes_stay_in
+FAILED tests/test_api_summary.py::test_a_custom_range_is_inclusive_and_validated
+FAILED tests/test_api_summary.py::test_an_unknown_watchlist_has_no_summary - ...
+FAILED tests/test_api_summary.py::test_the_summary_keeps_every_transition_of_a_field_that_moved_in_two_checks_in_order
+FAILED tests/test_api_summary.py::test_trials_carry_heading_link_and_simulated_flag
+FAILED tests/test_api_summary.py::test_the_text_has_each_trials_registry_link
+FAILED tests/test_api_summary.py::test_the_csv_has_one_row_per_field_change_with_the_agreed_columns
+FAILED tests/test_api_summary.py::test_an_empty_period_has_no_file_and_says_so
+FAILED tests/test_briefing.py::test_the_csv_carries_one_row_per_move_with_both_dates
+FAILED tests/test_briefing.py::test_a_simulated_move_is_marked_in_every_csv_row
+FAILED tests/test_briefing.py::test_a_real_move_is_not_marked_as_simulated - ...
+FAILED tests/test_briefing.py::test_period_ranges_run_monday_to_sunday_and_the_calendar_month
+FAILED tests/test_briefing.py::test_a_range_is_read_in_the_zone_given_not_in_utc
+FAILED tests/test_briefing.py::test_a_move_says_whether_it_was_reviewed - Key...
+15 failed, 504 passed in 34.72s

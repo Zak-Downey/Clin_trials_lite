@@ -1,0 +1,1849 @@
+# tip ef08ff1d785246b6c48c18c1665107fa26ccf9ed
+bringing up nodes...
+bringing up nodes...
+
+FFFFFFFFFFFFFFFFFFFF.FF.FFFFFFFFFFFFFFFFFFF..F.FFF.FF.FFFFFFFFFFF.FFFFFF [ 92%]
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+_____ test_explore_an_empty_watchlist_can_be_renamed_and_deleted[1440x900] _____
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bcdd300>
+make_walk = <function make_walk.<locals>.build at 0x10bcdd620>
+
+    def test_explore_an_empty_watchlist_can_be_renamed_and_deleted(make_app, make_walk):
+        """test_explore_an_empty_watchlist_can_be_renamed_and_deleted"""
+        app = make_app()  # a fresh database: one empty default watchlist
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=2, name="Monitor your first trial").wait_for()
+        walk.shot("first-use-no-menu")
+        # A mistaken or unwanted empty watchlist has no way to be renamed or deleted.
+>       assert page.get_by_role("button", name="Watchlist actions").count() == 1
+E       assert 0 == 1
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:63157/#/watchlists/1/needs-review'> selector='internal:role=button[name="Watchlist actions"i]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:63157/#/watchlists/1/needs-review'> selector='internal:role=button[name="Watchlist actions"i]'> = get_by_role('button', name='Watchlist actions')
+E        +        where get_by_role = <Page url='http://127.0.0.1:63157/#/watchlists/1/needs-review'>.get_by_role
+
+walks/test_explore_dialogs_and_administration_dialogs_and_administration.py:35: AssertionError
+____ test_explore_focus_stays_in_the_page_after_next_and_previous[1440x900] ____
+[gw3] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10b8d9260>
+make_walk = <function make_walk.<locals>.build at 0x10b8d9580>
+
+    def test_explore_focus_stays_in_the_page_after_next_and_previous(make_app, make_walk):
+        """test_explore_focus_stays_in_the_page_after_next_and_previous"""
+        walk = open_find(make_app, make_walk, "#/find?cond=many")
+        page = walk.page
+        page.get_by_text("Page 1 of 10").wait_for()
+        page.get_by_role("button", name="Next").focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Page 2 of 10").wait_for()
+        walk.shot("after-next")
+>       assert not on_body(page), "paging with the keyboard drops focus to the top of the page"
+E       AssertionError: paging with the keyboard drops focus to the top of the page
+E       assert not True
+E        +  where True = on_body(<Page url='http://127.0.0.1:63156/#/find?cond=many&page=2'>)
+
+walks/test_explore_find_trials_focus_lost_after_redraw.py:41: AssertionError
+__ test_explore_the_delete_dialog_title_shows_a_long_unbroken_name[1440x900] ___
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10b6ed260>
+make_walk = <function make_walk.<locals>.build at 0x10b6ed580>
+
+    def test_explore_the_delete_dialog_title_shows_a_long_unbroken_name(make_app, make_walk):
+        """test_explore_the_delete_dialog_title_shows_a_long_unbroken_name"""
+        app = make_app(seed=seed_checked)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1, name=helper.LONG_NAME).wait_for()
+        open_menu_item(page, "Rename watchlist")
+        dialog = page.get_by_role("dialog", name="Rename watchlist")
+        dialog.get_by_label("Watchlist name").fill("W" * 120)
+        dialog.get_by_role("button", name="Save name").click()
+        dialog.wait_for(state="detached")
+        open_menu_item(page, "Delete watchlist")
+        title = page.get_by_role("dialog").get_by_role("heading", level=2)
+        walk.shot("long-delete-title")
+        # The name being deleted runs out of the dialog's box and is clipped.
+>       assert title.evaluate("e => e.scrollWidth <= e.clientWidth")
+E       AssertionError: assert False
+E        +  where False = evaluate('e => e.scrollWidth <= e.clientWidth')
+E        +    where evaluate = <Locator frame=<Frame name= url='http://127.0.0.1:63159/#/watchlists/1/needs-review'> selector='internal:role=dialog >> internal:role=heading[level=2]'>.evaluate
+
+walks/test_explore_dialogs_and_administration_dialogs_and_administration.py:73: AssertionError
+_____ test_explore_an_empty_watchlist_can_be_renamed_and_deleted[1024x768] _____
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bcdd3a0>
+make_walk = <function make_walk.<locals>.build at 0x10bcdf600>
+
+    def test_explore_an_empty_watchlist_can_be_renamed_and_deleted(make_app, make_walk):
+        """test_explore_an_empty_watchlist_can_be_renamed_and_deleted"""
+        app = make_app()  # a fresh database: one empty default watchlist
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=2, name="Monitor your first trial").wait_for()
+        walk.shot("first-use-no-menu")
+        # A mistaken or unwanted empty watchlist has no way to be renamed or deleted.
+>       assert page.get_by_role("button", name="Watchlist actions").count() == 1
+E       assert 0 == 1
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:63258/#/watchlists/1/needs-review'> selector='internal:role=button[name="Watchlist actions"i]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:63258/#/watchlists/1/needs-review'> selector='internal:role=button[name="Watchlist actions"i]'> = get_by_role('button', name='Watchlist actions')
+E        +        where get_by_role = <Page url='http://127.0.0.1:63258/#/watchlists/1/needs-review'>.get_by_role
+
+walks/test_explore_dialogs_and_administration_dialogs_and_administration.py:35: AssertionError
+__ test_explore_the_delete_dialog_title_shows_a_long_unbroken_name[1024x768] ___
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x110875940>
+make_walk = <function make_walk.<locals>.build at 0x10b6ef6a0>
+
+    def test_explore_the_delete_dialog_title_shows_a_long_unbroken_name(make_app, make_walk):
+        """test_explore_the_delete_dialog_title_shows_a_long_unbroken_name"""
+        app = make_app(seed=seed_checked)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1, name=helper.LONG_NAME).wait_for()
+        open_menu_item(page, "Rename watchlist")
+        dialog = page.get_by_role("dialog", name="Rename watchlist")
+        dialog.get_by_label("Watchlist name").fill("W" * 120)
+        dialog.get_by_role("button", name="Save name").click()
+        dialog.wait_for(state="detached")
+        open_menu_item(page, "Delete watchlist")
+        title = page.get_by_role("dialog").get_by_role("heading", level=2)
+        walk.shot("long-delete-title")
+        # The name being deleted runs out of the dialog's box and is clipped.
+>       assert title.evaluate("e => e.scrollWidth <= e.clientWidth")
+E       AssertionError: assert False
+E        +  where False = evaluate('e => e.scrollWidth <= e.clientWidth')
+E        +    where evaluate = <Locator frame=<Frame name= url='http://127.0.0.1:63287/#/watchlists/1/needs-review'> selector='internal:role=dialog >> internal:role=heading[level=2]'>.evaluate
+
+walks/test_explore_dialogs_and_administration_dialogs_and_administration.py:73: AssertionError
+_ test_explore_full_recheck_while_a_check_runs_says_why_nothing_started[1440x900] _
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1078ed300>
+make_walk = <function make_walk.<locals>.build at 0x1078ed620>
+registry = <walks.helper.Registry object at 0x1074530e0>
+
+    def test_explore_full_recheck_while_a_check_runs_says_why_nothing_started(make_app, make_walk, registry):
+        """test_explore_full_recheck_while_a_check_runs_says_why_nothing_started"""
+        app = make_app(seed=seed_checked)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1, name=helper.LONG_NAME).wait_for()
+        registry.set("slow", True, delay=3)
+        page.get_by_role("button", name="Check for updates").click()
+        page.get_by_text("Checking for updates…").wait_for()
+        walk.expect(409, "/api/watchlists/1/recheck")
+        open_menu_item(page, "Full recheck")
+        page.get_by_role("dialog").get_by_role("button", name="Start full recheck").click()
+        page.wait_for_function("!document.querySelector('dialog')")
+        page.wait_for_timeout(500)
+        walk.shot("recheck-while-busy")
+        # The dialog closed as if it had started; the refusal is never shown to the user.
+>       assert "already" in page.locator("#view").inner_text().lower().replace("a check is already running.", "") \
+            or page.locator("#view .error").count() > 0
+E       AssertionError: assert ('already' in 'non-small cell lung cancer: pd-1 and pd-l1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · enrollment · interventions\n\nsimulated changes\n\ndetected nov 8, 2026, 4:00 am est\n\n3 changes\nreview changes' or 0 > 0)
+E        +  where 'non-small cell lung cancer: pd-1 and pd-l1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · enrollment · interventions\n\nsimulated changes\n\ndetected nov 8, 2026, 4:00 am est\n\n3 changes\nreview changes' = <built-in method replace of str object at 0xcb3be2800>('a check is already running.', '')
+E        +    where <built-in method replace of str object at 0xcb3be2800> = 'non-small cell lung cancer: pd-1 and pd-l1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · enrollment · interventions\n\nsimulated changes\n\ndetected nov 8, 2026, 4:00 am est\n\n3 changes\nreview changes'.replace
+E        +      where 'non-small cell lung cancer: pd-1 and pd-l1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · enrollment · interventions\n\nsimulated changes\n\ndetected nov 8, 2026, 4:00 am est\n\n3 changes\nreview changes' = <built-in method lower of str object at 0xcb2be4a00>()
+E        +        where <built-in method lower of str object at 0xcb2be4a00> = 'Non-small cell lung cancer: PD-1 and PD-L1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · Enrollment · Interventions\n\nSimulated changes\n\nDetected Nov 8, 2026, 4:00 AM EST\n\n3 changes\nReview changes'.lower
+E        +          where 'Non-small cell lung cancer: PD-1 and PD-L1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · Enrollment · Interventions\n\nSimulated changes\n\nDetected Nov 8, 2026, 4:00 AM EST\n\n3 changes\nReview changes' = inner_text()
+E        +            where inner_text = <Locator frame=<Frame name= url='http://127.0.0.1:63158/#/watchlists/1/needs-review'> selector='#view'>.inner_text
+E        +              where <Locator frame=<Frame name= url='http://127.0.0.1:63158/#/watchlists/1/needs-review'> selector='#view'> = locator('#view')
+E        +                where locator = <Page url='http://127.0.0.1:63158/#/watchlists/1/needs-review'>.locator
+E        +  and   0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:63158/#/watchlists/1/needs-review'> selector='#view .error'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:63158/#/watchlists/1/needs-review'> selector='#view .error'> = locator('#view .error')
+E        +        where locator = <Page url='http://127.0.0.1:63158/#/watchlists/1/needs-review'>.locator
+
+walks/test_explore_dialogs_and_administration_dialogs_and_administration.py:109: AssertionError
+____ test_explore_focus_stays_in_the_page_after_next_and_previous[1024x768] ____
+[gw3] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10b8d9440>
+make_walk = <function make_walk.<locals>.build at 0x10b9cc400>
+
+    def test_explore_focus_stays_in_the_page_after_next_and_previous(make_app, make_walk):
+        """test_explore_focus_stays_in_the_page_after_next_and_previous"""
+        walk = open_find(make_app, make_walk, "#/find?cond=many")
+        page = walk.page
+        page.get_by_text("Page 1 of 10").wait_for()
+        page.get_by_role("button", name="Next").focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Page 2 of 10").wait_for()
+        walk.shot("after-next")
+>       assert not on_body(page), "paging with the keyboard drops focus to the top of the page"
+E       AssertionError: paging with the keyboard drops focus to the top of the page
+E       assert not True
+E        +  where True = on_body(<Page url='http://127.0.0.1:63315/#/find?cond=many&page=2'>)
+
+walks/test_explore_find_trials_focus_lost_after_redraw.py:41: AssertionError
+____ test_explore_enter_on_check_for_updates_keeps_keyboard_focus[1440x900] ____
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1108d3880>
+make_walk = <function make_walk.<locals>.build at 0x1108760c0>
+registry = <walks.helper.Registry object at 0x10b322710>
+
+    def test_explore_enter_on_check_for_updates_keeps_keyboard_focus(make_app, make_walk, registry):
+        """test_explore_enter_on_check_for_updates_keeps_keyboard_focus"""
+        app = make_app(seed=seed_checked)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1, name=helper.LONG_NAME).wait_for()
+        registry.set("slow", True, delay=3)
+        page.get_by_role("button", name="Check for updates").focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Checking for updates…").wait_for()
+        walk.shot("focus-after-check")
+        # The button is disabled while it runs and focus drops to the body.
+>       assert page.evaluate("document.activeElement !== document.body")
+E       AssertionError: assert False
+E        +  where False = evaluate('document.activeElement !== document.body')
+E        +    where evaluate = <Page url='http://127.0.0.1:63381/#/watchlists/1/needs-review'>.evaluate
+
+walks/test_explore_dialogs_and_administration_dialogs_and_administration.py:89: AssertionError
+_ test_explore_focus_stays_in_the_page_after_clear_in_the_action_bar[1440x900] _
+[gw3] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10b922ac0>
+make_walk = <function make_walk.<locals>.build at 0x10b9228e0>
+
+    def test_explore_focus_stays_in_the_page_after_clear_in_the_action_bar(make_app, make_walk):
+        """test_explore_focus_stays_in_the_page_after_clear_in_the_action_bar"""
+        walk = open_find(make_app, make_walk, "#/find?cond=lung")
+        page = walk.page
+        page.get_by_label("Select 3 on this page").focus()
+        page.keyboard.press("Space")
+        page.get_by_role("button", name="Clear", exact=True).focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("selected").wait_for(state="detached")
+        walk.shot("after-clear")
+>       assert not on_body(page), "Clear removes the action bar and drops focus to the top of the page"
+E       AssertionError: Clear removes the action bar and drops focus to the top of the page
+E       assert not True
+E        +  where True = on_body(<Page url='http://127.0.0.1:63447/#/find?cond=lung'>)
+
+walks/test_explore_find_trials_focus_lost_after_redraw.py:54: AssertionError
+____ test_explore_enter_on_check_for_updates_keeps_keyboard_focus[1024x768] ____
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1109471a0>
+make_walk = <function make_walk.<locals>.build at 0x110947c40>
+registry = <walks.helper.Registry object at 0x110842060>
+
+    def test_explore_enter_on_check_for_updates_keeps_keyboard_focus(make_app, make_walk, registry):
+        """test_explore_enter_on_check_for_updates_keeps_keyboard_focus"""
+        app = make_app(seed=seed_checked)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1, name=helper.LONG_NAME).wait_for()
+        registry.set("slow", True, delay=3)
+        page.get_by_role("button", name="Check for updates").focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Checking for updates…").wait_for()
+        walk.shot("focus-after-check")
+        # The button is disabled while it runs and focus drops to the body.
+>       assert page.evaluate("document.activeElement !== document.body")
+E       AssertionError: assert False
+E        +  where False = evaluate('document.activeElement !== document.body')
+E        +    where evaluate = <Page url='http://127.0.0.1:63480/#/watchlists/1/needs-review'>.evaluate
+
+walks/test_explore_dialogs_and_administration_dialogs_and_administration.py:89: AssertionError
+_ test_explore_full_recheck_while_a_check_runs_says_why_nothing_started[1024x768] _
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1078ed3a0>
+make_walk = <function make_walk.<locals>.build at 0x1078ef7e0>
+registry = <walks.helper.Registry object at 0x107524910>
+
+    def test_explore_full_recheck_while_a_check_runs_says_why_nothing_started(make_app, make_walk, registry):
+        """test_explore_full_recheck_while_a_check_runs_says_why_nothing_started"""
+        app = make_app(seed=seed_checked)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1, name=helper.LONG_NAME).wait_for()
+        registry.set("slow", True, delay=3)
+        page.get_by_role("button", name="Check for updates").click()
+        page.get_by_text("Checking for updates…").wait_for()
+        walk.expect(409, "/api/watchlists/1/recheck")
+        open_menu_item(page, "Full recheck")
+        page.get_by_role("dialog").get_by_role("button", name="Start full recheck").click()
+        page.wait_for_function("!document.querySelector('dialog')")
+        page.wait_for_timeout(500)
+        walk.shot("recheck-while-busy")
+        # The dialog closed as if it had started; the refusal is never shown to the user.
+>       assert "already" in page.locator("#view").inner_text().lower().replace("a check is already running.", "") \
+            or page.locator("#view .error").count() > 0
+E       AssertionError: assert ('already' in 'non-small cell lung cancer: pd-1 and pd-l1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · enrollment · interventions\n\nsimulated changes\n\ndetected nov 8, 2026, 4:00 am est\n\n3 changes\nreview changes' or 0 > 0)
+E        +  where 'non-small cell lung cancer: pd-1 and pd-l1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · enrollment · interventions\n\nsimulated changes\n\ndetected nov 8, 2026, 4:00 am est\n\n3 changes\nreview changes' = <built-in method replace of str object at 0xcb3be3200>('a check is already running.', '')
+E        +    where <built-in method replace of str object at 0xcb3be3200> = 'non-small cell lung cancer: pd-1 and pd-l1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · enrollment · interventions\n\nsimulated changes\n\ndetected nov 8, 2026, 4:00 am est\n\n3 changes\nreview changes'.replace
+E        +      where 'non-small cell lung cancer: pd-1 and pd-l1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · enrollment · interventions\n\nsimulated changes\n\ndetected nov 8, 2026, 4:00 am est\n\n3 changes\nreview changes' = <built-in method lower of str object at 0xcb2be5400>()
+E        +        where <built-in method lower of str object at 0xcb2be5400> = 'Non-small cell lung cancer: PD-1 and PD-L1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · Enrollment · Interventions\n\nSimulated changes\n\nDetected Nov 8, 2026, 4:00 AM EST\n\n3 changes\nReview changes'.lower
+E        +          where 'Non-small cell lung cancer: PD-1 and PD-L1 combination therapy competitors sponsored by industry, phase 2 and 3, trac...te · Enrollment · Interventions\n\nSimulated changes\n\nDetected Nov 8, 2026, 4:00 AM EST\n\n3 changes\nReview changes' = inner_text()
+E        +            where inner_text = <Locator frame=<Frame name= url='http://127.0.0.1:63420/#/watchlists/1/needs-review'> selector='#view'>.inner_text
+E        +              where <Locator frame=<Frame name= url='http://127.0.0.1:63420/#/watchlists/1/needs-review'> selector='#view'> = locator('#view')
+E        +                where locator = <Page url='http://127.0.0.1:63420/#/watchlists/1/needs-review'>.locator
+E        +  and   0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:63420/#/watchlists/1/needs-review'> selector='#view .error'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:63420/#/watchlists/1/needs-review'> selector='#view .error'> = locator('#view .error')
+E        +        where locator = <Page url='http://127.0.0.1:63420/#/watchlists/1/needs-review'>.locator
+
+walks/test_explore_dialogs_and_administration_dialogs_and_administration.py:109: AssertionError
+_ test_explore_focus_stays_in_the_page_after_clear_in_the_action_bar[1024x768] _
+[gw3] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10b99e160>
+make_walk = <function make_walk.<locals>.build at 0x10b99e520>
+
+    def test_explore_focus_stays_in_the_page_after_clear_in_the_action_bar(make_app, make_walk):
+        """test_explore_focus_stays_in_the_page_after_clear_in_the_action_bar"""
+        walk = open_find(make_app, make_walk, "#/find?cond=lung")
+        page = walk.page
+        page.get_by_label("Select 3 on this page").focus()
+        page.keyboard.press("Space")
+        page.get_by_role("button", name="Clear", exact=True).focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("selected").wait_for(state="detached")
+        walk.shot("after-clear")
+>       assert not on_body(page), "Clear removes the action bar and drops focus to the top of the page"
+E       AssertionError: Clear removes the action bar and drops focus to the top of the page
+E       assert not True
+E        +  where True = on_body(<Page url='http://127.0.0.1:63511/#/find?cond=lung'>)
+
+walks/test_explore_find_trials_focus_lost_after_redraw.py:54: AssertionError
+_ test_explore_deleting_the_last_watchlist_leaves_focus_somewhere_usable[1440x900] _
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bdac5e0>
+make_walk = <function make_walk.<locals>.build at 0x10bddde40>
+
+    def test_explore_deleting_the_last_watchlist_leaves_focus_somewhere_usable(make_app, make_walk):
+        """test_explore_deleting_the_last_watchlist_leaves_focus_somewhere_usable"""
+        app = make_app(seed=seed_checked)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1, name=helper.LONG_NAME).wait_for()
+        for _ in range(2):
+            page.get_by_role("heading", level=1).first.wait_for()
+            open_menu_item(page, "Delete watchlist")
+            page.get_by_role("dialog").get_by_role("button", name="Delete watchlist").click()
+            page.wait_for_function("!document.querySelector('dialog')")
+            page.wait_for_timeout(500)
+        page.get_by_text("No watchlists yet").wait_for()
+        walk.shot("no-watchlists")
+        # Focus fell to the page body: a keyboard user starts again from the top.
+>       assert page.evaluate("document.activeElement !== document.body")
+E       AssertionError: assert False
+E        +  where False = evaluate('document.activeElement !== document.body')
+E        +    where evaluate = <Page url='http://127.0.0.1:63352/#/watchlists'>.evaluate
+
+walks/test_explore_dialogs_and_administration_dialogs_and_administration.py:54: AssertionError
+___ test_explore_focus_stays_in_the_page_after_add_to_a_watchlist[1440x900] ____
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1109cf6a0>
+make_walk = <function make_walk.<locals>.build at 0x1109cfb00>
+
+    def test_explore_focus_stays_in_the_page_after_add_to_a_watchlist(make_app, make_walk):
+        """test_explore_focus_stays_in_the_page_after_add_to_a_watchlist"""
+        walk = open_find(make_app, make_walk, "#/find?cond=lung")
+        page = walk.page
+        page.get_by_label("Select 3 on this page").focus()
+        page.keyboard.press("Space")
+        page.get_by_role("button", name="Add 3 trials").focus()
+        page.keyboard.press("Enter")
+        page.get_by_role("status").filter(has_text="added").wait_for()
+        walk.shot("after-add")
+>       assert not on_body(page), "after Add the bar is redrawn and focus drops to the top of the page"
+E       AssertionError: after Add the bar is redrawn and focus drops to the top of the page
+E       assert not True
+E        +  where True = on_body(<Page url='http://127.0.0.1:63536/#/find?cond=lung'>)
+
+walks/test_explore_find_trials_focus_lost_after_redraw.py:67: AssertionError
+_ test_explore_focus_stays_in_the_page_after_a_search_with_none_of_the_four_fields[1440x900] _
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10798c180>
+make_walk = <function make_walk.<locals>.build at 0x1079519e0>
+
+    def test_explore_focus_stays_in_the_page_after_a_search_with_none_of_the_four_fields(make_app, make_walk):
+        """test_explore_focus_stays_in_the_page_after_a_search_with_none_of_the_four_fields"""
+        walk = open_find(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Search trials").focus()
+        page.keyboard.press("Enter")
+        page.get_by_role("alert").wait_for()
+        walk.shot("after-error")
+>       assert not on_body(page), "focus fell to the top of the page; the error is beside a field the user cannot reach by Shift+Tab from here"
+E       AssertionError: focus fell to the top of the page; the error is beside a field the user cannot reach by Shift+Tab from here
+E       assert not True
+E        +  where True = on_body(<Page url='http://127.0.0.1:63558/#/find'>)
+
+walks/test_explore_find_trials_focus_lost_after_redraw.py:29: AssertionError
+_ test_explore_focus_stays_in_the_page_after_a_search_with_none_of_the_four_fields[1024x768] _
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1079523e0>
+make_walk = <function make_walk.<locals>.build at 0x107a70680>
+
+    def test_explore_focus_stays_in_the_page_after_a_search_with_none_of_the_four_fields(make_app, make_walk):
+        """test_explore_focus_stays_in_the_page_after_a_search_with_none_of_the_four_fields"""
+        walk = open_find(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Search trials").focus()
+        page.keyboard.press("Enter")
+        page.get_by_role("alert").wait_for()
+        walk.shot("after-error")
+>       assert not on_body(page), "focus fell to the top of the page; the error is beside a field the user cannot reach by Shift+Tab from here"
+E       AssertionError: focus fell to the top of the page; the error is beside a field the user cannot reach by Shift+Tab from here
+E       assert not True
+E        +  where True = on_body(<Page url='http://127.0.0.1:63656/#/find'>)
+
+walks/test_explore_find_trials_focus_lost_after_redraw.py:29: AssertionError
+___ test_explore_focus_stays_in_the_page_after_add_to_a_watchlist[1024x768] ____
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x110a1fd80>
+make_walk = <function make_walk.<locals>.build at 0x110a09940>
+
+    def test_explore_focus_stays_in_the_page_after_add_to_a_watchlist(make_app, make_walk):
+        """test_explore_focus_stays_in_the_page_after_add_to_a_watchlist"""
+        walk = open_find(make_app, make_walk, "#/find?cond=lung")
+        page = walk.page
+        page.get_by_label("Select 3 on this page").focus()
+        page.keyboard.press("Space")
+        page.get_by_role("button", name="Add 3 trials").focus()
+        page.keyboard.press("Enter")
+        page.get_by_role("status").filter(has_text="added").wait_for()
+        walk.shot("after-add")
+>       assert not on_body(page), "after Add the bar is redrawn and focus drops to the top of the page"
+E       AssertionError: after Add the bar is redrawn and focus drops to the top of the page
+E       assert not True
+E        +  where True = on_body(<Page url='http://127.0.0.1:63678/#/find?cond=lung'>)
+
+walks/test_explore_find_trials_focus_lost_after_redraw.py:67: AssertionError
+_ test_a_long_unbroken_condition_keeps_find_trials_inside_the_window[1024x768] _
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1079f2980>
+make_walk = <function make_walk.<locals>.build at 0x107a89f80>
+
+    def test_a_long_unbroken_condition_keeps_find_trials_inside_the_window(make_app, make_walk):
+        """test_a_long_unbroken_condition_keeps_find_trials_inside_the_window"""
+        app = make_app(seed=saved_seed)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/find")
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        page.get_by_label("Condition").fill("z" * 150)
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_role("heading", name="3 matches").wait_for()
+        walk.shot("long-condition")
+        # the guard reports a page wider than the window when the test ends; assert it now as well
+        wide = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+>       assert wide <= 0, f"the page is {wide}px wider than the window; Watch this search and Edit search are pushed off its edge"
+E       AssertionError: the page is 605px wider than the window; Watch this search and Edit search are pushed off its edge
+E       assert 605 <= 0
+
+walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py:89: AssertionError
+_ test_explore_a_600_character_condition_does_not_scroll_the_page_sideways[1440x900] _
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x110a1cb80>
+make_walk = <function make_walk.<locals>.build at 0x110a1c5e0>
+
+    def test_explore_a_600_character_condition_does_not_scroll_the_page_sideways(make_app, make_walk):
+        """test_explore_a_600_character_condition_does_not_scroll_the_page_sideways"""
+        app = make_app()
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/find")
+        page.get_by_label("Condition").fill("x" * 600)
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_role("button", name="Edit search").wait_for()
+        walk.shot("long-summary")
+        wide = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+>       assert wide <= 0, f"the page is {wide}px wider than the window"
+E       AssertionError: the page is 3808px wider than the window
+E       assert 3808 <= 0
+
+walks/test_explore_find_trials_long_unbroken_query_widens_the_page.py:19: AssertionError
+_ test_explore_deleting_the_last_watchlist_leaves_focus_somewhere_usable[1024x768] _
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10be56020>
+make_walk = <function make_walk.<locals>.build at 0x10be55260>
+
+    def test_explore_deleting_the_last_watchlist_leaves_focus_somewhere_usable(make_app, make_walk):
+        """test_explore_deleting_the_last_watchlist_leaves_focus_somewhere_usable"""
+        app = make_app(seed=seed_checked)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1, name=helper.LONG_NAME).wait_for()
+        for _ in range(2):
+            page.get_by_role("heading", level=1).first.wait_for()
+            open_menu_item(page, "Delete watchlist")
+            page.get_by_role("dialog").get_by_role("button", name="Delete watchlist").click()
+            page.wait_for_function("!document.querySelector('dialog')")
+            page.wait_for_timeout(500)
+        page.get_by_text("No watchlists yet").wait_for()
+        walk.shot("no-watchlists")
+        # Focus fell to the page body: a keyboard user starts again from the top.
+>       assert page.evaluate("document.activeElement !== document.body")
+E       AssertionError: assert False
+E        +  where False = evaluate('document.activeElement !== document.body')
+E        +    where evaluate = <Page url='http://127.0.0.1:63593/#/watchlists'>.evaluate
+
+walks/test_explore_dialogs_and_administration_dialogs_and_administration.py:54: AssertionError
+________ test_focus_returns_after_turn_off_closes_the_dialog[1440x900] _________
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10be571a0>
+make_walk = <function make_walk.<locals>.build at 0x10bec6de0>
+
+    def test_focus_returns_after_turn_off_closes_the_dialog(make_app, make_walk):
+        """test_focus_returns_after_turn_off_closes_the_dialog"""
+        _, walk = open_tab(make_app, make_walk, tab=None)
+        page = walk.page
+        page.get_by_role("button", name="Manage").click()
+        page.get_by_role("button", name="Turn off").click()
+        page.get_by_text("Saved search is on").wait_for(state="detached")
+        walk.shot("after-turn-off")
+>       assert focus(page) != "body", "after Turn off focus fell to the page body"
+E       AssertionError: after Turn off focus fell to the page body
+E       assert 'body' != 'body'
+E        +  where 'body' = focus(<Page url='http://127.0.0.1:63782/#/watchlists/1/needs-review'>)
+
+walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py:44: AssertionError
+_ test_explore_a_600_character_condition_does_not_scroll_the_page_sideways[1024x768] _
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x110a1f920>
+make_walk = <function make_walk.<locals>.build at 0x1109ce700>
+
+    def test_explore_a_600_character_condition_does_not_scroll_the_page_sideways(make_app, make_walk):
+        """test_explore_a_600_character_condition_does_not_scroll_the_page_sideways"""
+        app = make_app()
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/find")
+        page.get_by_label("Condition").fill("x" * 600)
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_role("button", name="Edit search").wait_for()
+        walk.shot("long-summary")
+        wide = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+>       assert wide <= 0, f"the page is {wide}px wider than the window"
+E       AssertionError: the page is 4224px wider than the window
+E       assert 4224 <= 0
+
+walks/test_explore_find_trials_long_unbroken_query_widens_the_page.py:19: AssertionError
+________ test_focus_returns_after_turn_off_closes_the_dialog[1024x768] _________
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bf16d40>
+make_walk = <function make_walk.<locals>.build at 0x10bf65940>
+
+    def test_focus_returns_after_turn_off_closes_the_dialog(make_app, make_walk):
+        """test_focus_returns_after_turn_off_closes_the_dialog"""
+        _, walk = open_tab(make_app, make_walk, tab=None)
+        page = walk.page
+        page.get_by_role("button", name="Manage").click()
+        page.get_by_role("button", name="Turn off").click()
+        page.get_by_text("Saved search is on").wait_for(state="detached")
+        walk.shot("after-turn-off")
+>       assert focus(page) != "body", "after Turn off focus fell to the page body"
+E       AssertionError: after Turn off focus fell to the page body
+E       assert 'body' != 'body'
+E        +  where 'body' = focus(<Page url='http://127.0.0.1:63884/#/watchlists/1/needs-review'>)
+
+walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py:44: AssertionError
+__ test_keyboard_user_keeps_focus_on_the_period_button_they_pressed[1440x900] __
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107aca480>
+make_walk = <function make_walk.<locals>.build at 0x107bd5620>
+
+    def test_keyboard_user_keeps_focus_on_the_period_button_they_pressed(make_app, make_walk):
+        """test_keyboard_user_keeps_focus_on_the_period_button_they_pressed"""
+        _app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="This month").focus()
+        page.keyboard.press("Enter")
+        page.wait_for_function("() => document.querySelector('.periods button[aria-pressed=true]').innerText === 'This month'")
+        walk.shot("after-month")
+>       assert focus_desc(page) == "BUTTON:This month", focus_desc(page)
+E       AssertionError: BODY:Trial Change Monitor
+E         Watchlist
+E       assert 'BODY:Trial C...or\nWatchlist' == 'BUTTON:This month'
+E         
+E         - BUTTON:This month
+E         + BODY:Trial Change Monitor
+E         + Watchlist
+
+walks/test_explore_summary_and_export_summary_explore.py:96: AssertionError
+__ test_keyboard_user_keeps_focus_on_the_period_button_they_pressed[1024x768] __
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107bd53a0>
+make_walk = <function make_walk.<locals>.build at 0x107bfb4c0>
+
+    def test_keyboard_user_keeps_focus_on_the_period_button_they_pressed(make_app, make_walk):
+        """test_keyboard_user_keeps_focus_on_the_period_button_they_pressed"""
+        _app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="This month").focus()
+        page.keyboard.press("Enter")
+        page.wait_for_function("() => document.querySelector('.periods button[aria-pressed=true]').innerText === 'This month'")
+        walk.shot("after-month")
+>       assert focus_desc(page) == "BUTTON:This month", focus_desc(page)
+E       AssertionError: BODY:Trial Change Monitor
+E         Watchlist
+E       assert 'BODY:Trial C...or\nWatchlist' == 'BUTTON:This month'
+E         
+E         - BUTTON:This month
+E         + BODY:Trial Change Monitor
+E         + Watchlist
+
+walks/test_explore_summary_and_export_summary_explore.py:96: AssertionError
+_________ test_focus_after_copy_summary_stays_on_the_button[1440x900] __________
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107bf8cc0>
+make_walk = <function make_walk.<locals>.build at 0x107bf8860>
+
+    def test_focus_after_copy_summary_stays_on_the_button(make_app, make_walk):
+        """test_focus_after_copy_summary_stays_on_the_button"""
+        app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.context.grant_permissions(["clipboard-read", "clipboard-write"], origin=app.url.rstrip("/"))
+        page.get_by_role("button", name="Copy summary").focus()
+        page.keyboard.press("Enter")
+        page.locator("#summary-notice").wait_for()
+        walk.shot("after-copy")
+>       assert focus_desc(page) == "BUTTON:Copy summary", focus_desc(page)
+E       AssertionError: BODY:Trial Change Monitor
+E         Watchlist
+E       assert 'BODY:Trial C...or\nWatchlist' == 'BUTTON:Copy summary'
+E         
+E         - BUTTON:Copy summary
+E         + BODY:Trial Change Monitor
+E         + Watchlist
+
+walks/test_explore_summary_and_export_summary_explore.py:108: AssertionError
+_ test_undo_that_the_server_refuses_says_so_and_can_be_pressed_again[1440x900] _
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bf67560>
+make_walk = <function make_walk.<locals>.build at 0x10bfe5f80>
+
+    def test_undo_that_the_server_refuses_says_so_and_can_be_pressed_again(make_app, make_walk):
+        """test_undo_that_the_server_refuses_says_so_and_can_be_pressed_again"""
+        app, walk = open_tab(make_app, make_walk, watchlist="Quiet")
+        page = walk.page
+        walk.expect(404, page.evaluate("location.origin").replace(app.url.rstrip("/"), "") + "/api/watchlists/2/new-matches/undo")
+        box(page, "NCT00000002").check()
+        page.get_by_role("button", name="Dismiss 1").click()
+        page.get_by_role("button", name="Yes, dismiss 1").click()
+        page.get_by_role("button", name="Undo").wait_for()
+        # Another window deletes the watchlist.
+        other = page.context.new_page()
+        other.goto(app.url)
+        other.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Quiet")).click()
+        other.get_by_role("heading", level=1, name="Quiet").wait_for()
+        other.get_by_role("button", name="Watchlist actions").click()
+        other.get_by_role("menuitem", name="Delete watchlist").click()
+        other.get_by_role("dialog").get_by_role("button", name="Delete watchlist").click()
+        other.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Quiet")).wait_for(state="detached")
+        page.get_by_role("button", name="Undo").click()
+        page.wait_for_timeout(800)
+        walk.shot("undo-refused")
+        text = page.locator("body").inner_text()
+>       assert page.get_by_role("alert").filter(has_text=re.compile(".+")).count() or "no longer" in text or "not found" in text.lower(), \
+            "Undo was refused and the page said nothing"
+E       AssertionError: Undo was refused and the page said nothing
+E       assert (0 or 'no longer' in 'Trial Change Monitor\nWatchlists Find trials\nYOUR WATCHLISTS\nMyeloma\n1 trial\n0\nQuiet\n1 trial\n0\nBare\n0 trials...ind trials.\n\nView dismissed\n1 trial dismissed. These trials will not be suggested again for this list.\nUndo\nClose' or 'not found' in 'trial change monitor\nwatchlists find trials\nyour watchlists\nmyeloma\n1 trial\n0\nquiet\n1 trial\n0\nbare\n0 trials...ind trials.\n\nview dismissed\n1 trial dismissed. these trials will not be suggested again for this list.\nundo\nclose')
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:64018/#/watchlists/2/new-matches'> selector='internal:role=alert >> internal:has-text=/.+/'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64018/#/watchlists/2/new-matches'> selector='internal:role=alert >> internal:has-text=/.+/'> = filter(has_text=re.compile('.+'))
+E        +        where filter = <Locator frame=<Frame name= url='http://127.0.0.1:64018/#/watchlists/2/new-matches'> selector='internal:role=alert'>.filter
+E        +          where <Locator frame=<Frame name= url='http://127.0.0.1:64018/#/watchlists/2/new-matches'> selector='internal:role=alert'> = get_by_role('alert')
+E        +            where get_by_role = <Page url='http://127.0.0.1:64018/#/watchlists/2/new-matches'>.get_by_role
+E        +        and   re.compile('.+') = <function compile at 0x105569ee0>('.+')
+E        +          where <function compile at 0x105569ee0> = re.compile
+E        +  and   'trial change monitor\nwatchlists find trials\nyour watchlists\nmyeloma\n1 trial\n0\nquiet\n1 trial\n0\nbare\n0 trials...ind trials.\n\nview dismissed\n1 trial dismissed. these trials will not be suggested again for this list.\nundo\nclose' = <built-in method lower of str object at 0x883aec000>()
+E        +    where <built-in method lower of str object at 0x883aec000> = 'Trial Change Monitor\nWatchlists Find trials\nYOUR WATCHLISTS\nMyeloma\n1 trial\n0\nQuiet\n1 trial\n0\nBare\n0 trials...ind trials.\n\nView dismissed\n1 trial dismissed. These trials will not be suggested again for this list.\nUndo\nClose'.lower
+
+walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py:69: AssertionError
+__ test_explore_an_older_slow_search_does_not_replace_the_newer_one[1440x900] __
+[gw3] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bd19ee0>
+make_walk = <function make_walk.<locals>.build at 0x10bd1a200>
+registry = <walks.helper.Registry object at 0x10b93e650>
+
+    def test_explore_an_older_slow_search_does_not_replace_the_newer_one(make_app, make_walk, registry):
+        """test_explore_an_older_slow_search_does_not_replace_the_newer_one"""
+        app, walk = open_find(make_app, make_walk)
+        page = walk.page
+        registry.set("slow", True, delay=3)
+        page.get_by_label("Condition").fill("many")
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_text("Searching").wait_for()
+        registry.set("slow", False)
+        page.get_by_label("Condition").count()  # the form is gone while searching: a user edits the address or goes Back/forward
+        page.go_back()
+        page.get_by_label("Condition").wait_for()
+        page.get_by_label("Condition").fill("nothing")
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_text("No trials match this search.").wait_for()
+        page.wait_for_timeout(4000)
+        walk.shot("after-old-answer")
+        assert "nothing" in page.url
+>       assert page.get_by_text("No trials match this search.").count() == 1, "the older search's 134 matches replaced the newer search's empty answer"
+E       AssertionError: the older search's 134 matches replaced the newer search's empty answer
+E       assert 0 == 1
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:63617/#/find?cond=nothing&page=1'> selector='internal:text="No trials match this search."i'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:63617/#/find?cond=nothing&page=1'> selector='internal:text="No trials match this search."i'> = get_by_text('No trials match this search.')
+E        +        where get_by_text = <Page url='http://127.0.0.1:63617/#/find?cond=nothing&page=1'>.get_by_text
+
+walks/test_explore_find_trials_stale_response_overwrites_view.py:54: AssertionError
+_________ test_focus_after_copy_summary_stays_on_the_button[1024x768] __________
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107ac98a0>
+make_walk = <function make_walk.<locals>.build at 0x107ac8f40>
+
+    def test_focus_after_copy_summary_stays_on_the_button(make_app, make_walk):
+        """test_focus_after_copy_summary_stays_on_the_button"""
+        app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.context.grant_permissions(["clipboard-read", "clipboard-write"], origin=app.url.rstrip("/"))
+        page.get_by_role("button", name="Copy summary").focus()
+        page.keyboard.press("Enter")
+        page.locator("#summary-notice").wait_for()
+        walk.shot("after-copy")
+>       assert focus_desc(page) == "BUTTON:Copy summary", focus_desc(page)
+E       AssertionError: BODY:Trial Change Monitor
+E         Watchlist
+E       assert 'BODY:Trial C...or\nWatchlist' == 'BUTTON:Copy summary'
+E         
+E         - BUTTON:Copy summary
+E         + BODY:Trial Change Monitor
+E         + Watchlist
+
+walks/test_explore_summary_and_export_summary_explore.py:108: AssertionError
+_________ test_copy_summary_does_not_collapse_the_open_trial[1440x900] _________
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107961800>
+make_walk = <function make_walk.<locals>.build at 0x1079611c0>
+
+    def test_copy_summary_does_not_collapse_the_open_trial(make_app, make_walk):
+        """test_copy_summary_does_not_collapse_the_open_trial"""
+        app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.context.grant_permissions(["clipboard-read", "clipboard-write"], origin=app.url.rstrip("/"))
+        card = page.locator('li.card[data-nct="NCT03412565"]')
+        card.get_by_text("View 2 changes").click()
+        page.get_by_role("button", name="Copy summary").click()
+        page.locator("#summary-notice").wait_for()
+        walk.shot("after-copy")
+>       assert card.locator(".move").first.is_visible(), "the expanded trial collapsed"
+E       AssertionError: the expanded trial collapsed
+E       assert False
+E        +  where False = is_visible()
+E        +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:64268/#/watchlists/1/summary'> selector='li.card[data-nct="NCT03412565"] >> .move >> nth=0'>.is_visible
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64268/#/watchlists/1/summary'> selector='li.card[data-nct="NCT03412565"] >> .move >> nth=0'> = <Locator frame=<Frame name= url='http://127.0.0.1:64268/#/watchlists/1/summary'> selector='li.card[data-nct="NCT03412565"] >> .move'>.first
+E        +        where <Locator frame=<Frame name= url='http://127.0.0.1:64268/#/watchlists/1/summary'> selector='li.card[data-nct="NCT03412565"] >> .move'> = locator('.move')
+E        +          where locator = <Locator frame=<Frame name= url='http://127.0.0.1:64268/#/watchlists/1/summary'> selector='li.card[data-nct="NCT03412565"]'>.locator
+
+walks/test_explore_summary_and_export_summary_explore.py:121: AssertionError
+_________ test_copy_summary_does_not_collapse_the_open_trial[1024x768] _________
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107965580>
+make_walk = <function make_walk.<locals>.build at 0x107966c00>
+
+    def test_copy_summary_does_not_collapse_the_open_trial(make_app, make_walk):
+        """test_copy_summary_does_not_collapse_the_open_trial"""
+        app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.context.grant_permissions(["clipboard-read", "clipboard-write"], origin=app.url.rstrip("/"))
+        card = page.locator('li.card[data-nct="NCT03412565"]')
+        card.get_by_text("View 2 changes").click()
+        page.get_by_role("button", name="Copy summary").click()
+        page.locator("#summary-notice").wait_for()
+        walk.shot("after-copy")
+>       assert card.locator(".move").first.is_visible(), "the expanded trial collapsed"
+E       AssertionError: the expanded trial collapsed
+E       assert False
+E        +  where False = is_visible()
+E        +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:64339/#/watchlists/1/summary'> selector='li.card[data-nct="NCT03412565"] >> .move >> nth=0'>.is_visible
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64339/#/watchlists/1/summary'> selector='li.card[data-nct="NCT03412565"] >> .move >> nth=0'> = <Locator frame=<Frame name= url='http://127.0.0.1:64339/#/watchlists/1/summary'> selector='li.card[data-nct="NCT03412565"] >> .move'>.first
+E        +        where <Locator frame=<Frame name= url='http://127.0.0.1:64339/#/watchlists/1/summary'> selector='li.card[data-nct="NCT03412565"] >> .move'> = locator('.move')
+E        +          where locator = <Locator frame=<Frame name= url='http://127.0.0.1:64339/#/watchlists/1/summary'> selector='li.card[data-nct="NCT03412565"]'>.locator
+
+walks/test_explore_summary_and_export_summary_explore.py:121: AssertionError
+_ test_undo_that_the_server_refuses_says_so_and_can_be_pressed_again[1024x768] _
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bfe4360>
+make_walk = <function make_walk.<locals>.build at 0x10bfe4040>
+
+    def test_undo_that_the_server_refuses_says_so_and_can_be_pressed_again(make_app, make_walk):
+        """test_undo_that_the_server_refuses_says_so_and_can_be_pressed_again"""
+        app, walk = open_tab(make_app, make_walk, watchlist="Quiet")
+        page = walk.page
+        walk.expect(404, page.evaluate("location.origin").replace(app.url.rstrip("/"), "") + "/api/watchlists/2/new-matches/undo")
+        box(page, "NCT00000002").check()
+        page.get_by_role("button", name="Dismiss 1").click()
+        page.get_by_role("button", name="Yes, dismiss 1").click()
+        page.get_by_role("button", name="Undo").wait_for()
+        # Another window deletes the watchlist.
+        other = page.context.new_page()
+        other.goto(app.url)
+        other.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Quiet")).click()
+        other.get_by_role("heading", level=1, name="Quiet").wait_for()
+        other.get_by_role("button", name="Watchlist actions").click()
+        other.get_by_role("menuitem", name="Delete watchlist").click()
+        other.get_by_role("dialog").get_by_role("button", name="Delete watchlist").click()
+        other.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Quiet")).wait_for(state="detached")
+        page.get_by_role("button", name="Undo").click()
+        page.wait_for_timeout(800)
+        walk.shot("undo-refused")
+        text = page.locator("body").inner_text()
+>       assert page.get_by_role("alert").filter(has_text=re.compile(".+")).count() or "no longer" in text or "not found" in text.lower(), \
+            "Undo was refused and the page said nothing"
+E       AssertionError: Undo was refused and the page said nothing
+E       assert (0 or 'no longer' in 'Trial Change Monitor\nWatchlists Find trials\nYOUR WATCHLISTS\nMyeloma\n1 trial\n0\nQuiet\n1 trial\n0\nBare\n0 trials...ind trials.\n\nView dismissed\n1 trial dismissed. These trials will not be suggested again for this list.\nUndo\nClose' or 'not found' in 'trial change monitor\nwatchlists find trials\nyour watchlists\nmyeloma\n1 trial\n0\nquiet\n1 trial\n0\nbare\n0 trials...ind trials.\n\nview dismissed\n1 trial dismissed. these trials will not be suggested again for this list.\nundo\nclose')
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:64177/#/watchlists/2/new-matches'> selector='internal:role=alert >> internal:has-text=/.+/'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64177/#/watchlists/2/new-matches'> selector='internal:role=alert >> internal:has-text=/.+/'> = filter(has_text=re.compile('.+'))
+E        +        where filter = <Locator frame=<Frame name= url='http://127.0.0.1:64177/#/watchlists/2/new-matches'> selector='internal:role=alert'>.filter
+E        +          where <Locator frame=<Frame name= url='http://127.0.0.1:64177/#/watchlists/2/new-matches'> selector='internal:role=alert'> = get_by_role('alert')
+E        +            where get_by_role = <Page url='http://127.0.0.1:64177/#/watchlists/2/new-matches'>.get_by_role
+E        +        and   re.compile('.+') = <function compile at 0x105569ee0>('.+')
+E        +          where <function compile at 0x105569ee0> = re.compile
+E        +  and   'trial change monitor\nwatchlists find trials\nyour watchlists\nmyeloma\n1 trial\n0\nquiet\n1 trial\n0\nbare\n0 trials...ind trials.\n\nview dismissed\n1 trial dismissed. these trials will not be suggested again for this list.\nundo\nclose' = <built-in method lower of str object at 0x883aec600>()
+E        +    where <built-in method lower of str object at 0x883aec600> = 'Trial Change Monitor\nWatchlists Find trials\nYOUR WATCHLISTS\nMyeloma\n1 trial\n0\nQuiet\n1 trial\n0\nBare\n0 trials...ind trials.\n\nView dismissed\n1 trial dismissed. These trials will not be suggested again for this list.\nUndo\nClose'.lower
+
+walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py:69: AssertionError
+_ test_a_long_unbroken_condition_keeps_find_trials_inside_the_window[1440x900] _
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bfba980>
+make_walk = <function make_walk.<locals>.build at 0x10beb02c0>
+
+    def test_a_long_unbroken_condition_keeps_find_trials_inside_the_window(make_app, make_walk):
+        """test_a_long_unbroken_condition_keeps_find_trials_inside_the_window"""
+        app = make_app(seed=saved_seed)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/find")
+        page.get_by_role("heading", level=1, name="Find trials").wait_for()
+        page.get_by_label("Condition").fill("z" * 150)
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_role("heading", name="3 matches").wait_for()
+        walk.shot("long-condition")
+        # the guard reports a page wider than the window when the test ends; assert it now as well
+        wide = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+>       assert wide <= 0, f"the page is {wide}px wider than the window; Watch this search and Edit search are pushed off its edge"
+E       AssertionError: the page is 189px wider than the window; Watch this search and Edit search are pushed off its edge
+E       assert 189 <= 0
+
+walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py:89: AssertionError
+____ test_copy_summary_does_not_wipe_dates_typed_in_the_open_form[1440x900] ____
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107a3f060>
+make_walk = <function make_walk.<locals>.build at 0x107a3f1a0>
+
+    def test_copy_summary_does_not_wipe_dates_typed_in_the_open_form(make_app, make_walk):
+        """test_copy_summary_does_not_wipe_dates_typed_in_the_open_form"""
+        app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.context.grant_permissions(["clipboard-read", "clipboard-write"], origin=app.url.rstrip("/"))
+        page.get_by_role("button", name="Custom dates").click()
+        page.get_by_label("From").fill("2026-02-01")
+        page.get_by_role("button", name="Copy summary").click()
+        page.locator("#summary-notice").wait_for()
+        walk.shot("after-copy-with-form")
+>       assert page.get_by_label("From").input_value() == "2026-02-01", "the typed From date was wiped"
+E       AssertionError: the typed From date was wiped
+E       assert '2026-11-02' == '2026-02-01'
+E         
+E         - 2026-02-01
+E         + 2026-11-02
+
+walks/test_explore_summary_and_export_summary_explore.py:134: AssertionError
+____ test_copy_summary_does_not_wipe_dates_typed_in_the_open_form[1024x768] ____
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107cea160>
+make_walk = <function make_walk.<locals>.build at 0x107ceb7e0>
+
+    def test_copy_summary_does_not_wipe_dates_typed_in_the_open_form(make_app, make_walk):
+        """test_copy_summary_does_not_wipe_dates_typed_in_the_open_form"""
+        app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.context.grant_permissions(["clipboard-read", "clipboard-write"], origin=app.url.rstrip("/"))
+        page.get_by_role("button", name="Custom dates").click()
+        page.get_by_label("From").fill("2026-02-01")
+        page.get_by_role("button", name="Copy summary").click()
+        page.locator("#summary-notice").wait_for()
+        walk.shot("after-copy-with-form")
+>       assert page.get_by_label("From").input_value() == "2026-02-01", "the typed From date was wiped"
+E       AssertionError: the typed From date was wiped
+E       assert '2026-11-02' == '2026-02-01'
+E         
+E         - 2026-02-01
+E         + 2026-11-02
+
+walks/test_explore_summary_and_export_summary_explore.py:134: AssertionError
+______ test_opening_custom_dates_puts_the_keyboard_in_the_form[1440x900] _______
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10be55260>
+make_walk = <function make_walk.<locals>.build at 0x10bddcfe0>
+
+    def test_opening_custom_dates_puts_the_keyboard_in_the_form(make_app, make_walk):
+        """test_opening_custom_dates_puts_the_keyboard_in_the_form"""
+        _app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Custom dates").focus()
+        page.keyboard.press("Enter")
+        page.get_by_label("From").wait_for()
+        walk.shot("custom-opened")
+>       assert focus_desc(page).startswith(("INPUT", "BUTTON:Custom")), focus_desc(page)
+E       AssertionError: BODY:Trial Change Monitor
+E         Watchlist
+E       assert False
+E        +  where False = <built-in method startswith of str object at 0x10bdea8b0>(('INPUT', 'BUTTON:Custom'))
+E        +    where <built-in method startswith of str object at 0x10bdea8b0> = 'BODY:Trial Change Monitor\nWatchlist'.startswith
+E        +      where 'BODY:Trial Change Monitor\nWatchlist' = focus_desc(<Page url='http://127.0.0.1:64455/#/watchlists/1/summary'>)
+
+walks/test_explore_summary_and_export_summary_explore.py:145: AssertionError
+_ test_explore_a_slow_search_does_not_draw_over_the_watchlist_the_analyst_went_to[1440x900] _
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x110a1e5c0>
+make_walk = <function make_walk.<locals>.build at 0x1109447c0>
+registry = <walks.helper.Registry object at 0x10b216a50>
+
+    def test_explore_a_slow_search_does_not_draw_over_the_watchlist_the_analyst_went_to(make_app, make_walk, registry):
+        """test_explore_a_slow_search_does_not_draw_over_the_watchlist_the_analyst_went_to"""
+        app, walk = open_find(make_app, make_walk, helper.seed_queue)
+        page = walk.page
+        registry.set("slow", True, delay=3)
+        page.get_by_label("Condition").fill("lung")
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_text("Searching").wait_for()
+        registry.set("slow", False)
+        page.get_by_role("link", name="Watchlists").first.click()
+        page.wait_for_url("**#/watchlists/**")
+        page.get_by_role("tab", name="Needs review").wait_for()
+        page.wait_for_timeout(4000)  # the slow answer has arrived by now
+        walk.shot("after-slow-answer")
+>       assert page.get_by_role("heading", level=1, name="Find trials").count() == 0, \
+            f"address {page.url} but the page shows the Find trials results"
+E       AssertionError: address http://127.0.0.1:63947/#/watchlists/1/needs-review but the page shows the Find trials results
+E       assert 1 == 0
+E        +  where 1 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:63947/#/watchlists/1/needs-review'> selector='internal:role=heading[level=1][name="Find trials"i]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:63947/#/watchlists/1/needs-review'> selector='internal:role=heading[level=1][name="Find trials"i]'> = get_by_role('heading', level=1, name='Find trials')
+E        +        where get_by_role = <Page url='http://127.0.0.1:63947/#/watchlists/1/needs-review'>.get_by_role
+
+walks/test_explore_find_trials_stale_response_overwrites_view.py:31: AssertionError
+____ test_cancel_and_apply_leave_the_keyboard_somewhere_sensible[1024x768] _____
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107ce9620>
+make_walk = <function make_walk.<locals>.build at 0x107ceae80>
+
+    def test_cancel_and_apply_leave_the_keyboard_somewhere_sensible(make_app, make_walk):
+        """test_cancel_and_apply_leave_the_keyboard_somewhere_sensible"""
+        _app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Custom dates").click()
+        page.get_by_role("button", name="Cancel").focus()
+        page.keyboard.press("Enter")
+        page.wait_for_function("() => !document.querySelector('#summary-from')")
+        walk.shot("after-cancel")
+>       assert focus_desc(page) != "BODY" and not focus_desc(page).startswith("BODY"), focus_desc(page)
+E       AssertionError: BODY:Trial Change Monitor
+E         Watchlist
+E       assert ('BODY:Trial Change Monitor\nWatchlist' != 'BODY' and not True)
+E        +  where 'BODY:Trial Change Monitor\nWatchlist' = focus_desc(<Page url='http://127.0.0.1:64490/#/watchlists/1/summary'>)
+E        +  and   True = <built-in method startswith of str object at 0x1079ebc90>('BODY')
+E        +    where <built-in method startswith of str object at 0x1079ebc90> = 'BODY:Trial Change Monitor\nWatchlist'.startswith
+E        +      where 'BODY:Trial Change Monitor\nWatchlist' = focus_desc(<Page url='http://127.0.0.1:64490/#/watchlists/1/summary'>)
+
+walks/test_explore_summary_and_export_summary_explore.py:157: AssertionError
+______ test_opening_custom_dates_puts_the_keyboard_in_the_form[1024x768] _______
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bdaf420>
+make_walk = <function make_walk.<locals>.build at 0x10bfced40>
+
+    def test_opening_custom_dates_puts_the_keyboard_in_the_form(make_app, make_walk):
+        """test_opening_custom_dates_puts_the_keyboard_in_the_form"""
+        _app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Custom dates").focus()
+        page.keyboard.press("Enter")
+        page.get_by_label("From").wait_for()
+        walk.shot("custom-opened")
+>       assert focus_desc(page).startswith(("INPUT", "BUTTON:Custom")), focus_desc(page)
+E       AssertionError: BODY:Trial Change Monitor
+E         Watchlist
+E       assert False
+E        +  where False = <built-in method startswith of str object at 0x111082d90>(('INPUT', 'BUTTON:Custom'))
+E        +    where <built-in method startswith of str object at 0x111082d90> = 'BODY:Trial Change Monitor\nWatchlist'.startswith
+E        +      where 'BODY:Trial Change Monitor\nWatchlist' = focus_desc(<Page url='http://127.0.0.1:64517/#/watchlists/1/summary'>)
+
+walks/test_explore_summary_and_export_summary_explore.py:145: AssertionError
+_______ test_empty_period_offer_keeps_the_keyboard_on_the_page[1440x900] _______
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107c43ce0>
+make_walk = <function make_walk.<locals>.build at 0x107965940>
+
+    def test_empty_period_offer_keeps_the_keyboard_on_the_page(make_app, make_walk):
+        """test_empty_period_offer_keeps_the_keyboard_on_the_page"""
+        _app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Custom dates").click()
+        page.get_by_label("From").fill("2020-01-01")
+        page.get_by_label("To").fill("2020-01-31")
+        page.get_by_role("button", name="Apply").focus()
+        page.keyboard.press("Enter")
+        page.locator("#summary-empty").wait_for()
+        walk.shot("after-apply")
+>       assert not focus_desc(page).startswith("BODY"), focus_desc(page)
+E       AssertionError: BODY:Trial Change Monitor
+E         Watchlist
+E       assert not True
+E        +  where True = <built-in method startswith of str object at 0x107981650>('BODY')
+E        +    where <built-in method startswith of str object at 0x107981650> = 'BODY:Trial Change Monitor\nWatchlist'.startswith
+E        +      where 'BODY:Trial Change Monitor\nWatchlist' = focus_desc(<Page url='http://127.0.0.1:64591/#/watchlists/1/summary?period=custom&from=2020-01-01&to=2020-01-31'>)
+
+walks/test_explore_summary_and_export_summary_explore.py:171: AssertionError
+____ test_cancel_and_apply_leave_the_keyboard_somewhere_sensible[1440x900] _____
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bdf09a0>
+make_walk = <function make_walk.<locals>.build at 0x10bdcf2e0>
+
+    def test_cancel_and_apply_leave_the_keyboard_somewhere_sensible(make_app, make_walk):
+        """test_cancel_and_apply_leave_the_keyboard_somewhere_sensible"""
+        _app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Custom dates").click()
+        page.get_by_role("button", name="Cancel").focus()
+        page.keyboard.press("Enter")
+        page.wait_for_function("() => !document.querySelector('#summary-from')")
+        walk.shot("after-cancel")
+>       assert focus_desc(page) != "BODY" and not focus_desc(page).startswith("BODY"), focus_desc(page)
+E       AssertionError: BODY:Trial Change Monitor
+E         Watchlist
+E       assert ('BODY:Trial Change Monitor\nWatchlist' != 'BODY' and not True)
+E        +  where 'BODY:Trial Change Monitor\nWatchlist' = focus_desc(<Page url='http://127.0.0.1:64618/#/watchlists/1/summary'>)
+E        +  and   True = <built-in method startswith of str object at 0x11111c450>('BODY')
+E        +    where <built-in method startswith of str object at 0x11111c450> = 'BODY:Trial Change Monitor\nWatchlist'.startswith
+E        +      where 'BODY:Trial Change Monitor\nWatchlist' = focus_desc(<Page url='http://127.0.0.1:64618/#/watchlists/1/summary'>)
+
+walks/test_explore_summary_and_export_summary_explore.py:157: AssertionError
+__ test_explore_an_older_slow_search_does_not_replace_the_newer_one[1024x768] __
+[gw3] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bd1bce0>
+make_walk = <function make_walk.<locals>.build at 0x10b9d22a0>
+registry = <walks.helper.Registry object at 0x10b469910>
+
+    def test_explore_an_older_slow_search_does_not_replace_the_newer_one(make_app, make_walk, registry):
+        """test_explore_an_older_slow_search_does_not_replace_the_newer_one"""
+        app, walk = open_find(make_app, make_walk)
+        page = walk.page
+        registry.set("slow", True, delay=3)
+        page.get_by_label("Condition").fill("many")
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_text("Searching").wait_for()
+        registry.set("slow", False)
+        page.get_by_label("Condition").count()  # the form is gone while searching: a user edits the address or goes Back/forward
+        page.go_back()
+        page.get_by_label("Condition").wait_for()
+        page.get_by_label("Condition").fill("nothing")
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_text("No trials match this search.").wait_for()
+        page.wait_for_timeout(4000)
+        walk.shot("after-old-answer")
+        assert "nothing" in page.url
+>       assert page.get_by_text("No trials match this search.").count() == 1, "the older search's 134 matches replaced the newer search's empty answer"
+E       AssertionError: the older search's 134 matches replaced the newer search's empty answer
+E       assert 0 == 1
+E        +  where 0 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:64302/#/find?cond=nothing&page=1'> selector='internal:text="No trials match this search."i'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64302/#/find?cond=nothing&page=1'> selector='internal:text="No trials match this search."i'> = get_by_text('No trials match this search.')
+E        +        where get_by_text = <Page url='http://127.0.0.1:64302/#/find?cond=nothing&page=1'>.get_by_text
+
+walks/test_explore_find_trials_stale_response_overwrites_view.py:54: AssertionError
+_ test_the_review_bar_stays_small_and_the_page_does_not_scroll_sideways_with_many_long_named_lists[1440x900] _
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bdcc2c0>
+make_walk = <function make_walk.<locals>.build at 0x1111b89a0>
+
+    def test_the_review_bar_stays_small_and_the_page_does_not_scroll_sideways_with_many_long_named_lists(make_app, make_walk):
+        """test_the_review_bar_stays_small_and_the_page_does_not_scroll_sideways_with_many_long_named_lists"""
+        app = make_app(seed=seed_many)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/trials/NCT03412565")
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        walk.shot("bar")  # the shot's sideways-scroll guard fails the walk at 1024 x 768
+        height = page.viewport_size["height"]
+>       assert page.get_by_role("region", name="Review").bounding_box()["height"] < height / 3
+E       assert 593.3125 < (900 / 3)
+
+walks/test_explore_trial_page_many_watchlists.py:31: AssertionError
+_ test_the_review_bar_stays_small_and_the_page_does_not_scroll_sideways_with_many_long_named_lists[1024x768] _
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1111420c0>
+make_walk = <function make_walk.<locals>.build at 0x111142840>
+
+    def test_the_review_bar_stays_small_and_the_page_does_not_scroll_sideways_with_many_long_named_lists(make_app, make_walk):
+        """test_the_review_bar_stays_small_and_the_page_does_not_scroll_sideways_with_many_long_named_lists"""
+        app = make_app(seed=seed_many)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/trials/NCT03412565")
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        walk.shot("bar")  # the shot's sideways-scroll guard fails the walk at 1024 x 768
+        height = page.viewport_size["height"]
+>       assert page.get_by_role("region", name="Review").bounding_box()["height"] < height / 3
+E       assert 796.28125 < (768 / 3)
+
+walks/test_explore_trial_page_many_watchlists.py:31: AssertionError
+___ test_escape_closes_the_menu_while_focus_is_still_on_its_button[1440x900] ___
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x111143600>
+make_walk = <function make_walk.<locals>.build at 0x111149bc0>
+
+    def test_escape_closes_the_menu_while_focus_is_still_on_its_button(make_app, make_walk):
+        """test_escape_closes_the_menu_while_focus_is_still_on_its_button"""
+        _, walk = open_trial(make_app, make_walk)
+        page = walk.page
+        open_menu_by_keyboard(page)
+        walk.shot("open")
+        page.keyboard.press("Escape")
+        walk.shot("after-escape")
+>       assert not page.get_by_role("menu").is_visible()
+E       AssertionError: assert not True
+E        +  where True = is_visible()
+E        +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:64919/#/trials/NCT03412565'> selector='internal:role=menu'>.is_visible
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64919/#/trials/NCT03412565'> selector='internal:role=menu'> = get_by_role('menu')
+E        +        where get_by_role = <Page url='http://127.0.0.1:64919/#/trials/NCT03412565'>.get_by_role
+
+walks/test_explore_trial_page_menu_keyboard.py:23: AssertionError
+_ test_explore_a_slow_search_does_not_draw_over_the_watchlist_the_analyst_went_to[1024x768] _
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x11083b060>
+make_walk = <function make_walk.<locals>.build at 0x1108d1080>
+registry = <walks.helper.Registry object at 0x1108a9250>
+
+    def test_explore_a_slow_search_does_not_draw_over_the_watchlist_the_analyst_went_to(make_app, make_walk, registry):
+        """test_explore_a_slow_search_does_not_draw_over_the_watchlist_the_analyst_went_to"""
+        app, walk = open_find(make_app, make_walk, helper.seed_queue)
+        page = walk.page
+        registry.set("slow", True, delay=3)
+        page.get_by_label("Condition").fill("lung")
+        page.get_by_label("Condition").press("Enter")
+        page.get_by_text("Searching").wait_for()
+        registry.set("slow", False)
+        page.get_by_role("link", name="Watchlists").first.click()
+        page.wait_for_url("**#/watchlists/**")
+        page.get_by_role("tab", name="Needs review").wait_for()
+        page.wait_for_timeout(4000)  # the slow answer has arrived by now
+        walk.shot("after-slow-answer")
+>       assert page.get_by_role("heading", level=1, name="Find trials").count() == 0, \
+            f"address {page.url} but the page shows the Find trials results"
+E       AssertionError: address http://127.0.0.1:64556/#/watchlists/1/needs-review but the page shows the Find trials results
+E       assert 1 == 0
+E        +  where 1 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:64556/#/watchlists/1/needs-review'> selector='internal:role=heading[level=1][name="Find trials"i]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64556/#/watchlists/1/needs-review'> selector='internal:role=heading[level=1][name="Find trials"i]'> = get_by_role('heading', level=1, name='Find trials')
+E        +        where get_by_role = <Page url='http://127.0.0.1:64556/#/watchlists/1/needs-review'>.get_by_role
+
+walks/test_explore_find_trials_stale_response_overwrites_view.py:31: AssertionError
+___ test_escape_closes_the_menu_while_focus_is_still_on_its_button[1024x768] ___
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1111c71a0>
+make_walk = <function make_walk.<locals>.build at 0x1111c7560>
+
+    def test_escape_closes_the_menu_while_focus_is_still_on_its_button(make_app, make_walk):
+        """test_escape_closes_the_menu_while_focus_is_still_on_its_button"""
+        _, walk = open_trial(make_app, make_walk)
+        page = walk.page
+        open_menu_by_keyboard(page)
+        walk.shot("open")
+        page.keyboard.press("Escape")
+        walk.shot("after-escape")
+>       assert not page.get_by_role("menu").is_visible()
+E       AssertionError: assert not True
+E        +  where True = is_visible()
+E        +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:64967/#/trials/NCT03412565'> selector='internal:role=menu'>.is_visible
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64967/#/trials/NCT03412565'> selector='internal:role=menu'> = get_by_role('menu')
+E        +        where get_by_role = <Page url='http://127.0.0.1:64967/#/trials/NCT03412565'>.get_by_role
+
+walks/test_explore_trial_page_menu_keyboard.py:23: AssertionError
+_______ test_empty_period_offer_keeps_the_keyboard_on_the_page[1024x768] _______
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x11093a200>
+make_walk = <function make_walk.<locals>.build at 0x110968220>
+
+    def test_empty_period_offer_keeps_the_keyboard_on_the_page(make_app, make_walk):
+        """test_empty_period_offer_keeps_the_keyboard_on_the_page"""
+        _app, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="Custom dates").click()
+        page.get_by_label("From").fill("2020-01-01")
+        page.get_by_label("To").fill("2020-01-31")
+        page.get_by_role("button", name="Apply").focus()
+        page.keyboard.press("Enter")
+        page.locator("#summary-empty").wait_for()
+        walk.shot("after-apply")
+>       assert not focus_desc(page).startswith("BODY"), focus_desc(page)
+E       AssertionError: BODY:Trial Change Monitor
+E         Watchlist
+E       assert not True
+E        +  where True = <built-in method startswith of str object at 0x1108542d0>('BODY')
+E        +    where <built-in method startswith of str object at 0x1108542d0> = 'BODY:Trial Change Monitor\nWatchlist'.startswith
+E        +      where 'BODY:Trial Change Monitor\nWatchlist' = focus_desc(<Page url='http://127.0.0.1:65047/#/watchlists/1/summary?period=custom&from=2020-01-01&to=2020-01-31'>)
+
+walks/test_explore_summary_and_export_summary_explore.py:171: AssertionError
+____________ test_tabbing_out_of_the_open_menu_closes_it[1440x900] _____________
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1111b3a60>
+make_walk = <function make_walk.<locals>.build at 0x1111b3740>
+
+    def test_tabbing_out_of_the_open_menu_closes_it(make_app, make_walk):
+        """test_tabbing_out_of_the_open_menu_closes_it"""
+        _, walk = open_trial(make_app, make_walk)
+        page = walk.page
+        open_menu_by_keyboard(page)
+        for _ in range(4):
+            page.keyboard.press("Tab")
+        walk.shot("tabbed-away")
+>       assert not page.get_by_role("menu").is_visible()
+E       AssertionError: assert not True
+E        +  where True = is_visible()
+E        +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:65071/#/trials/NCT03412565'> selector='internal:role=menu'>.is_visible
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:65071/#/trials/NCT03412565'> selector='internal:role=menu'> = get_by_role('menu')
+E        +        where get_by_role = <Page url='http://127.0.0.1:65071/#/trials/NCT03412565'>.get_by_role
+
+walks/test_explore_trial_page_menu_keyboard.py:34: AssertionError
+____________ test_tabbing_out_of_the_open_menu_closes_it[1024x768] _____________
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107c6c540>
+make_walk = <function make_walk.<locals>.build at 0x107c6cfe0>
+
+    def test_tabbing_out_of_the_open_menu_closes_it(make_app, make_walk):
+        """test_tabbing_out_of_the_open_menu_closes_it"""
+        _, walk = open_trial(make_app, make_walk)
+        page = walk.page
+        open_menu_by_keyboard(page)
+        for _ in range(4):
+            page.keyboard.press("Tab")
+        walk.shot("tabbed-away")
+>       assert not page.get_by_role("menu").is_visible()
+E       AssertionError: assert not True
+E        +  where True = is_visible()
+E        +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:65124/#/trials/NCT03412565'> selector='internal:role=menu'>.is_visible
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:65124/#/trials/NCT03412565'> selector='internal:role=menu'> = get_by_role('menu')
+E        +        where get_by_role = <Page url='http://127.0.0.1:65124/#/trials/NCT03412565'>.get_by_role
+
+walks/test_explore_trial_page_menu_keyboard.py:34: AssertionError
+_ test_focus_is_not_dropped_to_the_page_after_remove_from_this_list[1440x900] __
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1111bbb00>
+make_walk = <function make_walk.<locals>.build at 0x1111bb600>
+
+    def test_focus_is_not_dropped_to_the_page_after_remove_from_this_list(make_app, make_walk):
+        """test_focus_is_not_dropped_to_the_page_after_remove_from_this_list"""
+        _, walk = open_trial(make_app, make_walk)
+        page = walk.page
+        open_menu_by_keyboard(page)
+        page.get_by_role("menuitem", name="Remove from this list").focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Removed from Myeloma.").wait_for()
+        walk.shot("removed")
+>       assert page.evaluate("document.activeElement.tagName") != "BODY"
+E       AssertionError: assert 'BODY' != 'BODY'
+E        +  where 'BODY' = evaluate('document.activeElement.tagName')
+E        +    where evaluate = <Page url='http://127.0.0.1:65200/#/trials/NCT03412565'>.evaluate
+
+walks/test_explore_trial_page_menu_keyboard.py:46: AssertionError
+_ test_focus_is_not_dropped_to_the_page_after_remove_from_this_list[1024x768] __
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107d79c60>
+make_walk = <function make_walk.<locals>.build at 0x107d79f80>
+
+    def test_focus_is_not_dropped_to_the_page_after_remove_from_this_list(make_app, make_walk):
+        """test_focus_is_not_dropped_to_the_page_after_remove_from_this_list"""
+        _, walk = open_trial(make_app, make_walk)
+        page = walk.page
+        open_menu_by_keyboard(page)
+        page.get_by_role("menuitem", name="Remove from this list").focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Removed from Myeloma.").wait_for()
+        walk.shot("removed")
+>       assert page.evaluate("document.activeElement.tagName") != "BODY"
+E       AssertionError: assert 'BODY' != 'BODY'
+E        +  where 'BODY' = evaluate('document.activeElement.tagName')
+E        +    where evaluate = <Page url='http://127.0.0.1:65252/#/trials/NCT03412565'>.evaluate
+
+walks/test_explore_trial_page_menu_keyboard.py:46: AssertionError
+_ test_choosing_a_trial_tab_by_keyboard_leaves_focus_in_the_tab_strip[1024x768] _
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x1111bb4c0>
+make_walk = <function make_walk.<locals>.build at 0x1110cafc0>
+
+    def test_choosing_a_trial_tab_by_keyboard_leaves_focus_in_the_tab_strip(make_app, make_walk):
+        """test_choosing_a_trial_tab_by_keyboard_leaves_focus_in_the_tab_strip"""
+        _, walk = open_trial(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("tab", name="History").focus()
+        page.keyboard.press("Enter")
+        page.get_by_role("heading", name="Trial history").wait_for()
+        walk.shot("history")
+>       assert page.evaluate("document.activeElement.tagName") != "BODY"
+E       AssertionError: assert 'BODY' != 'BODY'
+E        +  where 'BODY' = evaluate('document.activeElement.tagName')
+E        +    where evaluate = <Page url='http://127.0.0.1:65303/#/trials/NCT03412565/history'>.evaluate
+
+walks/test_explore_trial_page_tab_focus.py:17: AssertionError
+_ test_explore_a_slow_trial_detail_does_not_draw_over_the_page_left[1440x900] __
+[gw3] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10b9d2700>
+make_walk = <function make_walk.<locals>.build at 0x10be04400>
+registry = <walks.helper.Registry object at 0x10ba01bf0>
+
+    def test_explore_a_slow_trial_detail_does_not_draw_over_the_page_left(make_app, make_walk, registry):
+        """test_explore_a_slow_trial_detail_does_not_draw_over_the_page_left"""
+        app, walk = open_find(make_app, make_walk, helper.seed_queue)
+        page = walk.page
+        registry.set("slow", True, delay=3)
+        page.goto(app.url + "#/registry/NCT10000005")
+        page.get_by_role("link", name="Watchlists").first.click()
+        page.wait_for_url("**#/watchlists/**")
+        page.get_by_role("tab", name="Needs review").wait_for()
+        registry.set("slow", False)
+        page.wait_for_timeout(4000)
+        walk.shot("after-slow-detail")
+>       assert page.get_by_role("link", name="Back to results").count() == 0, \
+            f"address {page.url} but the page shows a registry trial"
+E       AssertionError: address http://127.0.0.1:64801/#/watchlists/1/needs-review but the page shows a registry trial
+E       assert 1 == 0
+E        +  where 1 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:64801/#/watchlists/1/needs-review'> selector='internal:role=link[name="Back to results"i]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64801/#/watchlists/1/needs-review'> selector='internal:role=link[name="Back to results"i]'> = get_by_role('link', name='Back to results')
+E        +        where get_by_role = <Page url='http://127.0.0.1:64801/#/watchlists/1/needs-review'>.get_by_role
+
+walks/test_explore_find_trials_stale_response_overwrites_view.py:69: AssertionError
+___ test_walk_a_check_where_every_trial_failed_is_not_an_all_clear[1440x900] ___
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107d79e40>
+make_walk = <function make_walk.<locals>.build at 0x107d86160>
+
+    def test_walk_a_check_where_every_trial_failed_is_not_an_all_clear(make_app, make_walk):
+        """test_walk_a_check_where_every_trial_failed_is_not_an_all_clear"""
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/watchlists/2/needs-review")
+        page.get_by_text("All caught up").wait_for()
+        assert "Not checked yet" in page.locator("#watchlist-meta").inner_text()
+        app.registry.set("server_error", True)
+        page.get_by_role("button", name="Check for updates").click()
+        page.get_by_text("Check incomplete").wait_for()
+        walk.shot("failed-check")
+        # The header's "Last checked" is when the check finished, by design (spec, "Check failures persist per trial").
+        # The empty queue must not read as an all-clear while a trial's latest check failed.
+        caught_up = page.locator(".caught-up").inner_text()
+>       assert "All caught up" not in caught_up, f"the empty queue after a total failure: {caught_up!r}"
+E       AssertionError: the empty queue after a total failure: 'All caught up\n\nNo changes awaiting review. Last checked Nov 8, 2026, 9:33 PM EST.\n\nView all trials'
+E       assert 'All caught up' not in 'All caught ...w all trials'
+E         
+E         'All caught up' is contained here:
+E           All caught up
+E           
+E           No changes awaiting review. Last checked Nov 8, 2026, 9:33 PM EST.
+E           
+E           View all trials
+
+walks/test_explore_watchlists_and_review_failed_check_is_not_an_all_clear.py:26: AssertionError
+___ test_walk_a_check_where_every_trial_failed_is_not_an_all_clear[1024x768] ___
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x111238a40>
+make_walk = <function make_walk.<locals>.build at 0x111238d60>
+
+    def test_walk_a_check_where_every_trial_failed_is_not_an_all_clear(make_app, make_walk):
+        """test_walk_a_check_where_every_trial_failed_is_not_an_all_clear"""
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/watchlists/2/needs-review")
+        page.get_by_text("All caught up").wait_for()
+        assert "Not checked yet" in page.locator("#watchlist-meta").inner_text()
+        app.registry.set("server_error", True)
+        page.get_by_role("button", name="Check for updates").click()
+        page.get_by_text("Check incomplete").wait_for()
+        walk.shot("failed-check")
+        # The header's "Last checked" is when the check finished, by design (spec, "Check failures persist per trial").
+        # The empty queue must not read as an all-clear while a trial's latest check failed.
+        caught_up = page.locator(".caught-up").inner_text()
+>       assert "All caught up" not in caught_up, f"the empty queue after a total failure: {caught_up!r}"
+E       AssertionError: the empty queue after a total failure: 'All caught up\n\nNo changes awaiting review. Last checked Nov 8, 2026, 9:33 PM EST.\n\nView all trials'
+E       assert 'All caught up' not in 'All caught ...w all trials'
+E         
+E         'All caught up' is contained here:
+E           All caught up
+E           
+E           No changes awaiting review. Last checked Nov 8, 2026, 9:33 PM EST.
+E           
+E           View all trials
+
+walks/test_explore_watchlists_and_review_failed_check_is_not_an_all_clear.py:26: AssertionError
+_ test_walk_focus_is_not_lost_after_remove_from_this_list_and_its_undo[1440x900] _
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107d2e700>
+make_walk = <function make_walk.<locals>.build at 0x107d2e2a0>
+
+    def test_walk_focus_is_not_lost_after_remove_from_this_list_and_its_undo(make_app, make_walk):
+        """test_walk_focus_is_not_lost_after_remove_from_this_list_and_its_undo"""
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/trials/NCT00000002")
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        page.get_by_role("button", name="More actions").focus()
+        page.keyboard.press("Enter")
+        page.keyboard.press("Tab")
+        page.keyboard.press("Enter")  # Remove from this list
+        undo = page.get_by_role("button", name="Undo")
+        undo.wait_for()
+        walk.shot("after-remove")
+>       assert focused(page) != "body", "focus fell to the page after Remove from this list"
+E       AssertionError: focus fell to the page after Remove from this list
+E       assert 'body' != 'body'
+E        +  where 'body' = focused(<Page url='http://127.0.0.1:65416/#/trials/NCT00000002'>)
+
+walks/test_explore_watchlists_and_review_focus_and_state_kept.py:29: AssertionError
+_ test_walk_focus_is_not_lost_after_remove_from_this_list_and_its_undo[1024x768] _
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x11123f9c0>
+make_walk = <function make_walk.<locals>.build at 0x11123fce0>
+
+    def test_walk_focus_is_not_lost_after_remove_from_this_list_and_its_undo(make_app, make_walk):
+        """test_walk_focus_is_not_lost_after_remove_from_this_list_and_its_undo"""
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/trials/NCT00000002")
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        page.get_by_role("button", name="More actions").focus()
+        page.keyboard.press("Enter")
+        page.keyboard.press("Tab")
+        page.keyboard.press("Enter")  # Remove from this list
+        undo = page.get_by_role("button", name="Undo")
+        undo.wait_for()
+        walk.shot("after-remove")
+>       assert focused(page) != "body", "focus fell to the page after Remove from this list"
+E       AssertionError: focus fell to the page after Remove from this list
+E       assert 'body' != 'body'
+E        +  where 'body' = focused(<Page url='http://127.0.0.1:65489/#/trials/NCT00000002'>)
+
+walks/test_explore_watchlists_and_review_focus_and_state_kept.py:29: AssertionError
+_ test_choosing_a_trial_tab_by_keyboard_leaves_focus_in_the_tab_strip[1440x900] _
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x110a3d580>
+make_walk = <function make_walk.<locals>.build at 0x110b52de0>
+
+    def test_choosing_a_trial_tab_by_keyboard_leaves_focus_in_the_tab_strip(make_app, make_walk):
+        """test_choosing_a_trial_tab_by_keyboard_leaves_focus_in_the_tab_strip"""
+        _, walk = open_trial(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("tab", name="History").focus()
+        page.keyboard.press("Enter")
+        page.get_by_role("heading", name="Trial history").wait_for()
+        walk.shot("history")
+>       assert page.evaluate("document.activeElement.tagName") != "BODY"
+E       AssertionError: assert 'BODY' != 'BODY'
+E        +  where 'BODY' = evaluate('document.activeElement.tagName')
+E        +    where evaluate = <Page url='http://127.0.0.1:49224/#/trials/NCT03412565/history'>.evaluate
+
+walks/test_explore_trial_page_tab_focus.py:17: AssertionError
+______ test_walk_an_unbroken_name_does_not_widen_the_trial_page[1440x900] ______
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x110b36a20>
+make_walk = <function make_walk.<locals>.build at 0x110b36480>
+
+    def test_walk_an_unbroken_name_does_not_widen_the_trial_page(make_app, make_walk):
+        """Back to <name> and the Removed from <name> banner must wrap."""
+        app = make_app(seed=seed)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("link", name="Review changes").first.click()
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+>       assert too_wide(page) == 0, "the Back to link is wider than the window"
+E       AssertionError: the Back to link is wider than the window
+E       assert 376 == 0
+E        +  where 376 = too_wide(<Page url='http://127.0.0.1:49264/#/trials/NCT03412565'>)
+
+walks/test_explore_watchlists_and_review_long_name_overflow.py:35: AssertionError
+______ test_walk_an_unbroken_name_does_not_widen_the_trial_page[1024x768] ______
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x110b50540>
+make_walk = <function make_walk.<locals>.build at 0x11099fba0>
+
+    def test_walk_an_unbroken_name_does_not_widen_the_trial_page(make_app, make_walk):
+        """Back to <name> and the Removed from <name> banner must wrap."""
+        app = make_app(seed=seed)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("link", name="Review changes").first.click()
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+>       assert too_wide(page) == 0, "the Back to link is wider than the window"
+E       AssertionError: the Back to link is wider than the window
+E       assert 792 == 0
+E        +  where 792 = too_wide(<Page url='http://127.0.0.1:49303/#/trials/NCT03412565'>)
+
+walks/test_explore_watchlists_and_review_long_name_overflow.py:35: AssertionError
+____ test_walk_an_unbroken_name_does_not_widen_the_first_use_page[1440x900] ____
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x11099e160>
+make_walk = <function make_walk.<locals>.build at 0x1108754e0>
+
+    def test_walk_an_unbroken_name_does_not_widen_the_first_use_page(make_app, make_walk):
+        """A new, empty watchlist shows the name as a heading; it must wrap."""
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1).wait_for()
+        page.get_by_role("button", name="+ New watchlist").click()
+        page.get_by_label("Name").fill(UNBROKEN)
+        page.get_by_role("button", name="Create watchlist").click()
+        page.get_by_label("Watchlists").get_by_role("link", name=UNBROKEN).click()
+        page.get_by_role("heading", name="Monitor your first trial").wait_for()
+        walk.shot("first-use")
+>       assert too_wide(page) == 0, "the first-use heading is wider than the window"
+E       AssertionError: the first-use heading is wider than the window
+E       assert 1014 == 0
+E        +  where 1014 = too_wide(<Page url='http://127.0.0.1:49339/#/watchlists/3/needs-review'>)
+
+walks/test_explore_watchlists_and_review_long_name_overflow.py:57: AssertionError
+____ test_walk_an_unbroken_name_does_not_widen_the_first_use_page[1024x768] ____
+[gw1] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x110874ae0>
+make_walk = <function make_walk.<locals>.build at 0x110bb8d60>
+
+    def test_walk_an_unbroken_name_does_not_widen_the_first_use_page(make_app, make_walk):
+        """A new, empty watchlist shows the name as a heading; it must wrap."""
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1).wait_for()
+        page.get_by_role("button", name="+ New watchlist").click()
+        page.get_by_label("Name").fill(UNBROKEN)
+        page.get_by_role("button", name="Create watchlist").click()
+        page.get_by_label("Watchlists").get_by_role("link", name=UNBROKEN).click()
+        page.get_by_role("heading", name="Monitor your first trial").wait_for()
+        walk.shot("first-use")
+>       assert too_wide(page) == 0, "the first-use heading is wider than the window"
+E       AssertionError: the first-use heading is wider than the window
+E       assert 1430 == 0
+E        +  where 1430 = too_wide(<Page url='http://127.0.0.1:49377/#/watchlists/3/needs-review'>)
+
+walks/test_explore_watchlists_and_review_long_name_overflow.py:57: AssertionError
+_ test_explore_a_slow_trial_detail_does_not_draw_over_the_page_left[1024x768] __
+[gw3] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10be063e0>
+make_walk = <function make_walk.<locals>.build at 0x10bf21300>
+registry = <walks.helper.Registry object at 0x10afb4490>
+
+    def test_explore_a_slow_trial_detail_does_not_draw_over_the_page_left(make_app, make_walk, registry):
+        """test_explore_a_slow_trial_detail_does_not_draw_over_the_page_left"""
+        app, walk = open_find(make_app, make_walk, helper.seed_queue)
+        page = walk.page
+        registry.set("slow", True, delay=3)
+        page.goto(app.url + "#/registry/NCT10000005")
+        page.get_by_role("link", name="Watchlists").first.click()
+        page.wait_for_url("**#/watchlists/**")
+        page.get_by_role("tab", name="Needs review").wait_for()
+        registry.set("slow", False)
+        page.wait_for_timeout(4000)
+        walk.shot("after-slow-detail")
+>       assert page.get_by_role("link", name="Back to results").count() == 0, \
+            f"address {page.url} but the page shows a registry trial"
+E       AssertionError: address http://127.0.0.1:65447/#/watchlists/1/needs-review but the page shows a registry trial
+E       assert 1 == 0
+E        +  where 1 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:65447/#/watchlists/1/needs-review'> selector='internal:role=link[name="Back to results"i]'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:65447/#/watchlists/1/needs-review'> selector='internal:role=link[name="Back to results"i]'> = get_by_role('link', name='Back to results')
+E        +        where get_by_role = <Page url='http://127.0.0.1:65447/#/watchlists/1/needs-review'>.get_by_role
+
+walks/test_explore_find_trials_stale_response_overwrites_view.py:69: AssertionError
+______ test_focus_stays_in_the_page_after_dismiss_undo_and_add[1440x900] _______
+[gw3] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bdfa340>
+make_walk = <function make_walk.<locals>.build at 0x10bdfad40>
+
+    def test_focus_stays_in_the_page_after_dismiss_undo_and_add(make_app, make_walk):
+        """test_focus_stays_in_the_page_after_dismiss_undo_and_add"""
+        _, walk = open_tab(make_app, make_walk)
+        page = walk.page
+        box(page, "NCT00000002").check()
+        page.get_by_role("button", name="Dismiss 1").click()
+        page.get_by_role("button", name="Yes, dismiss 1").click()
+        page.get_by_role("button", name="Undo").wait_for()
+>       assert focus(page) != "body", "after Dismiss focus fell to the page body"
+E       AssertionError: after Dismiss focus fell to the page body
+E       assert 'body' != 'body'
+E        +  where 'body' = focus(<Page url='http://127.0.0.1:49427/#/watchlists/1/new-matches'>)
+
+walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py:26: AssertionError
+_________ test_walk_focus_is_not_lost_when_a_check_finishes[1024x768] __________
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x111252ac0>
+make_walk = <function make_walk.<locals>.build at 0x111252de0>
+
+    def test_walk_focus_is_not_lost_when_a_check_finishes(make_app, make_walk):
+        """test_walk_focus_is_not_lost_when_a_check_finishes"""
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1).wait_for()
+        app.registry.set("slow", True, delay=1)
+        page.get_by_role("button", name="Check for updates").focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Check complete").wait_for()
+        walk.shot("after-check")
+>       assert focused(page) != "body", "focus fell to the page when the check finished"
+E       AssertionError: focus fell to the page when the check finished
+E       assert 'body' != 'body'
+E        +  where 'body' = focused(<Page url='http://127.0.0.1:49171/#/watchlists/1/needs-review'>)
+
+walks/test_explore_watchlists_and_review_focus_and_state_kept.py:49: AssertionError
+_________ test_walk_focus_is_not_lost_when_a_check_finishes[1440x900] __________
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107962340>
+make_walk = <function make_walk.<locals>.build at 0x107961ee0>
+
+    def test_walk_focus_is_not_lost_when_a_check_finishes(make_app, make_walk):
+        """test_walk_focus_is_not_lost_when_a_check_finishes"""
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url)
+        page.get_by_role("heading", level=1).wait_for()
+        app.registry.set("slow", True, delay=1)
+        page.get_by_role("button", name="Check for updates").focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Check complete").wait_for()
+        walk.shot("after-check")
+>       assert focused(page) != "body", "focus fell to the page when the check finished"
+E       AssertionError: focus fell to the page when the check finished
+E       assert 'body' != 'body'
+E        +  where 'body' = focused(<Page url='http://127.0.0.1:65521/#/watchlists/1/needs-review'>)
+
+walks/test_explore_watchlists_and_review_focus_and_state_kept.py:49: AssertionError
+______ test_focus_stays_in_the_page_after_dismiss_undo_and_add[1024x768] _______
+[gw3] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x10bf56ca0>
+make_walk = <function make_walk.<locals>.build at 0x10bf9e520>
+
+    def test_focus_stays_in_the_page_after_dismiss_undo_and_add(make_app, make_walk):
+        """test_focus_stays_in_the_page_after_dismiss_undo_and_add"""
+        _, walk = open_tab(make_app, make_walk)
+        page = walk.page
+        box(page, "NCT00000002").check()
+        page.get_by_role("button", name="Dismiss 1").click()
+        page.get_by_role("button", name="Yes, dismiss 1").click()
+        page.get_by_role("button", name="Undo").wait_for()
+>       assert focus(page) != "body", "after Dismiss focus fell to the page body"
+E       AssertionError: after Dismiss focus fell to the page body
+E       assert 'body' != 'body'
+E        +  where 'body' = focus(<Page url='http://127.0.0.1:49480/#/watchlists/1/new-matches'>)
+
+walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py:26: AssertionError
+____ test_walk_a_typed_filter_and_sort_survive_a_check_finishing[1024x768] _____
+[gw0] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x111247060>
+make_walk = <function make_walk.<locals>.build at 0x111246b60>
+
+    def test_walk_a_typed_filter_and_sort_survive_a_check_finishing(make_app, make_walk):
+        """Spec story 8: what I am reading does not move."""
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/watchlists/1/all-trials")
+        page.locator("table.trials").wait_for()
+        page.get_by_label("Filter by title, NCT ID or sponsor").fill("NCT00000002")
+        page.get_by_label("Sort").select_option("status")
+        app.registry.set("slow", True, delay=1)
+        page.get_by_role("button", name="Check for updates").click()
+        page.get_by_text("Check complete").wait_for()
+        walk.shot("after-check")
+>       assert page.get_by_label("Filter by title, NCT ID or sponsor").input_value() == "NCT00000002"
+E       AssertionError: assert '' == 'NCT00000002'
+E         
+E         - NCT00000002
+
+walks/test_explore_watchlists_and_review_focus_and_state_kept.py:65: AssertionError
+____ test_walk_a_typed_filter_and_sort_survive_a_check_finishing[1440x900] _____
+[gw2] darwin -- Python 3.13.15 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+make_app = <function make_app.<locals>.build at 0x107962700>
+make_walk = <function make_walk.<locals>.build at 0x107d84b80>
+
+    def test_walk_a_typed_filter_and_sort_survive_a_check_finishing(make_app, make_walk):
+        """Spec story 8: what I am reading does not move."""
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/watchlists/1/all-trials")
+        page.locator("table.trials").wait_for()
+        page.get_by_label("Filter by title, NCT ID or sponsor").fill("NCT00000002")
+        page.get_by_label("Sort").select_option("status")
+        app.registry.set("slow", True, delay=1)
+        page.get_by_role("button", name="Check for updates").click()
+        page.get_by_text("Check complete").wait_for()
+        walk.shot("after-check")
+>       assert page.get_by_label("Filter by title, NCT ID or sponsor").input_value() == "NCT00000002"
+E       AssertionError: assert '' == 'NCT00000002'
+E         
+E         - NCT00000002
+
+walks/test_explore_watchlists_and_review_focus_and_state_kept.py:65: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_explore_dialogs_and_administration_dialogs_and_administration.py::test_explore_an_empty_watchlist_can_be_renamed_and_deleted[1440x900]
+FAILED walks/test_explore_find_trials_focus_lost_after_redraw.py::test_explore_focus_stays_in_the_page_after_next_and_previous[1440x900]
+FAILED walks/test_explore_dialogs_and_administration_dialogs_and_administration.py::test_explore_the_delete_dialog_title_shows_a_long_unbroken_name[1440x900]
+FAILED walks/test_explore_dialogs_and_administration_dialogs_and_administration.py::test_explore_an_empty_watchlist_can_be_renamed_and_deleted[1024x768]
+FAILED walks/test_explore_dialogs_and_administration_dialogs_and_administration.py::test_explore_the_delete_dialog_title_shows_a_long_unbroken_name[1024x768]
+FAILED walks/test_explore_dialogs_and_administration_dialogs_and_administration.py::test_explore_full_recheck_while_a_check_runs_says_why_nothing_started[1440x900]
+FAILED walks/test_explore_find_trials_focus_lost_after_redraw.py::test_explore_focus_stays_in_the_page_after_next_and_previous[1024x768]
+FAILED walks/test_explore_dialogs_and_administration_dialogs_and_administration.py::test_explore_enter_on_check_for_updates_keeps_keyboard_focus[1440x900]
+FAILED walks/test_explore_find_trials_focus_lost_after_redraw.py::test_explore_focus_stays_in_the_page_after_clear_in_the_action_bar[1440x900]
+FAILED walks/test_explore_dialogs_and_administration_dialogs_and_administration.py::test_explore_enter_on_check_for_updates_keeps_keyboard_focus[1024x768]
+FAILED walks/test_explore_dialogs_and_administration_dialogs_and_administration.py::test_explore_full_recheck_while_a_check_runs_says_why_nothing_started[1024x768]
+FAILED walks/test_explore_find_trials_focus_lost_after_redraw.py::test_explore_focus_stays_in_the_page_after_clear_in_the_action_bar[1024x768]
+FAILED walks/test_explore_dialogs_and_administration_dialogs_and_administration.py::test_explore_deleting_the_last_watchlist_leaves_focus_somewhere_usable[1440x900]
+FAILED walks/test_explore_find_trials_focus_lost_after_redraw.py::test_explore_focus_stays_in_the_page_after_add_to_a_watchlist[1440x900]
+FAILED walks/test_explore_find_trials_focus_lost_after_redraw.py::test_explore_focus_stays_in_the_page_after_a_search_with_none_of_the_four_fields[1440x900]
+FAILED walks/test_explore_find_trials_focus_lost_after_redraw.py::test_explore_focus_stays_in_the_page_after_a_search_with_none_of_the_four_fields[1024x768]
+FAILED walks/test_explore_find_trials_focus_lost_after_redraw.py::test_explore_focus_stays_in_the_page_after_add_to_a_watchlist[1024x768]
+FAILED walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py::test_a_long_unbroken_condition_keeps_find_trials_inside_the_window[1024x768]
+FAILED walks/test_explore_find_trials_long_unbroken_query_widens_the_page.py::test_explore_a_600_character_condition_does_not_scroll_the_page_sideways[1440x900]
+FAILED walks/test_explore_dialogs_and_administration_dialogs_and_administration.py::test_explore_deleting_the_last_watchlist_leaves_focus_somewhere_usable[1024x768]
+FAILED walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py::test_focus_returns_after_turn_off_closes_the_dialog[1440x900]
+FAILED walks/test_explore_find_trials_long_unbroken_query_widens_the_page.py::test_explore_a_600_character_condition_does_not_scroll_the_page_sideways[1024x768]
+FAILED walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py::test_focus_returns_after_turn_off_closes_the_dialog[1024x768]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_keyboard_user_keeps_focus_on_the_period_button_they_pressed[1440x900]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_keyboard_user_keeps_focus_on_the_period_button_they_pressed[1024x768]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_focus_after_copy_summary_stays_on_the_button[1440x900]
+FAILED walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py::test_undo_that_the_server_refuses_says_so_and_can_be_pressed_again[1440x900]
+FAILED walks/test_explore_find_trials_stale_response_overwrites_view.py::test_explore_an_older_slow_search_does_not_replace_the_newer_one[1440x900]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_focus_after_copy_summary_stays_on_the_button[1024x768]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_copy_summary_does_not_collapse_the_open_trial[1440x900]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_copy_summary_does_not_collapse_the_open_trial[1024x768]
+FAILED walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py::test_undo_that_the_server_refuses_says_so_and_can_be_pressed_again[1024x768]
+FAILED walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py::test_a_long_unbroken_condition_keeps_find_trials_inside_the_window[1440x900]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_copy_summary_does_not_wipe_dates_typed_in_the_open_form[1440x900]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_copy_summary_does_not_wipe_dates_typed_in_the_open_form[1024x768]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_opening_custom_dates_puts_the_keyboard_in_the_form[1440x900]
+FAILED walks/test_explore_find_trials_stale_response_overwrites_view.py::test_explore_a_slow_search_does_not_draw_over_the_watchlist_the_analyst_went_to[1440x900]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_cancel_and_apply_leave_the_keyboard_somewhere_sensible[1024x768]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_opening_custom_dates_puts_the_keyboard_in_the_form[1024x768]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_empty_period_offer_keeps_the_keyboard_on_the_page[1440x900]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_cancel_and_apply_leave_the_keyboard_somewhere_sensible[1440x900]
+FAILED walks/test_explore_find_trials_stale_response_overwrites_view.py::test_explore_an_older_slow_search_does_not_replace_the_newer_one[1024x768]
+FAILED walks/test_explore_trial_page_many_watchlists.py::test_the_review_bar_stays_small_and_the_page_does_not_scroll_sideways_with_many_long_named_lists[1440x900]
+FAILED walks/test_explore_trial_page_many_watchlists.py::test_the_review_bar_stays_small_and_the_page_does_not_scroll_sideways_with_many_long_named_lists[1024x768]
+FAILED walks/test_explore_trial_page_menu_keyboard.py::test_escape_closes_the_menu_while_focus_is_still_on_its_button[1440x900]
+FAILED walks/test_explore_find_trials_stale_response_overwrites_view.py::test_explore_a_slow_search_does_not_draw_over_the_watchlist_the_analyst_went_to[1024x768]
+FAILED walks/test_explore_trial_page_menu_keyboard.py::test_escape_closes_the_menu_while_focus_is_still_on_its_button[1024x768]
+FAILED walks/test_explore_summary_and_export_summary_explore.py::test_empty_period_offer_keeps_the_keyboard_on_the_page[1024x768]
+FAILED walks/test_explore_trial_page_menu_keyboard.py::test_tabbing_out_of_the_open_menu_closes_it[1440x900]
+FAILED walks/test_explore_trial_page_menu_keyboard.py::test_tabbing_out_of_the_open_menu_closes_it[1024x768]
+FAILED walks/test_explore_trial_page_menu_keyboard.py::test_focus_is_not_dropped_to_the_page_after_remove_from_this_list[1440x900]
+FAILED walks/test_explore_trial_page_menu_keyboard.py::test_focus_is_not_dropped_to_the_page_after_remove_from_this_list[1024x768]
+FAILED walks/test_explore_trial_page_tab_focus.py::test_choosing_a_trial_tab_by_keyboard_leaves_focus_in_the_tab_strip[1024x768]
+FAILED walks/test_explore_find_trials_stale_response_overwrites_view.py::test_explore_a_slow_trial_detail_does_not_draw_over_the_page_left[1440x900]
+FAILED walks/test_explore_watchlists_and_review_failed_check_is_not_an_all_clear.py::test_walk_a_check_where_every_trial_failed_is_not_an_all_clear[1440x900]
+FAILED walks/test_explore_watchlists_and_review_failed_check_is_not_an_all_clear.py::test_walk_a_check_where_every_trial_failed_is_not_an_all_clear[1024x768]
+FAILED walks/test_explore_watchlists_and_review_focus_and_state_kept.py::test_walk_focus_is_not_lost_after_remove_from_this_list_and_its_undo[1440x900]
+FAILED walks/test_explore_watchlists_and_review_focus_and_state_kept.py::test_walk_focus_is_not_lost_after_remove_from_this_list_and_its_undo[1024x768]
+FAILED walks/test_explore_trial_page_tab_focus.py::test_choosing_a_trial_tab_by_keyboard_leaves_focus_in_the_tab_strip[1440x900]
+FAILED walks/test_explore_watchlists_and_review_long_name_overflow.py::test_walk_an_unbroken_name_does_not_widen_the_trial_page[1440x900]
+FAILED walks/test_explore_watchlists_and_review_long_name_overflow.py::test_walk_an_unbroken_name_does_not_widen_the_trial_page[1024x768]
+FAILED walks/test_explore_watchlists_and_review_long_name_overflow.py::test_walk_an_unbroken_name_does_not_widen_the_first_use_page[1440x900]
+FAILED walks/test_explore_watchlists_and_review_long_name_overflow.py::test_walk_an_unbroken_name_does_not_widen_the_first_use_page[1024x768]
+FAILED walks/test_explore_find_trials_stale_response_overwrites_view.py::test_explore_a_slow_trial_detail_does_not_draw_over_the_page_left[1024x768]
+FAILED walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py::test_focus_stays_in_the_page_after_dismiss_undo_and_add[1440x900]
+FAILED walks/test_explore_watchlists_and_review_focus_and_state_kept.py::test_walk_focus_is_not_lost_when_a_check_finishes[1024x768]
+FAILED walks/test_explore_watchlists_and_review_focus_and_state_kept.py::test_walk_focus_is_not_lost_when_a_check_finishes[1440x900]
+FAILED walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py::test_focus_stays_in_the_page_after_dismiss_undo_and_add[1024x768]
+FAILED walks/test_explore_watchlists_and_review_focus_and_state_kept.py::test_walk_a_typed_filter_and_sort_survive_a_check_finishing[1024x768]
+FAILED walks/test_explore_watchlists_and_review_focus_and_state_kept.py::test_walk_a_typed_filter_and_sort_survive_a_check_finishing[1440x900]
+70 failed, 8 passed in 27.88s

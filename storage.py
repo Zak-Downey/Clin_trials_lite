@@ -83,6 +83,17 @@ CREATE TABLE IF NOT EXISTS trials (
     last_reviewed   TEXT
 );
 
+-- When monitoring of a trial stopped (its last watchlist let it go) and resumed
+-- (a watchlist took it back), so History can show the gap as "not watched".
+CREATE TABLE IF NOT EXISTS monitoring_events (
+    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    nct_id TEXT NOT NULL REFERENCES trials(nct_id),
+    kind   TEXT NOT NULL,
+    at     TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS monitoring_by_trial ON monitoring_events(nct_id, id);
+
 CREATE TABLE IF NOT EXISTS snapshots (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     nct_id      TEXT NOT NULL REFERENCES trials(nct_id),
@@ -105,6 +116,16 @@ CREATE TABLE IF NOT EXISTS changes (
 );
 
 CREATE INDEX IF NOT EXISTS changes_by_trial ON changes(nct_id, id);
+
+-- Each review of a trial: when, and exactly which change IDs it marked. An undo
+-- stamps `undone_at` on the event it reverses rather than deleting it.
+CREATE TABLE IF NOT EXISTS review_events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    nct_id      TEXT NOT NULL REFERENCES trials(nct_id),
+    reviewed_at TEXT NOT NULL,
+    change_ids  TEXT NOT NULL,
+    undone_at   TEXT
+);
 """
 
 
@@ -118,7 +139,21 @@ def now() -> str:
 LATE_COLUMNS = (
     ("changes", "reviewed", "INTEGER NOT NULL DEFAULT 0"),
     ("lists", "search", "TEXT"),
+    # A failed check, kept apart from `last_checked` (the last *successful* one).
+    ("trials", "check_failed_at", "TEXT"),
+    ("trials", "check_error_kind", "TEXT"),
+    # When a list's most recent check for updates finished, and which trials
+    # failed in it (a JSON list of NCT IDs): what "Retry failed" re-checks.
+    ("lists", "last_check_finished", "TEXT"),
+    ("lists", "last_check_failed", "TEXT"),
+    # Whether the saved search's last run matched more than the cap of new matches.
+    ("lists", "search_capped", "INTEGER NOT NULL DEFAULT 0"),
 )
+
+
+# Recorded in the file (PRAGMA user_version) each time it is opened, so a
+# database written by an older app is known to have been upgraded in place.
+SCHEMA_VERSION = 2
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
@@ -127,6 +162,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
         existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
         if column not in existing:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+    # A file written by a later app keeps its later version.
+    if conn.execute("PRAGMA user_version").fetchone()[0] < SCHEMA_VERSION:
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
 
 
@@ -151,16 +189,18 @@ def _house_every_trial(conn: sqlite3.Connection) -> None:
     # Only ever the trials of a database that had no lists at all. A trial that
     # loses its last list while the app is running is deliberately dropped, and
     # re-homing it here would quietly undo that.
+    # Not a trial left unwatched on purpose: its removal is recorded and stays.
     conn.execute(
-        "INSERT INTO list_members (list_id, nct_id, added) SELECT ?, nct_id, ? FROM trials",
+        "INSERT INTO list_members (list_id, nct_id, added) SELECT ?, nct_id, ? FROM trials"
+        " WHERE nct_id NOT IN (SELECT nct_id FROM monitoring_events WHERE kind = 'stopped')",
         (home, stamp),
     )
     conn.commit()
 
 
-def connect(path: str | None = None) -> sqlite3.Connection:
+def connect(path: str | None = None, check_same_thread: bool = True) -> sqlite3.Connection:
     """Open the database, creating the schema if it isn't there yet."""
-    conn = sqlite3.connect(path or DB_PATH)
+    conn = sqlite3.connect(path or DB_PATH, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     _migrate(conn)
@@ -209,9 +249,14 @@ def rename_list(conn: sqlite3.Connection, list_id: int, name: str) -> None:
 def delete_list(conn: sqlite3.Connection, list_id: int) -> None:
     """Remove a list, its membership rows and anything it had on offer.
 
-    The trials themselves stay: another list may hold them.
+    The trials themselves stay, history and all; one no other list holds
+    becomes unmonitored.
     """
+    held = [r["nct_id"] for r in conn.execute(
+        "SELECT nct_id FROM list_members WHERE list_id = ?", (list_id,))]
     conn.execute("DELETE FROM list_members WHERE list_id = ?", (list_id,))
+    for nct in held:
+        _note_if_unheld(conn, nct)
     conn.execute("DELETE FROM found WHERE list_id = ?", (list_id,))
     conn.execute("DELETE FROM lists WHERE id = ?", (list_id,))
     conn.commit()
@@ -220,10 +265,21 @@ def delete_list(conn: sqlite3.Connection, list_id: int) -> None:
 def set_list_search(conn: sqlite3.Connection, list_id: int, search: dict | None) -> None:
     """Give a list the search it re-runs on every check, or take it away."""
     conn.execute(
-        "UPDATE lists SET search = ? WHERE id = ?",
+        "UPDATE lists SET search = ?, search_capped = 0 WHERE id = ?",
         (json.dumps(search) if search else None, list_id),
     )
     conn.commit()
+
+
+def set_search_capped(conn: sqlite3.Connection, list_id: int, capped: bool) -> None:
+    """Record whether the saved search's latest run matched more than it could offer."""
+    conn.execute("UPDATE lists SET search_capped = ? WHERE id = ?", (int(capped), list_id))
+    conn.commit()
+
+
+def search_capped(conn: sqlite3.Connection, list_id: int) -> bool:
+    row = conn.execute("SELECT search_capped FROM lists WHERE id = ?", (list_id,)).fetchone()
+    return bool(row and row["search_capped"])
 
 
 def get_list_search(conn: sqlite3.Connection, list_id: int) -> dict | None:
@@ -238,7 +294,20 @@ def get_list_search(conn: sqlite3.Connection, list_id: int) -> dict | None:
 def add_member(
     conn: sqlite3.Connection, list_id: int, nct_id: str, when: str | None = None
 ) -> None:
-    """Put a trial in a list. A trial already in it is left as it was."""
+    """Put a trial in a list. A trial already in it is left as it was.
+
+    A trial no list was holding is monitored again from here: that is recorded.
+    """
+    if get_trial(conn, nct_id) is not None and not lists_holding(conn, nct_id):
+        last = conn.execute(
+            "SELECT kind FROM monitoring_events WHERE nct_id = ? ORDER BY id DESC LIMIT 1",
+            (nct_id,),
+        ).fetchone()
+        if last and last["kind"] == "stopped":
+            conn.execute(
+                "INSERT INTO monitoring_events (nct_id, kind, at) VALUES (?, 'resumed', ?)",
+                (nct_id, when or now()),
+            )
     conn.execute(
         "INSERT OR IGNORE INTO list_members (list_id, nct_id, added) VALUES (?, ?, ?)",
         (list_id, nct_id, when or now()),
@@ -246,10 +315,41 @@ def add_member(
     conn.commit()
 
 
-def remove_member(conn: sqlite3.Connection, list_id: int, nct_id: str) -> None:
+def _note_if_unheld(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> int | None:
+    """Record that monitoring stopped if no list holds the trial now. Returns the event id."""
+    if lists_holding(conn, nct_id):
+        return None
+    return conn.execute(
+        "INSERT INTO monitoring_events (nct_id, kind, at) VALUES (?, 'stopped', ?)",
+        (nct_id, when or now()),
+    ).lastrowid
+
+
+def remove_member(
+    conn: sqlite3.Connection, list_id: int, nct_id: str, when: str | None = None
+) -> int | None:
+    """Take a trial out of a list. Returns the id of the 'stopped' event when that
+    left the trial in no list (its history is kept, it is no longer checked)."""
     conn.execute(
         "DELETE FROM list_members WHERE list_id = ? AND nct_id = ?", (list_id, nct_id)
     )
+    stopped = _note_if_unheld(conn, nct_id, when)
+    conn.commit()
+    return stopped
+
+
+def monitoring_events(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+    """When monitoring of a trial stopped and resumed, oldest first."""
+    return [
+        {"id": r["id"], "kind": r["kind"], "at": r["at"]}
+        for r in conn.execute(
+            "SELECT * FROM monitoring_events WHERE nct_id = ? ORDER BY id", (nct_id,))
+    ]
+
+
+def forget_monitoring_event(conn: sqlite3.Connection, event_id: int) -> None:
+    """Drop one monitoring event (an undone removal leaves no gap behind)."""
+    conn.execute("DELETE FROM monitoring_events WHERE id = ?", (event_id,))
     conn.commit()
 
 
@@ -352,6 +452,16 @@ def dismiss_found(conn: sqlite3.Connection, list_id: int, nct_id: str) -> None:
     conn.commit()
 
 
+def restore_found(conn: sqlite3.Connection, list_id: int, nct_id: str) -> bool:
+    """Offer a dismissed trial again. True if it was dismissed."""
+    done = conn.execute(
+        "UPDATE found SET dismissed = 0 WHERE list_id = ? AND nct_id = ? AND dismissed = 1",
+        (list_id, nct_id),
+    )
+    conn.commit()
+    return done.rowcount > 0
+
+
 def delete_found(conn: sqlite3.Connection, list_id: int, nct_id: str) -> None:
     """Take a trial off offer, because it is now in the list.
 
@@ -392,7 +502,11 @@ def list_trials(conn: sqlite3.Connection, list_id: int | None = None) -> list[sq
     Everything monitored, or only what one named list holds.
     """
     if list_id is None:
-        return conn.execute("SELECT * FROM trials ORDER BY monitoring_began, nct_id").fetchall()
+        # Only what some list holds: a trial in none is kept but not monitored.
+        return conn.execute(
+            "SELECT * FROM trials WHERE nct_id IN (SELECT nct_id FROM list_members)"
+            " ORDER BY monitoring_began, nct_id"
+        ).fetchall()
     return conn.execute(
         "SELECT trials.* FROM trials"
         " JOIN list_members ON list_members.nct_id = trials.nct_id"
@@ -411,15 +525,55 @@ def delete_trial(conn: sqlite3.Connection, nct_id: str) -> None:
     conn.execute("DELETE FROM list_members WHERE nct_id = ?", (nct_id,))
     conn.execute("DELETE FROM changes WHERE nct_id = ?", (nct_id,))
     conn.execute("DELETE FROM snapshots WHERE nct_id = ?", (nct_id,))
+    conn.execute("DELETE FROM monitoring_events WHERE nct_id = ?", (nct_id,))
+    conn.execute("DELETE FROM review_events WHERE nct_id = ?", (nct_id,))
     conn.execute("DELETE FROM trials WHERE nct_id = ?", (nct_id,))
     conn.commit()
 
 
 def mark_checked(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> None:
+    """Record a successful check, which clears any failure recorded against the trial."""
     conn.execute(
-        "UPDATE trials SET last_checked = ? WHERE nct_id = ?", (when or now(), nct_id)
+        "UPDATE trials SET last_checked = ?, check_failed_at = NULL, check_error_kind = NULL"
+        " WHERE nct_id = ?",
+        (when or now(), nct_id),
     )
     conn.commit()
+
+
+def mark_check_failed(
+    conn: sqlite3.Connection, nct_id: str, kind: str, when: str | None = None
+) -> None:
+    """Record that a check failed, without moving the last successful check."""
+    conn.execute(
+        "UPDATE trials SET check_failed_at = ?, check_error_kind = ? WHERE nct_id = ?",
+        (when or now(), kind, nct_id),
+    )
+    conn.commit()
+
+
+def finish_check_run(
+    conn: sqlite3.Connection, list_id: int, failed: list[str], when: str | None = None
+) -> None:
+    """Record that a list's check for updates finished, and which trials failed in it."""
+    conn.execute(
+        "UPDATE lists SET last_check_finished = ?, last_check_failed = ? WHERE id = ?",
+        (when or now(), json.dumps(sorted(failed)), list_id),
+    )
+    conn.commit()
+
+
+def last_check_run(conn: sqlite3.Connection, list_id: int) -> dict:
+    """{"finished": stamp or None, "failed": [NCT IDs]} for a list's last check run."""
+    row = conn.execute(
+        "SELECT last_check_finished, last_check_failed FROM lists WHERE id = ?", (list_id,)
+    ).fetchone()
+    if row is None:
+        return {"finished": None, "failed": []}
+    return {
+        "finished": row["last_check_finished"],
+        "failed": json.loads(row["last_check_failed"] or "[]"),
+    }
 
 
 def mark_reviewed(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> int:
@@ -435,6 +589,81 @@ def mark_reviewed(conn: sqlite3.Connection, nct_id: str, when: str | None = None
     conn.execute("UPDATE trials SET last_reviewed = ? WHERE nct_id = ?", (stamp, nct_id))
     conn.commit()
     return marked
+
+
+def _event(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "nct_id": row["nct_id"],
+        "reviewed_at": row["reviewed_at"],
+        "change_ids": json.loads(row["change_ids"]),
+        "undone_at": row["undone_at"],
+    }
+
+
+def review_changes(
+    conn: sqlite3.Connection, nct_id: str, ids: list[int], when: str | None = None
+) -> dict | None:
+    """Mark exactly these change IDs of a trial reviewed and record the review.
+
+    An ID that is not an unreviewed change of this trial is left alone. Returns
+    the review event (its `change_ids` are what was marked), or None when
+    nothing was.
+    """
+    stamp = when or now()
+    wanted = sorted({int(i) for i in ids})
+    marks = ",".join("?" * len(wanted))
+    marked = [
+        row["id"]
+        for row in conn.execute(
+            f"SELECT id FROM changes WHERE nct_id = ? AND reviewed = 0 AND id IN ({marks}) ORDER BY id",
+            (nct_id, *wanted),
+        )
+    ] if wanted else []
+    if not marked:
+        return None
+    conn.execute(
+        f"UPDATE changes SET reviewed = 1 WHERE id IN ({','.join('?' * len(marked))})", marked
+    )
+    conn.execute("UPDATE trials SET last_reviewed = ? WHERE nct_id = ?", (stamp, nct_id))
+    event_id = conn.execute(
+        "INSERT INTO review_events (nct_id, reviewed_at, change_ids) VALUES (?, ?, ?)",
+        (nct_id, stamp, json.dumps(marked)),
+    ).lastrowid
+    conn.commit()
+    return _event(conn.execute("SELECT * FROM review_events WHERE id = ?", (event_id,)).fetchone())
+
+
+def review_events(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
+    """Every review of a trial, oldest first, undone ones included."""
+    return [
+        _event(r) for r in conn.execute(
+            "SELECT * FROM review_events WHERE nct_id = ? ORDER BY id", (nct_id,))
+    ]
+
+
+def get_review_event(conn: sqlite3.Connection, event_id: int) -> dict | None:
+    row = conn.execute("SELECT * FROM review_events WHERE id = ?", (event_id,)).fetchone()
+    return _event(row) if row else None
+
+
+def undo_review(conn: sqlite3.Connection, event_id: int, when: str | None = None) -> dict | None:
+    """Return exactly the changes a review marked to unreviewed and record the undo.
+
+    None if there is no such event or it was already undone.
+    """
+    event = get_review_event(conn, event_id)
+    if event is None or event["undone_at"]:
+        return None
+    ids = event["change_ids"]
+    conn.execute(
+        f"UPDATE changes SET reviewed = 0 WHERE id IN ({','.join('?' * len(ids))})", ids
+    )
+    conn.execute(
+        "UPDATE review_events SET undone_at = ? WHERE id = ?", (when or now(), event_id)
+    )
+    conn.commit()
+    return get_review_event(conn, event_id)
 
 
 # --- snapshots
@@ -554,6 +783,7 @@ def list_changes(conn: sqlite3.Connection, nct_id: str | None = None) -> list[di
         ).fetchall()
     return [
         {
+            "id": row["id"],
             "nct_id": row["nct_id"],
             "field": row["field"],
             "previous": json.loads(row["previous"]),

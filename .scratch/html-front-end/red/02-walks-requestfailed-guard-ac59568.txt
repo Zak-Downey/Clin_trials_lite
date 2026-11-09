@@ -1,0 +1,26 @@
+# tip ac59568bdb1c491c770fd3a64603f77d711eb30c
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+bringing up nodes...
+bringing up nodes...
+
+..................................F..                                    [100%]
+=================================== FAILURES ===================================
+___ test_walk_guard_fails_a_walk_on_a_request_to_the_app_that_gets_no_answer ___
+[gw1] darwin -- Python 3.9.6 /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/bin/python
+
+broken_run = 'FFFFFFFFFFFFFFFFFFFFFFFF                                                 [100%]\n=================================== ...440x900]\nFAILED walks/broken/broken_pages.py::test_broken_page_closed_after_an_error[1024x768]\n24 failed in 25.38s\n'
+
+    def test_walk_guard_fails_a_walk_on_a_request_to_the_app_that_gets_no_answer(broken_run):
+        """test_walk_guard_fails_a_walk_on_a_request_to_the_app_that_gets_no_answer"""
+        out = broken_run
+        assert failing(out, "test_broken_request_to_the_app_that_gets_no_answer"), out
+>       assert "/static/aborted.js (net::ERR" in out
+E       AssertionError: assert '/static/aborted.js (net::ERR' in 'FFFFFFFFFFFFFFFFFFFFFFFF                                                 [100%]\n=================================== ...440x900]\nFAILED walks/broken/broken_pages.py::test_broken_page_closed_after_an_error[1024x768]\n24 failed in 25.38s\n'
+
+walks/test_walk_guards.py:68: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_a_request_to_the_app_that_gets_no_answer
+1 failed, 36 passed in 29.85s
+
+## Result
+walks/test_walk_guards.py::test_walk_guard_fails_a_walk_on_a_request_to_the_app_that_gets_no_answer -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-walk-guard-fails-a-walk-on-a-request-to-the-app-that-gets-no-answer.txt)

@@ -1,0 +1,124 @@
+# tip 6b05a7fc25cd1fa50599ada316191170a2022bc0
+.......................FFFFFFF.......................................... [ 13%]
+........................................................................ [ 27%]
+........................................................................ [ 40%]
+........................................................................ [ 54%]
+........................................................................ [ 67%]
+........................................................................ [ 81%]
+........................................................................ [ 94%]
+............................                                             [100%]
+=================================== FAILURES ===================================
+_ test_adding_several_trials_reports_which_were_added_which_were_already_there_and_which_failed _
+
+api = <conftest.api.<locals>.Client object at 0x10a4c9550>
+
+    def test_adding_several_trials_reports_which_were_added_which_were_already_there_and_which_failed(api):
+        """test_adding_several_trials_reports_which_were_added_which_were_already_there_and_which_failed"""
+        api.post("/api/watchlists/1/trials", {"nct_ids": ["NCT00000002"]})
+        original = type(api).fetch  # the class attribute, unbound
+    
+        def fetch(nct):
+            if nct == "NCT00000004":
+                raise KeyError("boom")
+            return original(nct)
+    
+        api.fetch_override(fetch)
+        status, body = api.post("/api/watchlists/1/trials", {"nct_ids": ["NCT00000002", "NCT00000003", "NCT00000004", "nope"]})
+>       assert status == 200
+E       assert 404 == 200
+
+tests/test_api_membership.py:24: AssertionError
+_____ test_a_trial_added_for_the_first_time_has_a_baseline_and_no_changes ______
+
+api = <conftest.api.<locals>.Client object at 0x10a4caf90>
+
+    def test_a_trial_added_for_the_first_time_has_a_baseline_and_no_changes(api):
+        """test_a_trial_added_for_the_first_time_has_a_baseline_and_no_changes"""
+        api.post("/api/watchlists/1/trials", {"nct_ids": ["NCT00000002"]})
+        conn = storage.connect(api.path)
+>       assert storage.count_snapshots(conn, "NCT00000002") == 1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = <function count_snapshots at 0x109459ee0>(<sqlite3.Connection object at 0x10a65d6c0>, 'NCT00000002')
+E        +    where <function count_snapshots at 0x109459ee0> = storage.count_snapshots
+
+tests/test_api_membership.py:35: AssertionError
+__________ test_adding_to_a_watchlist_that_does_not_exist_is_refused ___________
+
+api = <conftest.api.<locals>.Client object at 0x10a4cb0e0>
+
+    def test_adding_to_a_watchlist_that_does_not_exist_is_refused(api):
+        """test_adding_to_a_watchlist_that_does_not_exist_is_refused"""
+        status, body = api.post("/api/watchlists/99/trials", {"nct_ids": ["NCT00000002"]})
+>       assert status == 404 and body["error"]["kind"] == "watchlist_not_found"
+E       AssertionError: assert (404 == 404 and 'not_found' == 'watchlist_not_found'
+E         
+E         - watchlist_not_found
+E         + not_found)
+
+tests/test_api_membership.py:42: AssertionError
+_______________________ test_adding_needs_a_list_of_ids ________________________
+
+api = <conftest.api.<locals>.Client object at 0x10a4c9be0>
+
+    def test_adding_needs_a_list_of_ids(api):
+        """test_adding_needs_a_list_of_ids"""
+        status, body = api.post("/api/watchlists/1/trials", {"nct_ids": "NCT00000002"})
+>       assert status == 400 and body["error"]["kind"] == "invalid_request"
+E       assert (404 == 400)
+
+tests/test_api_membership.py:48: AssertionError
+_ test_details_of_a_trial_not_monitored_come_from_the_registry_and_store_nothing _
+
+api = <conftest.api.<locals>.Client object at 0x10a4cb4d0>
+
+    def test_details_of_a_trial_not_monitored_come_from_the_registry_and_store_nothing(api):
+        """test_details_of_a_trial_not_monitored_come_from_the_registry_and_store_nothing"""
+        status, body = api.get("/api/registry/trials/nct00000007")
+>       assert status == 200
+E       assert 404 == 200
+
+tests/test_api_membership.py:54: AssertionError
+__________ test_details_of_a_trial_the_registry_does_not_know_say_so ___________
+
+api = <conftest.api.<locals>.Client object at 0x10a4cb8c0>
+
+    def test_details_of_a_trial_the_registry_does_not_know_say_so(api):
+        """test_details_of_a_trial_the_registry_does_not_know_say_so"""
+        import urllib.error
+    
+        def fetch(nct):
+            raise urllib.error.HTTPError("u", 404, "nf", {}, None)
+    
+        api.fetch_override(fetch)
+        status, body = api.get("/api/registry/trials/NCT00000007")
+        assert status == 404 and body["error"]["kind"] == "not_found"
+>       assert "NCT00000007 was not found on ClinicalTrials.gov" in body["error"]["message"]
+E       AssertionError: assert 'NCT00000007 was not found on ClinicalTrials.gov' in 'There is nothing at this address.'
+
+tests/test_api_membership.py:73: AssertionError
+_ test_details_when_the_registry_cannot_be_reached_are_a_bad_gateway_not_a_missing_trial _
+
+api = <conftest.api.<locals>.Client object at 0x10a4cb620>
+
+    def test_details_when_the_registry_cannot_be_reached_are_a_bad_gateway_not_a_missing_trial(api):
+        """test_details_when_the_registry_cannot_be_reached_are_a_bad_gateway_not_a_missing_trial"""
+        import urllib.error
+    
+        def fetch(nct):
+            raise urllib.error.URLError("offline")
+    
+        api.fetch_override(fetch)
+        status, body = api.get("/api/registry/trials/NCT00000007")
+>       assert status == 502 and body["error"]["kind"] == "unreachable"
+E       assert (404 == 502)
+
+tests/test_api_membership.py:85: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_api_membership.py::test_adding_several_trials_reports_which_were_added_which_were_already_there_and_which_failed
+FAILED tests/test_api_membership.py::test_a_trial_added_for_the_first_time_has_a_baseline_and_no_changes
+FAILED tests/test_api_membership.py::test_adding_to_a_watchlist_that_does_not_exist_is_refused
+FAILED tests/test_api_membership.py::test_adding_needs_a_list_of_ids - assert...
+FAILED tests/test_api_membership.py::test_details_of_a_trial_not_monitored_come_from_the_registry_and_store_nothing
+FAILED tests/test_api_membership.py::test_details_of_a_trial_the_registry_does_not_know_say_so
+FAILED tests/test_api_membership.py::test_details_when_the_registry_cannot_be_reached_are_a_bad_gateway_not_a_missing_trial
+7 failed, 525 passed in 41.94s

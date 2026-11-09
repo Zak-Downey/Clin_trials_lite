@@ -1,0 +1,41 @@
+# tip ac59568bdb1c491c770fd3a64603f77d711eb30c
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+
+broken_run = 'FFFFFFFFFFFF......FFFF..                                                 [100%]\n=================================== ...alks/broken/broken_pages.py::test_broken_other_status_than_the_expected_one[1024x768]\n16 failed, 8 passed in 25.51s\n'
+
+    def test_walk_guard_fails_an_expected_response_that_never_came_or_came_elsewhere(broken_run):
+        """test_walk_guard_fails_an_expected_response_that_never_came_or_came_elsewhere"""
+        out = broken_run
+        assert failing(out, "test_broken_expected_response_that_never_comes"), out
+>       assert "expected response never came: 404 /api/watchlists" in out
+E       AssertionError: assert 'expected response never came: 404 /api/watchlists' in 'FFFFFFFFFFFF......FFFF..                                                 [100%]\n=================================== ...alks/broken/broken_pages.py::test_broken_other_status_than_the_expected_one[1024x768]\n16 failed, 8 passed in 25.51s\n'
+
+walks/test_walk_guards.py:93: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_needs_review_walk.py::test_walk_the_queue_reads_in_words_not_registry_codes_and_keeps_short_cells_whole[1024x768]
+FAILED walks/test_needs_review_walk.py::test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps[1024x768]
+FAILED walks/test_needs_review_walk.py::test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps[1440x900]
+FAILED walks/test_needs_review_walk.py::test_walk_a_stale_watchlist_address_shows_not_found_and_the_walk_expects_the_404[1440x900]
+FAILED walks/test_needs_review_walk.py::test_walk_a_stale_watchlist_address_shows_not_found_and_the_walk_expects_the_404[1024x768]
+FAILED walks/test_needs_review_walk.py::test_walk_the_queue_reads_in_words_not_registry_codes_and_keeps_short_cells_whole[1440x900]
+FAILED walks/test_run_walks.py::test_runner_lists_a_walk_that_erred_in_setup_as_well_as_one_that_failed
+FAILED walks/test_run_walks.py::test_runner_is_red_when_a_walk_is_red_alone_and_when_a_run_failed_with_nothing_to_re_run
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_a_walk_that_was_wide_only_at_a_screenshot_or_in_a_region
+FAILED walks/test_walk_guards.py::test_walk_guard_keeps_the_first_of_two_pages_and_a_closed_pages_findings
+FAILED walks/test_walk_guards.py::test_walk_guard_does_not_take_a_longer_port_for_the_apps_own_origin
+FAILED walks/test_walk_guards.py::test_walk_guard_fails_an_expected_response_that_never_came_or_came_elsewhere
+12 failed, 25 passed in 29.50s
+
+## Result
+walks/test_needs_review_walk.py::test_walk_the_queue_reads_in_words_not_registry_codes_and_keeps_short_cells_whole[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-walk-the-queue-reads-in-words-not-registry-codes-and-keeps-short-cells-whole-1024x768.txt)
+walks/test_needs_review_walk.py::test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-walk-sidebar-lists-every-watchlist-with-counts-and-a-long-name-wraps-1024x768.txt)
+walks/test_needs_review_walk.py::test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-walk-sidebar-lists-every-watchlist-with-counts-and-a-long-name-wraps-1440x900.txt)
+walks/test_needs_review_walk.py::test_walk_a_stale_watchlist_address_shows_not_found_and_the_walk_expects_the_404[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-walk-a-stale-watchlist-address-shows-not-found-and-the-walk-expects-the-404-1440x900.txt)
+walks/test_needs_review_walk.py::test_walk_a_stale_watchlist_address_shows_not_found_and_the_walk_expects_the_404[1024x768] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-walk-a-stale-watchlist-address-shows-not-found-and-the-walk-expects-the-404-1024x768.txt)
+walks/test_needs_review_walk.py::test_walk_the_queue_reads_in_words_not_registry_codes_and_keeps_short_cells_whole[1440x900] -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-walk-the-queue-reads-in-words-not-registry-codes-and-keeps-short-cells-whole-1440x900.txt)
+walks/test_run_walks.py::test_runner_lists_a_walk_that_erred_in_setup_as_well_as_one_that_failed -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-runner-lists-a-walk-that-erred-in-setup-as-well-as-one-that-failed.txt)
+walks/test_run_walks.py::test_runner_is_red_when_a_walk_is_red_alone_and_when_a_run_failed_with_nothing_to_re_run -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-runner-is-red-when-a-walk-is-red-alone-and-when-a-run-failed-with-nothing-to-re-run.txt)
+walks/test_walk_guards.py::test_walk_guard_fails_a_walk_that_was_wide_only_at_a_screenshot_or_in_a_region -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-walk-guard-fails-a-walk-that-was-wide-only-at-a-screenshot-or-in-a-region.txt)
+walks/test_walk_guards.py::test_walk_guard_keeps_the_first_of_two_pages_and_a_closed_pages_findings -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-walk-guard-keeps-the-first-of-two-pages-and-a-closed-pages-findings.txt)
+walks/test_walk_guards.py::test_walk_guard_does_not_take_a_longer_port_for_the_apps_own_origin -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-walk-guard-does-not-take-a-longer-port-for-the-apps-own-origin.txt)
+walks/test_walk_guards.py::test_walk_guard_fails_an_expected_response_that_never_came_or_came_elsewhere -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/02-walk-tooling-followup/.scratch/html-front-end/walks/alone-test-walk-guard-fails-an-expected-response-that-never-came-or-came-elsewhere.txt)

@@ -1,0 +1,29 @@
+{
+  "keys": {
+    "tracker": {"type": "string", "default": ".scratch", "meaning": "The folder holding <feature>/spec.md and <feature>/issues/NN-<slug>.md."},
+    "protected_branches": {"type": "list of string", "default": ["main"], "meaning": "Branches nobody pushes or merges into but the user."},
+    "checks": {"type": "list of object", "default": [], "meaning": "The suites the gate runs, by name; each is one shell command that exits 0 when green.", "fields": {
+      "name": {"type": "string", "required": true, "meaning": "What boxes and `gate.py red` call the check."},
+      "command": {"type": "string", "required": true, "meaning": "Shell command, run from the repo root."},
+      "proves": {"type": "list of string", "enum": ["test", "walk"], "meaning": "Which evidence kinds a red run of this check can back; `walk` needs evidence.walk."},
+      "red_marker": {"type": "string", "regex": true, "meaning": "Regex (alternatives with |) that marks a failing test's title in the output."},
+      "timeout_s": {"type": "integer", "meaning": "Seconds before the run is killed."}}},
+    "evidence": {"type": "object", "default": {"test": [], "walk": []}, "meaning": "The folders a `test:` or `walk:` title is looked up in.", "fields": {
+      "test": {"type": "list of string", "meaning": "Folders of unit tests."},
+      "walk": {"type": "list of string", "meaning": "Folders of walk checks."}}},
+    "forbid": {"type": "list of object", "default": [], "meaning": "Patterns `gate.py lint` refuses.", "fields": {
+      "name": {"type": "string", "required": true, "meaning": "What the rule is called."},
+      "pattern": {"type": "string", "required": true, "regex": true, "meaning": "Regex a line must not match."},
+      "paths": {"type": "list of string", "required": true, "meaning": "Paths or globs the rule covers."},
+      "why": {"type": "string", "required": true, "meaning": "The reason, shown with a hit."}}},
+    "legacy_features": {"type": "list of string", "default": [], "meaning": "Features from before the gate; their tickets are not audited."},
+    "standins_doc": {"type": "string", "default": "docs/agents/local/repo.md", "meaning": "The file whose Stand-ins table the ready gate reads."},
+    "user_facing": {"type": "list of string", "default": [], "meaning": "Globs of paths a user sees; a spec touching one needs an acceptance-walk and an exploration ticket."},
+    "user_facing_except": {"type": "list of string", "default": [], "meaning": "Globs carved out of user_facing, such as unit tests."},
+    "mutate_paths": {"type": "list of string", "default": [], "meaning": "Paths whose changed .js files are mutation-tested; empty means no mutation runner."},
+    "mutate_except": {"type": "list of string", "default": [], "meaning": "Paths under mutate_paths too slow to mutate; the reviewer's hand sample covers them."},
+    "mutate_command": {"type": "string", "default": null, "required_when_nonempty": "mutate_paths", "meaning": "Shell command that mutates the changed files; {files} is their comma-separated list."},
+    "mutate_report": {"type": "string", "default": null, "required_when_nonempty": "mutate_paths", "meaning": "Where the command leaves its report, in the mutation-testing-elements JSON shape (files{path}.mutants[].status, location, mutatorName)."},
+    "mutate_timeout_s": {"type": "integer", "default": null, "meaning": "Seconds before the mutation run is killed."}
+  }
+}
