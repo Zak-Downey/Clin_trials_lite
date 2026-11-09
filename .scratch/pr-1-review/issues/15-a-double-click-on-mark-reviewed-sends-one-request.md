@@ -12,6 +12,6 @@
 
 **What to build:** The Mark reviewed handler in `trial.js` ignores a press while its request is in flight, so one click records one review and the Undo it draws undoes it.
 
-- [x] Walk: a double click on Mark reviewed, then Undo, undoes the review and prints no script error — walk: test_walk_undo_after_a_double_click_on_mark_reviewed_still_undoes_the_review; red: .scratch/pr-1-review/red/15-walks-f59af47.txt (xfail mark removed; whole walk suite 348 passed)
+- [x] Walk: a double click on Mark reviewed, then Undo, undoes the review and prints no script error — walk: test_walk_undo_after_a_double_click_on_mark_reviewed_still_undoes_the_review; red: .scratch/pr-1-review/red/15-walks-f59af47.txt
 
 ## Comments
