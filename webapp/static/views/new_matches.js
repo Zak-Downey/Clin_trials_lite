@@ -34,7 +34,6 @@ export async function render(root, listId, watchlist) {
     const data = await get(`/api/watchlists/${listId}/new-matches${mine.showing === "dismissed" ? "/dismissed" : ""}`);
     const trials = data.trials;
     for (const id of [...selected]) if (!trials.some((t) => t.nct_id === id)) selected.delete(id);
-    if (!selected.size) mine.pending = false;
     const bar = el("div", { class: "action-bar matches-bar", role: "region", "aria-label": "New matches actions" });
     const body = [];
 
