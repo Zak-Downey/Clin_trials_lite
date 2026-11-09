@@ -49,15 +49,20 @@ export async function render(root, listId, watchlist) {
         restore.setAttribute("aria-label", `Restore ${t.heading}`);
         restore.addEventListener("click", async () => {
           restore.disabled = true;
-          await post(`/api/watchlists/${listId}/new-matches/restore`, { nct_ids: [t.nct_id] });
-          outcome = { text: `Restored ${t.nct_id}. It is back in New matches.` };
-          await refreshTabs();
+          try {
+            await post(`/api/watchlists/${listId}/new-matches/restore`, { nct_ids: [t.nct_id] });
+            outcome = { text: `Restored ${t.nct_id}. It is back in New matches.` };
+            await refreshTabs();
+          } catch (err) {
+            restore.disabled = false;
+            outcome = { text: `Could not restore ${t.nct_id}: ${err.message}`, failed: true };
+          }
           draw();
         });
         list.append(card(t, restore));
       }
       body.push(list);
-      if (outcome) body.push(el("p", { role: "status", class: "meta" }, outcome.text));
+      if (outcome) body.push(el("p", { role: outcome.failed ? "alert" : "status", class: "meta" }, outcome.text));
       root.replaceChildren(tabs, ...body);
       return;
     }
@@ -139,14 +144,23 @@ export async function render(root, listId, watchlist) {
             const undo = el("button", { type: "button", class: "secondary", id: "undo-dismiss" }, "Undo");
             undo.addEventListener("click", async () => {
               undo.disabled = true;
-              await post(`/api/watchlists/${listId}/new-matches/undo`, { token: done.undo_token });
-              outcome = { text: `Undone. ${plural(done.dismissed.length, "trial")} back in New matches.` };
-              await refreshTabs();
-              draw();
+              try {
+                await post(`/api/watchlists/${listId}/new-matches/undo`, { token: done.undo_token });
+                outcome = { text: `Undone. ${plural(done.dismissed.length, "trial")} back in New matches.` };
+                await refreshTabs();
+                draw();
+              } catch (err) {
+                undo.disabled = false; // the analyst is told, and can press it again
+                // Written beside the button on the page now, not through drawBar: that one belongs to a drawing since replaced.
+                let note = undo.parentElement.querySelector(".undo-error");
+                if (!note) { note = el("div", { role: "alert", class: "meta undo-error" }); undo.before(note); }
+                note.textContent = `Could not undo: ${err.message}`;
+              }
             });
             outcome = { text: `${plural(done.dismissed.length, "trial")} dismissed. ${CONSEQUENCE}`, undo };
             await refreshTabs();
             await draw();
+            undo.focus({ preventScroll: true }); // the Yes, dismiss the keyboard pressed is gone
           } catch (err) { confirm.disabled = false; note.textContent = err.message; }
         });
         bar.replaceChildren(el("strong", { class: "count" }, `${n} selected`),

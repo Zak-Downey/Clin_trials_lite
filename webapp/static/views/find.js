@@ -191,7 +191,8 @@ function results(q, data, page, go, edit, clearOptional, changed, watch) {
   return out;
 }
 
-export async function render(root, search, listId, tab = "search") {
+// alive(): is this still the page the address names? A slow answer for a page the analyst left is dropped.
+export async function render(root, search, listId, tab = "search", alive = () => true) {
   const base = listId ? `#/find/${listId}` : "#/find";
   refreshDestination = () => {};
   if (tab === "id") lastFind = base;
@@ -200,6 +201,7 @@ export async function render(root, search, listId, tab = "search") {
   cameFrom = listId || null;
   let lists = [];
   try { lists = (await get("/api/watchlists")).watchlists; } catch { lists = []; }
+  if (!alive()) return;
   if (!lists.some((w) => w.id === destination)) destination = lists[0] ? lists[0].id : null;
   const created = (watchlist, all) => {
     lists = all;
@@ -277,7 +279,7 @@ export async function render(root, search, listId, tab = "search") {
   const q = readQuery(params);
   const page = Math.max(1, Number(params.get("page")) || 1);
   const submitted = named(q) && (params.has("page") || params.has("cond") || params.has("intr") || params.has("spons") || params.has("phase"));
-  const rerender = () => render(root, search, listId);
+  const rerender = () => render(root, search, listId, tab, alive);
   const head = [el("h1", {}, "Find trials"), el("p", { class: "meta" }, "Search ClinicalTrials.gov, then choose what to monitor."),
     tabBar()];
   const open = (query, error, below) => {
@@ -296,11 +298,13 @@ export async function render(root, search, listId, tab = "search") {
   try {
     data = await get(`/api/search?${toParams(q, page)}`);
   } catch (err) {
+    if (!alive()) return;
     const retry = el("button", { type: "button" }, "Retry");
     retry.addEventListener("click", rerender);
     open(q, "", el("div", { class: "error", role: "alert" }, el("p", {}, err.message), retry));
     return;
   }
+  if (!alive()) return;
   const edit = el("button", { type: "button" }, "Edit search");
   edit.addEventListener("click", () => open(q, "", null));
   const clearOptional = el("button", { type: "button" }, "Clear optional filters");

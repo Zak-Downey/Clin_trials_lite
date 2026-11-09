@@ -342,3 +342,13 @@ Not rows: the "Design sample · Simulated" header badge (decision 5), which no n
 - **Areas for the exploratory walkers:** watchlists and review; trial page; find trials; saved search and new matches; summary and export; dialogs and administration.
 - **ADR 0001 stands:** lead sponsor type matches the lead sponsor only, and the form's help text says so.
 - **The screenshots of the current app** are in the UX overview PDF made on 8 November 2026 (`~/Downloads/Trial-Change-Monitor-UX-overview.pdf`); the design's "Current screens" footers refer to its numbering.
+- **Follow-up from the exploration round (ticket 16), found and not fixed here** (none breaks an acceptance box, an In or Partly-in row, or a walk guard; the red scripts are kept in `.scratch/html-front-end/explore/<area>/`, run with `-p walks.conftest`):
+  - Dismissing a match another window already added says "0 trials dismissed" with an Undo (saved search 3).
+  - The Watch this search dialog draws an empty orange strip above Cancel when the watchlist has no saved search (saved search 5).
+  - A summary address with unusable custom dates (`period=custom&from=abc&to=def`) shows a bare message in place of the whole tab; fall back to this week as for missing dates (summary 4).
+  - With Custom dates open, both "This week" and "Custom dates" read as pressed (summary 5).
+  - The CSV writes a cell beginning with `=`, `+`, `-` or `@` as is, so a spreadsheet may read a registry title as a formula; escaping needs a decision against "exact values" (summary 6).
+  - When the browser refuses the clipboard, the notice points to a selection that does not exist; Export CSV is the only route (summary 7).
+  - With the server stopped, a failed action shows the browser's "Failed to fetch" instead of a sentence (trial page 6; also seen in summary and the dialogs).
+  - `run.py` started through a symlink to the same database starts a second server on that file, because the lock path is not resolved (dialogs 6).
+  - `python run.py --port 99999` prints a traceback, not a sentence (dialogs 7).

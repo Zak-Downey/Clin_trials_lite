@@ -16,11 +16,17 @@ const SORTS = {
   status: ["Trial status", (a, b) => a.status.localeCompare(b.status, "en") || byText(a, b)],
 };
 
+// The filter and sort the analyst set, kept per watchlist so a redraw while a check finishes does not clear them.
+const kept = new Map();
+
 export async function render(root, listId, watchlist) {
   const { trials } = await get(`/api/watchlists/${listId}/all-trials`);
   const filter = el("input", { type: "text", id: "trial-filter", "aria-describedby": "filter-note", autocomplete: "off" });
   const sort = el("select", { id: "trial-sort" },
     ...Object.entries(SORTS).map(([key, [label]]) => el("option", { value: key }, label)));
+  const mine = kept.get(listId) || { filter: "", sort: "title" };
+  filter.value = mine.filter;
+  sort.value = SORTS[mine.sort] ? mine.sort : "title";
   const tbody = el("tbody");
   const count = el("p", { class: "meta", id: "trial-count", role: "status" });
   const empty = el("p", { class: "empty", hidden: "" }, "No trials in this watchlist match that filter.");
@@ -29,6 +35,7 @@ export async function render(root, listId, watchlist) {
     tbody);
 
   const draw = () => {
+    kept.set(listId, { filter: filter.value, sort: sort.value });
     const needle = filter.value.trim().toLowerCase();
     const shown = trials
       .filter((t) => !needle || [t.heading, t.nct_id, t.sponsor || ""].some((s) => s.toLowerCase().includes(needle)))

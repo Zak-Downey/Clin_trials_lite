@@ -3,6 +3,7 @@
 import { post } from "/static/api.js";
 import { openDialog } from "/static/views/dialog.js";
 import { manageDialog } from "/static/views/saved_search.js";
+import { menuKeys } from "/static/views/menu_keys.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -78,7 +79,8 @@ function deleteDialog(opener, watchlist, onDeleted) {
 }
 
 // watchlist: the current one. hooks: { renamed(watchlist), recheck(), changed(), deleted() }.
-export function menu(watchlist, hooks) {
+// options.basic: only Rename and Delete (an empty watchlist has no saved search to manage or trials to recheck).
+export function menu(watchlist, hooks, options = {}) {
   const button = el("button", { type: "button", id: "watchlist-menu-button", class: "secondary menu-button", "aria-label": "Watchlist actions", "aria-haspopup": "menu", "aria-expanded": "false" }, "⋯");
   const list = el("div", { class: "menu", role: "menu", "aria-label": "Watchlist actions", hidden: "" });
   const close = () => { list.hidden = true; button.setAttribute("aria-expanded", "false"); };
@@ -89,8 +91,9 @@ export function menu(watchlist, hooks) {
   };
   list.append(
     item("Rename watchlist", () => renameDialog(button, watchlist, hooks.renamed)),
-    item("Manage saved search", () => manageDialog(button, watchlist, hooks.changed)),
-    item("Full recheck", () => recheckDialog(button, hooks.recheck)),
+    ...(options.basic ? [] : [
+      item("Manage saved search", () => manageDialog(button, watchlist, hooks.changed)),
+      item("Full recheck", () => recheckDialog(button, hooks.recheck))]),
     item("Delete watchlist", () => deleteDialog(button, watchlist, hooks.deleted), "danger-text"));
   button.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -99,6 +102,7 @@ export function menu(watchlist, hooks) {
     if (!list.hidden) list.querySelector("button").focus();
   });
   document.addEventListener("click", (event) => { if (!list.contains(event.target)) close(); });
-  list.addEventListener("keydown", (event) => { if (event.key === "Escape") { close(); button.focus(); } });
-  return el("div", { class: "menu-wrap" }, button, list);
+  const wrap = el("div", { class: "menu-wrap" }, button, list);
+  menuKeys(wrap, button, close);
+  return wrap;
 }

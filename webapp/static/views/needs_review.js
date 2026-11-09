@@ -21,8 +21,15 @@ export async function render(root, listId, watchlist) {
   );
   if (!trials.length) {
     const last = watchlist && watchlist.last_checked ? `Last checked ${when(watchlist.last_checked)}.` : "Not checked yet.";
+    // A trial whose latest check failed is not known to be unchanged: an empty queue is no all-clear then.
+    let failed = 0;
+    try { failed = (await get(`/api/watchlists/${listId}/all-trials`)).trials.filter((t) => t.check_failed).length; } catch { /* the card falls back to its plain wording */ }
+    const body = failed
+      ? [el("h3", {}, "Nothing to review yet"),
+        el("p", {}, `${plural(failed, "trial")} could not be checked, so this list may be out of date. See All trials for which.`)]
+      : [el("h3", {}, "All caught up"), el("p", {}, `No changes awaiting review. ${last}`)];
     root.append(el("div", { class: "card caught-up" },
-      el("div", { class: "card-body" }, el("h3", {}, "All caught up"), el("p", {}, `No changes awaiting review. ${last}`)),
+      el("div", { class: "card-body" }, ...body),
       el("a", { class: "button", href: `#/watchlists/${listId}/all-trials` }, "View all trials")));
     return;
   }
