@@ -1,0 +1,119 @@
+# tip cad02732e1da699890f79a09fdbf754c7242d225
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog[chromium-1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10ae453a0>
+make_walk = <function make_walk.<locals>.build at 0x10b384540>
+engine = 'chromium-1440x900'
+
+    def test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog(make_app, make_walk, engine):
+        """test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog"""
+        walk, keys = open_new_watchlist(make_app, make_walk, engine)
+        page = walk.page
+        keys.type(page.get_by_label("Name"), "Wide")  # a normal dialog passes every move
+        page.add_style_tag(content="#view { min-width: 3000px; }")  # the page itself goes wide
+>       with pytest.raises(AssertionError, match="the page is"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AssertionError
+
+walks/test_acceptance_walk.py:448: Failed
+_ test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog[chromium-1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10b0dcae0>
+make_walk = <function make_walk.<locals>.build at 0x10b3f7d80>
+engine = 'chromium-1024x768'
+
+    def test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog(make_app, make_walk, engine):
+        """test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog"""
+        walk, keys = open_new_watchlist(make_app, make_walk, engine)
+        page = walk.page
+        keys.type(page.get_by_label("Name"), "Wide")  # a normal dialog passes every move
+        page.add_style_tag(content="#view { min-width: 3000px; }")  # the page itself goes wide
+>       with pytest.raises(AssertionError, match="the page is"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AssertionError
+
+walks/test_acceptance_walk.py:448: Failed
+_ test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog[webkit-1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10adeafc0>
+make_walk = <function make_walk.<locals>.build at 0x10b43a2a0>
+engine = 'webkit-1440x900'
+
+    def test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog(make_app, make_walk, engine):
+        """test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog"""
+        walk, keys = open_new_watchlist(make_app, make_walk, engine)
+        page = walk.page
+        keys.type(page.get_by_label("Name"), "Wide")  # a normal dialog passes every move
+        page.add_style_tag(content="#view { min-width: 3000px; }")  # the page itself goes wide
+>       with pytest.raises(AssertionError, match="the page is"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AssertionError
+
+walks/test_acceptance_walk.py:448: Failed
+_ test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name[chromium-1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10b4a71a0>
+make_walk = <function make_walk.<locals>.build at 0x10b550d60>
+engine = 'chromium-1440x900'
+
+    def test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name(make_app, make_walk, engine):
+        """test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name"""
+        walk, keys = open_new_watchlist(make_app, make_walk, engine)
+        page = walk.page
+        keys.focus(page.get_by_label("Name"))
+        before = len(keys.reached)
+        keys.focus(page.get_by_role("button", name="Create watchlist"))  # passes Cancel, named: fine
+>       assert any(c["text"] == "Cancel" for c in keys.reached[before:]), keys.reached[before:]
+E       AssertionError: [{'tag': 'BUTTON', 'type': 'submit', 'text': 'Create watchlist', 'id': '', ...}]
+E       assert False
+E        +  where False = any(<generator object test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name.<locals>.<genexpr> at 0x10b52c5f0>)
+
+walks/test_acceptance_walk.py:464: AssertionError
+_ test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name[chromium-1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10b571d00>
+make_walk = <function make_walk.<locals>.build at 0x10b6937e0>
+engine = 'chromium-1024x768'
+
+    def test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name(make_app, make_walk, engine):
+        """test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name"""
+        walk, keys = open_new_watchlist(make_app, make_walk, engine)
+        page = walk.page
+        keys.focus(page.get_by_label("Name"))
+        before = len(keys.reached)
+        keys.focus(page.get_by_role("button", name="Create watchlist"))  # passes Cancel, named: fine
+>       assert any(c["text"] == "Cancel" for c in keys.reached[before:]), keys.reached[before:]
+E       AssertionError: [{'tag': 'BUTTON', 'type': 'submit', 'text': 'Create watchlist', 'id': '', ...}]
+E       assert False
+E        +  where False = any(<generator object test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name.<locals>.<genexpr> at 0x10b6b8a00>)
+
+walks/test_acceptance_walk.py:464: AssertionError
+_ test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name[webkit-1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10b5865c0>
+make_walk = <function make_walk.<locals>.build at 0x10b4a6160>
+engine = 'webkit-1440x900'
+
+    def test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name(make_app, make_walk, engine):
+        """test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name"""
+        walk, keys = open_new_watchlist(make_app, make_walk, engine)
+        page = walk.page
+        keys.focus(page.get_by_label("Name"))
+        before = len(keys.reached)
+        keys.focus(page.get_by_role("button", name="Create watchlist"))  # passes Cancel, named: fine
+>       assert any(c["text"] == "Cancel" for c in keys.reached[before:]), keys.reached[before:]
+E       AssertionError: [{'tag': 'BUTTON', 'type': 'submit', 'text': 'Create watchlist', 'id': '', ...}]
+E       assert False
+E        +  where False = any(<generator object test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name.<locals>.<genexpr> at 0x10b4b86c0>)
+
+walks/test_acceptance_walk.py:464: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_acceptance_walk.py::test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog[chromium-1440x900]
+FAILED walks/test_acceptance_walk.py::test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog[chromium-1024x768]
+FAILED walks/test_acceptance_walk.py::test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog[webkit-1440x900]
+FAILED walks/test_acceptance_walk.py::test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name[chromium-1440x900]
+FAILED walks/test_acceptance_walk.py::test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name[chromium-1024x768]
+FAILED walks/test_acceptance_walk.py::test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name[webkit-1440x900]
+6 failed, 9 deselected in 4.05s

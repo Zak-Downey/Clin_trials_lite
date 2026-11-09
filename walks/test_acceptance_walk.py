@@ -68,8 +68,8 @@ REAL = {"A", "BUTTON", "INPUT", "SELECT", "SUMMARY", "TEXTAREA"}
 class Keys:
     """Moves and acts only with the keyboard, and records every control it reaches."""
 
-    def __init__(self, page, engine):
-        self.page, self.engine, self.reached = page, engine, []
+    def __init__(self, page, engine, walk=None):
+        self.page, self.engine, self.walk, self.reached = page, engine, walk, []
 
     def chord(self, back: bool) -> str:
         """Safari's Tab skips links and buttons unless Option is held (its default setting); Option+Tab is its way."""
@@ -92,10 +92,33 @@ class Keys:
             if self._is_active(target):
                 break
             self.page.keyboard.press(self.chord(self._before_active(target)))
+            self.moved()
+            if not self._is_active(target):
+                self.pass_stop()
         else:
             raise AssertionError(f"could not reach {target} by keyboard in {limit} presses")
         self.note(target)
         return target
+
+    def moved(self):
+        """After a key: no sideways scroll of the page or a region, and no open dialog wider than the window."""
+        if self.walk is not None:
+            self.walk.guards.measure()
+        wide = self.page.evaluate(
+            "() => [document.documentElement.scrollWidth - document.documentElement.clientWidth, "
+            "[...document.querySelectorAll('dialog[open]')].some((d) => { const r = d.getBoundingClientRect(); "
+            "return r.left < -1 || r.right > document.documentElement.clientWidth + 1; })]")
+        assert wide[0] <= 0, f"horizontal scrolling: the page is {wide[0]}px wider than the window"
+        assert not wide[1], "horizontal scrolling: an open dialog is wider than the window"
+
+    def pass_stop(self):
+        """A stop passed on the way (not aimed at) must be a real control with a name and a ring."""
+        if self.page.evaluate("document.activeElement === document.body"):
+            return
+        before = len(self.reached)
+        self.note(self.page.locator(":focus").first)
+        bad = [c for c in self.reached[before:] if not (c["real"] and c["name"] and c["ring"])]
+        assert not bad, f"a stop passed on the way is not a real, named, ringed control: {bad}"
 
     def note(self, target):
         info = target.evaluate(
@@ -108,17 +131,20 @@ class Keys:
 
     def press(self, target, key="Enter"):
         self.focus(target).press(key)
+        self.moved()
 
     def type(self, target, text, submit=False):
         field = self.focus(target)
         self.page.keyboard.type(text)
         if submit:
             self.page.keyboard.press("Enter")
+        self.moved()
 
     def choose(self, select, label):
         """Pick an option of a focused <select> by typing its name."""
         field = self.focus(select)
         self.page.keyboard.type(label)
+        self.moved()
         shown = field.evaluate("(s) => s.selectedOptions[0].textContent")
         assert shown == label, shown
 
@@ -128,7 +154,7 @@ def open_empty(make_app, make_walk, engine):
     walk = make_walk(app)
     walk.page.goto(app.url)
     walk.page.get_by_role("heading", level=1).wait_for()
-    return app, walk, Keys(walk.page, engine)
+    return app, walk, Keys(walk.page, engine, walk)
 
 
 def sidebar(page, name):
@@ -330,8 +356,8 @@ def test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_r
 
     app = make_app(seed=seed_trial_page)
     walk = make_walk(app)
-    page, keys = walk.page, None
-    keys = Keys(page, engine)
+    page = walk.page
+    keys = Keys(page, engine, walk)
     page.goto(app.url)
     page.locator("ul.queue > li.card").first.wait_for()
     stops = {}
@@ -386,7 +412,7 @@ def test_walk_a_failed_trial_in_a_check_is_named_in_words_and_its_retry_is_reach
     app = make_app(seed=seed_checked)
     walk = make_walk(app)
     page = walk.page
-    keys = Keys(page, engine)
+    keys = Keys(page, engine, walk)
     page.goto(app.url)
     page.get_by_role("button", name="Check for updates").wait_for()
     app.registry.set("fail", True, ids=["NCT00000002"])
@@ -402,3 +428,39 @@ def test_walk_a_failed_trial_in_a_check_is_named_in_words_and_its_retry_is_reach
     before = 0
     assert_controls(keys, before)
     walk.shot("failed-then-retried")
+
+
+def open_new_watchlist(make_app, make_walk, engine):
+    app, walk, keys = open_empty(make_app, make_walk, engine)
+    keys.press(walk.page.get_by_role("button", name="+ New watchlist"))
+    walk.page.get_by_role("dialog", name="New watchlist").wait_for()
+    return walk, keys
+
+
+def test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog(make_app, make_walk, engine):
+    """test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog"""
+    walk, keys = open_new_watchlist(make_app, make_walk, engine)
+    page = walk.page
+    keys.type(page.get_by_label("Name"), "Wide")  # a normal dialog passes every move
+    page.add_style_tag(content="#view { min-width: 3000px; }")  # the page itself goes wide
+    with pytest.raises(AssertionError, match="the page is"):
+        keys.type(page.get_by_label("Name"), "Wide")
+    page.add_style_tag(content="#view { min-width: 0 !important; }")
+    page.add_style_tag(content="dialog.dialog { width: 2400px !important; max-width: none !important; }")
+    with pytest.raises(AssertionError, match="wider than the window"):
+        keys.press(page.get_by_role("button", name="Cancel"))
+    walk.guards.found.clear()  # the failure is the point here
+
+
+def test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name(make_app, make_walk, engine):
+    """test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name"""
+    walk, keys = open_new_watchlist(make_app, make_walk, engine)
+    page = walk.page
+    keys.focus(page.get_by_label("Name"))
+    before = len(keys.reached)
+    keys.focus(page.get_by_role("button", name="Create watchlist"))  # passes Cancel, named: fine
+    assert any(c["text"] == "Cancel" for c in keys.reached[before:]), keys.reached[before:]
+    keys.focus(page.get_by_label("Name"))
+    page.get_by_role("button", name="Cancel").evaluate("(b) => { b.textContent = ''; }")  # Cancel loses its name
+    with pytest.raises(AssertionError, match="not a real, named, ringed control"):
+        keys.focus(page.locator("button.primary"))
