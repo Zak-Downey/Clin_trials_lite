@@ -2,7 +2,7 @@
 
 **Blocked by:** None
 
-**Status:** needs-triage
+**Status:** done
 
 **Touches:** walks/run_walks.py, walks/test_run_walks.py
 
