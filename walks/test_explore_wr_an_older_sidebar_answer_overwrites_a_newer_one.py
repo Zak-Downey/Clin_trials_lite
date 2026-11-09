@@ -14,7 +14,6 @@ def badges(page):
     return page.evaluate("[...document.querySelectorAll('#sidebar a')].map((a) => a.querySelector('.badge').textContent)")
 
 
-@pytest.mark.xfail(strict=True, reason="todo: known defect E-030, fixed by ticket 13 of pr-1-review")
 def test_walk_a_late_older_sidebar_answer_does_not_overwrite_the_newer_badges(make_app, make_walk):
     app = make_app(seed=helper.seed_queue)
     walk = make_walk(app)

@@ -12,7 +12,6 @@ import re
 from walks import test_new_matches_walk as nm
 
 
-@pytest.mark.xfail(strict=True, reason="todo: known defect E-029, fixed by ticket 13 of pr-1-review")
 def test_walk_a_check_finishing_after_leaving_new_matches_does_not_change_where_find_trials_details_came_from(make_app, make_walk):
     app, walk = nm.open_tab(make_app, make_walk)
     page = walk.page

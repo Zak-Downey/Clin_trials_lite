@@ -36,9 +36,12 @@ function newButton() {
 
 // activeId: the watchlist to mark, null for none, undefined for the one the address names now.
 // alive(): is this still the page the address names? A late answer for a page the analyst left is not drawn.
+// A newer request overtakes an older one: an answer that arrives after a newer request began is not drawn.
+let sidebarRequest = 0;
 async function drawSidebar(activeId, alive = () => true) {
+  const mine = ++sidebarRequest;
   const { watchlists } = await get("/api/watchlists");
-  if (!alive()) return watchlists;
+  if (!alive() || mine !== sidebarRequest) return watchlists;
   if (activeId === undefined) {
     const parts = location.hash.replace(/^#\/?/, "").split("?")[0].split("/");
     activeId = parts[0] === "watchlists" ? (Number(parts[1]) || null) : null;
@@ -194,6 +197,7 @@ async function route() {
       refresh: async () => {
         const fresh = await drawSidebar(id, alive);
         const current = fresh.find((w) => w.id === id);
+        if (!alive()) return current; // the analyst left this page while the answer was out: draw nothing
         await draw(queue, id, current);
         return current;
       },
