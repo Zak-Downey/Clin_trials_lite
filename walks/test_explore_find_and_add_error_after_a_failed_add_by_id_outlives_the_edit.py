@@ -1,10 +1,13 @@
 """Explore (find and add): the failure sentence of Add by NCT ID stays after the ID is changed.
 
-Run: .venv/bin/python -m pytest -p walks.conftest .scratch/pr-1-review/explore/find-and-add/test_explore_find_and_add_error_after_a_failed_add_by_id_outlives_the_edit.py -q
+Run: .venv/bin/python -m pytest walks/test_explore_find_and_add_error_after_a_failed_add_by_id_outlives_the_edit.py -q
 Data: a fresh database and the stand-in's NCT00000002. Cosmetic.
 """
+import pytest
 
 
+
+@pytest.mark.xfail(strict=True, reason="todo: known defect E-035, fixed by ticket 16 of pr-1-review")
 def test_explore_the_add_error_is_cleared_when_the_id_is_edited(make_app, make_walk):
     """test_explore_the_add_error_is_cleared_when_the_id_is_edited"""
     app = make_app()

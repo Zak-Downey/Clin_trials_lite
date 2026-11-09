@@ -1,8 +1,10 @@
 """Explore: View dismissed and Back to new matches leave keyboard focus on the Summary tab.
 
 Data: walks/test_new_matches_walk.py's seed (twelve offered matches, one saved search). Lacks: a screen reader.
-Run: .venv/bin/python -m pytest -p walks.conftest --rootdir . <this file> -q
+Run: .venv/bin/python -m pytest walks/test_explore_wr_view_dismissed_parks_focus_on_the_summary_tab.py -q
 """
+import pytest
+
 
 from walks import test_new_matches_walk as nm
 
@@ -11,6 +13,7 @@ def in_tab_strip(page):
     return page.evaluate("!!document.activeElement.closest('nav.tabs')")
 
 
+@pytest.mark.xfail(strict=True, reason="todo: known defect E-032, fixed by ticket 14 of pr-1-review")
 def test_walk_view_dismissed_and_back_to_new_matches_do_not_leave_focus_on_a_tab(make_app, make_walk):
     _, walk = nm.open_tab(make_app, make_walk)
     page = walk.page

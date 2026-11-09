@@ -1,10 +1,13 @@
 """Explore (find and add): an address for a page past the last one draws an empty result list.
 
-Run: .venv/bin/python -m pytest -p walks.conftest .scratch/pr-1-review/explore/find-and-add/test_explore_find_and_add_page_beyond_the_last.py -q
+Run: .venv/bin/python -m pytest walks/test_explore_find_and_add_page_beyond_the_last.py -q
 Data: the stand-in's default three studies ("lung"): one page. Reached by a bookmark or an edited address.
 """
+import pytest
 
 
+
+@pytest.mark.xfail(strict=True, reason="todo: known defect E-037, fixed by ticket 17 of pr-1-review")
 def test_explore_page_two_of_a_one_page_search_does_not_draw_an_empty_list(make_app, make_walk):
     """test_explore_page_two_of_a_one_page_search_does_not_draw_an_empty_list"""
     app = make_app()

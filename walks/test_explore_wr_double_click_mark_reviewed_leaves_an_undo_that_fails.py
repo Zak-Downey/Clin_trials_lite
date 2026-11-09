@@ -1,12 +1,15 @@
 """Explore: a double click on Mark reviewed leaves an Undo that cannot undo.
 
 Data: helper.seed_queue (NCT00000002 has three unreviewed changes). Lacks: a trial in two lists.
-Run: .venv/bin/python -m pytest -p walks.conftest --rootdir . <this file> -q
+Run: .venv/bin/python -m pytest walks/test_explore_wr_double_click_mark_reviewed_leaves_an_undo_that_fails.py -q
 """
+import pytest
+
 
 from walks import helper
 
 
+@pytest.mark.xfail(strict=True, reason="todo: known defect E-033, fixed by ticket 15 of pr-1-review")
 def test_walk_undo_after_a_double_click_on_mark_reviewed_still_undoes_the_review(make_app, make_walk):
     app = make_app(seed=helper.seed_queue)
     walk = make_walk(app)

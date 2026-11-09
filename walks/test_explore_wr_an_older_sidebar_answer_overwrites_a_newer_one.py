@@ -2,8 +2,10 @@
 
 Data: helper.seed_queue. The slow answer is held by Playwright (read from the server at once, delivered later).
 Lacks: the same race on the header's own re-read (check.js onChange).
-Run: .venv/bin/python -m pytest -p walks.conftest --rootdir . <this file> -q
+Run: .venv/bin/python -m pytest walks/test_explore_wr_an_older_sidebar_answer_overwrites_a_newer_one.py -q
 """
+import pytest
+
 
 from walks import helper
 
@@ -12,6 +14,7 @@ def badges(page):
     return page.evaluate("[...document.querySelectorAll('#sidebar a')].map((a) => a.querySelector('.badge').textContent)")
 
 
+@pytest.mark.xfail(strict=True, reason="todo: known defect E-030, fixed by ticket 13 of pr-1-review")
 def test_walk_a_late_older_sidebar_answer_does_not_overwrite_the_newer_badges(make_app, make_walk):
     app = make_app(seed=helper.seed_queue)
     walk = make_walk(app)

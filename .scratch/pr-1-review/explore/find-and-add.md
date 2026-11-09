@@ -30,3 +30,6 @@ Run any red script: `.venv/bin/python -m pytest -p walks.conftest .scratch/pr-1-
 - Page left open across a server restart; data an earlier version wrote (old saved searches with sponsor type codes the form does not list would drop them on Edit)
 - The registry answering nonsense (the stand-in has no switch for it); a real registry's answer to an invalid date
 - Failed add from a New matches card (another area); Safari; screen readers
+
+## Disposition (ticket 11)
+Every fix is under `webapp/static/`, so each defect is a `Kind: design` ticket. The scripts moved to `walks/` as `xfail(strict)` (todo) walks tied to ledger rows. 1 and 4: ticket 16 (E-034, E-035); 2 and 3: ticket 17 (E-036, E-037).

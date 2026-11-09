@@ -26,3 +26,12 @@
 {"date": "2026-11-09", "feature": "html-front-end", "id": "E-026", "class": "blocking", "found_by": "branch-review", "should_have_been": "none", "fixed_in": "", "rule_id": "R-005", "flake": ""}
 {"date": "2026-11-09", "feature": "html-front-end", "id": "E-027", "class": "blocking", "found_by": "branch-review", "should_have_been": "none", "fixed_in": "", "rule_id": "R-006", "flake": ""}
 {"date": "2026-11-09", "feature": "html-front-end", "id": "E-028", "class": "blocking", "found_by": "branch-review", "should_have_been": "none", "fixed_in": "", "rule_id": "R-006", "flake": ""}
+{"date": "2026-11-09", "feature": "pr-1-review", "id": "E-029", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 13 (not yet built)", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "pr-1-review", "id": "E-030", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 13 (not yet built)", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "pr-1-review", "id": "E-031", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 14 (not yet built)", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "pr-1-review", "id": "E-032", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 14 (not yet built)", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "pr-1-review", "id": "E-033", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 15 (not yet built)", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "pr-1-review", "id": "E-034", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 16 (not yet built)", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "pr-1-review", "id": "E-035", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 16 (not yet built)", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "pr-1-review", "id": "E-036", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 17 (not yet built)", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "pr-1-review", "id": "E-037", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 17 (not yet built)", "rule_id": "", "flake": ""}

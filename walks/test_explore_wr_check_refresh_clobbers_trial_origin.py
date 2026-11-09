@@ -2,14 +2,17 @@
 
 Data: walks/test_new_matches_walk.py's seed ("Myeloma" with a saved search, "Quiet" id 2, "Bare").
 Lacks: more than one slow answer; the late answer here is held by Playwright route.
-Run: .venv/bin/python -m pytest .scratch/pr-1-review/explore/watchlists-and-review/test_explore_wr_check_refresh_clobbers_trial_origin.py -q -c walks/../pytest.ini --rootdir . -p walks.conftest
+Run: .venv/bin/python -m pytest walks/test_explore_wr_check_refresh_clobbers_trial_origin.py -q
 """
+import pytest
+
 
 import re
 
 from walks import test_new_matches_walk as nm
 
 
+@pytest.mark.xfail(strict=True, reason="todo: known defect E-029, fixed by ticket 13 of pr-1-review")
 def test_walk_a_check_finishing_after_leaving_new_matches_does_not_change_where_find_trials_details_came_from(make_app, make_walk):
     app, walk = nm.open_tab(make_app, make_walk)
     page = walk.page

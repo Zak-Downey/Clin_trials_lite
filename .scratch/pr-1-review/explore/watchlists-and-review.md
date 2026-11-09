@@ -52,3 +52,6 @@ Items 1 and 4 need a change under `webapp/static/` (app.js, new_matches.js, focu
 - A check whose results arrive while the Remove-from-list Undo bar is open on the trial page.
 - Safari/WebKit and screen readers; wording of stale confirmations.
 - Walk-helper change wanted: none. A helper `walk.hold_then_deliver(pattern)` for the stale-answer scripts would remove the copied `route.fetch()` code in `test_explore_wr_an_older_sidebar_answer_overwrites_a_newer_one.py`.
+
+## Disposition (ticket 11)
+Every fix is under `webapp/static/`, so each defect is a `Kind: design` ticket. The scripts moved to `walks/` as `xfail(strict)` (todo) walks tied to ledger rows. 1 and 4: ticket 13 (E-029, E-030); 2 and 3: ticket 14 (E-031, E-032); 5: ticket 15 (E-033).
