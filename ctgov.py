@@ -1,7 +1,7 @@
 """Minimal client for the ClinicalTrials.gov v2 API.
 
-No API key, no auth, no third-party dependencies (stdlib only, plus `browser`
-for the transport used when the app runs as WebAssembly).
+No API key, no auth, no third-party dependencies (stdlib only, plus `truststore`
+where the machine needs it).
 Docs: https://clinicaltrials.gov/data-api/api
 """
 
@@ -12,7 +12,6 @@ import re
 import urllib.parse
 import urllib.request
 
-import browser
 
 BASE = "https://clinicaltrials.gov/api/v2"
 
@@ -20,24 +19,14 @@ BASE = "https://clinicaltrials.gov/api/v2"
 # certificate store, which Python ignores by default. `truststore` points SSL at
 # the OS store so verification still happens properly. Falls back to the stdlib
 # default anywhere that isn't needed.
-#
-# In the browser there is neither: the page hands the request to the browser,
-# which brings its own trust store, and asking for a context here would only
-# fail on a runtime that has no certificates to build one from.
-if browser.IN_BROWSER:  # pragma: no cover -- only true under WebAssembly
-    # `ssl` is not even imported here: WebAssembly leaves it out of the standard
-    # library, and fetching it would be downloading a module to build a context
-    # that nothing in the browser would ever use.
-    _SSL_CTX = None
-else:
-    import ssl
+import ssl
 
-    try:
-        import truststore
+try:
+    import truststore
 
-        _SSL_CTX = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    except ImportError:  # pragma: no cover
-        _SSL_CTX = ssl.create_default_context()
+    _SSL_CTX = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+except ImportError:  # pragma: no cover
+    _SSL_CTX = ssl.create_default_context()
 
 # A useful default slice. Field names are the API's PascalCase ones.
 # Drop `fields=` entirely to get the full (large) study record.
@@ -64,14 +53,11 @@ def _get(path: str, params: dict) -> dict:
     """GET a JSON endpoint. Params with a None value are dropped.
 
     The one place the whole app reaches the registry, and so the one place that
-    has to know there are two ways to do it: a socket locally, and the browser
-    itself when the app is running as WebAssembly, where there are no sockets.
-    Both raise the same `urllib` errors, so no caller can tell which ran.
+    reaches it, over a socket, raising `urllib` errors that callers turn into
+    sentences.
     """
     query = {k: v for k, v in params.items() if v is not None}
     url = f"{BASE}{path}?{urllib.parse.urlencode(query)}"
-    if browser.IN_BROWSER:
-        return browser.get_json(url, timeout=TIMEOUT)
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=TIMEOUT, context=_SSL_CTX) as resp:
         return json.load(resp)

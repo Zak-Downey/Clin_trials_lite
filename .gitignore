@@ -6,8 +6,6 @@ venv/
 *.db
 .pytest_cache/
 
-# The built site, assembled by build_site.py.
-site/
 .claude/worktrees/
 
 # Walk screenshots and run output (kept for failed walks, never tracked).

@@ -321,7 +321,7 @@ def test_a_card_with_none_of_its_fields_present_is_not_rendered(profile_rows):
 
 
 def test_a_card_is_one_block_holding_every_field_it_was_given(profile_rows):
-    """One block is the density win: Streamlit puts a margin around each one."""
+    """One block is the density win: a margin around each would add up."""
     card = display.render_card("Identity", profile_rows(["nctId", "acronym"]))
 
     assert "IDENTITY" in card

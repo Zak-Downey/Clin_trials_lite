@@ -224,3 +224,17 @@ def test_a_normal_check_skips_an_unmoved_stamp_and_a_full_recheck_compares_it_an
     # Once, not sticky: the next normal check is the cheap one again.
     watched.post(f"/api/watchlists/{LIST_ID}/check")
     assert finished(watched)["kind"] == "check"
+
+
+def test_a_check_pauses_between_trials_and_not_before_the_first(watched, monkeypatch):
+    """test_a_check_pauses_between_trials_and_not_before_the_first"""
+    import types
+
+    import webapp.api_checks as api_checks
+
+    pauses = []
+    monkeypatch.setattr(monitor, "PAUSE", 0.25)
+    monkeypatch.setattr(api_checks, "time", types.SimpleNamespace(sleep=pauses.append))
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    finished(watched)
+    assert pauses == [0.25, 0.25]
