@@ -187,6 +187,18 @@ class WalkResult(unittest.TestCase):
             entry = json.loads(handle.readline())
         self.assertEqual((entry["file"], entry["title"], entry["feature"], entry["tip"]), ("walks/06.walk.js", self.TITLE, "feat", repo.head()))
         self.assertRegex(entry["date"], r"^\d{4}-\d{2}-\d{2}$")
+        from gate.records import unclassified, well_typed
+        self.assertEqual(unclassified("flakes", entry), [])
+        self.assertTrue(well_typed("flakes", entry))
+
+    def test_ready_counts_flakes_past_a_line_of_the_wrong_type(self):
+        """Ready's flake count skips a flakes line with a list title instead of crashing"""
+        repo = self.walk_repo([self.flake_line()], 0)
+        repo.write("docs/agents/local/flakes.jsonl", json.dumps({"date": "d", "feature": "feat", "file": "f", "title": [self.TITLE], "tip": "t"}) + "\n[1]\n")
+        repo.commit()
+        code, out = repo.gate("ready", "feat")
+        self.assertEqual(code, 0, out)
+        self.assertIn("flaked 1 time(s)", out)
 
     def test_ready_refuses_the_third_flake_without_a_ticket(self):
         """Ready refuses the third flake without a ticket"""

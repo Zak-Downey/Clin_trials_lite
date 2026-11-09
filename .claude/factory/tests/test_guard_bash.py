@@ -120,7 +120,7 @@ class Refused(unittest.TestCase):
 
 
 ORCHESTRATOR_VERBS = ("dispatch 01 implementer --agent a1", "resume 01 implementer", "foundation-read 01 --agent a1", "review-wave 1",
-                      "spec-against-brief .scratch/feat/reviews/00.md", "merge-start 01 abc1234", "merge-end 01 abc1234", "observation 'x'", "note 'x'")
+                      "spec-against-brief .scratch/feat/reviews/00.md", "merge-start 01 abc1234", "merge-end 01 abc1234", "merge-abort 01 2026-11-08T10:00:00 why", "decided 1 abc1234", "observation 'x'", "note 'x'")
 
 
 class LogVerbs(unittest.TestCase):

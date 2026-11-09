@@ -1,6 +1,7 @@
 """The escapes ledger and `stats` (`gate.py ledger add`, `ledger check`, `stats`)."""
 from __future__ import annotations
 
+import calendar
 import glob
 import json
 import os
@@ -155,27 +156,75 @@ def cmd_ledger(root: str, words: list) -> int:
 ROLE_GATES = {"ticket-reviewer": ("ticket-review",), "branch-reviewer": ("branch-review", "re-check")}
 
 
+def projects_root() -> str:
+    """The harness's transcripts root: `$GATE_PROJECTS_DIR`, default ~/.claude/projects."""
+    return os.environ.get("GATE_PROJECTS_DIR") or os.path.join(os.path.expanduser("~"), ".claude", "projects")
+
+
+def transcript_path(agent: str):
+    """The path of one subagent's transcript, or None. See `read_usage` for the layout."""
+    pattern = os.path.join(glob.escape(projects_root()), "*", "*", "subagents", "agent-%s.jsonl" % glob.escape(agent))
+    found = sorted(glob.glob(pattern))
+    return found[0] if found else None
+
+
+def utc_seconds(text):
+    """Epoch seconds of a transcript line's `timestamp` (ISO 8601, UTC, e.g. 2026-11-08T10:00:00.000Z), or None."""
+    try:
+        return calendar.timegm(time.strptime(str(text)[:19], "%Y-%m-%dT%H:%M:%S"))
+    except ValueError:
+        return None
+
+
+def read_usage(path: str, window=None, keep=None):
+    """Token usage of one transcript, per model, or None when the file cannot be read or no line of it has usage.
+
+    Transcript-shape: the one relied on (the harness's, not this kit's), one JSON object per line:
+    `message.id` (a message repeated across lines counts once, as its last line says: streamed lines grow),
+    `message.usage` (`input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`),
+    `message.model`, and the line's `timestamp`. A subagent's transcript is
+    `<root>/<project>/<session>/subagents/agent-<id>.jsonl`; the session's own transcript, which holds the
+    orchestrating session's messages, is `<root>/<project>/<session>.jsonl`.
+    `window` is (start, end) in epoch seconds, inclusive: a message with no parseable timestamp, or outside it, is not counted.
+    `keep`, when given, is called with each message's epoch seconds and must be true for the message to count.
+    A message whose four counts are all 0 (the harness writes such `<synthetic>` messages) is not counted.
+    Returns {model: {"input", "output", "cache_read", "cache_write"}}; a message with no model is under "unknown"."""
+    kinds = (("input", "input_tokens"), ("output", "output_tokens"), ("cache_read", "cache_read_input_tokens"), ("cache_write", "cache_creation_input_tokens"))
+    seen = {}
+    try:
+        for number, text in enumerate(read(path).split("\n")):
+            try:
+                record = json.loads(text)
+                message = record.get("message")
+                usage = message.get("usage")
+                parts = {k: int(usage.get(name) or 0) for k, name in kinds}
+            except (ValueError, AttributeError, TypeError):
+                continue
+            seen[message.get("id") or "line-%d" % number] = (str(message.get("model") or "unknown"), parts, utc_seconds(record.get("timestamp")))
+    except OSError:
+        return None
+    by_model = {}
+    for model, parts, at in seen.values():
+        if window is not None and (at is None or not window[0] <= at <= window[1]):
+            continue
+        if keep is not None and (at is None or not keep(at)):
+            continue
+        if not any(parts.values()):
+            continue
+        into = by_model.setdefault(model, {k: 0 for k, _ in kinds})
+        for k, n in parts.items():
+            into[k] += n
+    return by_model or None
+
+
 def transcript_tokens(agent: str):
     """(total tokens, output tokens) of one subagent's transcript, each message counted once, or None
-    when no transcript is found or none of it parses. The transcripts are the harness's, under
-    `$GATE_PROJECTS_DIR` (default ~/.claude/projects): <project>/<session>/subagents/agent-<id>.jsonl."""
-    base = os.environ.get("GATE_PROJECTS_DIR") or os.path.join(os.path.expanduser("~"), ".claude", "projects")
-    for path in glob.glob(os.path.join(glob.escape(base), "*", "*", "subagents", "agent-%s.jsonl" % glob.escape(agent))):
-        usage_by_message = {}
-        try:
-            for number, text in enumerate(read(path).split("\n")):
-                try:
-                    message = json.loads(text).get("message")
-                    usage = message.get("usage")
-                    parts = [int(usage.get(k) or 0) for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")]
-                except (ValueError, AttributeError, TypeError):
-                    continue
-                usage_by_message[message.get("id") or "line-%d" % number] = parts
-        except OSError:
-            continue
-        if usage_by_message:
-            return sum(sum(p) for p in usage_by_message.values()), sum(p[3] for p in usage_by_message.values())
-    return None
+    when no transcript is found or none of it parses."""
+    path = transcript_path(agent)
+    usage = read_usage(path) if path else None
+    if not usage:
+        return None
+    return sum(sum(u.values()) for u in usage.values()), sum(u["output"] for u in usage.values())
 
 
 def blocking_findings(root: str, build: str, numbers, folder: str, tracker: str):

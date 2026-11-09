@@ -1,7 +1,9 @@
 """The ready gate, its records stamp, the hand-over checklist and `close`."""
 from __future__ import annotations
 
+import contextlib
 import glob
+import io
 import json
 import os
 import re
@@ -11,11 +13,16 @@ from gate import audit as audit_module
 from gate.audit import feature_numbers, guard_refusals, record_paths_ok
 from gate.checks import cmd_lint, run_checks
 from gate.config import LEDGER_PATH, read
+from gate.dashboard import cmd_dashboard, count_flakes, feature_names, output_path
+from gate.pricing import KINDS, number, priced_cost, read_prices
+from gate.records import read_records
 from gate.evidence import audit_ticket, box_counts
+from gate.github import REMOTE, cmd_github
 from gate.git import read_stamp, run_git, stamp_path
 from gate.ledger import ledger_check, ledger_escape_rows
 from gate.refuse import refuse
 from gate.log import close_out_checklist, log_times, parse_log_time, read_log
+from gate.tokens import TOKENS_PATH, write_tokens
 from gate.tracker import short, table_cells, tracker_dir
 
 
@@ -51,11 +58,7 @@ def record_flakes(root: str, names: str, head, flakes: list, tracker: str) -> li
         for file, title in flakes:
             handle.write(json.dumps({"date": time.strftime("%Y-%m-%d"), "feature": names, "file": file, "title": title, "tip": head or ""}, ensure_ascii=False) + "\n")
     counts = {}
-    for line in read(path).split("\n"):
-        try:
-            entry = json.loads(line)
-        except ValueError:
-            continue
+    for entry in read_records(path)[0]:
         counts[entry.get("title")] = counts.get(entry.get("title"), 0) + 1
     problems = []
     for file, title in dict.fromkeys(flakes):
@@ -258,6 +261,10 @@ def cmd_handover(features: list) -> int:
               "" if stamp[1] == wanted else "; the stamp names %s, not %s" % (stamp[1] or "no feature", wanted)))
     else:
         print("Tips: no ready stamp in this worktree.")
+    page = output_path(root, None)
+    if page:
+        print()
+        print("Dashboard: %s" % page)
     decisions = design_decisions(features)
     print()
     print("## Merged design decisions (%d)" % len(decisions))
@@ -367,14 +374,10 @@ def cmd_handover(features: list) -> int:
     names = set(f.name for f in features)
     counts, this_build = {}, {}
     flakes_file = os.path.join(root, FLAKES_PATH)
-    for line in (read(flakes_file).split("\n") if os.path.isfile(flakes_file) else []):
-        try:
-            entry = json.loads(line)
-        except ValueError:
-            continue
+    for entry in read_records(flakes_file)[0]:
         title = entry.get("title")
         counts[title] = counts.get(title, 0) + 1
-        if names & set(n.strip() for n in str(entry.get("feature", "")).split(",")):
+        if names & set(feature_names(entry.get("feature", ""))):
             this_build[title] = this_build.get(title, 0) + 1
     print()
     print("## Flakes this build (%d)" % len(this_build))
@@ -448,6 +451,36 @@ def insert_build_row(root: str, row: str) -> None:
         handle.write("\n".join(lines))
 
 
+def has_github_remote(root: str) -> bool:
+    return bool(REMOTE.search(run_git(root, "remote", "get-url", "origin") or ""))
+
+
+def soft_step(word: str, step) -> None:
+    """Run a reporting step of `close`: a failure prints one line and never changes the exit code."""
+    try:
+        code = step()
+    except Exception as err:
+        code, reason = 1, str(err).split("\n")[0] or type(err).__name__
+    else:
+        reason = "exit %s" % code
+    if code:
+        print("%s: failed (%s); close carries on" % (word, reason))
+
+
+def tokens_facts(records: list, prices, reason: str = "no reason given") -> list:
+    """The Facts lines for the tokens record: the total, and with prices the cost and the count of models with no price.
+    With no record written there is no figure: `not read (<reason>)` and no Cost line, never a zero."""
+    if not records:
+        return ["- Tokens: not read (%s)" % reason]
+    lines = ["- Tokens: %d" % sum(number(r.get(k)) for r in records for k in KINDS)]
+    if isinstance(prices, dict) and prices:
+        priced = read_prices({"prices": prices})
+        costs = [priced_cost(r, priced) for r in records]
+        unpriced = {r.get("model") for r, c in zip(records, costs) if c is None}
+        lines.append("- Cost: $%.2f (%d model(s) unpriced)" % (sum(c for c in costs if c is not None), len(unpriced)))
+    return lines
+
+
 def cmd_close(root: str, config: dict, features: list, collect: bool) -> int:
     names = [f.name for f in features]
     head = run_git(root, "rev-parse", "HEAD")
@@ -504,13 +537,22 @@ def cmd_close(root: str, config: dict, features: list, collect: bool) -> int:
         totals["human"] += counts["human"]
         for role, n in roles_here.items():
             totals["roles"][role] = totals["roles"].get(role, 0) + n
-    flaked = 0
-    if os.path.isfile(os.path.join(root, FLAKES_PATH)):
-        for line in read(os.path.join(root, FLAKES_PATH)).split("\n"):
-            try:
-                flaked += 1 if json.loads(line).get("tip") == head else 0
-            except ValueError:
-                continue
+    token_reason = "nothing written"
+    captured = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured):
+            token_records = write_tokens(root, config, names)
+    except Exception as err:
+        token_records = []
+        captured = io.StringIO(captured.getvalue() + "tokens: failed (%s); the tokens record is unchanged\n" % (str(err).split("\n")[0] or type(err).__name__))
+    print(captured.getvalue(), end="")
+    written_for = {r.get("feature") for r in token_records}
+    token_records = [r for r in read_records(os.path.join(root, TOKENS_PATH))[0] if r.get("feature") in names]  # the page's figures: every line of the named features
+    older = [n for n in names if n not in written_for and any(r.get("feature") == n for r in token_records)]
+    lines = [l for l in captured.getvalue().split("\n") if l.startswith("tokens: ")]
+    if lines:
+        token_reason = (lines[-1] if not token_records and lines[-1].startswith("tokens: failed") else lines[0])[len("tokens: "):]
+    flaked = count_flakes(read_records(os.path.join(root, FLAKES_PATH))[0], names)
     print("## Facts")
     print("")
     print("- Built tip: %s" % head)
@@ -519,11 +561,18 @@ def cmd_close(root: str, config: dict, features: list, collect: bool) -> int:
     print("- Boxes: %d proved, %d for a person to judge" % (totals["proved"], totals["human"]))
     print("- Suites: %s, green on the built tip at the stamp" % ", ".join(c["name"] for c in config.get("checks", [])))
     print("- Subagents: %s" % (", ".join("%s %d" % (r, n) for r, n in sorted(totals["roles"].items())) or "none logged"))
+    for fact in tokens_facts(token_records, config.get("prices"), token_reason):
+        print(fact)
+    if older:
+        print("- Older figures: %s (lines kept from an earlier read)" % ", ".join(older))
     print("- Audit: %s" % ("skipped (not in this kit)" if not hasattr(audit_module, "cmd_audit") else "passed"))
     print("- Guard refusals: %d" % refusals)
     print("- Flakes: %d" % flaked)
     print("- Hand-over: python3 .claude/factory/gate.py handover %s (%s as built, the close commit as stamped)" % (" ".join(names), head[:7]))
     print("")
+    if has_github_remote(root):
+        soft_step("github", lambda: cmd_github(root, config, None, None))
+    soft_step("dashboard", lambda: cmd_dashboard(root, config, None, False))
     removes = worktree_removals(root)
     print("Records written: docs/agents/local/builds.jsonl and the Builds row of docs/agents/local/ledger.md. Remove the worktrees:")
     for command in removes:

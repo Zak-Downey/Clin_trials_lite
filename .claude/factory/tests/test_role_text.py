@@ -62,7 +62,7 @@ class HandSampleText(unittest.TestCase):
             self.assertTrue(names, path.name)
             # a merge the ticket gate stops ends `merge-ticket-gate`; bare `ticket-gate` is the inner line
             self.assertNotIn("ticket-gate", names, f"{path.name} routes on ticket-gate, not merge-ticket-gate")
-            for name in names - {"merge-start", "merge-end"}:  # log verbs, not rules
+            for name in names - {"merge-start", "merge-end", "merge-abort"}:  # log verbs, not rules
                 self.assertIn(name, RULES, f"{path.name} quotes {name}")
 
 

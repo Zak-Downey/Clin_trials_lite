@@ -65,6 +65,8 @@ LOG_USAGE = {
     "spec-against-brief": "spec-against-brief <path>",
     "merge-start": "merge-start <NN> <tip>",
     "merge-end": "merge-end <NN> <result>",
+    "merge-abort": "merge-abort <NN> <start time> \"<reason>\"",
+    "decided": "decided <n> <commit>",
     "open": "open <n> \"<item>\" (written by `gate.py open`)",
     "observation": "observation \"<text>\"",
     "note": "note \"<text>\"",
@@ -72,6 +74,7 @@ LOG_USAGE = {
 
 
 HASH_RE = re.compile(r"^[0-9a-f]{7,40}$")
+ISO_TIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$")
 ABORT_WORDS = ("refused", "red", "conflict", "failed")
 
 
@@ -94,12 +97,16 @@ def log_args_ok(verb: str, words: list, strict: bool = False) -> bool:
         return len(words) == 2 and bool(NN_RE.match(words[0]))
     if verb == "merge-end":
         return len(words) >= 2 and bool(NN_RE.match(words[0])) and (not strict or bool(HASH_RE.match(words[1])) or words[1] in ABORT_WORDS)
+    if verb == "merge-abort":
+        return len(words) >= 3 and bool(NN_RE.match(words[0])) and bool(ISO_TIME_RE.match(words[1]))
+    if verb == "decided":
+        return len(words) == 2 and words[0].isdigit() and bool(HASH_RE.match(words[1]))
     if verb == "open":
         return len(words) >= 2 and bool(NN_RE.match(words[0]))
     return verb in ("observation", "note") and len(words) >= 1
 
 
-NN_VERBS = ("dispatch", "report", "resume", "foundation-read", "merge-start", "merge-end")
+NN_VERBS = ("dispatch", "report", "resume", "foundation-read", "merge-start", "merge-end", "merge-abort")
 
 
 def normal_words(verb: str, words: list) -> list:

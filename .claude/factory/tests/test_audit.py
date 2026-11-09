@@ -267,6 +267,103 @@ class AuditRules(unittest.TestCase):
         self.log(repo, (self.T0 + 900, 'open 1 "Pick the wording for ticket 01"'))
         self.assertIn("ok: feat: design decisions logged", repo.gate("audit", "feat")[1])
 
+    def stamp_time(self, epoch):
+        return time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(epoch))
+
+    def test_audit_reads_a_merge_abort_logged_later(self):
+        """Audit reads a merge-abort logged later"""
+        repo = self.make(("04",))
+        t1, t2 = self.stamp_time(self.T0 + 100), self.stamp_time(self.T0 + 110)
+        self.log(repo, (self.T0 + 100, "merge-start 04 abc1234"), (self.T0 + 110, "merge-start 04 abc1234"),
+                 (self.T0 + 120, "merge-end 04 " + "a" * 40))
+        code, out = repo.gate("audit", "feat")
+        self.assertIn("violation: feat: merges did not overlap", out)
+        self.log(repo, (self.T0 + 200, 'merge-abort 04 %s "stopped by the user"' % t1))
+        out = repo.gate("audit", "feat")[1]
+        self.assertIn("ok: feat: merges did not overlap: merge-start 04 %s aborted (logged later): stopped by the user" % t1, out)
+        self.assertNotIn("violation: feat: merges did not overlap", out)
+
+    def test_audit_reports_a_merge_abort_naming_no_open_start(self):
+        """Audit reports a merge-abort naming no open start"""
+        repo = self.make(("04",))
+        self.log(repo, (self.T0 + 100, "merge-start 04 abc1234"), (self.T0 + 120, "merge-end 04 " + "a" * 40),
+                 (self.T0 + 200, 'merge-abort 04 %s "no such start"' % self.stamp_time(self.T0 + 50)))
+        out = repo.gate("audit", "feat")[1]
+        self.assertIn("violation: feat: merges did not overlap: merge-abort 04 %s names no merge-start" % self.stamp_time(self.T0 + 50), out)
+        ended = self.make(("04",))
+        self.log(ended, (self.T0 + 100, "merge-start 04 abc1234"), (self.T0 + 120, "merge-end 04 " + "a" * 40),
+                 (self.T0 + 200, 'merge-abort 04 %s "already ended"' % self.stamp_time(self.T0 + 100)))
+        out = ended.gate("audit", "feat")[1]
+        self.assertIn("violation: feat: merges did not overlap: merge-abort 04 %s names a merge-start that was ended" % self.stamp_time(self.T0 + 100), out)
+        other = self.make(("04", "05"))
+        self.log(other, (self.T0 + 100, "merge-start 04 abc1234"), (self.T0 + 120, "merge-start 05 abc1234"),
+                 (self.T0 + 130, "merge-end 05 " + "a" * 40),
+                 (self.T0 + 200, 'merge-abort 05 %s "wrong ticket"' % self.stamp_time(self.T0 + 100)))
+        self.assertIn("violation: feat: merges did not overlap: merge-abort 05", other.gate("audit", "feat")[1])
+
+    def decide(self, spec_text, side=False):
+        """A design ticket 01 merged at T0+1000; the spec changed in one commit, on the feature (an ancestor of the merge) or on a side branch."""
+        repo = self.make()
+        self.kind(repo, "01", "design")
+        if side:
+            git(repo.root, "checkout", "-q", "-b", "side")
+        repo.write(".scratch/feat/spec.md", spec_text)
+        self.dated(repo, "the user decided", self.T0 + 500)
+        commit = repo.head()
+        if side:
+            git(repo.root, "checkout", "-q", "feature/feat")
+        self.merge_ticket(repo, "01", self.T0 + 1000)
+        return repo, commit
+
+    SPEC = "# Feat\n\n**Status:** ready-for-agent\n\n## Open list\n\n1. Pick the wording (ticket 01)\n2. Something else\n"
+
+    def test_audit_reads_a_decided_item_logged_later(self):
+        """Audit reads a decided item logged later"""
+        repo, commit = self.decide(self.SPEC)
+        self.assertIn("expected and did not find: feat: design decisions logged", repo.gate("audit", "feat")[1])
+        self.log(repo, (self.T0 + 2000, "decided 1 " + commit))
+        out = repo.gate("audit", "feat")[1]
+        self.assertIn("ok: feat: design decisions logged: ticket 01 decided in %s (logged later)" % commit[:7], out)
+        other, commit = self.decide(self.SPEC)
+        self.log(other, (self.T0 + 2000, "decided 2 " + commit))
+        out = other.gate("audit", "feat")[1]
+        self.assertIn("violation: feat: design decisions logged: decided 2", out)
+        self.assertIn("item 2 does not name ticket 01", out)
+
+    def test_audit_reports_a_decided_commit_that_is_not_an_ancestor_or_changes_no_spec(self):
+        """Audit reports a decided commit that is not an ancestor or changes no spec"""
+        repo, commit = self.decide(self.SPEC, side=True)
+        self.log(repo, (self.T0 + 2000, "decided 1 " + commit))
+        out = repo.gate("audit", "feat")[1]
+        self.assertIn("violation: feat: design decisions logged: decided 1 %s is not an ancestor of the merge of ticket 01" % commit[:7], out)
+        plain, commit = self.decide(self.SPEC)
+        elsewhere = subprocess.run(["git", "-C", plain.root, "log", "--format=%H", "--grep", "work on 01", "-n1"], capture_output=True, text=True).stdout.strip()
+        self.log(plain, (self.T0 + 2000, "decided 1 " + elsewhere))
+        out = plain.gate("audit", "feat")[1]
+        self.assertIn("violation: feat: design decisions logged: decided 1 %s does not change the spec" % elsewhere[:7], out)
+        plain_ticket = self.make()
+        self.merge_ticket(plain_ticket, "01", self.T0 + 1000)
+        self.log(plain_ticket, (self.T0 + 2000, "decided 1 " + commit))
+        self.assertIn("violation: feat: design decisions logged: decided 1 %s: the feature has no merged Kind: design ticket" % commit[:7], plain_ticket.gate("audit", "feat")[1])
+        gone = self.make()
+        self.kind(gone, "01", "design")
+        self.merge_ticket(gone, "01", self.T0 + 1000)
+        self.log(gone, (self.T0 + 2000, "decided 1 " + "f" * 40))
+        self.assertIn("violation: feat: design decisions logged: decided 1 fffffff is not a commit", gone.gate("audit", "feat")[1])
+
+    def test_log_refuses_merge_abort_and_decided_with_the_wrong_shape(self):
+        """Log refuses merge-abort and decided with the wrong shape"""
+        repo = self.make()
+        for words in (("merge-abort", "04"), ("merge-abort", "x", "2026-11-08T10:00:00", "why"), ("merge-abort", "04", "yesterday", "why"),
+                      ("merge-abort", "04", "2026-11-08T10:00:00"), ("decided", "1"), ("decided", "x", "abcdef1"), ("decided", "1", "abcdef1", "extra"), ("decided", "1", "not-a-hash")):
+            code, out = repo.gate("log", "feat", *words)
+            self.assertEqual(code, 2, (words, out))
+            self.assertIn("gate: refused by log-grammar", out)
+            self.assertIn("merge-abort <NN> <start time>" if words[0] == "merge-abort" else "decided <n> <commit>", out)
+        self.assertEqual(repo.gate("log", "feat", "merge-abort", "4", "2026-11-08T10:00:00", "stopped", "by", "the", "user")[0], 0)
+        self.assertEqual(repo.gate("log", "feat", "decided", "1", "abcdef1")[0], 0)
+        self.assertIn("merge-abort 04 2026-11-08T10:00:00 stopped by the user", repo.gate("log", "feat")[1])
+
     def test_audit_does_not_count_lines_from_before_the_grammar(self):
         """Audit does not count lines from before the grammar"""
         repo = self.make(("01", "02"))

@@ -72,6 +72,11 @@ def check_value(value, spec: dict, path: str, problems: list) -> None:
         ok = isinstance(value, str)
     elif kind == "integer":
         ok = isinstance(value, int) and not isinstance(value, bool)
+    elif kind == "number":
+        ok = isinstance(value, (int, float)) and not isinstance(value, bool)
+        if ok and value < 0:
+            problems.append("%s is %s, which is negative" % (path, value))
+            return
     elif kind == "list of string":
         ok = isinstance(value, list) and all(isinstance(v, str) for v in value)
     elif kind == "list of object":
@@ -89,6 +94,9 @@ def check_value(value, spec: dict, path: str, problems: list) -> None:
                 problems.append("%s matches an empty line (an empty alternative such as a trailing |?)" % path)
         except re.error as error:
             problems.append("%s is not a regular expression (%s)" % (path, error))
+    if "values" in spec:
+        for name, item in value.items():
+            check_value(item, spec["values"], "%s.%s" % (path, name), problems)
     if "fields" in spec:
         for n, item in enumerate(value if kind == "list of object" else [value]):
             check_fields(item, spec["fields"], "%s[%d]" % (path, n) if kind == "list of object" else path, problems)
@@ -140,7 +148,7 @@ def cmd_config(root: str, args: list) -> int:
         for key, spec in schema_keys().items():
             default = "none" if spec.get("default") is None else json.dumps(spec["default"])
             print("%s  %s  default %s  %s" % (key, spec["type"], default, spec["meaning"]))
-            for field, sub in {**spec.get("fields", {})}.items():
+            for field, sub in {**spec.get("fields", {}), **spec.get("values", {}).get("fields", {})}.items():
                 print("  .%s  %s%s  %s" % (field, sub["type"], " (required)" if sub.get("required") else "", sub["meaning"]))
         return 0
     if args:
