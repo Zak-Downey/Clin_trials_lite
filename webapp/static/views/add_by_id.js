@@ -40,15 +40,15 @@ export function renderAddById(root, ctx) {
         add.disabled = true;
         try {
           const done = await post(`/api/watchlists/${ctx.destination()}/trials`, { nct_ids: [found.nct_id] });
-          const text = done.failed.length ? done.failed[0].detail
-            : done.added.length ? `Added ${found.nct_id} to ${done.list.name}.` : `${found.nct_id} is already in ${done.list.name}.`;
+          if (done.failed.length) { add.disabled = false; error.textContent = done.failed[0].detail; input.focus(); return; }
+          const text = done.added.length ? `Added ${found.nct_id} to ${done.list.name}.` : `${found.nct_id} is already in ${done.list.name}.`;
           banner = el("div", { class: "banner", role: "status" }, el("span", {}, text, " "),
             el("a", { href: `#/watchlists/${done.list.id}/needs-review` }, `Open ${done.list.name}`));
           found = null;
           window.dispatchEvent(new Event("reviewchange"));
           draw();
           panel.querySelector("#nct-id").focus({ preventScroll: true });
-        } catch (err) { add.disabled = false; error.textContent = err.message; }
+        } catch (err) { add.disabled = false; error.textContent = err.message; input.focus(); }
       });
       result.replaceChildren(el("div", { class: "card found" },
         el("div", { class: "card-body" },

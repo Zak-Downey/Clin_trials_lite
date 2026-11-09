@@ -1,6 +1,7 @@
 // The New matches tab: what the saved search found that is not monitored yet.
 // Not changes, not registrations: an invitation to add. Dismissing is remembered per watchlist.
 import { get, post } from "/static/api.js";
+import { setOrigin } from "/static/views/registry_trial.js";
 import { tabs as tabBar } from "/static/views/tabs.js";
 
 const el = (tag, attrs = {}, ...kids) => {
@@ -16,6 +17,7 @@ const CONSEQUENCE = "These trials will not be suggested again for this list.";
 const kept = new Map();
 
 export async function render(root, listId, watchlist) {
+  setOrigin({ back: location.hash, label: "‹ Back to New matches", list: () => Number(listId) });
   if (!kept.has(listId)) kept.set(listId, { showing: "new", pending: false, selected: new Set() });
   const mine = kept.get(listId);
   const selected = mine.selected;

@@ -3,6 +3,7 @@ import { get, post } from "/static/api.js";
 import { withNewEntry } from "/static/views/new_watchlist.js";
 import { renderAddById } from "/static/views/add_by_id.js";
 import { watchSearchDialog } from "/static/views/saved_search.js";
+import { setOrigin } from "/static/views/registry_trial.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -26,7 +27,7 @@ const selected = new Map(); // NCT ID -> title
 let destination = null; // the watchlist chosen to add to
 let cameFrom = null; // the watchlist whose "Add trials" opened Find trials last
 let outcome = null; // what the last add did, shown in the bar until the next selection
-export let lastFind = "#/find"; // where "Back to results" goes
+let lastFind = "#/find"; // where "Back to results" goes
 
 // A watchlist made elsewhere (the sidebar) becomes the destination; the open view, if it
 // shows one, is told so it can redraw its picker without being rebuilt.
@@ -199,6 +200,7 @@ export async function render(root, search, listId, tab = "search", alive = () =>
   else lastFind = location.hash || base;
   if (listId && listId !== cameFrom) destination = listId;
   cameFrom = listId || null;
+  setOrigin({ back: lastFind, list: () => destination });
   let lists = [];
   try { lists = (await get("/api/watchlists")).watchlists; } catch { lists = []; }
   if (!alive()) return;
