@@ -13,7 +13,7 @@ def in_tab_strip(page):
     return page.evaluate("!!document.activeElement.closest('nav.tabs')")
 
 
-@pytest.mark.xfail(strict=True, reason="todo: known defect E-032, fixed by ticket 14 of pr-1-review")
+
 def test_walk_view_dismissed_and_back_to_new_matches_do_not_leave_focus_on_a_tab(make_app, make_walk):
     _, walk = nm.open_tab(make_app, make_walk)
     page = walk.page

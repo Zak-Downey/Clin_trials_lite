@@ -1,0 +1,99 @@
+# tip e492d7e1f3469e56d3bebbdf0e8fa2e8a2b10440
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_walk_check_for_updates_keeps_keyboard_focus_while_it_runs_and_after[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x1075e6d40>
+make_walk = <function make_walk.<locals>.build at 0x1075e7060>
+
+    def test_walk_check_for_updates_keeps_keyboard_focus_while_it_runs_and_after(make_app, make_walk):
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/watchlists/1/needs-review")
+        button = page.get_by_role("button", name="Check for updates")
+        button.wait_for()
+        app.registry.set("slow", True, delay=1)
+        button.focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Checking for updates…").wait_for()
+        page.wait_for_timeout(500)
+        walk.shot("running")
+>       assert focused(page) == "check-button", f"focus moved to {focused(page)!r} while the check ran: a second Enter opens it"
+E       AssertionError: focus moved to 'Add trials' while the check ran: a second Enter opens it
+E       assert 'Add trials' == 'check-button'
+E         
+E         - check-button
+E         + Add trials
+
+walks/test_explore_wr_check_for_updates_gives_up_keyboard_focus.py:30: AssertionError
+_ test_walk_check_for_updates_keeps_keyboard_focus_while_it_runs_and_after[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x1078276a0>
+make_walk = <function make_walk.<locals>.build at 0x107827d80>
+
+    def test_walk_check_for_updates_keeps_keyboard_focus_while_it_runs_and_after(make_app, make_walk):
+        app = make_app(seed=helper.seed_queue)
+        walk = make_walk(app)
+        page = walk.page
+        page.goto(app.url + "#/watchlists/1/needs-review")
+        button = page.get_by_role("button", name="Check for updates")
+        button.wait_for()
+        app.registry.set("slow", True, delay=1)
+        button.focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Checking for updates…").wait_for()
+        page.wait_for_timeout(500)
+        walk.shot("running")
+>       assert focused(page) == "check-button", f"focus moved to {focused(page)!r} while the check ran: a second Enter opens it"
+E       AssertionError: focus moved to 'Add trials' while the check ran: a second Enter opens it
+E       assert 'Add trials' == 'check-button'
+E         
+E         - check-button
+E         + Add trials
+
+walks/test_explore_wr_check_for_updates_gives_up_keyboard_focus.py:30: AssertionError
+_ test_walk_view_dismissed_and_back_to_new_matches_do_not_leave_focus_on_a_tab[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10774dda0>
+make_walk = <function make_walk.<locals>.build at 0x10774c540>
+
+    def test_walk_view_dismissed_and_back_to_new_matches_do_not_leave_focus_on_a_tab(make_app, make_walk):
+        _, walk = nm.open_tab(make_app, make_walk)
+        page = walk.page
+        page.locator("#view-dismissed").focus()
+        page.keyboard.press("Enter")
+        page.locator("#back-to-matches").wait_for()
+        page.wait_for_timeout(600)
+        walk.shot("view-dismissed")
+>       assert not in_tab_strip(page), "after View dismissed, focus is on a tab (Enter now leaves the list)"
+E       AssertionError: after View dismissed, focus is on a tab (Enter now leaves the list)
+E       assert not True
+E        +  where True = in_tab_strip(<Page url='http://127.0.0.1:57116/#/watchlists/1/new-matches'>)
+
+walks/test_explore_wr_view_dismissed_parks_focus_on_the_summary_tab.py:25: AssertionError
+_ test_walk_view_dismissed_and_back_to_new_matches_do_not_leave_focus_on_a_tab[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x107863ba0>
+make_walk = <function make_walk.<locals>.build at 0x107863ec0>
+
+    def test_walk_view_dismissed_and_back_to_new_matches_do_not_leave_focus_on_a_tab(make_app, make_walk):
+        _, walk = nm.open_tab(make_app, make_walk)
+        page = walk.page
+        page.locator("#view-dismissed").focus()
+        page.keyboard.press("Enter")
+        page.locator("#back-to-matches").wait_for()
+        page.wait_for_timeout(600)
+        walk.shot("view-dismissed")
+>       assert not in_tab_strip(page), "after View dismissed, focus is on a tab (Enter now leaves the list)"
+E       AssertionError: after View dismissed, focus is on a tab (Enter now leaves the list)
+E       assert not True
+E        +  where True = in_tab_strip(<Page url='http://127.0.0.1:57165/#/watchlists/1/new-matches'>)
+
+walks/test_explore_wr_view_dismissed_parks_focus_on_the_summary_tab.py:25: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_explore_wr_check_for_updates_gives_up_keyboard_focus.py::test_walk_check_for_updates_keeps_keyboard_focus_while_it_runs_and_after[1440x900]
+FAILED walks/test_explore_wr_check_for_updates_gives_up_keyboard_focus.py::test_walk_check_for_updates_keeps_keyboard_focus_while_it_runs_and_after[1024x768]
+FAILED walks/test_explore_wr_view_dismissed_parks_focus_on_the_summary_tab.py::test_walk_view_dismissed_and_back_to_new_matches_do_not_leave_focus_on_a_tab[1440x900]
+FAILED walks/test_explore_wr_view_dismissed_parks_focus_on_the_summary_tab.py::test_walk_view_dismissed_and_back_to_new_matches_do_not_leave_focus_on_a_tab[1024x768]
+4 failed in 4.68s
