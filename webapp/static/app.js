@@ -42,7 +42,7 @@ async function drawSidebar(activeId) {
   sidebar.replaceChildren(heading, ...watchlists.map((w) => {
     const link = document.createElement("a");
     link.href = `#/watchlists/${w.id}`; // the tab is the remembered one, else Needs review
-    if (w.id === activeId) link.className = "active";
+    if (w.id === activeId) { link.className = "active"; link.setAttribute("aria-current", "page"); }
     const name = document.createElement("span");
     name.className = "name";
     name.textContent = w.name;

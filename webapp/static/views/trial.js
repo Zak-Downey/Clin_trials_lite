@@ -162,9 +162,11 @@ export async function render(root, nct, tab, origin) {
           draw();
           banner.hidden = true;
           refresh();
+          mark.focus({ preventScroll: true }); // the Undo just pressed is gone: keep the keyboard in place
         } catch (err) { fail(err); }
       });
       tell(`${plural(shown.length, "change")} marked reviewed. This trial stays open.`, undo);
+      undo.focus({ preventScroll: true }); // the pressed button is now disabled: focus must not fall to <body>
       refresh();
     } catch (err) { fail(err); }
   });
