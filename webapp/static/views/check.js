@@ -199,11 +199,13 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
   }
 
   // The watchlist's trials changed elsewhere (New matches, a removal): re-read the header.
+  let rereads = 0; // an older answer that arrives after a newer request began is dropped
   async function onChange() {
     if (!ctx.alive()) { window.removeEventListener("reviewchange", onChange); return; }
+    const mine = ++rereads;
     try {
       const fresh = (await get("/api/watchlists")).watchlists.find((w) => w.id === Number(listId));
-      if (fresh && ctx.alive()) { current = fresh; drawHeader(); }
+      if (fresh && ctx.alive() && mine === rereads) { current = fresh; drawHeader(); }
     } catch { /* the header stays as it was */ }
   }
   window.addEventListener("reviewchange", onChange);
