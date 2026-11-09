@@ -117,8 +117,9 @@ def test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re
     (tmp_path / "test_wanted.py").write_text("def test_wanted():\n    assert False\n")
     (tmp_path / "test_other.py").write_text("def test_other():\n    assert False\n")
     monkeypatch.chdir(tmp_path)
-    _, out = run_in(tmp_path, capsys, args=["test_wanted.py", "--tb=short"], targets=())
+    _, out = run_in(tmp_path, capsys, args=["test_wanted.py::test_wanted", "--tb=short", "-k", "wanted"], targets=())
     names = [t for _, t, _, _ in checks.walk_results(out)]
     assert names == ["test_wanted"]
     alone = (tmp_path / "out" / "alone-test_wanted-test-wanted.txt").read_text()
-    assert "1 failed" in alone and "test_wanted.py:" in alone  # the option reached the re-run (short traceback)
+    assert "1 failed" in alone
+    assert "def test_wanted" not in alone  # the short traceback reached the re-run (the default one prints the source)
