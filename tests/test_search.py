@@ -393,3 +393,19 @@ def test_a_window_ending_on_the_day_it_starts_is_allowed(make_finder):
     monitor.search(cond="cll", started_from="2024-01-01", started_to="2024-01-01", find=finder)
 
     assert finder.calls
+
+
+def test_the_registry_is_reached_with_the_machines_certificate_store(monkeypatch):
+    """test_the_registry_is_reached_with_the_machines_certificate_store"""
+    import io
+    import urllib.request
+
+    seen = {}
+
+    def fake_urlopen(req, timeout=None, context=None):
+        seen["context"] = context
+        return io.BytesIO(b"{}")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    ctgov._get("/version", {})
+    assert seen["context"] is ctgov._SSL_CTX
