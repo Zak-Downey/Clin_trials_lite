@@ -1,0 +1,140 @@
+# tip 37ea56c4c9053218b73ee67e8304235c4eedc8a7
+.........................FFF..............F............................. [ 15%]
+........................................................................ [ 31%]
+........................................................................ [ 47%]
+........................................................................ [ 62%]
+........................................................................ [ 78%]
+........................................................................ [ 94%]
+..........................                                               [100%]
+=================================== FAILURES ===================================
+_ test_a_trial_removed_while_a_check_runs_is_not_fetched_marked_checked_or_given_changes _
+
+watched = <conftest.api.<locals>.Client object at 0x10709cc20>
+fetcher = <function fetcher.<locals>.fetch at 0x1071c2ac0>
+record = {'protocolSection': {'identificationModule': {'nctId': 'NCT03412565', 'orgStudyIdInfo': {'id': 'CR108435'}, 'secondary...id': 'D001896', 'term': 'Boron Compounds'}, {'id': 'D009930', 'term': 'Organic Chemicals'}, ...]}}, 'hasResults': True}
+
+    def test_a_trial_removed_while_a_check_runs_is_not_fetched_marked_checked_or_given_changes(watched, fetcher, record):
+        """test_a_trial_removed_while_a_check_runs_is_not_fetched_marked_checked_or_given_changes"""
+        asked = []
+    
+        def fetch(nct):
+            asked.append(nct)
+            if nct == "NCT00000001":
+                watched.post(f"/api/watchlists/{LIST_ID}/trials/NCT00000003/remove")
+            revised = copy.deepcopy(fetcher(nct))
+            revised["protocolSection"]["statusModule"]["overallStatus"] = "TERMINATED"
+            return revised
+    
+        watched.fetch_override(fetch)
+        watched.post(f"/api/watchlists/{LIST_ID}/check")
+        finished(watched)
+>       assert "NCT00000003" not in asked
+E       AssertionError: assert 'NCT00000003' not in ['NCT00000001', 'NCT00000002', 'NCT00000003']
+
+tests/test_api_checks.py:258: AssertionError
+_ test_a_watchlist_deleted_while_its_check_runs_ends_the_run_without_checking_the_rest _
+
+watched = <conftest.api.<locals>.Client object at 0x10709cd70>
+fetcher = <function fetcher.<locals>.fetch at 0x1073ba8e0>
+
+    def test_a_watchlist_deleted_while_its_check_runs_ends_the_run_without_checking_the_rest(watched, fetcher):
+        """test_a_watchlist_deleted_while_its_check_runs_ends_the_run_without_checking_the_rest"""
+        asked = []
+    
+        def fetch(nct):
+            asked.append(nct)
+            if nct == "NCT00000001":
+                watched.post(f"/api/watchlists/{LIST_ID}/delete")
+            return fetcher(nct)
+    
+        watched.fetch_override(fetch)
+        watched.post(f"/api/watchlists/{LIST_ID}/check")
+        for _ in range(100):
+            run = watched_run(watched)
+            if run is not None and not run.running:
+                break
+            time.sleep(0.1)
+>       assert asked == ["NCT00000001"]
+E       AssertionError: assert ['NCT00000001...'NCT00000003'] == ['NCT00000001']
+E         
+E         Left contains 2 more items, first extra item: 'NCT00000002'
+E         Use -v to get more diff
+
+tests/test_api_checks.py:281: AssertionError
+_ test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted _
+
+watched = <conftest.api.<locals>.Client object at 0x10709e270>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107361490>
+
+    def test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted(watched, monkeypatch):
+        """test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted"""
+        real = monitor.finish_run
+        calls = []
+    
+        def broken(*args, **kwargs):
+            calls.append(1)
+            if len(calls) == 1:
+                raise RuntimeError("disk full")
+            return real(*args, **kwargs)
+    
+        monkeypatch.setattr(monitor, "finish_run", broken)
+        watched.post(f"/api/watchlists/{LIST_ID}/check")
+        for _ in range(100):
+            if calls:
+                break
+            time.sleep(0.1)
+        time.sleep(0.3)
+        status, body = watched.post(f"/api/watchlists/{LIST_ID}/check")
+>       assert status == 200, body
+E       AssertionError: {'error': {'kind': 'check_running', 'message': 'A check for this watchlist is already running.'}}
+E       assert 409 == 200
+
+tests/test_api_checks.py:307: AssertionError
+_ test_a_watchlist_deleted_while_add_trials_is_fetching_gets_no_row_and_the_add_answers_404 _
+
+api = <conftest.api.<locals>.Client object at 0x10709f8c0>
+
+    def test_a_watchlist_deleted_while_add_trials_is_fetching_gets_no_row_and_the_add_answers_404(api):
+        """test_a_watchlist_deleted_while_add_trials_is_fetching_gets_no_row_and_the_add_answers_404"""
+        original = type(api).fetch
+    
+        def fetch(nct):
+            api.post("/api/watchlists/1/delete")  # the lock is released for the registry call
+            return original(nct)
+    
+        api.fetch_override(fetch)
+        status, body = api.post("/api/watchlists/1/trials", {"nct_ids": ["NCT00000002"]})
+>       assert (status, body["error"]["kind"]) == (404, "watchlist_not_found")
+                        ^^^^^^^^^^^^^
+E       KeyError: 'error'
+
+tests/test_api_membership.py:98: KeyError
+=============================== warnings summary ===============================
+tests/test_api_checks.py::test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted
+  /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.13/site-packages/_pytest/threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-84 (_work)
+  
+  Traceback (most recent call last):
+    File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+      self.run()
+      ~~~~~~~~^^
+    File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 995, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/07-writes-after-a-registry-fetch-recheck-their-watchlist/webapp/api_checks.py", line 78, in _work
+      monitor.finish_run(ctx.conn, run.list_id, run.results)
+      ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/07-writes-after-a-registry-fetch-recheck-their-watchlist/tests/test_api_checks.py", line 296, in broken
+      raise RuntimeError("disk full")
+  RuntimeError: disk full
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_api_checks.py::test_a_trial_removed_while_a_check_runs_is_not_fetched_marked_checked_or_given_changes
+FAILED tests/test_api_checks.py::test_a_watchlist_deleted_while_its_check_runs_ends_the_run_without_checking_the_rest
+FAILED tests/test_api_checks.py::test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted
+FAILED tests/test_api_membership.py::test_a_watchlist_deleted_while_add_trials_is_fetching_gets_no_row_and_the_add_answers_404
+4 failed, 454 passed, 1 warning in 49.48s

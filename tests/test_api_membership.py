@@ -83,3 +83,18 @@ def test_details_when_the_registry_cannot_be_reached_are_a_bad_gateway_not_a_mis
     api.fetch_override(fetch)
     status, body = api.get("/api/registry/trials/NCT00000007")
     assert status == 502 and body["error"]["kind"] == "unreachable"
+
+
+def test_a_watchlist_deleted_while_add_trials_is_fetching_gets_no_row_and_the_add_answers_404(api):
+    """test_a_watchlist_deleted_while_add_trials_is_fetching_gets_no_row_and_the_add_answers_404"""
+    original = type(api).fetch
+
+    def fetch(nct):
+        api.post("/api/watchlists/1/delete")  # the lock is released for the registry call
+        return original(nct)
+
+    api.fetch_override(fetch)
+    status, body = api.post("/api/watchlists/1/trials", {"nct_ids": ["NCT00000002"]})
+    assert (status, body["error"]["kind"]) == (404, "watchlist_not_found")
+    conn = storage.connect(api.path)
+    assert conn.execute("SELECT COUNT(*) FROM list_members WHERE list_id = 1").fetchone()[0] == 0

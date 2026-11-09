@@ -238,3 +238,71 @@ def test_a_check_pauses_between_trials_and_not_before_the_first(watched, monkeyp
     watched.post(f"/api/watchlists/{LIST_ID}/check")
     finished(watched)
     assert pauses == [0.25, 0.25]
+
+
+def test_a_trial_removed_while_a_check_runs_is_not_fetched_marked_checked_or_given_changes(watched, fetcher, record):
+    """test_a_trial_removed_while_a_check_runs_is_not_fetched_marked_checked_or_given_changes"""
+    asked = []
+
+    def fetch(nct):
+        asked.append(nct)
+        if nct == "NCT00000001":
+            watched.post(f"/api/watchlists/{LIST_ID}/trials/NCT00000003/remove")
+        revised = copy.deepcopy(fetcher(nct))
+        revised["protocolSection"]["statusModule"]["overallStatus"] = "TERMINATED"
+        return revised
+
+    watched.fetch_override(fetch)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    finished(watched)
+    assert "NCT00000003" not in asked
+    conn = storage.connect(watched.path)
+    assert storage.get_trial(conn, "NCT00000003")["last_checked"] == "2026-11-01T08:00:00+00:00"
+    assert storage.list_changes(conn, "NCT00000003") == []
+
+
+def test_a_watchlist_deleted_while_its_check_runs_ends_the_run_without_checking_the_rest(watched, fetcher):
+    """test_a_watchlist_deleted_while_its_check_runs_ends_the_run_without_checking_the_rest"""
+    asked = []
+
+    def fetch(nct):
+        asked.append(nct)
+        if nct == "NCT00000001":
+            watched.post(f"/api/watchlists/{LIST_ID}/delete")
+        return fetcher(nct)
+
+    watched.fetch_override(fetch)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    for _ in range(100):
+        run = watched_run(watched)
+        if run is not None and not run.running:
+            break
+        time.sleep(0.1)
+    assert asked == ["NCT00000001"]
+
+
+def watched_run(api):
+    return getattr(api, "ctx", None) and api.ctx.runs.get(LIST_ID)
+
+
+def test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted(watched, monkeypatch):
+    """test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted"""
+    real = monitor.finish_run
+    calls = []
+
+    def broken(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("disk full")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(monitor, "finish_run", broken)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    for _ in range(100):
+        if calls:
+            break
+        time.sleep(0.1)
+    time.sleep(0.3)
+    status, body = watched.post(f"/api/watchlists/{LIST_ID}/check")
+    assert status == 200, body
+    finished(watched)

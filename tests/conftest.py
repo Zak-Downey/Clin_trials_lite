@@ -127,6 +127,7 @@ def api(tmp_path, fetcher, make_finder):
 
     class Client:
         path = db
+        ctx = server.ctx
         fetch = fetcher
         finder = find
         base = f"http://127.0.0.1:{server.server_address[1]}"
