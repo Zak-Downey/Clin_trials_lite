@@ -75,16 +75,18 @@ function field(label, key, value) {
   return el("div", { class: "field" }, el("label", { for: id }, label), input);
 }
 
-function form(q, error, onSubmit) {
+function form(q, error, onSubmit, datesError = "") {
   const phases = new Set(q.phase);
   const phaseButtons = PHASES.map(([code, text, full]) => {
     const b = el("button", { type: "button", class: "toggle", "aria-pressed": String(phases.has(code)), "aria-label": full, "data-code": code }, text);
     b.addEventListener("click", () => b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")));
     return b;
   });
-  const sponsorType = el("select", { id: "find-sponsor_type", name: "sponsor_type" }, el("option", { value: "" }, "Any"),
-    ...SPONSOR_TYPES.map(([code, text]) => el("option", { value: code }, text)));
-  sponsorType.value = q.sponsor_type[0] || "";
+  const sponsorBoxes = SPONSOR_TYPES.map(([code, text]) => {
+    const box = el("input", { type: "checkbox", name: "sponsor_type", value: code });
+    box.checked = q.sponsor_type.includes(code);
+    return el("label", { class: "check" }, box, text);
+  });
   const statusBoxes = STATUSES.map(([code, text]) => {
     const box = el("input", { type: "checkbox", name: "status", value: code });
     box.checked = q.status.includes(code);
@@ -97,11 +99,12 @@ function form(q, error, onSubmit) {
   });
   const more = el("div", { id: "more-filters", hidden: "" },
     el("div", { class: "filters" },
-      el("div", { class: "field" }, el("label", { for: "find-sponsor_type" }, "Lead sponsor type"), sponsorType,
+      el("fieldset", { class: "statuses" }, el("legend", {}, "Lead sponsor type"), ...sponsorBoxes,
         el("p", { class: "help" }, "Sponsor type uses the lead sponsor, not collaborators")),
       el("fieldset", { class: "statuses" }, el("legend", {}, "Trial status"), ...statusBoxes),
       el("div", { class: "dates" }, ...dates,
-        el("p", { class: "help" }, "Date filters exclude trials without a reported start date"))));
+        el("p", { class: "help" }, "Date filters exclude trials without a reported start date"),
+        ...(datesError ? [el("p", { class: "field-error", role: "alert" }, datesError)] : []))));
   const toggle = el("button", { type: "button", class: "link", "aria-expanded": "false", "aria-controls": "more-filters" }, "More filters");
   toggle.addEventListener("click", () => {
     const open = more.hasAttribute("hidden");
@@ -120,14 +123,14 @@ function form(q, error, onSubmit) {
   const read = () => ({
     cond: f.cond.value, intr: f.intr.value, spons: f.spons.value,
     phase: phaseButtons.filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.dataset.code),
-    sponsor_type: f.sponsor_type.value ? [f.sponsor_type.value] : [],
+    sponsor_type: sponsorBoxes.map((l) => l.firstChild).filter((b) => b.checked).map((b) => b.value),
     status: statusBoxes.map((l) => l.firstChild).filter((b) => b.checked).map((b) => b.value),
     started_from: f.started_from.value, started_to: f.started_to.value,
   });
   clear.addEventListener("click", () => {
     f.reset();
     for (const k of ["cond", "intr", "spons"]) f[k].value = "";
-    f.sponsor_type.value = "";
+    sponsorBoxes.forEach((l) => { l.firstChild.checked = false; });
     f.started_from.value = ""; f.started_to.value = "";
     statusBoxes.forEach((l) => { l.firstChild.checked = false; });
     phaseButtons.forEach((b) => b.setAttribute("aria-pressed", "false"));
@@ -284,12 +287,12 @@ export async function render(root, search, listId, tab = "search", alive = () =>
   const rerender = () => render(root, search, listId, tab, alive);
   const head = [el("h1", {}, "Find trials"), el("p", { class: "meta" }, "Search ClinicalTrials.gov, then choose what to monitor."),
     tabBar()];
-  const open = (query, error, below) => {
+  const open = (query, error, below, datesError = "") => {
     root.replaceChildren(...head, form(query, error, (typed) => {
       if (!named(typed)) { open(typed, "Add a condition, intervention, sponsor or phase to search.", below); return; }
       const target = `${base}?${toParams(typed, 1)}`;
       if (location.hash === target) rerender(); else location.hash = target;
-    }));
+    }, datesError));
     if (below) root.append(below);
     root.append(bar);
   };
@@ -301,6 +304,9 @@ export async function render(root, search, listId, tab = "search", alive = () =>
     data = await get(`/api/search?${toParams(q, page)}`);
   } catch (err) {
     if (!alive()) return;
+    // A refusal is the analyst's to fix: the message sits beside its fields, the form open, no Retry.
+    if (err.kind === "nothing_asked") { open(q, err.message, null); return; }
+    if (err.kind === "bad_dates") { open(q, "", null, err.message); return; }
     const retry = el("button", { type: "button" }, "Retry");
     retry.addEventListener("click", rerender);
     open(q, "", el("div", { class: "error", role: "alert" }, el("p", {}, err.message), retry));

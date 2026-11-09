@@ -260,3 +260,4 @@ button.danger { color: #b42318; border-color: #b42318; background: #fff; }
 .action-bar .also { display: block; max-height: 4.5em; overflow-y: auto; }
 .menu { max-height: min(60vh, 480px); overflow-y: auto; }
 .menu-item { position: sticky; bottom: 0; background: #fff; }
+.statuses .help { flex-basis: 100%; margin: 0; }

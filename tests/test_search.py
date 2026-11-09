@@ -409,3 +409,17 @@ def test_the_registry_is_reached_with_the_machines_certificate_store(monkeypatch
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
     ctgov._get("/version", {})
     assert seen["context"] is ctgov._SSL_CTX
+
+
+def test_the_two_refusals_carry_their_own_kinds_whatever_their_wording_says(monkeypatch):
+    """test_the_two_refusals_carry_their_own_kinds_whatever_their_wording_says"""
+    with pytest.raises(monitor.MonitorError) as empty:
+        monitor._refuse_unanswerable(monitor.as_query())
+    with pytest.raises(monitor.MonitorError) as inverted:
+        monitor._refuse_unanswerable(monitor.as_query(cond="x", started_from="2022-01", started_to="2020-01"))
+    assert empty.value.kind == "nothing_asked" and inverted.value.kind == "bad_dates"
+    # reworded, each keeps its kind: nothing reads the message to tell them apart
+    monkeypatch.setattr(monitor, "NOTHING_ASKED", "Type something first.")
+    with pytest.raises(monitor.MonitorError) as reworded:
+        monitor._refuse_unanswerable(monitor.as_query())
+    assert reworded.value.kind == "nothing_asked" and str(reworded.value) == "Type something first."

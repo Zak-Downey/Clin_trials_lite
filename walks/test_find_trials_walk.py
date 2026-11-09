@@ -42,7 +42,7 @@ def test_walk_submitting_with_none_of_the_four_shows_the_error_and_keeps_every_v
     _, walk = open_find(make_app, make_walk)
     page = walk.page
     page.get_by_role("button", name="More filters").click()
-    page.get_by_label("Lead sponsor type").select_option("INDUSTRY")
+    page.get_by_role("group", name="Lead sponsor type").get_by_label("Industry").check()
     page.get_by_label("Recruiting", exact=True).check()
     page.get_by_label("Study started from").fill("2020-01-01")
     page.get_by_role("button", name="Search trials").click()
@@ -50,7 +50,7 @@ def test_walk_submitting_with_none_of_the_four_shows_the_error_and_keeps_every_v
     assert "at least" in error.inner_text().lower() or "add a condition" in error.inner_text().lower()
     group = page.get_by_role("group", name="Start with at least one of these four fields")
     assert group.get_by_role("alert").count() == 1  # beside the group, inside it
-    assert page.get_by_label("Lead sponsor type").input_value() == "INDUSTRY"
+    assert page.get_by_role("group", name="Lead sponsor type").get_by_label("Industry").is_checked()
     assert page.get_by_label("Recruiting", exact=True).is_checked()
     assert page.get_by_label("Study started from").input_value() == "2020-01-01"
     walk.shot("error")
@@ -86,7 +86,7 @@ def test_walk_more_filters_starts_folded_and_opens_with_its_help_visible(make_ap
     toggle.click()
     assert toggle.get_attribute("aria-expanded") == "true"
     assert sponsor_help.is_visible() and date_help.is_visible()
-    assert page.get_by_label("Lead sponsor type").is_visible()
+    assert page.get_by_role("group", name="Lead sponsor type").is_visible()
     assert page.get_by_label("Study started from").is_visible() and page.get_by_label("Study started to").is_visible()
     for text in ("Not yet recruiting", "Recruiting", "Enrolling by invitation", "Active, not recruiting", "Suspended",
                  "Terminated", "Completed", "Withdrawn", "Unknown"):
@@ -117,7 +117,7 @@ def test_walk_after_results_the_form_is_a_one_line_summary_and_edit_search_keeps
     page.get_by_label("Sponsor", exact=True).fill("Janssen")
     page.get_by_role("button", name="Phase 3", exact=True).click()
     page.get_by_role("button", name="More filters").click()
-    page.get_by_label("Lead sponsor type").select_option("INDUSTRY")
+    page.get_by_role("group", name="Lead sponsor type").get_by_label("Industry").check()
     page.get_by_label("Recruiting", exact=True).check()
     page.get_by_label("Active, not recruiting", exact=True).check()
     page.get_by_role("button", name="Search trials").click()
@@ -131,7 +131,7 @@ def test_walk_after_results_the_form_is_a_one_line_summary_and_edit_search_keeps
     assert page.get_by_label("Condition").input_value() == "Multiple myeloma"
     assert page.get_by_label("Sponsor", exact=True).input_value() == "Janssen"
     assert page.get_by_role("button", name="Phase 3", exact=True).get_attribute("aria-pressed") == "true"
-    assert page.get_by_label("Lead sponsor type").input_value() == "INDUSTRY"
+    assert page.get_by_role("group", name="Lead sponsor type").get_by_label("Industry").is_checked()
     assert page.get_by_label("Recruiting", exact=True).is_checked()
     assert page.get_by_label("Active, not recruiting", exact=True).is_checked()
 
@@ -201,3 +201,25 @@ def test_walk_a_registry_error_keeps_the_form_and_retry_runs_the_search_again(ma
     app.registry.set("server_error", False)
     retry.click()
     page.get_by_role("heading", name="134 matches").wait_for()
+
+
+def test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_dates_with_no_retry(make_app, make_walk):
+    """test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_dates_with_no_retry"""
+    app, walk = open_find(make_app, make_walk)
+    page = walk.page
+    walk.expect(400, "/api/search")
+    page.get_by_label("Condition").fill("many")
+    page.get_by_role("button", name="More filters").click()
+    page.get_by_label("Study started from").fill("2022-01-01")
+    page.get_by_label("Study started to").fill("2020-01-01")
+    page.get_by_role("button", name="Search trials").click()
+    message = page.get_by_text("Swap the two dates.")
+    message.wait_for()
+    assert page.get_by_role("button", name="More filters").get_attribute("aria-expanded") == "true"
+    assert page.get_by_label("Study started from").is_visible() and message.is_visible()
+    dates = page.locator(".dates")
+    assert dates.get_by_text("Swap the two dates.").count() == 1  # beside the date fields
+    assert page.get_by_role("button", name="Retry").count() == 0
+    assert page.get_by_label("Condition").input_value() == "many"
+    assert page.get_by_label("Study started from").input_value() == "2022-01-01"
+    walk.shot("bad-dates")

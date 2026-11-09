@@ -125,3 +125,12 @@ def test_a_registry_failure_is_a_502_with_its_kind(search_api):
     search_api.s["failure"] = RuntimeError("boom")
     status, body = search_api.get("/api/search?cond=x")
     assert status == 502 and body["error"]["kind"] == "registry_error"
+
+
+def test_the_refusal_kind_survives_a_reworded_message_on_both_endpoints(search_api, monkeypatch):
+    """test_the_refusal_kind_survives_a_reworded_message_on_both_endpoints"""
+    monkeypatch.setattr("monitor.NOTHING_ASKED", "Type something first.")
+    status, body = search_api.get("/api/search?status=RECRUITING")
+    assert status == 400 and body["error"] == {"kind": "nothing_asked", "message": "Type something first."}
+    status, body = search_api.get("/api/search?cond=x&started_from=2022-01&started_to=2020-01")
+    assert status == 400 and body["error"]["kind"] == "bad_dates"

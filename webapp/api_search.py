@@ -27,7 +27,7 @@ def search(ctx, query: dict, **_):
     try:
         monitor._refuse_unanswerable(monitor.as_query(**args))
     except monitor.MonitorError as err:
-        raise ApiError(400, "nothing_asked" if "at least one" in str(err) else "bad_dates", str(err))
+        raise ApiError(400, err.kind, str(err))
     # The lock is held by the dispatcher; the registry call is not made under it.
     ctx.lock.release()
     try:

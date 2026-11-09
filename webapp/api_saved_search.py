@@ -54,7 +54,7 @@ def save(ctx, list_id: str, body=None, **_):
     try:
         stored = monitor.remember_search(ctx.conn, int(list_id), query)
     except monitor.MonitorError as err:
-        raise ApiError(400, "nothing_asked" if "at least one" in str(err) else "bad_dates", str(err))
+        raise ApiError(400, err.kind, str(err))
     target = storage.get_list(ctx.conn, int(list_id))
     return {
         "watchlist": {"id": target["id"], "name": target["name"]},

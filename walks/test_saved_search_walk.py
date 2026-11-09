@@ -217,3 +217,38 @@ def test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_fo
     page.wait_for_timeout(500)
     assert watch.get_by_text("already has a saved search").count() == 0
     assert watch.get_by_role("button", name="Replace saved search").count() == 0
+
+
+def seed_two_sponsor_types(db, registry):
+    import monitor
+    import storage
+
+    find_seed(db, registry)
+    conn = storage.connect(db)
+    funded = monitor.create_list(conn, "Funded", when=STAMP)
+    monitor.remember_search(conn, funded, monitor.as_query(cond="many", sponsor_types=["INDUSTRY", "NIH"]))
+    conn.close()
+
+
+def test_walk_a_saved_search_with_two_sponsor_types_keeps_both_through_manage_edit_search_and_search_trials(make_app, make_walk):
+    """test_walk_a_saved_search_with_two_sponsor_types_keeps_both_through_manage_edit_search_and_search_trials"""
+    app = make_app(seed=seed_two_sponsor_types)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(app.url + "#/watchlists/3/needs-review")  # Funded
+    page.get_by_role("heading", level=1, name="Funded").wait_for()
+    page.get_by_role("button", name="Manage").click()
+    dialog(page, "Manage saved search").get_by_role("link", name="Edit search").click()
+    page.get_by_role("heading", name="134 matches").wait_for()
+    assert "Industry or NIH" in page.locator(".summary .meta").inner_text()
+    page.get_by_role("button", name="Edit search").click()
+    sponsors = page.get_by_role("group", name="Lead sponsor type")
+    assert sponsors.get_by_label("Industry").is_checked() and sponsors.get_by_label("NIH", exact=True).is_checked()
+    assert sponsors.get_by_label("Other (incl. academic)").is_checked() is False
+    walk.shot("edit")
+    page.get_by_role("button", name="Search trials").click()
+    page.wait_for_function("() => location.hash.includes('page=1')")
+    page.get_by_role("heading", name="134 matches").wait_for()
+    assert "Industry or NIH" in page.locator(".summary .meta").inner_text()
+    params = page.evaluate("() => new URLSearchParams(location.hash.split('?')[1]).getAll('sponsor_type')")
+    assert params == ["INDUSTRY", "NIH"]
