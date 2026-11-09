@@ -60,7 +60,7 @@ export function renderAddById(root, ctx) {
         el("div", { class: "card-side" }, add)));
     };
     showFound();
-    input.addEventListener("input", () => { if (found) { found = null; showFound(); } });
+    input.addEventListener("input", () => { error.textContent = ""; if (found) { found = null; showFound(); } });
     pick.addEventListener("change", () => {
       if (pick.value === "new") return;
       ctx.setDestination(Number(pick.value));

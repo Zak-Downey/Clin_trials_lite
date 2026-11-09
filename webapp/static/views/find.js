@@ -250,6 +250,11 @@ export async function render(root, search, listId, tab = "search", alive = () =>
       add.disabled = true;
       try {
         const done = await post(`/api/watchlists/${destination}/trials`, { nct_ids: [...selected.keys()] });
+        if (done.failed.length && !done.added.length && !done.already.length) {
+          add.disabled = false;
+          note.textContent = `${done.failed.length} could not be added. ${done.failed.map((f) => f.detail).filter(Boolean).join(" ")}`;
+          return;
+        }
         [...done.added, ...done.already].forEach((n) => selected.delete(n));
         const text = [`${done.added.length} added`, done.already.length && `${done.already.length} already in this list`,
           done.failed.length && `${done.failed.length} could not be added (${done.failed.map((f) => f.nct_id).join(", ")})`]

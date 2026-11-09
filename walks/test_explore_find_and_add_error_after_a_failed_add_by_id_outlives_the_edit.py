@@ -7,7 +7,6 @@ import pytest
 
 
 
-@pytest.mark.xfail(strict=True, reason="todo: known defect E-035, fixed by ticket 16 of pr-1-review")
 def test_explore_the_add_error_is_cleared_when_the_id_is_edited(make_app, make_walk):
     """test_explore_the_add_error_is_cleared_when_the_id_is_edited"""
     app = make_app()
