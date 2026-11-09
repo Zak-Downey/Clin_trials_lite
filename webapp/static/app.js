@@ -1,5 +1,6 @@
 // Shell and router. The URL hash holds the state: #/watchlists/<id>, #/find.
 import { get } from "/static/api.js";
+import "/static/focus.js"; // keeps the keyboard's place across redraws
 import { render as renderFind, chooseDestination } from "/static/views/find.js";
 import { render as renderAll } from "/static/views/all_trials.js";
 import { render as renderQueue } from "/static/views/needs_review.js";
@@ -10,6 +11,7 @@ import { render as renderTrial } from "/static/views/trial.js";
 import { newWatchlistDialog } from "/static/views/new_watchlist.js";
 import { banner as savedSearchBanner } from "/static/views/saved_search.js";
 import { render as renderRegistryTrial } from "/static/views/registry_trial.js";
+import { menu as watchlistMenu } from "/static/views/watchlist_menu.js";
 
 const sidebar = document.getElementById("sidebar");
 const view = document.getElementById("view");
@@ -93,6 +95,15 @@ function drawFirstUse(watchlist) {
   byId.textContent = "Add by NCT ID";
   const title = el("h1");
   title.textContent = watchlist.name;
+  // An empty watchlist can still be renamed or deleted; there is nothing to recheck or search.
+  const more = watchlistMenu(watchlist, {
+    renamed: () => { window.dispatchEvent(new Event("reviewchange")); route(); },
+    deleted: () => { location.hash = "#/watchlists"; },
+  }, { basic: true });
+  const actions = el("div", { class: "actions" });
+  actions.append(more);
+  const header = el("div", { class: "watchlist-header" });
+  header.append(title, actions);
   const card = el("section", { class: "first-use", "aria-labelledby": "first-use-title" });
   const heading = el("h2", { id: "first-use-title" });
   heading.textContent = "Monitor your first trial";
@@ -103,7 +114,7 @@ function drawFirstUse(watchlist) {
   const note = el("p", { class: "help" });
   note.textContent = "You choose when to check for updates.";
   card.append(heading, why, buttons, note);
-  view.replaceChildren(title, card);
+  view.replaceChildren(header, card);
 }
 
 async function route() {
@@ -116,12 +127,12 @@ async function route() {
     if (parts[0] === "find") {
       await drawSidebar(null);
       const tab = parts[1] === "id" || parts[2] === "id" ? "id" : "search";
-      await renderFind(view, hashQuery, Number(parts[1]) || null, tab);
+      await renderFind(view, hashQuery, Number(parts[1]) || null, tab, () => generation === mine);
       return;
     }
     if (parts[0] === "registry" && parts[1]) {
       await drawSidebar(null);
-      await renderRegistryTrial(view, parts[1].toUpperCase());
+      await renderRegistryTrial(view, parts[1].toUpperCase(), () => generation === mine);
       window.scrollTo(0, 0);
       return;
     }
@@ -133,7 +144,12 @@ async function route() {
     }
     const lists = await drawSidebar(null);
     const id = parts[0] === "watchlists" && parts[1] ? Number(parts[1]) : (lists[0] && lists[0].id);
-    if (id === undefined) { view.textContent = "No watchlists yet. Use + New watchlist to make one."; return; }
+    if (id === undefined) {
+      view.textContent = "No watchlists yet. Use + New watchlist to make one.";
+      const make = document.getElementById("new-watchlist");
+      if (make && document.activeElement === document.body) make.focus({ preventScroll: true }); // the menu that held focus is gone
+      return;
+    }
     // The address always names the watchlist and the tab, so reload and Back land where you were.
     // A tab chosen is remembered per watchlist; a bare address opens the remembered one,
     // else Needs review. A count that changes never changes the tab.
@@ -169,6 +185,7 @@ async function route() {
     pendingScroll = null;
     if (y) window.scrollTo(0, y);
   } catch (err) {
+    if (generation !== mine) return; // the analyst has already moved on
     const box = document.createElement("div");
     box.className = "error";
     box.textContent = err.message;

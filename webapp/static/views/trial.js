@@ -1,4 +1,5 @@
 import { get, post, when } from "/static/api.js";
+import { menuKeys } from "/static/views/menu_keys.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -25,11 +26,12 @@ export async function render(root, nct, tab, origin) {
   }
   const menuButton = el("button", { type: "button", class: "secondary menu-button", "aria-label": "More actions", "aria-haspopup": "menu", "aria-expanded": "false" }, "⋯");
   const menu = el("div", { class: "menu", role: "menu", "aria-label": "Trial actions", hidden: "" });
+  const menuWrap = el("div", { class: "menu-wrap" }, menuButton, menu);
   const title = el("div", { class: "trial-head" },
     el("div", {}, el("h1", {}, trial.heading), meta),
     el("div", { class: "head-actions" },
       el("a", { class: "source", href: trial.registry_url, target: "_blank", rel: "noopener" }, "Open ClinicalTrials.gov ↗"),
-      el("div", { class: "menu-wrap" }, menuButton, menu)));
+      menuWrap));
   const banner = el("div", { class: "banner", role: "status", hidden: "" });
   const count = el("span", { class: "tab-count" });
   const changesTab = el("a", { role: "tab", "aria-selected": String(tab === "changes"), href: `#/trials/${nct}` }, "Changes ", count);
@@ -90,7 +92,7 @@ export async function render(root, nct, tab, origin) {
     menuButton.setAttribute("aria-expanded", String(!menu.hidden));
   });
   document.addEventListener("click", (event) => { if (!menu.contains(event.target)) closeMenu(); });
-  menu.addEventListener("keydown", (event) => { if (event.key === "Escape") { closeMenu(); menuButton.focus(); } });
+  menuKeys(menuWrap, menuButton, closeMenu);
   drawMenu();
 
   if (tab === "details") { await drawDetails(body, nct); return; }
@@ -129,9 +131,11 @@ export async function render(root, nct, tab, origin) {
   body.append(list);
 
   const scope = el("strong", {});
-  const also = el("span", { class: "meta" },
+  // The scope is always stated in full; a long list scrolls inside a small box (the box takes the keyboard when it overflows).
+  const also = el("span", { class: "meta also" },
     others.length ? `Also clears these changes in: ${others.map((w) => w.name).join(", ")}.`
       : "No other watchlist holds this trial.");
+  if (others.length > 3) { also.setAttribute("tabindex", "0"); also.setAttribute("role", "group"); also.setAttribute("aria-label", "Other watchlists this review also applies to"); }
   const next = el("button", { type: "button", class: "secondary" }, "Next trial");
   const mark = el("button", { type: "button", class: "primary" }, "Mark reviewed");
   const bar = el("div", { class: "action-bar", role: "region", "aria-label": "Review" },

@@ -88,7 +88,7 @@ button.link { border: 0; background: none; color: var(--accent); font-weight: 60
 .reason { flex-basis: 100%; text-align: right; color: var(--muted); font-size: 12px; }
 .button { display: inline-block; font: inherit; font-weight: 600; padding: 7px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); text-decoration: none; cursor: pointer; }
 .button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.button:disabled { color: var(--muted); cursor: not-allowed; background: var(--page); }
+.button:disabled, .button[aria-disabled=true] { color: var(--muted); cursor: not-allowed; background: var(--page); }
 button.link { font: inherit; font-weight: 600; background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; }
 #check-status { margin-bottom: 16px; }
 .status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 16px 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
@@ -253,3 +253,10 @@ li.card.match .card-body { flex: 1 1 auto; }
 .menu-action.danger-text { color: #b42318; border-top: 1px solid var(--line); margin-top: 4px; }
 .menu-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 button.danger { color: #b42318; border-color: #b42318; background: #fff; }
+
+/* Exploration fixes (ticket 16): a long unbroken word wraps instead of widening the page; a long list stays small. */
+#view, #sidebar, dialog.dialog { overflow-wrap: anywhere; }
+.action-bar > div:first-child { min-width: 0; flex: 1 1 auto; }
+.action-bar .also { display: block; max-height: 4.5em; overflow-y: auto; }
+.menu { max-height: min(60vh, 480px); overflow-y: auto; }
+.menu-item { position: sticky; bottom: 0; background: #fff; }

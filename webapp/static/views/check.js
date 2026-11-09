@@ -29,6 +29,7 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
   const reason = el("span", { class: "reason", id: "check-reason" });
   let current = watchlist;
   let busy = false;
+  let note = ""; // why a second start did not begin, shown beside the button while the first runs
 
   function drawHeader() {
     const n = current.trial_count;
@@ -52,15 +53,16 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
         el("h1", {}, current.name),
         el("p", { class: "meta", id: "watchlist-meta" }, `${plural(n, "trial")} monitored · ${last}`)),
       actions);
-    button.disabled = busy;
     button.setAttribute("aria-describedby", "check-reason");
-    reason.textContent = busy ? "A check is already running." : "";
+    setBusy(busy);
   }
 
+  // aria-disabled, not disabled: a disabled button drops keyboard focus to the page.
   function setBusy(value) {
     busy = value;
-    button.disabled = busy;
-    reason.textContent = busy ? "A check is already running." : "";
+    if (!busy) note = "";
+    button.setAttribute("aria-disabled", String(busy));
+    reason.textContent = busy ? (note || "A check is already running.") : "";
   }
 
   function panel(kind, children) {
@@ -169,13 +171,16 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
         drawDone(state);
       }
     } catch (err) {
-      if (err.kind === "check_running") return show();
+      if (err.kind === "check_running") {
+        if (path.endsWith("/recheck")) note = "A check is already running, so the full recheck did not start. Run it again when this check finishes.";
+        return show();
+      }
       setBusy(false);
       statusEl.replaceChildren(el("div", { class: "error" }, err.message));
     }
   }
 
-  button.addEventListener("click", () => begin(`/api/watchlists/${listId}/check`));
+  button.addEventListener("click", () => { if (!busy) begin(`/api/watchlists/${listId}/check`); });
   drawHeader();
   return show();
 }

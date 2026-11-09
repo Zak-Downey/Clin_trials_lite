@@ -123,6 +123,15 @@ export async function render(root, listId, watchlist, hashQuery = "") {
     draw();
   }
 
+  function showNotice() {
+    let node = body.querySelector("#summary-notice");
+    if (!node) {
+      node = el("p", { class: "help", role: "status", id: "summary-notice" });
+      body.querySelector("#summary-heading").before(node);
+    }
+    node.textContent = notice;
+  }
+
   function outputs() {
     const empty = data.counts.field_changes === 0;
     const copy = el("button", { type: "button", id: "copy-summary" }, "Copy summary");
@@ -135,7 +144,7 @@ export async function render(root, listId, watchlist, hashQuery = "") {
     copy.addEventListener("click", async () => {
       try { await writeClipboard(data.text); notice = "Summary copied."; }
       catch { notice = "The summary could not be copied here. Select it from the export instead."; }
-      draw();
+      showNotice(); // not draw(): that would close trials the analyst opened and clear dates they typed
     });
     exportCsv.addEventListener("click", () => download(data.filename, data.csv));
     return [el("div", { class: "outputs" }, copy, exportCsv), reason];

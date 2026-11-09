@@ -11,8 +11,9 @@ const el = (tag, attrs = {}, ...kids) => {
   return node;
 };
 
-export async function render(root, nct) {
+export async function render(root, nct, alive = () => true) {
   const [trial, { watchlists }] = await Promise.all([get(`/api/registry/trials/${nct}`), get("/api/watchlists")]);
+  if (!alive()) return; // the analyst has moved on while the registry answered
   const back = el("a", { class: "back", href: lastFind }, "‹ Back to results");
   const facts = [trial.phase, trial.sponsor, trial.status].filter(Boolean).join(" · ");
   const banner = el("div", { class: "banner", role: "status", hidden: "" });
