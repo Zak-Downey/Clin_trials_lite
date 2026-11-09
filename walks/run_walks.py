@@ -26,11 +26,16 @@ def tip() -> str:
     return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
 
-def pytest(args, output):
+def pytest_command(args, targets):
+    """The pytest command line: the targets, then the arguments. A re-run of one walk passes its node id as the only target."""
+    return [sys.executable, "-m", "pytest", *targets, "-q", "-p", "no:cacheprovider", "-rfE", *args]
+
+
+def pytest(args, output, targets=("walks",), cwd=ROOT):
     with open(output, "w") as out:
         return subprocess.run(
-            [sys.executable, "-m", "pytest", "walks", "-q", "-p", "no:cacheprovider", "-rfE", *args],
-            cwd=ROOT, stdout=out, stderr=subprocess.STDOUT,
+            pytest_command(args, targets),
+            cwd=cwd, stdout=out, stderr=subprocess.STDOUT,
         ).returncode
 
 
@@ -46,19 +51,20 @@ def exit_code(code: int, result: list[str]) -> int:
     return code if not result else 0
 
 
-def main(argv) -> int:
-    helper.SHOTS.mkdir(parents=True, exist_ok=True)
-    output = helper.SHOTS / "walks-run.txt"
+def main(argv, targets=("walks",), cwd=ROOT, shots=None) -> int:
+    shots = shots or helper.SHOTS
+    shots.mkdir(parents=True, exist_ok=True)
+    output = shots / "walks-run.txt"
     print(f"# tip {tip()}")
-    code = pytest(["-n", "4", *argv], output)
+    code = pytest(["-n", "4", *argv], output, targets, cwd)
     text = output.read_text()
     print(f"Walk output written to {output} (exit {code})")
     failed = red_walks(text)
     print("\n".join(text.splitlines()[-25:]))
     result = []
     for nodeid in failed:
-        alone = helper.SHOTS / f"alone-{helper.shot_name(nodeid)}.txt"
-        if pytest([nodeid], alone) == 0:
+        alone = shots / f"alone-{helper.shot_name(nodeid)}.txt"
+        if pytest([], alone, (nodeid,), cwd) == 0:
             result.append(f"{nodeid} -- red under load, green alone ({alone})")
         else:
             result.append(f"{nodeid} -- red alone ({alone})")
