@@ -4,12 +4,14 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 
 // opener: the control that opened it; content: nodes inside; first: the node to focus first.
 // Returns { close(), dialog }.
+let counter = 0; // dialogs can stack (a New watchlist over Watch this search): each names itself
 export function openDialog(opener, title, content, first) {
   const dialog = document.createElement("dialog");
   dialog.className = "dialog";
-  dialog.setAttribute("aria-labelledby", "dialog-title");
+  const titleId = `dialog-title-${++counter}`;
+  dialog.setAttribute("aria-labelledby", titleId);
   const heading = document.createElement("h2");
-  heading.id = "dialog-title";
+  heading.id = titleId;
   heading.textContent = title;
   dialog.append(heading, ...content);
   const openerId = opener && opener.id;

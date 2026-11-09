@@ -7,6 +7,7 @@ import { render as renderSummary } from "/static/views/summary.js";
 import { mount as mountCheck } from "/static/views/check.js";
 import { render as renderTrial } from "/static/views/trial.js";
 import { newWatchlistDialog } from "/static/views/new_watchlist.js";
+import { banner as savedSearchBanner } from "/static/views/saved_search.js";
 import { render as renderRegistryTrial } from "/static/views/registry_trial.js";
 
 const sidebar = document.getElementById("sidebar");
@@ -150,7 +151,7 @@ async function route() {
     const header = el("div", { class: "watchlist-header" });
     const status = el("div", { id: "check-status" });
     const queue = el("div", { id: "queue" });
-    view.replaceChildren(header, status, queue);
+    view.replaceChildren(header, ...(watchlist && watchlist.saved_search ? [savedSearchBanner(watchlist, route)] : []), status, queue);
     await draw(queue, id, watchlist);
     mountCheck(header, status, id, watchlist, {
       alive: () => generation === mine,

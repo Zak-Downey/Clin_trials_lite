@@ -1,0 +1,67 @@
+# tip cb2ceb72cb7c09b5cde11168384d90d13fde4f3c
+..........FF                                                             [100%]
+=================================== FAILURES ===================================
+_ test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x10bde4360>
+make_walk = <function make_walk.<locals>.build at 0x10c4fbc40>
+
+    def test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen(make_app, make_walk):
+        """test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        held = []
+        page.route(re.compile(r"/api/watchlists/3/saved-search$"), lambda route: held.append(route))
+        page.get_by_role("button", name="Watch this search").click()
+        watch = dialog(page)
+        picker = watch.get_by_label("Watchlist")
+        picker.select_option(label="Prior")  # its answer is held back
+        page.wait_for_function("true")
+        while not held:
+            page.wait_for_timeout(50)
+        picker.select_option(label="Myeloma")  # answered at once: no saved search
+        watch.get_by_role("button", name="Watch this search").wait_for()
+        held[0].continue_()  # now the earlier answer arrives
+        page.wait_for_timeout(500)
+>       assert watch.get_by_text("already has a saved search").count() == 0
+E       assert 1 == 0
+E        +  where 1 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:62707/#/find?cond=many&page=1'> selector='internal:role=dialog[name="Watch this search"i] >> internal:text="already has a saved search"i'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:62707/#/find?cond=many&page=1'> selector='internal:role=dialog[name="Watch this search"i] >> internal:text="already has a saved search"i'> = get_by_text('already has a saved search')
+E        +        where get_by_text = <Locator frame=<Frame name= url='http://127.0.0.1:62707/#/find?cond=many&page=1'> selector='internal:role=dialog[name="Watch this search"i]'>.get_by_text
+
+walks/test_saved_search_walk.py:218: AssertionError
+_ test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x10c515c60>
+make_walk = <function make_walk.<locals>.build at 0x10c11f920>
+
+    def test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen(make_app, make_walk):
+        """test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen"""
+        _, walk = results(make_app, make_walk)
+        page = walk.page
+        held = []
+        page.route(re.compile(r"/api/watchlists/3/saved-search$"), lambda route: held.append(route))
+        page.get_by_role("button", name="Watch this search").click()
+        watch = dialog(page)
+        picker = watch.get_by_label("Watchlist")
+        picker.select_option(label="Prior")  # its answer is held back
+        page.wait_for_function("true")
+        while not held:
+            page.wait_for_timeout(50)
+        picker.select_option(label="Myeloma")  # answered at once: no saved search
+        watch.get_by_role("button", name="Watch this search").wait_for()
+        held[0].continue_()  # now the earlier answer arrives
+        page.wait_for_timeout(500)
+>       assert watch.get_by_text("already has a saved search").count() == 0
+E       assert 1 == 0
+E        +  where 1 = count()
+E        +    where count = <Locator frame=<Frame name= url='http://127.0.0.1:62735/#/find?cond=many&page=1'> selector='internal:role=dialog[name="Watch this search"i] >> internal:text="already has a saved search"i'>.count
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:62735/#/find?cond=many&page=1'> selector='internal:role=dialog[name="Watch this search"i] >> internal:text="already has a saved search"i'> = get_by_text('already has a saved search')
+E        +        where get_by_text = <Locator frame=<Frame name= url='http://127.0.0.1:62735/#/find?cond=many&page=1'> selector='internal:role=dialog[name="Watch this search"i]'>.get_by_text
+
+walks/test_saved_search_walk.py:218: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_saved_search_walk.py::test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen[1440x900]
+FAILED walks/test_saved_search_walk.py::test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_for_the_one_now_chosen[1024x768]
+2 failed, 10 passed in 10.60s

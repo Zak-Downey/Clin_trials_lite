@@ -2,6 +2,7 @@
 import { get, post } from "/static/api.js";
 import { withNewEntry } from "/static/views/new_watchlist.js";
 import { renderAddById } from "/static/views/add_by_id.js";
+import { watchSearchDialog } from "/static/views/saved_search.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -46,7 +47,7 @@ function readQuery(params) {
   };
 }
 
-function toParams(q, page) {
+export function toParams(q, page) {
   const p = new URLSearchParams();
   for (const k of ["cond", "intr", "spons"]) if (q[k].trim()) p.set(k, q[k].trim());
   for (const k of ["phase", "sponsor_type", "status"]) q[k].forEach((v) => p.append(k, v));
@@ -57,7 +58,7 @@ function toParams(q, page) {
 
 const named = (q) => q.cond.trim() || q.intr.trim() || q.spons.trim() || q.phase.length;
 
-function summary(q) {
+export function summary(q) {
   const main = [q.cond.trim(), q.intr.trim() && `Intervention ${q.intr.trim()}`, q.spons.trim(),
     q.phase.length && q.phase.map((c) => name(PHASES.map((p) => [p[0], p[2]]), c)).join("/")].filter(Boolean);
   const side = [q.sponsor_type.length && q.sponsor_type.map((c) => name(SPONSOR_TYPES, c)).join(" or "),
@@ -134,12 +135,12 @@ function form(q, error, onSubmit) {
   return f;
 }
 
-function results(q, data, page, go, edit, clearOptional, changed) {
+function results(q, data, page, go, edit, clearOptional, changed, watch) {
   const out = el("section", { class: "results", "aria-label": "Search results" });
   const head = summary(q);
   out.append(el("div", { class: "summary" },
     el("div", {}, el("strong", { id: "query-summary" }, head.main || "Search"), head.side ? el("div", { class: "meta" }, head.side) : ""),
-    edit));
+    el("div", { class: "summary-actions" }, watch, edit)));
   if (!data.total) {
     const again = el("button", { type: "button" }, "Edit search");
     again.addEventListener("click", () => edit.click());
@@ -306,5 +307,7 @@ export async function render(root, search, listId, tab = "search") {
   clearOptional.addEventListener("click", () => {
     location.hash = `${base}?${toParams({ ...q, sponsor_type: [], status: [], started_from: "", started_to: "" }, 1)}`;
   });
-  root.replaceChildren(...head, results(q, data, page, (p) => { location.hash = `${base}?${toParams(q, p)}`; }, edit, clearOptional, drawBar), bar);
+  const watch = el("button", { type: "button", id: "watch-search" }, "Watch this search");
+  watch.addEventListener("click", () => watchSearchDialog(watch, q, { lists: () => lists, destination: () => destination, created }));
+  root.replaceChildren(...head, results(q, data, page, (p) => { location.hash = `${base}?${toParams(q, p)}`; }, edit, clearOptional, drawBar, watch), bar);
 }
