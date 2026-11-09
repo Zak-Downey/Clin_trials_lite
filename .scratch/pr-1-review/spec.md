@@ -178,6 +178,8 @@ Say which recommendations you reject; silence accepts them all. Items 1 to 5 are
 
 21. **Round 1, finding 3: a double click on Undo after Mark reviewed shows "That review was already undone." though the undo succeeded.** Same class as E-033 (ticket 15), on the next button in the bar. Choice: a one-line in-flight guard in `trial.js` (a design ticket, since it changes a page), or leave it. Doing it costs another ticket round before ready; leaving it shows a wrong sentence only on a double click, with the data correct. Recommended: defer (follow-up spec)
 
+22. **Round 1 re-check, sweep 1: a trial removed during its own fetch, when that fetch fails, still shows as a failed check and gets a failure stamp.** The re-read after the fetch is skipped when the fetch raises, so the panel says the check is incomplete over a trial the analyst just removed (rare: a removal and a registry failure in the same moment). Choice: re-read membership in the failure path too (server-only, one test), or leave it. Recommended: defer (follow-up spec)
+
 ## Proposed rules
 
 Each is a row of the rule queue (`docs/agents/local/rules.md`) and of Recurring findings in `docs/agents/local/ledger.md`. Adopting one is yours; silence leaves it proposed, and `gate.py handover` lists it.
