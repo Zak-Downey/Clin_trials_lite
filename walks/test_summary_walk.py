@@ -13,8 +13,14 @@ import csv
 import datetime
 import io
 import re
+import zoneinfo
 
 from walks import helper
+
+
+# NCT03412565's two seeded changes in the period plus the three the simulated check of
+# NCT00000002 finds; the 45-day-old change is outside This week and This month.
+EXPECTED_CHANGES = 5
 
 
 def seed_summary(db: str, registry: helper.Registry) -> None:
@@ -30,9 +36,17 @@ def seed_summary(db: str, registry: helper.Registry) -> None:
         monitor.add(conn, nct, first, fetch=registry.fetch, when=stamp)
     now = datetime.datetime.now(datetime.timezone.utc)
     iso = lambda delta: (now - delta).isoformat(timespec="seconds")  # noqa: E731
+    # The earlier in-period change sits halfway between the later of This week's and This
+    # month's start (Monday / the 1st, 00:00 in the server's zone) and now, so it is inside
+    # both periods at any hour of the run, including just after midnight on a Monday or the 1st.
+    zone = zoneinfo.ZoneInfo("America/New_York")
+    today = now.astimezone(zone).date()
+    starts = (today - datetime.timedelta(days=today.weekday()), today.replace(day=1))
+    period_start = datetime.datetime.combine(max(starts), datetime.time(0), tzinfo=zone)
+    midway = now - (now - period_start) / 2
     old = datetime.timedelta(days=45)
     storage.add_change(conn, "NCT03412565", {"field": "enrollment", "previous": 100, "current": 150}, iso(old))
-    storage.add_change(conn, "NCT03412565", {"field": "enrollment", "previous": 248, "current": 255}, iso(datetime.timedelta(minutes=30)))
+    storage.add_change(conn, "NCT03412565", {"field": "enrollment", "previous": 248, "current": 255}, midway.isoformat(timespec="seconds"))
     storage.mark_reviewed(conn, "NCT03412565")
     storage.add_change(conn, "NCT03412565", {"field": "enrollment", "previous": 255, "current": 265}, iso(datetime.timedelta(0)))
     simulate.rewind(conn, "NCT00000002", when="2026-01-02T08:00:00+00:00")
@@ -65,7 +79,7 @@ def test_walk_summary_offers_three_periods_and_a_heading_with_the_period_counts_
     heading, trials, changes = numbers(page)
     today = datetime.date.today()
     monday = today - datetime.timedelta(days=today.weekday())
-    assert str(monday.year) in heading and (trials, changes) == (2, changes) and changes >= 3
+    assert str(monday.year) in heading and (trials, changes) == (2, EXPECTED_CHANGES)
     counts = page.locator("#summary-counts").inner_text()
     m = re.fullmatch(r"(\d+) awaiting review · (\d+) reviewed · Dates use E[SD]T", counts)
     assert m, counts
@@ -73,7 +87,7 @@ def test_walk_summary_offers_three_periods_and_a_heading_with_the_period_counts_
     walk.shot("this-week")
     page.get_by_role("button", name="This month").click()
     page.wait_for_function("() => document.querySelector('.periods button[aria-pressed=true]').innerText === 'This month'")
-    assert numbers(page)[2] >= 3
+    assert numbers(page)[1:] == (2, EXPECTED_CHANGES)
     walk.shot("this-month")
 
 
