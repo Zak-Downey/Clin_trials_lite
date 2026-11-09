@@ -9,8 +9,8 @@ keeps one run at a time per watchlist and reports progress.
 from __future__ import annotations
 
 import threading
+import time
 
-import browser
 import ctgov
 import monitor
 import storage
@@ -62,7 +62,7 @@ def _work(ctx, run: Run, force: bool) -> None:
     try:
         for index, (kind, nct) in enumerate(run.steps):
             if index:
-                browser.wait(pause)
+                time.sleep(pause)
             with ctx.lock:
                 if kind == "trial":
                     result = monitor.check_one(ctx.conn, nct, fetch=fetch, force=force)

@@ -3,7 +3,7 @@
 Somebody covering two therapy areas keeps myeloma apart from lung, so a trial
 belongs to a *list* rather than to one undifferentiated watchlist -- and to more
 than one at a time, since indications overlap. All of it is tested here without
-running Streamlit: the page only chooses which list to show.
+a page: the page only chooses which list to show.
 """
 
 from __future__ import annotations

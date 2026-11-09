@@ -11,7 +11,7 @@ What is particular to this repo. The other files under `docs/agents/` hold in an
 
 ## Walks
 
-- **Tooling.** Playwright for Python with Chromium (`requirements-dev.txt`; once: `.venv/bin/python -m playwright install chromium`), run by pytest in `walks/`, outside the unit folder (`pytest.ini` points the unit suite at `tests/`). The Streamlit pages are tested in the unit suite through `streamlit.testing.v1.AppTest`, which needs no browser.
+- **Tooling.** Playwright for Python with Chromium (`requirements-dev.txt`; once: `.venv/bin/python -m playwright install chromium`), run by pytest in `walks/`, outside the unit folder (`pytest.ini` points the unit suite at `tests/`). The pages are exercised only by the walks; the unit suite tests the API and the Python modules, with no browser.
 - **Helpers.** `walks/helper.py` (the app in a subprocess on a free port over a fresh temporary database, the stand-in registry, the guards: console error, page error, failed or foreign request, sideways scroll; seeded data `seed_queue`) and `walks/conftest.py` (fixtures `make_app`, `make_walk`, `registry`, `viewport`; a walk whose guards tripped is reported FAILED). `walks/standin_registry.py` is the stand-in registry; `walks/serve.py` starts the app against it. A walk is `walk = make_walk(make_app(seed=...))`, then acts through `walk.page` by role and name.
 - **Evidence.** `.scratch/<feature>/walks/` (git-ignored): `<walk>-NN-<step>.png`, a `-final` shot of every failed walk, and `walks-run.txt`.
 - **Shared client plumbing.** `webapp/static/app.js`, `webapp/static/api.js`, `webapp/static/style.css`, `walks/helper.py`, `walks/conftest.py`, `walks/standin_registry.py`, `walks/serve.py`. A change to one runs the whole walk suite.
@@ -38,7 +38,6 @@ Every check in this repo runs against these. A row whose fidelity check starts w
 
 ## CI
 
-- **Workflows.** `.github/workflows/deploy.yml` ("Publish the site"): on push to `main` or `master` and on `workflow_dispatch`, runs `python build_site.py site` and deploys the result to GitHub Pages. It runs no tests. There is no pull-request workflow, so nothing runs on a draft.
-- **The local gate.** No pre-push hook or other local hook in this repo; `python3 .claude/factory/gate.py checks` is run by hand. No CI step runs the tests, so there is nothing to skip.
-- **The dispatch.** `gh workflow run deploy.yml` (publishes the site; not a test run).
-- **Gaps against the checklist.** No CI workflow runs the tests, so the test-workflow items of `ci-spend.md` do not apply yet. `deploy.yml` triggers on push to `main` on purpose, because it publishes `main`. Neither of its jobs sets `timeout-minutes`.
+- **Workflows.** None. The old Pages publish workflow is retired, and there is no pull-request workflow, so nothing runs on a draft.
+- **The local gate.** No pre-push hook or other local hook in this repo; `python3 .claude/factory/gate.py checks` is run by hand.
+- **Gaps against the checklist.** No CI workflow runs the tests, so the test-workflow items of `ci-spend.md` do not apply yet.
