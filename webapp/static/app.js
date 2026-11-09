@@ -160,7 +160,7 @@ async function route() {
     if (tab !== "summary" && location.hash !== canonical) history.replaceState(null, "", canonical);
     if (tab === "summary" && !parts[2]) history.replaceState(null, "", canonical);
     const draw = tab === "summary"
-      ? (node, listId, current) => renderSummary(node, listId, current, hashQuery)
+      ? (node, listId, current) => renderSummary(node, listId, current, location.hash.split("?")[1] || "") // read now: Summary moves the period with replaceState
       : tab === "all-trials" ? renderAll : tab === "new-matches" ? renderNewMatches : renderQueue;
     await drawSidebar(id);
     const watchlist = lists.find((w) => w.id === id);

@@ -113,7 +113,7 @@ def test_walk_after_the_register_switch_a_check_adds_the_new_study_to_new_matche
 
 def test_walk_selecting_matches_shows_an_action_bar_that_never_covers_the_last_match_and_adding_takes_baselines(make_app, make_walk):
     """test_walk_selecting_matches_shows_an_action_bar_that_never_covers_the_last_match_and_adding_takes_baselines"""
-    _, walk = open_tab(make_app, make_walk)
+    app, walk = open_tab(make_app, make_walk)
     page = walk.page
     box(page, "NCT00000002").check()
     box(page, "NCT00000003").check()
@@ -142,7 +142,7 @@ def test_walk_selecting_matches_shows_an_action_bar_that_never_covers_the_last_m
 
 def test_walk_dismiss_states_the_consequence_before_committing_and_then_offers_undo(make_app, make_walk):
     """test_walk_dismiss_states_the_consequence_before_committing_and_then_offers_undo"""
-    _, walk = open_tab(make_app, make_walk)
+    app, walk = open_tab(make_app, make_walk)
     page = walk.page
     box(page, "NCT00000002").check()
     region = bar(page)
@@ -170,7 +170,7 @@ def test_walk_dismiss_states_the_consequence_before_committing_and_then_offers_u
 
 def test_walk_view_dismissed_lists_dismissed_matches_with_restore_and_a_restored_one_returns(make_app, make_walk):
     """test_walk_view_dismissed_lists_dismissed_matches_with_restore_and_a_restored_one_returns"""
-    _, walk = open_tab(make_app, make_walk)
+    app, walk = open_tab(make_app, make_walk)
     page = walk.page
     box(page, "NCT00000002").check()
     box(page, "NCT00000003").check()
@@ -219,3 +219,41 @@ def test_walk_a_search_that_found_more_than_a_hundred_says_so_on_the_tab_and_in_
     note = page.get_by_role("note").filter(has_text="more than 100")
     assert note.is_visible()
     walk.shot("capped")
+
+
+def finish_a_check(app, page):
+    """Run a check slowly enough to see it start, then wait for it to finish (a second check would otherwise meet the first one's message)."""
+    app.registry.set("slow", True, delay=0.8)
+    page.get_by_role("button", name="Check for updates").click()
+    page.locator("#check-status").get_by_text("Checking for updates…").wait_for()
+    page.locator("#check-status").get_by_text("Check complete").wait_for(timeout=30000)
+
+
+def test_walk_a_finished_check_keeps_the_tick_and_the_action_bar(make_app, make_walk):
+    """test_walk_a_finished_check_keeps_the_tick_and_the_action_bar"""
+    app, walk = open_tab(make_app, make_walk)
+    page = walk.page
+    box(page, "NCT00000002").check()
+    bar(page).get_by_text("1 selected").wait_for()
+    finish_a_check(app, page)
+    assert box(page, "NCT00000002").is_checked()
+    assert bar(page).get_by_text("1 selected").is_visible()
+    walk.shot("tick-kept")
+
+
+def test_walk_a_finished_check_keeps_a_pending_dismiss_and_the_dismissed_list(make_app, make_walk):
+    """test_walk_a_finished_check_keeps_a_pending_dismiss_and_the_dismissed_list"""
+    app, walk = open_tab(make_app, make_walk)
+    page = walk.page
+    box(page, "NCT00000002").check()
+    bar(page).get_by_role("button", name="Dismiss 1").click()
+    page.get_by_role("button", name="Yes, dismiss 1").wait_for()
+    finish_a_check(app, page)
+    assert page.get_by_role("button", name="Yes, dismiss 1").is_visible()
+    page.get_by_role("button", name="Cancel").click()
+    box(page, "NCT00000002").uncheck()
+    page.get_by_role("button", name="View dismissed").click()
+    page.locator("#back-to-matches").wait_for()
+    finish_a_check(app, page)
+    assert page.locator("#back-to-matches").is_visible()
+    walk.shot("dismissed-kept")

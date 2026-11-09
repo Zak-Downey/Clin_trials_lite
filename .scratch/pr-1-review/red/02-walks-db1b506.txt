@@ -1,0 +1,133 @@
+# tip db1b5062c3b51cf0ea324c27939a7f857b6b5f93
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+__ test_walk_a_finished_check_keeps_summary_period_and_typed_dates[1440x900] ___
+
+make_app = <function make_app.<locals>.build at 0x10724fba0>
+make_walk = <function make_walk.<locals>.build at 0x10724fec0>
+
+    def test_walk_a_finished_check_keeps_summary_period_and_typed_dates(make_app, make_walk):
+        """test_walk_a_finished_check_keeps_summary_period_and_typed_dates"""
+        _, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="This month").click()
+        page.wait_for_function("location.hash.includes('period=month')")
+        heading = page.locator("#summary-heading").inner_text()
+        counts = page.locator("#summary-counts").inner_text()
+        finish_a_check(page)
+>       assert page.get_by_role("button", name="This month").get_attribute("aria-pressed") == "true"
+E       AssertionError: assert 'false' == 'true'
+E         
+E         - true
+E         + false
+
+walks/test_summary_walk.py:199: AssertionError
+__ test_walk_a_finished_check_keeps_summary_period_and_typed_dates[1024x768] ___
+
+make_app = <function make_app.<locals>.build at 0x1074b1800>
+make_walk = <function make_walk.<locals>.build at 0x1074b1bc0>
+
+    def test_walk_a_finished_check_keeps_summary_period_and_typed_dates(make_app, make_walk):
+        """test_walk_a_finished_check_keeps_summary_period_and_typed_dates"""
+        _, walk = open_summary(make_app, make_walk)
+        page = walk.page
+        page.get_by_role("button", name="This month").click()
+        page.wait_for_function("location.hash.includes('period=month')")
+        heading = page.locator("#summary-heading").inner_text()
+        counts = page.locator("#summary-counts").inner_text()
+        finish_a_check(page)
+>       assert page.get_by_role("button", name="This month").get_attribute("aria-pressed") == "true"
+E       AssertionError: assert 'false' == 'true'
+E         
+E         - true
+E         + false
+
+walks/test_summary_walk.py:199: AssertionError
+____ test_walk_a_finished_check_keeps_the_tick_and_the_action_bar[1440x900] ____
+
+make_app = <function make_app.<locals>.build at 0x1074b36a0>
+make_walk = <function make_walk.<locals>.build at 0x1074e74c0>
+
+    def test_walk_a_finished_check_keeps_the_tick_and_the_action_bar(make_app, make_walk):
+        """test_walk_a_finished_check_keeps_the_tick_and_the_action_bar"""
+        _, walk = open_tab(make_app, make_walk)
+        page = walk.page
+        box(page, "NCT00000002").check()
+        bar(page).get_by_text("1 selected").wait_for()
+        finish_a_check(page)
+>       assert box(page, "NCT00000002").is_checked()
+E       assert False
+E        +  where False = is_checked()
+E        +    where is_checked = <Locator frame=<Frame name= url='http://127.0.0.1:64040/#/watchlists/1/new-matches'> selector='li.card[data-nct="NCT00000002"] input[type=checkbox]'>.is_checked
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64040/#/watchlists/1/new-matches'> selector='li.card[data-nct="NCT00000002"] input[type=checkbox]'> = box(<Page url='http://127.0.0.1:64040/#/watchlists/1/new-matches'>, 'NCT00000002')
+
+walks/test_new_matches_walk.py:236: AssertionError
+____ test_walk_a_finished_check_keeps_the_tick_and_the_action_bar[1024x768] ____
+
+make_app = <function make_app.<locals>.build at 0x1077293a0>
+make_walk = <function make_walk.<locals>.build at 0x107729b20>
+
+    def test_walk_a_finished_check_keeps_the_tick_and_the_action_bar(make_app, make_walk):
+        """test_walk_a_finished_check_keeps_the_tick_and_the_action_bar"""
+        _, walk = open_tab(make_app, make_walk)
+        page = walk.page
+        box(page, "NCT00000002").check()
+        bar(page).get_by_text("1 selected").wait_for()
+        finish_a_check(page)
+>       assert box(page, "NCT00000002").is_checked()
+E       assert False
+E        +  where False = is_checked()
+E        +    where is_checked = <Locator frame=<Frame name= url='http://127.0.0.1:64118/#/watchlists/1/new-matches'> selector='li.card[data-nct="NCT00000002"] input[type=checkbox]'>.is_checked
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64118/#/watchlists/1/new-matches'> selector='li.card[data-nct="NCT00000002"] input[type=checkbox]'> = box(<Page url='http://127.0.0.1:64118/#/watchlists/1/new-matches'>, 'NCT00000002')
+
+walks/test_new_matches_walk.py:236: AssertionError
+_ test_walk_a_finished_check_keeps_a_pending_dismiss_and_the_dismissed_list[1440x900] _
+
+make_app = <function make_app.<locals>.build at 0x1077a7740>
+make_walk = <function make_walk.<locals>.build at 0x1077a7a60>
+
+    def test_walk_a_finished_check_keeps_a_pending_dismiss_and_the_dismissed_list(make_app, make_walk):
+        """test_walk_a_finished_check_keeps_a_pending_dismiss_and_the_dismissed_list"""
+        _, walk = open_tab(make_app, make_walk)
+        page = walk.page
+        box(page, "NCT00000002").check()
+        bar(page).get_by_role("button", name="Dismiss 1").click()
+        page.get_by_role("button", name="Yes, dismiss 1").wait_for()
+        finish_a_check(page)
+>       assert page.get_by_role("button", name="Yes, dismiss 1").is_visible()
+E       assert False
+E        +  where False = is_visible()
+E        +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:64194/#/watchlists/1/new-matches'> selector='internal:role=button[name="Yes, dismiss 1"i]'>.is_visible
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64194/#/watchlists/1/new-matches'> selector='internal:role=button[name="Yes, dismiss 1"i]'> = get_by_role('button', name='Yes, dismiss 1')
+E        +        where get_by_role = <Page url='http://127.0.0.1:64194/#/watchlists/1/new-matches'>.get_by_role
+
+walks/test_new_matches_walk.py:249: AssertionError
+_ test_walk_a_finished_check_keeps_a_pending_dismiss_and_the_dismissed_list[1024x768] _
+
+make_app = <function make_app.<locals>.build at 0x1077a6c00>
+make_walk = <function make_walk.<locals>.build at 0x1077a6700>
+
+    def test_walk_a_finished_check_keeps_a_pending_dismiss_and_the_dismissed_list(make_app, make_walk):
+        """test_walk_a_finished_check_keeps_a_pending_dismiss_and_the_dismissed_list"""
+        _, walk = open_tab(make_app, make_walk)
+        page = walk.page
+        box(page, "NCT00000002").check()
+        bar(page).get_by_role("button", name="Dismiss 1").click()
+        page.get_by_role("button", name="Yes, dismiss 1").wait_for()
+        finish_a_check(page)
+>       assert page.get_by_role("button", name="Yes, dismiss 1").is_visible()
+E       assert False
+E        +  where False = is_visible()
+E        +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:64430/#/watchlists/1/new-matches'> selector='internal:role=button[name="Yes, dismiss 1"i]'>.is_visible
+E        +      where <Locator frame=<Frame name= url='http://127.0.0.1:64430/#/watchlists/1/new-matches'> selector='internal:role=button[name="Yes, dismiss 1"i]'> = get_by_role('button', name='Yes, dismiss 1')
+E        +        where get_by_role = <Page url='http://127.0.0.1:64430/#/watchlists/1/new-matches'>.get_by_role
+
+walks/test_new_matches_walk.py:249: AssertionError
+=========================== short test summary info ============================
+FAILED walks/test_summary_walk.py::test_walk_a_finished_check_keeps_summary_period_and_typed_dates[1440x900]
+FAILED walks/test_summary_walk.py::test_walk_a_finished_check_keeps_summary_period_and_typed_dates[1024x768]
+FAILED walks/test_new_matches_walk.py::test_walk_a_finished_check_keeps_the_tick_and_the_action_bar[1440x900]
+FAILED walks/test_new_matches_walk.py::test_walk_a_finished_check_keeps_the_tick_and_the_action_bar[1024x768]
+FAILED walks/test_new_matches_walk.py::test_walk_a_finished_check_keeps_a_pending_dismiss_and_the_dismissed_list[1440x900]
+FAILED walks/test_new_matches_walk.py::test_walk_a_finished_check_keeps_a_pending_dismiss_and_the_dismissed_list[1024x768]
+6 failed, 26 deselected in 11.27s
