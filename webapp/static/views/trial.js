@@ -153,7 +153,10 @@ export async function render(root, nct, tab, origin, alive = () => true) {
   };
   const refresh = () => window.dispatchEvent(new Event("reviewchange"));
 
+  let marking = false; // a press while the request is in flight is ignored: one click, one review
   mark.addEventListener("click", async () => {
+    if (marking || state.reviewed) return;
+    marking = true;
     try {
       const done = await post(`/api/trials/${nct}/review`, { ids });
       state.reviewed = true;
@@ -174,7 +177,7 @@ export async function render(root, nct, tab, origin, alive = () => true) {
       tell(`${plural(shown.length, "change")} marked reviewed. This trial stays open.`, undo);
       undo.focus({ preventScroll: true }); // the pressed button is now disabled: focus must not fall to <body>
       refresh();
-    } catch (err) { fail(err); }
+    } catch (err) { fail(err); } finally { marking = false; }
   });
 
   // The queue as it stood when the page opened: Next trial goes to the one after this.
