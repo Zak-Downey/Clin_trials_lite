@@ -249,3 +249,7 @@ li.card.match .card-body { flex: 1 1 auto; }
 .matches-bar[hidden] { display: none; }
 .matches-bar .buttons { margin-left: auto; }
 .matches-bar .consequence { flex: 1 1 100%; margin: 0; }
+.menu-action { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 8px 0; font: inherit; color: var(--ink); cursor: pointer; }
+.menu-action.danger-text { color: #b42318; border-top: 1px solid var(--line); margin-top: 4px; }
+.menu-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.danger { color: #b42318; border-color: #b42318; background: #fff; }

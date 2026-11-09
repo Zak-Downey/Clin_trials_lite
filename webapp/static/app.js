@@ -133,7 +133,7 @@ async function route() {
     }
     const lists = await drawSidebar(null);
     const id = parts[0] === "watchlists" && parts[1] ? Number(parts[1]) : (lists[0] && lists[0].id);
-    if (id === undefined) { view.textContent = "No watchlists yet."; return; }
+    if (id === undefined) { view.textContent = "No watchlists yet. Use + New watchlist to make one."; return; }
     // The address always names the watchlist and the tab, so reload and Back land where you were.
     // A tab chosen is remembered per watchlist; a bare address opens the remembered one,
     // else Needs review. A count that changes never changes the tab.
@@ -156,6 +156,8 @@ async function route() {
     await draw(queue, id, watchlist);
     mountCheck(header, status, id, watchlist, {
       alive: () => generation === mine,
+      changed: route, // the saved search was turned off: redraw the watchlist
+      deleted: () => { location.hash = "#/watchlists"; }, // the first remaining watchlist, or none
       refresh: async () => {
         const fresh = await drawSidebar(id);
         const current = fresh.find((w) => w.id === id);

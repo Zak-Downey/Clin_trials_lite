@@ -36,6 +36,8 @@ ROUTES = [
     ("POST", r"/api/watchlists/(?P<list_id>\d+)/new-matches/dismiss", api_new_matches.dismiss),
     ("POST", r"/api/watchlists/(?P<list_id>\d+)/new-matches/restore", api_new_matches.restore),
     ("POST", r"/api/watchlists/(?P<list_id>\d+)/new-matches/undo", api_new_matches.undo),
+    ("POST", r"/api/watchlists/(?P<list_id>\d+)/rename", api_watchlists.rename_watchlist),
+    ("POST", r"/api/watchlists/(?P<list_id>\d+)/delete", api_watchlists.delete_watchlist),
 ]
 
 COMPILED = [(m, re.compile(p + r"\Z"), h) for m, p, h in ROUTES]

@@ -202,3 +202,25 @@ def test_still_need_review_from_earlier_checks_leaves_out_what_this_check_just_f
     done = finished(watched)
     assert (done["changed"], done["still_need_review"]) == (1, 1)
     assert watched.get(f"/api/watchlists/{LIST_ID}/needs-review")[1]["counts"]["trials"] == 2
+
+
+def _edit_enrollment(fetcher, nct, count):
+    """Change a monitored field on the served record without moving its registry stamp."""
+    fetcher.served[nct]["protocolSection"]["designModule"]["enrollmentInfo"]["count"] = count
+
+
+def test_a_normal_check_skips_an_unmoved_stamp_and_a_full_recheck_compares_it_anyway(watched, fetcher):
+    """test_a_normal_check_skips_an_unmoved_stamp_and_a_full_recheck_compares_it_anyway"""
+    _edit_enrollment(fetcher, "NCT00000002", 4321)
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    normal = finished(watched)
+    assert normal["state"] == "complete" and normal["kind"] == "check" and normal["changed"] == 0
+    assert storage.list_changes(storage.connect(watched.path), "NCT00000002") == []
+    status, body = watched.post(f"/api/watchlists/{LIST_ID}/recheck")
+    assert status == 200
+    full = finished(watched)
+    assert full["kind"] == "recheck" and full["changed"] == 1
+    assert [t["nct_id"] for t in full["trials"] if t["outcome"] == "updated"] == ["NCT00000002"]
+    # Once, not sticky: the next normal check is the cheap one again.
+    watched.post(f"/api/watchlists/{LIST_ID}/check")
+    assert finished(watched)["kind"] == "check"

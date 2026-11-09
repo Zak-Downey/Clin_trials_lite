@@ -1,5 +1,6 @@
 // The watchlist header and the checking status area (design pages 1 and 12).
 import { get, post, when } from "/static/api.js";
+import { menu as watchlistMenu } from "/static/views/watchlist_menu.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -35,7 +36,17 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
     button.textContent = !n && current.saved_search ? "Check for new matches" : "Check for updates";
     const last = current.last_checked ? `Last checked ${when(current.last_checked)}` : "Not checked yet";
     const add = el("a", { class: "button primary", href: `#/find/${listId}` }, "Add trials");
-    const actions = el("div", { class: "actions" }, add, button, reason);
+    const more = watchlistMenu(current, {
+      renamed: (renamed) => {
+        current = { ...current, name: renamed.name };
+        drawHeader();
+        window.dispatchEvent(new Event("reviewchange")); // the sidebar carries the name too
+      },
+      recheck: () => begin(`/api/watchlists/${listId}/recheck`),
+      changed: ctx.changed,
+      deleted: ctx.deleted,
+    });
+    const actions = el("div", { class: "actions" }, add, button, more, reason);
     headerEl.replaceChildren(
       el("div", {},
         el("h1", {}, current.name),
@@ -56,12 +67,14 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
     statusEl.replaceChildren(el("section", { class: `status ${kind}`, role: "status" }, ...children));
   }
 
+  const full = (state) => state.kind === "recheck";
+
   function drawRunning(state) {
     const done = state.steps_done;
     const progress = el("progress", { max: String(state.steps || 1), value: String(done), "aria-label": "Check progress" });
     panel("running", [
       el("div", { class: "status-main" },
-        el("h2", {}, "Checking for updates…"),
+        el("h2", {}, full(state) ? "Full recheck running…" : "Checking for updates…"),
         el("p", {}, state.total ? `${state.processed} of ${state.total} trials checked · ${nextLine(state.next)}` : "Searching for new matches"),
         progress),
     ]);
@@ -73,7 +86,7 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
     const side = el("div", { class: "status-side" });
     const search = searchLine(state);
     if (incomplete) {
-      main.append(el("h2", {}, "Check incomplete"));
+      main.append(el("h2", {}, full(state) ? "Full recheck incomplete" : "Check incomplete"));
       const failed = state.failed ? ` · ${plural(state.failed, "trial")} could not be checked` : "";
       if (state.total) main.append(el("p", { class: "strong" }, `${state.checked} of ${state.total} trials checked${failed}`));
       if (search) main.append(el("p", { class: "search-line" }, search));
@@ -98,9 +111,10 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
       panel("incomplete", [main, side, details]);
       return;
     }
+    const label = full(state) ? "Full recheck complete" : "Check complete";
     const headline = state.changed
-      ? `Check complete · ${plural(state.changed, "trial")} changed`
-      : "Check complete · No new changes detected";
+      ? `${label} · ${plural(state.changed, "trial")} changed`
+      : `${label} · No new changes detected`;
     main.append(el("h2", {}, headline));
     const when_ = state.finished_at ? ` at ${when(state.finished_at)}` : "";
     let line = state.total ? `${state.checked} of ${state.total} checked${when_}` : `Finished${when_}`;
