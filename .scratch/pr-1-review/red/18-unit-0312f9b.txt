@@ -9,8 +9,8 @@
 =================================== FAILURES ===================================
 _ test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed _
 
-watched = <conftest.api.<locals>.Client object at 0x109305be0>
-fetcher = <function fetcher.<locals>.fetch at 0x1094dcc20>
+watched = <conftest.api.<locals>.Client object at 0x10910a7b0>
+fetcher = <function fetcher.<locals>.fetch at 0x1091f2340>
 
     def test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed(watched, fetcher):
         """test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed"""
@@ -32,8 +32,8 @@ E         Use -v to get more diff
 tests/test_api_checks.py:275: AssertionError
 _ test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes _
 
-watched = <conftest.api.<locals>.Client object at 0x109307380>
-fetcher = <function fetcher.<locals>.fetch at 0x1095c7600>
+watched = <conftest.api.<locals>.Client object at 0x10910aba0>
+fetcher = <function fetcher.<locals>.fetch at 0x108ffccc0>
 
     def test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes(watched, fetcher):
         """test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes"""
@@ -51,17 +51,17 @@ fetcher = <function fetcher.<locals>.fetch at 0x1095c7600>
         state = finished(watched)
         conn = storage.connect(watched.path)
 >       assert storage.get_trial(conn, "NCT00000003")["last_checked"] == "2026-11-01T08:00:00+00:00"
-E       AssertionError: assert '2026-11-09T06:16:17+00:00' == '2026-11-01T08:00:00+00:00'
+E       AssertionError: assert '2026-11-09T06:18:59+00:00' == '2026-11-01T08:00:00+00:00'
 E         
 E         - 2026-11-01T08:00:00+00:00
-E         ?          ^  ^ ^^ ^^
-E         + 2026-11-09T06:16:17+00:00
-E         ?          ^  ^ ^^ ^^
+E         ?          ^    ^^^^^
+E         + 2026-11-09T06:18:59+00:00
+E         ?          ^  +++  ^^
 
 tests/test_api_checks.py:293: AssertionError
 =============================== warnings summary ===============================
 tests/test_api_checks.py::test_when_finish_run_raises_the_run_is_no_longer_running_and_a_new_check_is_accepted
-  /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.13/site-packages/_pytest/threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-94 (_work)
+  /Users/zakdowney/Projects/personal/Clin_trials_lite/.venv/lib/python3.13/site-packages/_pytest/threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-95 (_work)
   
   Traceback (most recent call last):
     File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
@@ -70,10 +70,10 @@ tests/test_api_checks.py::test_when_finish_run_raises_the_run_is_no_longer_runni
     File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/threading.py", line 995, in run
       self._target(*self._args, **self._kwargs)
       ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/07-writes-after-a-registry-fetch-recheck-their-watchlist-followup/webapp/api_checks.py", line 85, in _work
+    File "/private/tmp/wt18/webapp/api_checks.py", line 85, in _work
       monitor.finish_run(ctx.conn, run.list_id, run.results)
       ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/07-writes-after-a-registry-fetch-recheck-their-watchlist-followup/tests/test_api_checks.py", line 330, in broken
+    File "/private/tmp/wt18/tests/test_api_checks.py", line 330, in broken
       raise RuntimeError("disk full")
   RuntimeError: disk full
   
@@ -85,4 +85,4 @@ tests/test_api_checks.py::test_when_finish_run_raises_the_run_is_no_longer_runni
 =========================== short test summary info ============================
 FAILED tests/test_api_checks.py::test_a_finished_check_counts_only_the_trials_it_still_held_after_one_was_removed
 FAILED tests/test_api_checks.py::test_a_trial_removed_during_its_own_fetch_is_not_marked_checked_or_given_changes
-2 failed, 470 passed, 1 warning in 53.30s
+2 failed, 470 passed, 1 warning in 53.58s
