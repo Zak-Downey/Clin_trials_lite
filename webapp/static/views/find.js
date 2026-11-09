@@ -310,7 +310,7 @@ export async function render(root, search, listId, tab = "search", alive = () =>
   } catch (err) {
     if (!alive()) return;
     // A refusal is the analyst's to fix: the message sits beside its fields, the form open, no Retry.
-    if (err.kind === "nothing_asked") { open(q, err.message, null); return; }
+    if (err.kind === "nothing_asked" || err.kind === "bad_page") { open(q, err.message, null); return; }
     if (err.kind === "bad_dates") { open(q, "", null, err.message); return; }
     const retry = el("button", { type: "button" }, "Retry");
     retry.addEventListener("click", rerender);
@@ -318,6 +318,11 @@ export async function render(root, search, listId, tab = "search", alive = () =>
     return;
   }
   if (!alive()) return;
+  // A page past the last of a search that has matches opens the last page, never an empty list.
+  if (data.pages >= 1 && page > data.pages) {
+    location.replace(`${location.pathname}${location.search}${base}?${toParams(q, data.pages)}`);
+    return;
+  }
   const edit = el("button", { type: "button" }, "Edit search");
   edit.addEventListener("click", () => open(q, "", null));
   const clearOptional = el("button", { type: "button" }, "Clear optional filters");

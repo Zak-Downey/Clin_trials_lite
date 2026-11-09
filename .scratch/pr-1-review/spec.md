@@ -1,6 +1,6 @@
 # Spec: Fix what the whole-branch review of PR #1 found blocking
 
-Status: ready-for-agent
+Status: done
 
 Root feature: html-front-end (`.scratch/html-front-end/spec.md`). This spec fixes the blocking findings of the whole-branch review of pull request #1 at tip `e77cb9c`. The full ranked list, with every finding's class and reason, is `ranked.md` in this folder; the reviewers' own files are under `findings/`. Each finding below is restated so this spec stands alone, and each says where its fix goes: where the defect was made, not where it shows.
 
