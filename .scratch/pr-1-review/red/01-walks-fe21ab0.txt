@@ -1,0 +1,30 @@
+# tip fe21ab09c363fe54ba534d4769b9ba9cbf3fec95
+Walk output written to /Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-walk-runner-reruns-a-failed-walk-alone/.scratch/html-front-end/walks/walks-run.txt (exit 1)
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-1008/popen-gw3/test_runner_runs_the_first_run0/where.log'
+
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py:537: FileNotFoundError
+----------------------------- Captured stdout call -----------------------------
+# tip fe21ab0
+Walk output written to /private/var/folders/qx/ks3my9m56yj36zc8kq2n2h000000gn/T/pytest-of-zakdowney/pytest-1008/popen-gw3/test_runner_runs_the_first_run0/out/walks-run.txt (exit 5)
+bringing up nodes...
+bringing up nodes...
+
+
+no tests ran in 0.29s
+
+## Result
+=========================== short test summary info ============================
+FAILED walks/test_run_walks.py::test_runner_runs_the_first_run_and_each_rerun_in_the_directory_it_is_given
+1 failed, 279 passed in 108.27s (0:01:48)
+
+## Result
+walks/test_run_walks.py::test_runner_runs_the_first_run_and_each_rerun_in_the_directory_it_is_given -- red alone (/Users/zakdowney/Projects/personal/Clin_trials_lite/.claude/worktrees/01-walk-runner-reruns-a-failed-walk-alone/.scratch/html-front-end/walks/alone-test-runner-runs-the-first-run-and-each-rerun-in-the-directory-it-is-given.txt)

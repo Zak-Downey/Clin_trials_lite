@@ -48,3 +48,16 @@ def test_runner_reports_red_alone_and_red_under_load_green_alone_in_one_run(tmp_
     text = alone.read_text()
     assert "1 failed" in text and "passed" not in text
     assert "test_bystander" not in text and "test_once" not in text
+
+
+def test_runner_runs_the_first_run_and_each_rerun_in_the_directory_it_is_given(tmp_path):
+    """test_runner_runs_the_first_run_and_each_rerun_in_the_directory_it_is_given"""
+    (tmp_path / "test_where.py").write_text(
+        "import os, pathlib\n"
+        "def test_where():\n"
+        "    with open('where.log', 'a') as f:\n"
+        "        f.write(os.path.realpath(os.getcwd()) + '\\n')\n"
+        "    assert False\n")
+    run_walks.main([], targets=("test_where.py",), cwd=tmp_path, shots=tmp_path / "out")
+    lines = (tmp_path / "where.log").read_text().split()
+    assert lines == [str(tmp_path.resolve())] * 2
