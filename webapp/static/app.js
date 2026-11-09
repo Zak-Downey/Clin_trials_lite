@@ -17,9 +17,10 @@ const sidebar = document.getElementById("sidebar");
 const view = document.getElementById("view");
 let generation = 0; // a view whose number is not the latest has been left: its timers stop
 
-const el = (tag, attrs = {}) => {
+const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  for (const kid of kids) node.append(kid);
   return node;
 };
 
