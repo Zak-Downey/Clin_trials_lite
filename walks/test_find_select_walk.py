@@ -126,7 +126,8 @@ def test_walk_opened_from_add_trials_the_destination_is_that_watchlist(make_app,
     page = walk.page
     page.goto(app.url)
     page.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Elsewhere")).click()
-    page.get_by_role("link", name="Add trials").click()
+    # Elsewhere is empty, so it shows the first-use screen (ticket 09), whose button carries it
+    page.locator("#view").get_by_role("link", name="Find trials").click()
     page.get_by_role("heading", level=1, name="Find trials").wait_for()
     page.get_by_label("Condition").fill("many")
     page.get_by_label("Condition").press("Enter")
