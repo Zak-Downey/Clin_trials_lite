@@ -1,0 +1,30 @@
+# Foundation read: ticket 01 (walk runner re-runs a failed walk alone)
+
+Diff: `git diff f288283..830aed2 -- walks/`. Read with: spec F1, `docs/agents/evidence.md` (The runner contract), `reviews/01.md`, and the gate's reader of the runner's output (`.claude/factory/gate/checks.py:40-53`, `:111-117`) and its tests (`.claude/factory/tests/test_checks.py:151-200`). `walks/test_run_walks.py` run: 4 passed (`/tmp/fr01/trw.txt`).
+
+Counts: blocking 1, design 1, sweep 1, nit 2.
+
+## Blocking
+
+1. **The gate never sees the verdict the ticket now gets right.** The runner prints `## Result` to stdout only, and prints each line as `<nodeid> -- <verdict> (<path>)` (`walks/run_walks.py:61`, `:68-73`). The gate looks for the section somewhere else and in another shape. `checks.walk_results` follows the `Walk output written to <path>` line to that file and reads `## Result` *in that file* (`checks.py:47-53`). Each line has to match `^<file> › <title>: <verdict> \((retry|output): <path>\)$` (`checks.py:41`; the gate's own tests write `walks/06.walk.js › <title>: red under load, green alone (retry: …)`, `test_checks.py:169-170`). `walks-run.txt` only ever holds the first pytest run, so `walk_results` returns `[]` on every walks run.
+   - **Who meets it.** The user, at hand-over. `gate.py checks` never prints a `RED walks:` or `FLAKE walks:` line. Because of that, a flake (runner exit 0) passes in silence, and `ready` never records it in `flakes.jsonl` or applies its "third flake needs a ticket" rule. A walk that is red alone still fails the check, but only through the exit code, without its name. The contract says "The ready gate reads the verdict from the `## Result` section and nothing else" (`evidence.md`). Spec F1 calls this the reason for the fix: "The ready gate reads the defect/flake verdict from the `## Result` section this produces … so the user's defect list at hand-over can be wrong". So the verdict F1 fixes, and that every later walk verdict in this spec "rests on" (ticket 01), still never reaches the gate.
+   - **Where.** `walks/run_walks.py:57-73` against `.claude/factory/gate/checks.py:40-53`. The gap predates this diff: kit `a55b074` and runner `63d22b2` are both from 8 Nov. But this ticket is the foundation that the rest of the feature's walk verdicts stand on, and its tests check the stdout text against a regex of their own rather than against `walk_results`. That is why the mismatch stayed green.
+   - **How I know.** Reproduced. `/tmp/fr01/scripts/repro.py` runs `run_walks.main` on one always-red and one once-red test, then gives its stdout to `checks.walk_results`. The runner reports `… -- red alone` and `… -- red under load, green alone`, but `walk_results: []` and `'## Result' in walks-run.txt: False` (`/tmp/fr01/repro.txt`).
+   - **Proposed.** Write the `## Result` section into the named file as well (or name a file that holds it). Write each line as `<file> › <title>: <verdict> (retry: <path>)`, splitting the node id at `::`. Add a runner test that asserts on `checks.walk_results(stdout)`, not on a regex of its own. Class: blocking.
+
+## Design
+
+2. **No limit on the re-runs.** One alone run per red walk is now one walk, which fixes F1's case of two failures. But when many walks go red (for example a stand-in registry or app start that fails under four workers, so every walk errs in setup), the runner runs every one of them alone, serially, each with its own app and browser (`run_walks.py:65-70`). At about 278 walks that can pass the walks check's `timeout_s: 900` (`factory.json`). A run killed by the timeout prints no `## Result` at all, so the gate is left with a bare timeout instead of "N red alone". Inferred, not run. Proposed: stop re-running after K failures and say so in `## Result`, or treat a mass failure as a red run without re-runs. This is cheaper to settle now than after later tickets rely on what the Result section holds. Class: design.
+
+## Sweep
+
+3. **Two walks with the same test name in different files share one retained-output file.** `helper.shot_name` keeps only the part after `::` (`walks/helper.py:193-194`). Alone outputs are named `alone-<shot_name>.txt` (`run_walks.py:66`), so if two walk files both had `test_x` at the same viewport, the second re-run would overwrite the first one's output, and both `## Result` lines would point at the same file. I found no such pair today (no duplicate `def test_` names across `walks/test_*.py`), so this is latent. It is also the `file` that the gate's line format (finding 1) needs anyway. Proposed: include the file stem in the name. Inferred. Class: sweep.
+
+## Nits
+
+4. **Two assertions in the new runner test cannot fail.** `assert "test_bystander" not in text and "test_once" not in text` (`walks/test_run_walks.py:49`) can never fail as written. Under `-q -rfE`, pytest prints names only for failures and errors, and both of these tests pass in any re-run (the bystander is `assert True`, and `test_once` passes once `seen` exists). So neither name would appear even if the re-run collected the whole folder. The real check is `"passed" not in text`. The bystander's name, `test_bystander_fails_only_in_the_full_run`, is also wrong: it never fails. Inferred from pytest's `-q` output. Class: nit.
+5. **The runner ignores targets given on its command line.** `main(sys.argv[1:])` always runs `targets=("walks",)` (`run_walks.py:54`, `:78`), so `run_walks.py walks/test_x.py` collects the whole folder plus that file. Its pytest args are also not passed to the alone re-run (`run_walks.py:67`, `[]`), so a run with `-k` or `-m` re-runs a walk under different options than it failed under. The gate passes no args, so the gate path is unaffected. Class: nit.
+
+## Not read
+
+The full walk suite through `run_walks.py` (not re-run; ticket review 01 relied on the red file's 279 passed). Spec sections other than F1. `gate.py ready` / `handover` code paths beyond `walk_results` and the `run_checks` loop that calls it. `walks/conftest.py` and `walks/helper.py` beyond `shot_name`, `SHOTS` and the final-shot line.
