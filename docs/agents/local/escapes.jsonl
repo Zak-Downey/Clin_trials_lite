@@ -9,3 +9,20 @@
 {"date": "2026-11-09", "feature": "html-front-end", "id": "E-009", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 16: views/menu_keys.js for both menus", "rule_id": "", "flake": ""}
 {"date": "2026-11-09", "feature": "html-front-end", "id": "E-010", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 16: summary.js updates only the notice", "rule_id": "", "flake": ""}
 {"date": "2026-11-09", "feature": "html-front-end", "id": "E-011", "class": "escape", "found_by": "exploration", "should_have_been": "walk", "fixed_in": "ticket 16: also-list scrolls in a small box, menu has a max height (style.css, trial.js)", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-012", "class": "blocking", "found_by": "branch-review", "should_have_been": "foundation-review", "fixed_in": "", "rule_id": "R-006", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-013", "class": "blocking", "found_by": "branch-review", "should_have_been": "unit", "fixed_in": "", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-014", "class": "blocking", "found_by": "branch-review", "should_have_been": "walk", "fixed_in": "", "rule_id": "R-002", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-015", "class": "blocking", "found_by": "branch-review", "should_have_been": "exploration", "fixed_in": "", "rule_id": "R-001", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-016", "class": "blocking", "found_by": "branch-review", "should_have_been": "walk", "fixed_in": "", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-017", "class": "blocking", "found_by": "branch-review", "should_have_been": "walk", "fixed_in": "", "rule_id": "R-004", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-018", "class": "blocking", "found_by": "branch-review", "should_have_been": "walk", "fixed_in": "", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-019", "class": "blocking", "found_by": "branch-review", "should_have_been": "walk", "fixed_in": "", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-020", "class": "blocking", "found_by": "branch-review", "should_have_been": "walk", "fixed_in": "", "rule_id": "R-004", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-021", "class": "blocking", "found_by": "branch-review", "should_have_been": "walk", "fixed_in": "", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-022", "class": "blocking", "found_by": "branch-review", "should_have_been": "walk", "fixed_in": "", "rule_id": "R-004", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-023", "class": "blocking", "found_by": "branch-review", "should_have_been": "unit", "fixed_in": "", "rule_id": "R-003", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-024", "class": "blocking", "found_by": "branch-review", "should_have_been": "unit", "fixed_in": "", "rule_id": "R-003", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-025", "class": "blocking", "found_by": "branch-review", "should_have_been": "none", "fixed_in": "", "rule_id": "", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-026", "class": "blocking", "found_by": "branch-review", "should_have_been": "none", "fixed_in": "", "rule_id": "R-005", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-027", "class": "blocking", "found_by": "branch-review", "should_have_been": "none", "fixed_in": "", "rule_id": "R-006", "flake": ""}
+{"date": "2026-11-09", "feature": "html-front-end", "id": "E-028", "class": "blocking", "found_by": "branch-review", "should_have_been": "none", "fixed_in": "", "rule_id": "R-006", "flake": ""}
