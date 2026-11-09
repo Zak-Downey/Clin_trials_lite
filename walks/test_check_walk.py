@@ -176,3 +176,80 @@ def test_walk_a_revised_trial_joins_needs_review_after_a_check_without_a_tab_cha
     assert page.get_by_role("tab", name="Needs review").get_attribute("aria-selected") == "true"
     assert page.get_by_text("All caught up").count() == 0
     walk.shot("revised")
+
+
+CHECK_URL = "**/api/watchlists/1/check"
+
+
+def test_walk_a_check_state_that_cannot_be_read_at_open_is_stated_in_words(make_app, make_walk):
+    """test_walk_a_check_state_that_cannot_be_read_at_open_is_stated_in_words"""
+    app = make_app(seed=seed_checked)
+    walk = make_walk(app)
+    page = walk.page
+    walk.expect(500, "/api/watchlists/1/check")
+    page.route(CHECK_URL, lambda route: route.fulfill(
+        status=500, content_type="application/json",
+        body='{"error": {"kind": "server_error", "message": "The database is unavailable."}}'))
+    page.goto(app.url)
+    page.get_by_role("heading", level=1).wait_for()
+    box = page.locator("#check-status")
+    box.get_by_text("could not be read").wait_for()
+    assert "The database is unavailable." in box.inner_text(), box.inner_text()
+    assert page.get_by_role("button", name="Check for updates").get_attribute("aria-disabled") == "false"
+    walk.shot("unreadable-at-open")
+
+
+def test_walk_a_failed_progress_poll_says_so_and_gives_the_button_back(make_app, make_walk):
+    """test_walk_a_failed_progress_poll_says_so_and_gives_the_button_back"""
+    app, walk = open_app(make_app, make_walk)
+    page = walk.page
+    walk.expect(500, "/api/watchlists/1/check")
+    app.registry.set("revise", True)
+    app.registry.set("slow", True, delay=1.5)
+    armed = []
+
+    def handler(route):
+        if armed and route.request.method == "GET":
+            armed.clear()
+            route.fulfill(status=500, content_type="application/json",
+                          body='{"error": {"kind": "server_error", "message": "The database is unavailable."}}')
+        else:
+            route.continue_()
+
+    page.route(CHECK_URL, handler)
+    button = page.get_by_role("button", name="Check for updates")
+    button.click()
+    page.get_by_role("status").get_by_text("Checking for updates…").wait_for()
+    armed.append(True)
+    box = page.locator("#check-status")
+    box.get_by_text("progress could not be read").wait_for()
+    assert "The database is unavailable." in box.inner_text(), box.inner_text()
+    assert button.get_attribute("aria-disabled") == "false"
+    assert page.locator("#check-reason").inner_text() == ""
+    walk.shot("poll-failed")
+
+
+def seed_bare_with_offer(db, registry):
+    import monitor
+    import storage
+
+    conn = storage.connect(db)
+    monitor.rename_list(conn, storage.list_lists(conn)[0]["id"], "Bare")
+    monitor.remember_search(conn, 1, monitor.as_query(cond="myeloma"))
+    storage.add_found(conn, 1, "NCT00000002", registry.fetch("NCT00000002"), "2026-11-01T08:00:00+00:00")
+    conn.close()
+
+
+def test_walk_adding_a_new_match_updates_the_header_count_and_button_label(make_app, make_walk):
+    """test_walk_adding_a_new_match_updates_the_header_count_and_button_label"""
+    _, walk = open_app(make_app, make_walk, seed=seed_bare_with_offer)
+    page = walk.page
+    assert page.locator("#watchlist-meta").inner_text().startswith("0 trials monitored")
+    page.get_by_role("button", name="Check for new matches").wait_for()
+    page.get_by_role("tab", name=re.compile("^New matches")).click()
+    page.get_by_role("heading", level=2, name=re.compile("new match")).wait_for()
+    page.locator('li.card[data-nct="NCT00000002"] input[type=checkbox]').check()
+    page.get_by_role("region", name="New matches actions").get_by_role("button", name=re.compile("^Add")).click()
+    page.get_by_text("1 trial monitored").wait_for()
+    page.get_by_role("button", name="Check for updates").wait_for()
+    walk.shot("header-current")

@@ -126,8 +126,20 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
     panel("complete", [main]);
   }
 
+  // A check state that cannot be read is stated in words, and the button is usable again.
+  function unreadable(what, err) {
+    setBusy(false);
+    statusEl.replaceChildren(el("div", { class: "error", role: "status" }, `${what} could not be read: ${err.message}`));
+  }
+
   async function show() {
-    const state = await get(`/api/watchlists/${listId}/check`);
+    let state;
+    try {
+      state = await get(`/api/watchlists/${listId}/check`);
+    } catch (err) {
+      if (ctx.alive()) unreadable("The state of the last check", err);
+      return;
+    }
     if (!ctx.alive()) return;
     if (state.state === "running") {
       setBusy(true);
@@ -143,7 +155,13 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
     while (ctx.alive()) {
       await new Promise((resolve) => setTimeout(resolve, POLL_MS));
       if (!ctx.alive()) return;
-      const state = await get(`/api/watchlists/${listId}/check`);
+      let state;
+      try {
+        state = await get(`/api/watchlists/${listId}/check`);
+      } catch (err) {
+        if (ctx.alive()) unreadable("The check's progress", err);
+        return;
+      }
       if (!ctx.alive()) return;
       if (state.state === "running") { drawRunning(state); continue; }
       const fresh = await ctx.refresh();
@@ -179,6 +197,16 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
       statusEl.replaceChildren(el("div", { class: "error" }, err.message));
     }
   }
+
+  // The watchlist's trials changed elsewhere (New matches, a removal): re-read the header.
+  async function onChange() {
+    if (!ctx.alive()) { window.removeEventListener("reviewchange", onChange); return; }
+    try {
+      const fresh = (await get("/api/watchlists")).watchlists.find((w) => w.id === Number(listId));
+      if (fresh && ctx.alive()) { current = fresh; drawHeader(); }
+    } catch { /* the header stays as it was */ }
+  }
+  window.addEventListener("reviewchange", onChange);
 
   button.addEventListener("click", () => { if (!busy) begin(`/api/watchlists/${listId}/check`); });
   drawHeader();
