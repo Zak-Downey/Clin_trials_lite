@@ -10,8 +10,9 @@ const el = (tag, attrs = {}, ...kids) => {
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-export async function render(root, listId, watchlist) {
+export async function render(root, listId, watchlist, alive = () => true) {
   const { trials, counts } = await get(`/api/watchlists/${listId}/needs-review`);
+  if (!alive()) return; // the analyst has moved on while the answer was on its way
   const tabs = tabBar(listId, "needs-review", watchlist);
   root.replaceChildren(
     tabs,
@@ -24,6 +25,7 @@ export async function render(root, listId, watchlist) {
     // A trial whose latest check failed is not known to be unchanged: an empty queue is no all-clear then.
     let failed = 0;
     try { failed = (await get(`/api/watchlists/${listId}/all-trials`)).trials.filter((t) => t.check_failed).length; } catch { /* the card falls back to its plain wording */ }
+    if (!alive()) return;
     const body = failed
       ? [el("h3", {}, "Nothing to review yet"),
         el("p", {}, `${plural(failed, "trial")} could not be checked, so this list may be out of date. See All trials for which.`)]
