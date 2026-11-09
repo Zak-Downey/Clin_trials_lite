@@ -30,7 +30,8 @@ class MonitorError(Exception):
     """Something went wrong that the analyst needs to see, in their words.
 
     `kind` names what went wrong for a caller that must tell causes apart
-    (not_found, registry_error, unreachable, bad_record, error).
+    (not_found, registry_error, unreachable, bad_record, nothing_asked,
+    bad_dates, error).
     """
 
     def __init__(self, message: str = "", kind: str = "error"):
@@ -454,7 +455,7 @@ def _refuse_unanswerable(query: dict) -> None:
     query rejected in one of those places must not be accepted in the other.
     """
     if _asks_nothing(query):
-        raise MonitorError(NOTHING_ASKED)
+        raise MonitorError(NOTHING_ASKED, "nothing_asked")
     # The registry answers an inverted range with zero studies, which is
     # exactly what a genuine miss looks like: the analyst would be told
     # "nothing found" about a window that could never have found anything.
@@ -463,7 +464,8 @@ def _refuse_unanswerable(query: dict) -> None:
     if start and end and start > end:
         raise MonitorError(
             f"The start-date window ends before it begins ({start} to {end}). "
-            "Swap the two dates."
+            "Swap the two dates.",
+            "bad_dates",
         )
 
 
