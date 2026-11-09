@@ -60,11 +60,13 @@ def test_walk_a_delayed_trial_answer_leaves_the_watchlist_the_address_names(make
     page.wait_for_url(re.compile(r"#/watchlists/2/"))
     page.get_by_role("heading", name="All caught up").wait_for()
     assert held, "the trial's answer was never asked for"
+    page.evaluate("document.body.style.minHeight = '3000px'; window.scrollTo(0, 200)")
     release(page, held, pattern)
     walk.shot("after-late-trial")
     assert page.url.endswith("#/watchlists/2/needs-review"), page.url
     assert page.get_by_role("heading", name="All caught up").count() == 1, "the address names Quiet but the page shows the trial"
     assert page.get_by_role("link", name="Back to Quiet").count() == 0 and page.locator(".trial-head").count() == 0
+    assert page.evaluate("window.scrollY") == 200, "the late trial answer scrolled the page the analyst is on"
 
 
 def tab_answer(tab):

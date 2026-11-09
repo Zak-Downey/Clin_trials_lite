@@ -40,7 +40,7 @@ async function drawSidebar(activeId, alive = () => true) {
   if (!alive()) return watchlists;
   if (activeId === undefined) {
     const parts = location.hash.replace(/^#\/?/, "").split("?")[0].split("/");
-    activeId = parts[0] === "watchlists" ? (Number(parts[1]) || (watchlists[0] && watchlists[0].id)) : null;
+    activeId = parts[0] === "watchlists" ? (Number(parts[1]) || null) : null;
   }
   const heading = document.createElement("h2");
   heading.className = "sidebar-title";
