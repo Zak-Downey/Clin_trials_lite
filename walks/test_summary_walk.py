@@ -182,20 +182,23 @@ def test_walk_an_empty_period_says_so_keeps_the_controls_and_disables_export_wit
     page.get_by_role("button", name="Cancel").click()
 
 
-def finish_a_check(page):
+def finish_a_check(app, page):
+    """Run a check slowly enough to see it start, then wait for it to finish (a second check would otherwise meet the first one's message)."""
+    app.registry.set("slow", True, delay=0.8)
     page.get_by_role("button", name="Check for updates").click()
+    page.locator("#check-status").get_by_text("Checking for updates…").wait_for()
     page.locator("#check-status").get_by_text("Check complete").wait_for(timeout=30000)
 
 
 def test_walk_a_finished_check_keeps_summary_period_and_typed_dates(make_app, make_walk):
     """test_walk_a_finished_check_keeps_summary_period_and_typed_dates"""
-    _, walk = open_summary(make_app, make_walk)
+    app, walk = open_summary(make_app, make_walk)
     page = walk.page
     page.get_by_role("button", name="This month").click()
     page.wait_for_function("location.hash.includes('period=month')")
     heading = page.locator("#summary-heading").inner_text()
     counts = page.locator("#summary-counts").inner_text()
-    finish_a_check(page)
+    finish_a_check(app, page)
     assert page.get_by_role("button", name="This month").get_attribute("aria-pressed") == "true"
     assert page.locator("#summary-heading").inner_text() == heading
     assert page.locator("#summary-counts").inner_text() == counts
@@ -203,7 +206,7 @@ def test_walk_a_finished_check_keeps_summary_period_and_typed_dates(make_app, ma
     walk.shot("month-kept")
     page.get_by_role("button", name="Custom dates").click()
     page.get_by_label("From").fill("2026-01-05")
-    finish_a_check(page)
+    finish_a_check(app, page)
     assert page.get_by_label("From").input_value() == "2026-01-05"
     assert page.get_by_role("button", name="Custom dates").get_attribute("aria-pressed") == "true"
     walk.shot("custom-kept")
