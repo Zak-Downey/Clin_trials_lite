@@ -176,6 +176,8 @@ Say which recommendations you reject; silence accepts them all. Items 1 to 5 are
 
 20. **ticket 17 (design mark): Find trials states a page number outside the search by its kind and never draws an empty page.** Choice: show `bad_page` beside the form with no Retry and the query kept (as `bad_dates` is), and open the last page when the address names a page past it (E-036, E-037), or leave them. Doing it changes `find.js` and possibly `api_search.py`. Leaving it shows a Retry that cannot succeed with an empty form for `page=11`, and "11–10 of 3 matches" over no results for `page=2` of a one-page search. Recommended: do
 
+21. **Round 1, finding 3: a double click on Undo after Mark reviewed shows "That review was already undone." though the undo succeeded.** Same class as E-033 (ticket 15), on the next button in the bar. Choice: a one-line in-flight guard in `trial.js` (a design ticket, since it changes a page), or leave it. Doing it costs another ticket round before ready; leaving it shows a wrong sentence only on a double click, with the data correct. Recommended: defer (follow-up spec)
+
 ## Proposed rules
 
 Each is a row of the rule queue (`docs/agents/local/rules.md`) and of Recurring findings in `docs/agents/local/ledger.md`. Adopting one is yours; silence leaves it proposed, and `gate.py handover` lists it.
