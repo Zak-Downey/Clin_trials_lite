@@ -37,6 +37,11 @@ the trials that need review, all trials, and new matches. A trial's page shows i
 profile, with a history of every change since monitoring began. A field that moved stays
 highlighted until you mark the trial reviewed.
 
+The Summary's **Export CSV** file opens in a spreadsheet with its characters intact. A
+cell that would begin with `=`, `+`, `-`, `@`, a tab or a carriage return is written
+with a leading `'` so a spreadsheet shows it as text rather than running it; the page
+and the copied text show the value as it is.
+
 A list can carry a **remembered search**. Each check re-runs it and offers back trials
 that match but are not yet on the list, as new matches. Nothing joins the list until you
 add it, and one you dismiss is not offered again. From a list's menu you can rename it,

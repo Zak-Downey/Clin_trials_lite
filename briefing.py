@@ -303,6 +303,14 @@ def as_text(summary: dict) -> str:
     return "\n".join(lines)
 
 
+_FORMULA_LEADS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_safe(cell: str) -> str:
+    """A cell a spreadsheet would read as a formula, made plain text with a leading '."""
+    return "'" + cell if cell.startswith(_FORMULA_LEADS) else cell
+
+
 def as_csv(summary: dict) -> str | None:
     """The same moves as a spreadsheet, one row each -- or None if there are none.
 
@@ -310,6 +318,8 @@ def as_csv(summary: dict) -> str | None:
     in words on the page, and an empty download is a thing to be puzzled over.
 
     Dates are given as the registry gives them, so a column of them sorts.
+    The text starts with a byte-order mark so a spreadsheet reads it as UTF-8,
+    and a cell that begins like a formula is prefixed with ' so it stays text.
     """
     if not summary["entries"]:
         return None
@@ -320,7 +330,7 @@ def as_csv(summary: dict) -> str | None:
     for entry in summary["entries"]:
         for move in entry["moves"]:
             writer.writerow(
-                [
+                [_csv_safe(cell) for cell in [
                     summary["list_name"],
                     entry["nct_id"],
                     display.collapse(display.show(entry["title"])),
@@ -334,9 +344,9 @@ def as_csv(summary: dict) -> str | None:
                     "Reviewed" if move["reviewed"] else "Awaiting review",
                     SYNTHETIC if move["synthetic"] else "",
                     entry["url"],
-                ]
+                ]]
             )
-    return out.getvalue()
+    return "\ufeff" + out.getvalue()
 
 
 def filename(summary: dict) -> str:
