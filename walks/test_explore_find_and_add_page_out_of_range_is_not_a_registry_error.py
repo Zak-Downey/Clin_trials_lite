@@ -3,11 +3,6 @@
 Run: .venv/bin/python -m pytest walks/test_explore_find_and_add_page_out_of_range_is_not_a_registry_error.py -q
 Data: the stand-in's "many" search. Same shape as F11 (a refusal read as registry_error), for the third refusal kind, bad_page.
 """
-import pytest
-
-
-
-@pytest.mark.xfail(strict=True, reason="todo: known defect E-036, fixed by ticket 17 of pr-1-review")
 def test_explore_page_11_is_a_refusal_with_no_retry_and_keeps_the_query_in_the_form(make_app, make_walk):
     """test_explore_page_11_is_a_refusal_with_no_retry_and_keeps_the_query_in_the_form"""
     app = make_app()
