@@ -2,7 +2,7 @@
 
 **Blocked by:** None
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **Touches:** webapp/static/focus.js, webapp/static/views/check.js, webapp/static/views/new_matches.js, walks/
 

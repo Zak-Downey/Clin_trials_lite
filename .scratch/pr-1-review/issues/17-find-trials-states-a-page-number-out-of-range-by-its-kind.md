@@ -2,7 +2,7 @@
 
 **Blocked by:** None
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **Touches:** webapp/static/views/find.js, webapp/api_search.py, walks/
 

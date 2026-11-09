@@ -2,7 +2,7 @@
 
 **Blocked by:** None
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **Touches:** webapp/static/views/trial.js, walks/
 
