@@ -1,0 +1,21 @@
+{
+ "what": [
+  "The Streamlit front end of the Trial Change Monitor was replaced by a plain HTML page, served by a small Python server on your own machine and opened in your browser. Streamlit, the in-browser runtime and the GitHub Pages site were deleted.",
+  "The page follows design.pdf: each watchlist opens on its Needs review queue; a trial page shows previous and new values side by side and marks them reviewed, with Undo; All trials, New matches and Summary are tabs of the same watchlist; Find trials has a screen to itself; renaming, deleting and adding are small dialogs.",
+  "The build was the feature's own tickets, then a review of the whole branch and a round of fix tickets (pr-1-review). All of it went to main in pull request #1."
+ ],
+ "so_what": [
+  "The analyst sees what changed before opening anything, and can review it without losing their place.",
+  "Every failure (a trial that could not be checked, a saved search that failed, a registry that could not be reached) is said in words, and nothing that failed is shown as current.",
+  "It runs on your machine only and on a desktop only: designed at 1440 pixels wide and working down to 1024. Phones were ruled out in the brief.",
+  "The tickets alone did not catch everything: walkers and the review found defects after the tickets were done, and the re-check after the fixes found more. The counts and every finding are below."
+ ],
+ "now_what": [
+  "Nothing here waits on a decision about the build: it is merged, and you signed off its run-through on 11 November 2026. This page was made afterwards so that you can judge the page itself.",
+  "The recording was made on the code as it is today, not on the commit the build ended at. The page says which commit.",
+  "The checks run log did not exist when this feature was built, so it has no line for this build and the page cannot say how many check runs were red.",
+  "The findings were converted once from the old escapes ledger. It recorded no severity for any of them. It names the walk that shows the fix for the re-check findings only; for the rest the page says: fixed, no check named.",
+  "For the review's findings the ledger names no fix at all. Their fates rest on the review's ranked list, which gave each one to a fix ticket that was then merged. Nobody recorded, finding by finding, that the fix worked.",
+  "The fix round also left a list of open design choices that stood as accepted at sign-off. They are not findings and are not on this page."
+ ]
+}

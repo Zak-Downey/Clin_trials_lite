@@ -41,7 +41,7 @@ def browser(engine):
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as pw:
-        launched = getattr(pw, ENGINES[engine][0]).launch()
+        launched = getattr(pw, ENGINES[engine][0]).launch(**helper.launch_options())
         yield launched
         launched.close()
 
