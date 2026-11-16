@@ -11,5 +11,17 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "mattpocock-skills@mattpocock": true,
+    "factory@software-factory": false
+  },
+  "extraKnownMarketplaces": {
+    "mattpocock": {
+      "source": {
+        "source": "github",
+        "repo": "mattpocock/skills"
+      }
+    }
   }
 }
