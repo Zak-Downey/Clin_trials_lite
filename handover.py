@@ -1,8 +1,10 @@
 """Build the one page a build ends with: .scratch/<feature>/hand-over/index.html.
 
-    python3 handover.py <feature> [--base <ref>] [--tip <ref> --branch <name>] [--no-walk]
+    python3 handover.py <feature> [--base <ref>] [--tip <ref> --branch <name>] [--no-walk] [--no-open]
 
-Run from the repo root. The facts on the page are computed here, from git and from
+Run from the repo root. The page is one file: its pictures, its styles and its one small script are inside it (a
+screenshot over 1.5 MB stays a file beside it), and it loads nothing from outside its own folder. When it is built
+it opens in the browser. The facts on the page are computed here, from git and from
 machine-readable files; the only words an agent writes are the what / so what / now
 what of hand-over.json and the words inside findings and fates, and the page says so.
 Nothing here reads Markdown.
@@ -14,14 +16,15 @@ Reads (all optional; what is missing is shown as missing, never as zero):
   .scratch/<feature>/fates.jsonl        one line per finding id: what became of it
   .scratch/<feature>/hand-over.json     {"what": [...], "so_what": [...], "now_what": [...]}
 
-Writes, beside index.html: recording.webm (the acceptance walk, recorded), recording.json
-(when, on which commit and how it ended), shots/*.png and walk-output.txt. A walk that
+Writes, beside index.html: recording.webm (the acceptance walk, recorded; the page plays it from
+beside itself), recording.json (when, on which commit and how it ended), shots/*.png and walk-output.txt. A walk that
 fails is said on the page and in one printed line; the exit code is still 0.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime
 import html
 import json
@@ -34,6 +37,7 @@ import subprocess
 import sys
 import time
 import urllib.parse
+import webbrowser
 
 import checks
 
@@ -61,6 +65,8 @@ STATES = {
 FOUND = (" handover.py found each check's file in the build's last commit and each commit in the repository; "
          "it did not run the checks.")
 WALK_ENDS = {"failed": "FAILED", "did not run": "did not run", "did not finish": "did not finish"}
+SUMMARY_LINES, LINE_LENGTH = 5, 200  # what and so_what: at most this many lines; any line of hand-over.json: at most this long
+PICTURE_BYTES = 1_500_000  # a screenshot up to this size is put inside the page; a larger one stays a file beside it
 
 
 # Reading.
@@ -114,12 +120,20 @@ def read_json(path: pathlib.Path) -> dict | None:
 
 def read_summary(feature_dir: pathlib.Path) -> dict | None:
     """hand-over.json: the what / so what / now what an agent wrote. None when there is no file.
-    A file of another shape stops the run."""
+    A file of another shape stops the run, and so does a line too long to be read at a glance."""
     path = feature_dir / "hand-over.json"
     summary = read_json(path)
     lists = [summary.get(key, []) for key in ("what", "so_what", "now_what")] if isinstance(summary, dict) else [None]
     if summary is not None and not all(isinstance(lines, list) and all(isinstance(line, str) for line in lines) for lines in lists):
         raise SystemExit(f"handover: {path} must be an object whose what, so_what and now_what are each a list of sentences")
+    for key in ("what", "so_what", "now_what") if summary else ():
+        lines = summary.get(key, [])
+        if key != "now_what" and len(lines) > SUMMARY_LINES:
+            raise SystemExit(f"handover: {path}: {key} has {len(lines)} lines; the page gives it at most {SUMMARY_LINES}. Cut it to what the owner must know.")
+        for index, line in enumerate(lines, 1):
+            if len(line) > LINE_LENGTH:
+                raise SystemExit(f"handover: {path}: {key} line {index} is {len(line)} characters; the page gives a line at most "
+                                 f"{LINE_LENGTH}. Say one thing in it, shorter, or split it in two.")
     return summary
 
 
@@ -173,9 +187,10 @@ def git_facts(repo: pathlib.Path, base: str, tip: str) -> dict:
 
 
 def run_facts(runs: list[dict] | None, branch: str, names=None) -> dict:
-    """The checks runs of one branch: how many, how many red, the last run of every check (`full`) and, when
-    the branch's last run is not that one, the last run (`later`). None, with why, where the log does not say."""
-    facts = {"runs": None, "red": None, "full": None, "later": None, "branch": branch,
+    """The checks runs of one branch: how many, how many red, each run's result in order (`history`), the last
+    run of every check (`full`) and, when the branch's last run is not that one, the last run (`later`). None,
+    with why, where the log does not say."""
+    facts = {"runs": None, "red": None, "full": None, "later": None, "history": [], "branch": branch,
              "names": list(CHECK_NAMES if names is None else names), "why_unknown": ""}
     if runs is None:
         return {**facts, "why_unknown": "No checks run was logged: .checks/runs.jsonl does not exist."}
@@ -183,7 +198,8 @@ def run_facts(runs: list[dict] | None, branch: str, names=None) -> dict:
     if not own:
         return {**facts, "why_unknown": f"The checks run log (.checks/runs.jsonl) has no line for branch {branch}."}
     full = [run for run in own if not missed(run, facts["names"])]
-    return {**facts, "runs": len(own), "red": sum(run.get("result") == "red" for run in own),
+    history = [{"at": run.get("at"), "result": str(run.get("result")), "full": not missed(run, facts["names"])} for run in own]
+    return {**facts, "runs": len(own), "red": sum(run.get("result") == "red" for run in own), "history": history,
             "full": full[-1] if full else None, "later": None if full and full[-1] is own[-1] else own[-1]}
 
 
@@ -310,14 +326,36 @@ def walk_verdict(data: dict) -> tuple[str, str]:
 
 def checks_verdict(data: dict) -> tuple[str, str]:
     """(look, words) for the last run of every check. Green only for a green run on the build's last commit, as committed."""
-    full = data["runs"]["full"]
+    full, later = data["runs"]["full"], data["runs"]["later"]
+    after = str(later.get("result")) if later else "green"  # the branch's last run, when it ran only some checks
     if full is None or full.get("result") not in ("green", "red"):
-        return "amber", "Checks: unknown"
+        return ("red", "Checks: the last run was RED") if after == "red" else ("amber", "Checks: unknown")
     if full["result"] == "red":
         return "red", "Checks RED"
+    if after != "green":
+        return ("red" if after == "red" else "amber"), f"Checks green, then a later run of some was {'RED' if after == 'red' else 'not green'}"
     if stale(full.get("tip"), full.get("dirty"), (data["git"] or {}).get("tip")):
         return "amber", "Checks green, on code that is not the build's last commit"
     return "green", "Checks green"
+
+
+def later_said(runs: dict) -> str:
+    """In words, the branch's last run when it ran only some checks; "" when its last run ran every check."""
+    later = runs["later"]
+    if not later:
+        return ""
+    ran = ", ".join(str(check.get("name", "?")) for check in later.get("checks") or [])
+    return (f'{"A later run" if runs["full"] else "The last run"} of {ran or "no check"} only was {later.get("result", "unknown")} at '
+            f'{when(later.get("at"))}; it did not run {", ".join(missed(later, runs["names"]))}.')
+
+
+def left_said(data: dict) -> str:
+    """How many things the builder lists as left for the owner: a count of lines, which the script can make without judging them."""
+    if data["summary"] is None:
+        return "There is no builder's summary: hand-over.json is missing."
+    count = len(data["summary"].get("now_what") or [])
+    return (f"The builder lists {count} thing{'' if count == 1 else 's'} as left for you, further down." if count
+            else "The builder wrote nothing as left for you.")
 
 
 # Rendering.
@@ -352,86 +390,261 @@ def when(stamp) -> str:
     return f"{utc.day} {utc:%b %Y, %H:%M} UTC"
 
 
-CSS = """
-:root { --bg: #f7f6f3; --card: #ffffff; --ink: #1f2428; --soft: #5c6670; --line: #dcd9d2;
-  --accent: #0f6e63; --warn-bg: #fdf3d7; --warn-ink: #6b4a00; --warn-line: #e3c877;
-  --bad-bg: #fde8e4; --bad-ink: #8a1f11; --bad-line: #e2a093; --ok-bg: #e4f3ec; --ok-ink: #0d5a3c; }
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #16191c; --card: #1e2226; --ink: #e6e8ea; --soft: #9aa5af; --line: #343a40;
-    --accent: #6fcfbf; --warn-bg: #3a2f10; --warn-ink: #f2d27a; --warn-line: #6e5a1e;
-    --bad-bg: #40201b; --bad-ink: #ffb4a6; --bad-line: #7a3a30; --ok-bg: #173327; --ok-ink: #9be0bd; } }
+# Colours. Green, amber and red are kept for what passed, what needs a look and what failed. The findings bar, the
+# lines bar and the squares of the run history use other hues, so a count or an old run is never mistaken for a verdict.
+LIGHT = """--bg: #f4f5f7; --card: #ffffff; --ink: #1b2330; --soft: #5a6472; --line: #d9dde3; --accent: #1f5fbf;
+  --ok: #0b7a3b; --ok-bg: #e3f4ea; --warn: #8a5a00; --warn-bg: #fdf1d0; --warn-line: #e6c15c; --warn-fill: #f0b323;
+  --bad: #a3261a; --bad-bg: #fde7e3; --bad-line: #e2a093; --bad-fill: #d03b3b;
+  --fixed: #3f6f9f; --quiet: #aeb6c1; --s1: #2a78d6; --s2: #7a5cc7; --s3: #6b7a8c;"""
+DARK = """--bg: #14171c; --card: #1d2128; --ink: #e7eaee; --soft: #9aa5b3; --line: #343b46; --accent: #7fb0f5;
+  --ok: #7fdca4; --ok-bg: #16331f; --warn: #f2d27a; --warn-bg: #3a2f10; --warn-line: #6e5a1e; --warn-fill: #e0a51c;
+  --bad: #ffb4a6; --bad-bg: #40201b; --bad-line: #7a3a30; --bad-fill: #e05a50;
+  --fixed: #6d9fd0; --quiet: #5b6470; --s1: #3987e5; --s2: #9a82e0; --s3: #8a97a8; color-scheme: dark;"""
+
+CSS = (":root { " + LIGHT + " }\n"
+       "@media (prefers-color-scheme: dark) { :root:not([data-theme=\"light\"]) { " + DARK + " } }\n"
+       ":root[data-theme=\"dark\"] { " + DARK + " }\n") + """
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
-h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .4rem; overflow-wrap: anywhere; }
-h2 { font-size: 1.3rem; margin: 0 0 .3rem; }
-h3 { font-size: 1.05rem; margin: 0; display: inline; }
+  font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+main { max-width: 66rem; margin: 0 auto; padding-block: 1.5rem 4rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1 { font-size: 2.2rem; line-height: 1.15; margin: 0 0 .3rem; overflow-wrap: anywhere; letter-spacing: -.01em; }
+h2 { font-size: 1.35rem; margin: 0 0 .5rem; }
+h3 { font-size: 1.05rem; margin: 0; }
 p { margin: .5rem 0; }
-section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.2rem; margin-top: 1.2rem; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 1.2rem 1.3rem; margin-top: 1.2rem; }
 code { font: .88em ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 a { color: var(--accent); }
-.kicker { text-transform: uppercase; letter-spacing: .08em; font-size: .8rem; color: var(--soft); margin: 0; }
+button { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  padding: .35rem .9rem; cursor: pointer; }
+button:hover { border-color: var(--soft); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.kicker { text-transform: uppercase; letter-spacing: .08em; font-size: .78rem; font-weight: 600; color: var(--soft); margin: 0; }
 .soft, .source, figcaption, .meta, .fate, dd small { color: var(--soft); font-size: .9rem; }
-.source { border-left: 3px solid var(--line); padding-left: .6rem; margin: .2rem 0 .9rem; }
-.source.agent { border-left-color: var(--warn-line); }
-video, img { max-width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 6px; background: #000; }
+.source { margin: 0 0 .8rem; }
+.source.agent::before { content: "Agent's words"; }
+.source.script::before { content: "Counted by the script"; }
+.source::before { display: inline-block; margin-right: .5rem; padding: 0 .5rem; border-radius: 999px; font-size: .78rem; font-weight: 600;
+  border: 1px solid var(--line); color: var(--ink); }
+.source.agent::before { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn); }
+.mark { display: inline-grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 50%; font-weight: 700; line-height: 1;
+  background: var(--quiet); color: var(--card); flex: none; }
+.green > .mark { background: var(--ok); } .amber > .mark { background: var(--warn-fill); color: #1b1300; } .red > .mark { background: var(--bad-fill); color: #fff; }
+.headline { display: flex; align-items: center; gap: .6rem; font-size: 1.35rem; font-weight: 650; margin: 1rem 0 .2rem; }
+.headline.green { color: var(--ok); } .headline.amber { color: var(--warn); } .headline.red { color: var(--bad); }
+.board { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; margin-top: .9rem; }
+.tile { display: grid; grid-template-columns: auto 1fr; gap: .15rem .7rem; align-content: start; padding: 1rem 1.1rem; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none; min-width: 0; }
+.tile > .mark { grid-row: span 3; margin-top: .15rem; }
+.tile > * { grid-column: 2; min-width: 0; } .tile > .mark { grid-column: 1; }
+.tile .label { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; font-weight: 600; color: var(--soft); }
+.tile strong { font-size: 1.12rem; line-height: 1.3; }
+.tile .sub { display: block; font-size: .88rem; color: var(--soft); }
+.tile.green { background: var(--ok-bg); border-color: transparent; } .tile.green strong { color: var(--ok); }
+.tile.amber { background: var(--warn-bg); border-color: var(--warn-line); } .tile.amber strong { color: var(--warn); }
+.tile.red { background: var(--bad-bg); border-color: var(--bad-line); border-width: 2px; } .tile.red strong { color: var(--bad); }
+.tile.wide { grid-column: 1 / -1; display: block; }
+.tile.wide strong { display: block; font-size: 1.5rem; }
+.chk { display: inline-block; margin: .25rem .3rem 0 0; padding: 0 .5rem; border-radius: 999px; font-size: .8rem; font-weight: 600;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+.chk.green { background: var(--card); color: var(--ok); border-color: var(--ok); } .chk.red { background: var(--bad-fill); color: #fff; border-color: transparent; }
+.bar { display: flex; gap: 2px; height: 1.1rem; margin: .6rem 0 .5rem; }
+.bar > * { min-width: 6px; border-radius: 4px; background: var(--quiet); }
+.s-bad { background: var(--bad-fill) !important; } .s-left { background: var(--warn-fill) !important; }
+.s-lost { background: repeating-linear-gradient(135deg, var(--warn-fill) 0 4px, var(--card) 4px 7px) !important; outline: 1px solid var(--warn-fill); outline-offset: -1px; }
+.s-nocheck { background: repeating-linear-gradient(135deg, var(--fixed) 0 4px, var(--card) 4px 7px) !important; outline: 1px solid var(--fixed); outline-offset: -1px; }
+.s-fixed { background: var(--fixed) !important; } .s-not { background: var(--quiet) !important; }
+.c1 { background: var(--s1) !important; } .c2 { background: var(--s2) !important; } .c3 { background: var(--s3) !important; }
+.sw { display: inline-block; width: .7rem; height: .7rem; border-radius: 3px; margin-right: .4rem; vertical-align: -.02rem; background: var(--quiet); }
+.unknown, .warned { color: var(--warn); background: var(--warn-bg); border-radius: 4px; padding: 0 .35rem; }
+.badly { color: var(--bad); background: var(--bad-bg); border-radius: 4px; padding: 0 .35rem; font-weight: 600; }
+.pill { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 0 .7rem; font-size: .88rem; font-weight: 600;
+  color: var(--ink); background: var(--card); text-decoration: none; }
+.pill.green { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.pill.red, .pill.bad { background: var(--bad-bg); color: var(--bad); border-color: var(--bad-line); }
+.pill.amber, .pill.warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-line); }
+.pill.note { border: 1px dashed var(--warn); color: var(--warn); background: var(--card); }
+ul.standing { list-style: none; display: flex; flex-wrap: wrap; gap: .45rem; margin: 0; padding: 0; }
+video, img { max-width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 8px; background: #000; }
 video { width: 100%; }
 figure { margin: 0; }
-.text { max-width: 44rem; }
-.text h3 { display: block; margin-top: .9rem; }
-.text ul { margin: .3rem 0 0; padding-left: 1.2rem; }
-dl.facts { margin: 0; }
+.story .stage { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; }
+.story figcaption { margin-top: .4rem; } .story figcaption b { color: var(--ink); margin-right: .4rem; }
+.story .film { margin-top: 1rem; } .story .cantplay { display: none; }
+.story.nofilm video { display: none; } .story.nofilm .cantplay { display: block; }
+.story.live .stage { display: block; cursor: pointer; }
+.story.live .frame { display: none; } .story.live .frame.on { display: block; }
+.story.live .frame figcaption { font-size: 1.05rem; color: var(--ink); }
+.story.live[data-view="film"] .stage, .story.live[data-view="film"] .controls, .story.live[data-view="film"] .reel,
+.story.live[data-view="pictures"] .film { display: none; }
+.story.live .film { margin-top: 0; }
+.switch { display: inline-flex; margin-bottom: .8rem; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.switch button { border: 0; border-radius: 0; background: transparent; }
+.switch button:focus-visible { outline-offset: -3px; }
+.switch button.on { background: var(--ink); color: var(--card); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .7rem; }
+.controls .play { background: var(--ink); color: var(--card); border-color: var(--ink); min-width: 5.5rem; }
+.controls .count { color: var(--soft); font-variant-numeric: tabular-nums; margin-left: .3rem; }
+.reel { display: flex; gap: .4rem; margin-top: .7rem; overflow-x: auto; padding: 3px; }
+.reel .thumb { flex: 1 1 0; min-width: 3.5rem; max-width: 6.4rem; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; opacity: .6; background: none; }
+.reel .thumb.on { border-color: var(--accent); opacity: 1; }
+.reel .thumb img { border: 0; border-radius: 0; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: .9rem; }
+.card { border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1rem; min-width: 0; }
+.card.next { border: 2px solid var(--accent); }
+.card ul { margin: .4rem 0 0; padding-left: 1.1rem; } .card li { margin-top: .35rem; overflow-wrap: anywhere; }
+.card details { margin-top: .6rem; } .card details > summary { color: var(--accent); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .9rem; }
+.stat { border: 1px solid var(--line); border-radius: 12px; padding: .8rem .9rem; min-width: 0; }
+.stat .value { display: block; font-size: 1.7rem; font-weight: 650; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat .value .unknown { font-size: 1.1rem; }
+.stat .note { display: block; font-size: .85rem; color: var(--soft); }
+.stat.span { grid-column: span 2; }
+.legend { display: flex; flex-wrap: wrap; gap: .2rem .9rem; font-size: .85rem; color: var(--soft); }
+.runs { display: flex; flex-wrap: wrap; gap: 3px; margin: .5rem 0 .3rem; }
+.runs > * { width: .8rem; height: .8rem; border-radius: 3px; background: var(--quiet); }
+.runs .r-green { background: var(--fixed); } .runs .r-red { background: var(--bad-fill); }
+.runs .part { background: none; border: 2px solid var(--quiet); } .runs .part.r-green { border-color: var(--fixed); } .runs .part.r-red { border-color: var(--bad-fill); }
+details.record { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: .8rem; }
+dl.facts { margin: .6rem 0 0; }
 dl.facts > div { display: grid; grid-template-columns: 14rem 1fr; gap: .2rem 1rem; padding: .55rem 0; border-top: 1px solid var(--line); }
 dl.facts > div:first-child { border-top: 0; }
 dt { font-weight: 600; }
 dd { margin: 0; overflow-wrap: anywhere; }
 dd small { display: block; }
 dd ul, ul.files { margin: .2rem 0; padding-left: 1.1rem; }
+.scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; max-width: 38rem; }
 th, td { text-align: left; padding: .4rem .8rem .4rem 0; border-top: 1px solid var(--line); }
 thead th { border-top: 0; color: var(--soft); font-weight: 600; font-size: .9rem; }
-td.n, th.n { text-align: right; }
-.unknown, .warned { color: var(--warn-ink); background: var(--warn-bg); border-radius: 4px; padding: 0 .35rem; }
-.badly { color: var(--bad-ink); background: var(--bad-bg); border-radius: 4px; padding: 0 .35rem; font-weight: 600; }
-.pill { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 0 .6rem; font-size: .85rem; font-weight: 600;
-  color: var(--ink); background: var(--card); text-decoration: none; }
-.pill.green { background: var(--ok-bg); color: var(--ok-ink); border-color: transparent; }
-.pill.red, .pill.bad { background: var(--bad-bg); color: var(--bad-ink); border-color: var(--bad-line); }
-.pill.amber, .pill.warn { background: var(--warn-bg); color: var(--warn-ink); border-color: var(--warn-line); }
-.pill.note { border: 1px dashed var(--warn-ink); color: var(--warn-ink); background: var(--card); }
-ul.standing { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem; margin: .3rem 0 0; padding: 0; }
-ul.standing .pill { font-size: .95rem; padding: .1rem .8rem; }
-details.group, .orphans { border: 1px solid var(--line); border-radius: 8px; margin-top: .8rem; padding: .6rem .9rem; }
-details.group.bad { border: 2px solid var(--bad-ink); background: var(--bad-bg); }
-details.group.bad > summary { color: var(--bad-ink); }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+details.group, .orphans { border: 1px solid var(--line); border-radius: 10px; margin-top: .8rem; padding: .6rem .9rem; }
+details.group.bad { border: 2px solid var(--bad); background: var(--bad-bg); }
+details.group.bad > summary { color: var(--bad); }
 details.group.warn, .orphans { border-color: var(--warn-line); background: var(--warn-bg); }
-details.group.warn > summary, .orphans > p:first-child { color: var(--warn-ink); }
-details.group.note { border: 1px dashed var(--warn-ink); }
-details.group.note > summary { color: var(--warn-ink); }
-summary { cursor: pointer; }
+details.group.warn > summary, .orphans > p:first-child { color: var(--warn); }
+details.group.note { border: 1px dashed var(--warn); }
+details.group.note > summary { color: var(--warn); }
+summary { cursor: pointer; font-weight: 600; }
+summary h3 { display: inline; }
 .count { font-weight: 600; margin-left: .4rem; }
 ol.findings { list-style: none; margin: .6rem 0 0; padding: 0; }
-ol.findings > li { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: .6rem .8rem; margin-top: .5rem; overflow-wrap: anywhere; }
+ol.findings > li { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: .6rem .8rem; margin-top: .5rem; overflow-wrap: anywhere; }
 ol.findings p { margin: .15rem 0; }
-.shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; }
 footer { color: var(--soft); font-size: .85rem; margin-top: 1.5rem; }
 @media (max-width: 600px) {
   body { font-size: 16px; }
   section { padding: .9rem .8rem; }
   dl.facts > div { grid-template-columns: 1fr; }
+  .stat.span { grid-column: auto; }
+  .board { grid-template-columns: 1fr; }
 }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
 """
+
+# The picture story's controls. The page is whole without it: with no script every picture is drawn in a grid and
+# the recording under them. It loads nothing and sends nothing.
+SCRIPT = """
+(function () {
+  [].forEach.call(document.querySelectorAll('a[href^="#group-"]'), function (a) {
+    a.addEventListener("click", function () { var g = document.getElementById(a.getAttribute("href").slice(1)); if (g) { g.open = true; } });
+  });
+  var story = document.getElementById("story");
+  if (!story) { return; }
+  var frames = [].slice.call(story.querySelectorAll(".frame"));
+  var film = story.querySelector(".film");
+  var video = story.querySelector("video");
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) { n.className = cls; } if (text) { n.textContent = text; } if (tag === "button") { n.type = "button"; } return n; }
+  if (video) {
+    video.addEventListener("error", function () { story.classList.add("nofilm"); });
+    if (video.error) { story.classList.add("nofilm"); }
+    var still = frames.length > 1 ? frames[1].querySelector("img") : null;
+    if (still) { video.poster = still.src; }
+  }
+  if (!frames.length) { return; }
+  var at = 0, timer = null;
+  var stage = story.querySelector(".stage");
+  var bar = el("div", "controls"), back = el("button", "", "Back"), play = el("button", "play", "Play"), next = el("button", "", "Next");
+  var count = el("span", "count"), reel = el("div", "reel");
+  function show(i) {
+    at = (i + frames.length) % frames.length;
+    frames.forEach(function (f, k) { f.classList.toggle("on", k === at); });
+    [].forEach.call(reel.children, function (t, k) { t.classList.toggle("on", k === at); });
+    count.textContent = (at + 1) + " of " + frames.length;
+    var t = reel.children[at];
+    if (t) { reel.scrollLeft = t.offsetLeft - reel.offsetLeft - (reel.clientWidth - t.offsetWidth) / 2; }
+  }
+  function stop() { clearInterval(timer); timer = null; play.textContent = "Play"; }
+  function start() {
+    if (at === frames.length - 1) { show(0); }
+    timer = setInterval(function () { if (at === frames.length - 1) { stop(); } else { show(at + 1); } }, 2200);
+    play.textContent = "Pause";
+  }
+  back.onclick = function () { stop(); show(at - 1); };
+  next.onclick = function () { stop(); show(at + 1); };
+  play.onclick = function () { if (timer) { stop(); } else { start(); } };
+  stage.onclick = function () { stop(); show(at + 1); };
+  story.addEventListener("keydown", function (ev) {
+    if (story.getAttribute("data-view") === "film" || (ev.key !== "ArrowRight" && ev.key !== "ArrowLeft")) { return; }
+    ev.preventDefault();
+    stop();
+    show(at + (ev.key === "ArrowRight" ? 1 : -1));
+  });
+  frames.forEach(function (f, k) {
+    var t = el("button", "thumb"), small = f.querySelector("img").cloneNode(false);
+    small.alt = "";
+    t.title = f.querySelector("figcaption").textContent;
+    t.setAttribute("aria-label", t.title);
+    t.appendChild(small);
+    t.onclick = function () { stop(); show(k); };
+    reel.appendChild(t);
+  });
+  [back, play, next, count].forEach(function (n) { bar.appendChild(n); });
+  stage.parentNode.insertBefore(bar, stage.nextSibling);
+  bar.parentNode.insertBefore(reel, bar.nextSibling);
+  if (film) {
+    var pick = el("div", "switch"), pictures = el("button", "", "Pictures"), recording = el("button", "", "Recording");
+    var view = function (which) {
+      story.setAttribute("data-view", which);
+      pictures.classList.toggle("on", which === "pictures");
+      recording.classList.toggle("on", which === "film");
+      if (which === "film") { stop(); } else if (video) { video.pause(); }
+    };
+    pictures.onclick = function () { view("pictures"); };
+    recording.onclick = function () { view("film"); };
+    pick.appendChild(pictures);
+    pick.appendChild(recording);
+    story.insertBefore(pick, story.firstChild);
+    view("pictures");
+  }
+  if (frames.length < 2) { bar.style.display = "none"; reel.style.display = "none"; stage.onclick = null; stage.style.cursor = "auto"; }
+  story.classList.add("live");
+  show(0);
+}());
+"""
+
+TONES = {"green": "green", "amber": "amber", "warn": "amber", "note": "amber", "red": "red", "bad": "red"}
+MARKS = {"green": "&#10003;", "amber": "!", "red": "&#215;", "": "&#183;"}
+SEGMENTS = {"no-fate": "s-bad", "left": "s-left", "fixed-not-found": "s-lost", "fixed-no-check": "s-nocheck",
+            "fixed": "s-fixed", "not-a-defect": "s-not"}
 
 
 def unknown(text: str = "unknown") -> str:
     return f'<span class="unknown">{e(text)}</span>'
 
 
-def pill(text, look: str = "", href: str = "") -> str:
+def mark(tone: str) -> str:
+    """The round sign beside a verdict: a tick, an exclamation mark or a cross, so the colour never speaks alone."""
+    return f'<span class="mark" aria-hidden="true">{MARKS[tone]}</span>'
+
+
+def pill(text, look: str = "", href: str = "", swatch: str = "") -> str:
     """A rounded label. `look` is one of this script's own words (green, red, amber, bad, warn, note), never read text."""
-    return f'<a class="pill {look}" href="{e(href)}">{e(text)}</a>' if href else f'<span class="pill {look}">{e(text)}</span>'
+    square = f'<i class="sw {swatch}"></i>' if swatch else ""
+    return (f'<a class="pill {look}" href="{e(href)}">{square}{e(text)}</a>' if href
+            else f'<span class="pill {look}">{square}{e(text)}</span>')
 
 
 def fact(label: str, value_html: str, source: str) -> str:
@@ -439,22 +652,97 @@ def fact(label: str, value_html: str, source: str) -> str:
     return f"<div><dt>{e(label)}</dt><dd>{value_html}<small>{e(source)}</small></dd></div>"
 
 
-def render_standing(data: dict) -> str:
-    """The strip under the title: the walk, the last run of every check, and the findings by what became of them."""
-    items = [pill(walk_verdict(data)[1], walk_verdict(data)[0], "#recording"),
-             pill(checks_verdict(data)[1], checks_verdict(data)[0], "#facts")]
-    for index, (state, rows) in enumerate(data["groups"]):
-        title, look = state_look(state)[:2]
-        items.append(pill(f"{title}: {len(rows)}", look, f"#group-{index}"))
-    if not data["findings"]:
+def to_look_at(data: dict) -> list[str]:
+    """One "amber" or "red" for each thing the board marks: the walk, the checks, each group of findings the record
+    does not show as fixed with a check or as not a defect, each finder that did not run, fate lines matching no
+    finding, findings whose pass is not recognised, and no findings file read."""
+    tones = [TONES.get(walk_verdict(data)[0], ""), TONES.get(checks_verdict(data)[0], "")]
+    tones += [TONES.get(state_look(state)[1], "") for state, _ in data["groups"]]
+    tones += ["amber"] * (len(data["absent"]) + bool(data["orphans"]) + (not data["files"]) + bool(odd_passes(data)))
+    return [tone for tone in tones if tone in ("amber", "red")]
+
+
+def odd_passes(data: dict) -> int:
+    """How many findings name a pass the format does not."""
+    return sum(row["other"] for row in data["by_finder"].values())
+
+
+def tile(look: str, label: str, words: str, sub_html: str, href: str) -> str:
+    """One of the two verdict tiles: a sign, what it is, the verdict in words, and one line under it."""
+    tone = TONES.get(look, "")
+    return (f'<a class="tile {tone}" href="{e(href)}">{mark(tone)}<span class="label">{e(label)}</span>'
+            f"<strong>{e(words)}</strong>{sub_html}</a>")
+
+
+def render_walk_tile(data: dict) -> str:
+    recording = data["recording"] or {}
+    ran = "Ended after" if recording.get("result") in WALK_ENDS else "Ran for"
+    sub = (f'<span class="sub">{ran} {e(minutes(recording.get("minutes")))}, on commit <code>{e(recording.get("commit", "unknown"))}</code></span>'
+           if recording else '<span class="sub">So there is no recording and there are no pictures</span>')
+    look, words = walk_verdict(data)
+    return tile(look, "Acceptance walk", words, sub, "#recording")
+
+
+def render_checks_tile(data: dict) -> str:
+    runs, tip = data["runs"], (data["git"] or {}).get("tip")
+    full, later = runs["full"], runs["later"]
+    look, words = checks_verdict(data)
+    if full is None:
+        sub = f'<span class="sub">{e(runs["why_unknown"] or "No run of every check is logged for this branch.")}</span>'
+    else:
+        off = stale(full.get("tip", "unknown"), full.get("dirty"), tip)
+        looks = {"green": "green" if look == "green" else "", "red": "red"}  # a check is drawn green only when the verdict is
+        each = "".join(f'<span class="chk {looks.get(str(check.get("result")), "")}">{e(check.get("name", "?"))}: {e(check.get("result", "unknown"))}</span>'
+                       for check in full.get("checks") or [])
+        sub = f'<span class="sub">{each}</span><span class="sub">The last run of every check took {e(minutes(full.get("minutes")))}</span>'
+        sub += f'<span class="sub">This run was {e(off)}.</span>' if off else ""
+    if later and (full is None or later.get("result") != "green"):  # said on the tile, not only in the folded list
+        sub += f'<span class="sub">{e(later_said(runs))}</span>'
+    return tile(look, "Checks", words, sub, "#facts")
+
+
+def render_findings_tile(data: dict) -> str:
+    """The findings as one bar, a part for each thing that became of them, and a label for each part that links to its list."""
+    items, bar = [], ""
+    if data["findings"]:
+        parts = []
+        for index, (state, rows) in enumerate(data["groups"]):
+            title, look = state_look(state)[:2]
+            swatch = SEGMENTS.get(state, "s-bad")
+            parts.append(f'<span class="{swatch}" style="flex-grow: {len(rows)}" title="{e(title)}: {len(rows)}"></span>')
+            items.append(pill(f"{title}: {len(rows)}", look, f"#group-{index}", swatch))
+        count = len(data["findings"])
+        said = f"{number(count)} found"
+        bar = f'<div class="bar" role="img" aria-label="{e(said)}, by what became of them">{"".join(parts)}</div>'
+    else:
         count = len(data["files"])
+        said = "None found" if count else "Nobody looked"
         items.append(pill(f"No findings in the {count} findings file{'' if count == 1 else 's'} read" if count
                           else "No findings file was read", "" if count else "amber", "#finders"))
     items += [pill(f"{FINDERS[finder]}: no findings file", "amber", "#finders") for finder in data["absent"]]
     if data["orphans"]:
         items.append(pill(f"Fate lines matching no finding: {len(data['orphans'])}", "amber", "#findings"))
-    return ('<p class="soft">Where it stands, counted by the script from git and the record files. '
-            f'Each links to its part of the page.</p><ul class="standing">{"".join(f"<li>{item}</li>" for item in items)}</ul>')
+    if odd_passes(data):
+        items.append(pill(f"Pass not recognised: {odd_passes(data)}", "amber", "#finders"))
+    return (f'<div class="tile wide"><span class="label">Findings: what the walkers and reviewers reported</span>'
+            f'<strong>{e(said)}</strong>{bar}<ul class="standing">{"".join(f"<li>{item}</li>" for item in items)}</ul></div>')
+
+
+def render_standing(data: dict) -> str:
+    """The board under the title: how many things need a look, then the walk, the last run of every check, and the findings."""
+    flagged = to_look_at(data)
+    if flagged:
+        worst, count = ("red" if "red" in flagged else "amber"), len(flagged)
+        headline = (f'<p class="headline {worst}">{mark(worst)}{count} thing{"" if count == 1 else "s"} to look at before you decide</p>'
+                    '<p class="soft">Each is marked amber or red below. Counted by the script from git and the record files, not by an agent.</p>')
+    else:
+        settled = ("every finding is recorded as fixed, with its check named, or as not a defect. What became of a finding is "
+                   "the agents' record: the script did not test it" if data["findings"] else "the findings files hold no findings")
+        headline = (f'<p class="headline green">{mark("green")}Nothing on record needs a second look</p>'
+                    "<p class=\"soft\">Counted by the script: the walk passed and every check was green on the build's last commit, "
+                    f"and {settled}.</p>")
+    headline += f'<p class="soft"><a href="#summary">{e(left_said(data))}</a></p>'
+    return f'{headline}<div class="board">{render_walk_tile(data)}{render_checks_tile(data)}{render_findings_tile(data)}</div>'
 
 
 def render_header(data: dict) -> str:
@@ -469,10 +757,20 @@ def render_header(data: dict) -> str:
             f'<p class="soft">{covers}</p>{render_standing(data)}</header>')
 
 
+def shot_parts(shot) -> tuple[str, str]:
+    """(caption, address) of one screenshot. A shot is its file name, or {"name", "src"} when the picture is inside the page."""
+    name = shot["name"] if isinstance(shot, dict) else str(shot)
+    step = re.search(r"-(\d\d)-(.+)\.png$", name)
+    caption = f"Step {int(step.group(1))}: {step.group(2).replace('-', ' ')}" if step else name
+    return caption, shot["src"] if isinstance(shot, dict) else "shots/" + urllib.parse.quote(name)
+
+
 def render_recording(data: dict) -> str:
-    recording, head = data["recording"], '<section id="recording"><h2>The recording</h2>'
+    """The walk: its verdict, its screenshots as a picture story, and the recording."""
+    recording, head = data["recording"], '<section id="recording"><h2>The walk, in pictures</h2>'
     if not recording:
-        return head + "<p>No recording: the walk was not run for this page.</p></section>"
+        return head + ("<p>No recording: the walk was not run for this page.</p>"
+                       "<p>No screenshots: the walk was not run for this page.</p></section>")
     look, words = walk_verdict(data)
     megabytes, tip, commit = recording.get("megabytes"), (data["git"] or {}).get("tip"), recording.get("commit", "unknown")
     said = [f'Run {e(when(recording.get("at")))} on commit <code>{e(commit)}</code>'
@@ -483,26 +781,43 @@ def render_recording(data: dict) -> str:
         said.append(f'{e(recording["reason"])}.')
     if recording.get("result") != "passed":
         said.append('What it printed is in <a href="walk-output.txt"><code>walk-output.txt</code></a>, beside this page.')
-    said.append(f'It ran for {e(minutes(recording.get("minutes")))}{f"; the file is {e(megabytes)} MB" if megabytes is not None else ""}.')
-    video = ('<video controls preload="metadata" src="recording.webm"></video>' if megabytes is not None else "")
-    about = ("The acceptance walk: the whole journey by keyboard alone, in Chromium at 1440 x 900, slowed down so it can be followed."
-             if megabytes is not None else "It left no video file.")
-    return (f'{head}<figure>{video}<figcaption><p>{pill(words, look)} {about}</p>'
-            f'<p>{" ".join(said)} Walk: <code>{e(recording.get("walk", ""))}</code></p></figcaption></figure></section>')
+    said.append(f'It ran for {e(minutes(recording.get("minutes")))}{f"; the recording is {e(megabytes)} MB" if megabytes is not None else ""}.')
+    frames = []
+    for index, shot in enumerate(data["shots"]):
+        caption, src = shot_parts(shot)
+        lazy = ' loading="lazy"' if index and not src.startswith("data:") else ""  # only a picture that is a file can wait
+        frames.append(f'<figure class="frame"><img src="{e(src)}" alt="{e(caption)}"{lazy}>'
+                      f"<figcaption>{e(caption)}</figcaption></figure>")
+    stage = f'<div class="stage">{"".join(frames)}</div>' if frames else "<p>No screenshots: the walk left none.</p>"
+    film = ('<div class="film"><video controls preload="metadata" src="recording.webm"></video>'
+            '<p class="soft cantplay">This window cannot play the recording. Open <a href="recording.webm"><code>recording.webm</code></a>, '
+            "which is beside this page, in Safari or Chrome.</p></div>" if megabytes is not None else "<p>It left no video file.</p>")
+    count, passed, filmed = len(data["shots"]), recording.get("result") == "passed", megabytes is not None
+    whole = "the whole journey by keyboard alone" if passed else "up to where it stopped"
+    watch = f", or watch the recording{' of all of it' if passed else ''}" if filmed else ""
+    about = (f"{count} moments from the acceptance walk, {whole}. Step through them{watch}." if count > 1
+             else f"1 moment from the acceptance walk, {whole}.{' The recording shows the rest.' if filmed else ''}" if count
+             else f"The acceptance walk, {whole}.")
+    return (f'{head}<p>{pill(words, look)} {about}</p><div class="story" id="story" tabindex="-1">{stage}{film}</div>'
+            f'<p class="soft">{" ".join(said)} Walk: <code>{e(recording.get("walk", ""))}</code></p></section>')
 
 
 def render_summary(data: dict) -> str:
     summary = data["summary"]
-    head = '<section id="summary"><h2>What, so what, now what</h2>'
+    head = '<section id="summary"><h2>In the builder\'s words</h2>'
     if summary is None:
         return head + f'<p>The build agent wrote no summary: {unknown("hand-over.json is missing")}</p></section>'
-    parts = []
-    for key, title in (("what", "What"), ("so_what", "So what"), ("now_what", "Now what")):
+    cards = []
+    for key, kicker, title in (("what", "What", "What was built"), ("so_what", "So what", "What it gives you"),
+                               ("now_what", "Now what", "What is left for you")):
         lines = summary.get(key) or []
-        body = "".join(f"<li>{e(line)}</li>" for line in lines) if lines else f"<li>{unknown('nothing written')}</li>"
-        parts.append(f"<h3>{title}</h3><ul>{body}</ul>")
+        listed = lambda some: "".join(f"<li>{e(line)}</li>" for line in some)  # noqa: E731
+        first, rest = lines[:SUMMARY_LINES], lines[SUMMARY_LINES:]  # the agent writes the weightiest first; the tail is folded, and counted
+        more = f"<details><summary>{len(rest)} more</summary><ul>{listed(rest)}</ul></details>" if rest else ""
+        body = listed(first) if lines else f"<li>{unknown('nothing written')}</li>"
+        cards.append(f'<div class="card{" next" if key == "now_what" else ""}"><p class="kicker">{kicker}</p><h3>{title}</h3><ul>{body}</ul>{more}</div>')
     return (head + '<p class="source agent">Written by the build agent. These are its words, copied from hand-over.json; '
-            'the script did not check them.</p>' + f'<div class="text">{"".join(parts)}</div></section>')
+            'the script did not check them.</p>' + f'<div class="cards">{"".join(cards)}</div></section>')
 
 
 def render_last_run(data: dict) -> str:
@@ -525,10 +840,45 @@ def render_last_run(data: dict) -> str:
             said.append(f'<p><span class="warned">This run was {e(off)}: it does not show the last commit as committed passes.</span></p>')
         said.append(f"<ul>{listed}</ul>")
     if later:
-        ran = ", ".join(str(check.get("name", "?")) for check in later.get("checks") or [])
-        said.append(f'<p>{"A later run" if full else "The last run"} of {e(ran or "no check")} only was {e(later.get("result", "unknown"))} at '
-                    f'{e(when(later.get("at")))}; it did not run {e(", ".join(missed(later, runs["names"])))}.</p>')
+        said.append(f"<p>{e(later_said(runs))}</p>")
     return "".join(said)
+
+
+def stat(label: str, value_html: str, note_html: str = "", wide: bool = False) -> str:
+    """One number of the build, drawn large, with one line under it."""
+    return (f'<div class="stat{" span" if wide else ""}"><span class="kicker">{e(label)}</span>'
+            f'<span class="value">{value_html}</span><span class="note">{note_html}</span></div>')
+
+
+def render_stats(data: dict) -> str:
+    """The build's numbers as tiles: time, commits, files, lines by kind, tests, and every checks run as a square."""
+    facts, runs = data["git"] or {}, data["runs"]
+    value = lambda key: e(number(facts.get(key))) if facts else unknown()  # noqa: E731
+    tiles = [stat("Build time", e(minutes(facts["minutes"])) if facts.get("minutes") is not None else unknown(), "first commit to last, on the clock"),
+             stat("Commits", value("commits")), stat("Files changed", value("files"))]
+    kinds = [(kind, count) for kind, count in (facts.get("added_by") or {}).items() if count]
+    if kinds:
+        names = {"product": "product", "tests and walks": "tests and walks"}
+        bar = "".join(f'<span class="c{index}" style="flex-grow: {count}" title="{e(kind)}: {e(number(count))}"></span>'
+                      for index, (kind, count) in enumerate(kinds, 1))
+        legend = "".join(f'<span><i class="sw c{index}"></i>{e(names.get(kind, "build records"))} {e(number(count))}</span>'
+                         for index, (kind, count) in enumerate(kinds, 1))
+        tiles.append(stat("Lines added", value("added"), f'<span class="bar">{bar}</span><span class="legend">{legend}</span>'
+                          f'{e(number(facts.get("removed")))} removed', wide=True))
+    else:
+        tiles.append(stat("Lines added", value("added"), f'{value("removed")} removed' if facts else ""))
+    tiles.append(stat("Tests added", value("tests_added"), f'{value("tests_removed")} removed' if facts else ""))
+    if runs["runs"] is None:
+        tiles.append(stat("Checks runs", unknown(), e(runs["why_unknown"]), wide=True))
+    else:
+        history, shown = runs.get("history") or [], (runs.get("history") or [])[-80:]
+        squares = "".join(
+            f'<span class="{"r-" + run["result"] if run["result"] in ("green", "red") else ""}{"" if run["full"] else " part"}" '
+            f'title="{e(when(run["at"]))}: {e(run["result"])}{"" if run["full"] else ", some checks only"}"></span>' for run in shown)
+        more = f"The last {len(shown)} are drawn. " if len(history) > len(shown) else ""
+        tiles.append(stat("Checks runs", f'{e(number(runs["runs"]))}', f'<span class="runs">{squares}</span>'
+                          f'{e(number(runs["red"]))} red. {more}Oldest first. Blue was green when it ran, red was red; a hollow square ran only some checks.', wide=True))
+    return f'<div class="stats">{"".join(tiles)}</div>'
 
 
 def render_facts(data: dict) -> str:
@@ -562,9 +912,10 @@ def render_facts(data: dict) -> str:
         fact("Tests", tests, "lines starting def test_ that the build added and removed under tests/ and walks/; "
                              "a test that was moved or renamed counts as both"),
     ]
-    return ('<section id="facts"><h2>The facts</h2><p class="source">Computed by handover.py from git and the build\'s record files. '
-            'No agent typed a number here; each line names where it came from.</p>'
-            f'<dl class="facts">{"".join(rows)}</dl></section>')
+    return ('<section id="facts"><h2>The build in numbers</h2><p class="source script">Computed by handover.py from git and the build\'s '
+            'record files. No agent typed a number here.</p>' + render_stats(data) +
+            '<details class="record"><summary>Every number, and where it came from</summary>'
+            f'<dl class="facts">{"".join(rows)}</dl></details></section>')
 
 
 def render_finders(data: dict) -> str:
@@ -583,15 +934,18 @@ def render_finders(data: dict) -> str:
     extra = '<th class="n">Pass not recognised</th>' if other else ""
     read = "".join(f"<li><code>{e(name)}</code>: {e(number(len(found))) if found else 'looked, found nothing'}</li>"
                    for name, found in files.items())
-    read = f'<ul class="files">{read}</ul>' if files else f"<p>{unknown('No findings file was read, so the record does not show that anyone looked.')}</p>"
-    return ('<section id="finders"><h2>Findings by who found them</h2>'
-            '<p class="source">Counted by handover.py from findings/*.jsonl. The re-check is the second look, after the fixes. '
+    read = (f'<details class="record"><summary>The {number(len(files))} findings file{"" if len(files) == 1 else "s"} read</summary>'
+            f'<ul class="files">{read}</ul></details>' if files
+            else f"<p>{unknown('No findings file was read, so the record does not show that anyone looked.')}</p>")
+    return ('<section id="finders"><h2>Who looked</h2>'
+            '<p class="source script">Counted by handover.py from findings/*.jsonl. The re-check is the second look, after the fixes. '
             'A finder writes its file even when it finds nothing, so a finder with no file did not run.</p>'
-            f'<table><thead><tr><th>Found by</th><th class="n">{PASSES["first"]}</th><th class="n">{PASSES["recheck"]}</th>{extra}</tr></thead>'
-            f'<tbody>{"".join(rows)}</tbody></table><h3>Findings files read</h3>{read}</section>')
+            f'<div class="scroll"><table><thead><tr><th>Found by</th><th class="n">{PASSES["first"]}</th><th class="n">{PASSES["recheck"]}</th>{extra}</tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table></div>{read}</section>')
 
 
-def render_finding(finding: dict) -> str:
+def render_finding(finding: dict, shared: str = "") -> str:
+    """One finding as a card. `shared` is a reason its whole group gives, already printed once above the cards."""
     severity = str(finding.get("severity", "") or "not recorded")
     finder, which = str(finding.get("finder", "")), str(finding.get("pass", ""))
     meta = [finding.get("id", ""), FINDERS.get(finder, finder), PASSES.get(which, which), finding.get("area", ""),
@@ -609,7 +963,7 @@ def render_finding(finding: dict) -> str:
             said.append(f"Commit <code>{e(fate['commit'])}</code>.")
         if str(fate.get("check") or "").strip():
             said.append(f"Check: <code>{e(fate['check'])}</code>.")
-        if fate.get("why"):
+        if fate.get("why") and fate["why"] != shared:
             said.append(e(fate["why"]))
         lines.append(f'<p class="fate">{" ".join(said)}</p>')
     if finding["lacks"]:
@@ -618,9 +972,11 @@ def render_finding(finding: dict) -> str:
 
 
 def render_findings(data: dict) -> str:
-    head = ('<section id="findings"><h2>Every finding read and what became of it</h2>'
-            '<p class="source">Joined by handover.py from findings/*.jsonl and fates.jsonl. The words of each finding are copied '
-            'from the findings files and the words of each fate from fates.jsonl; the script did not check them.</p>')
+    head = ('<section id="findings"><h2>Every finding, and what became of it</h2>'
+            '<p class="source agent">Joined by handover.py from findings/*.jsonl and fates.jsonl. The words of each finding are copied '
+            'from the findings files and the words of each fate from fates.jsonl; the script did not check them. '
+            'The open groups are the findings left as they are and those whose record is missing or does not hold up; '
+            'the groups recorded as fixed or as not a defect are folded.</p>')
     orphans = ""
     if data["orphans"]:
         count = len(data["orphans"])
@@ -636,41 +992,30 @@ def render_findings(data: dict) -> str:
     groups = []
     for index, (state, rows) in enumerate(data["groups"]):
         title, look, opened, note = state_look(state, data["verified"])
+        whys = {str((row["fate"] or {}).get("why") or "") for row in rows}
+        shared = whys.pop() if len(rows) > 1 and len(whys) == 1 else ""  # one reason for all: said once, not on every card
+        same = f'<p class="fate">The record gives the same reason for all {len(rows)}: {e(shared)}</p>' if shared else ""
         groups.append(
             f'<details id="group-{index}" class="group {look}"{" open" if opened else ""}>'
-            f'<summary><h3>{e(title)}</h3><span class="count">{len(rows)}</span></summary>'
-            f'<p class="soft">{e(note)}</p>'
-            f'<ol class="findings">{"".join(render_finding(row) for row in rows)}</ol></details>')
+            f'<summary><i class="sw {SEGMENTS.get(state, "s-bad")}"></i><h3>{e(title)}</h3><span class="count">{len(rows)}</span></summary>'
+            f'<p class="soft">{e(note)}</p>{same}'
+            f'<ol class="findings">{"".join(render_finding(row, shared) for row in rows)}</ol></details>')
     return head + orphans + "".join(groups) + "</section>"
 
 
-def render_shots(data: dict) -> str:
-    head = '<section id="shots"><h2>Screenshots from the walk</h2>'
-    if not data["shots"]:
-        return head + f'<p>No screenshots: the walk {"left none" if data["recording"] else "was not run for this page"}.</p></section>'
-    figures = []
-    for name in data["shots"]:
-        step = re.search(r"-(\d\d)-(.+)\.png$", name)
-        caption = f"{int(step.group(1))}. {step.group(2).replace('-', ' ')}" if step else name
-        src = e("shots/" + urllib.parse.quote(name))
-        figures.append(f'<figure><a href="{src}"><img loading="lazy" src="{src}" alt="{e(caption)}"></a>'
-                       f"<figcaption>{e(caption)}</figcaption></figure>")
-    return head + f'<div class="shots">{"".join(figures)}</div></section>'
-
-
 def render(data: dict) -> str:
-    """The whole page, as one HTML document with its CSS inside."""
+    """The whole page, as one HTML document with its CSS and its one small script inside."""
     built = data["built"]
     footer = (f'Built by handover.py {e(when(built.get("at")))} from the folder at commit <code>{e(built.get("commit", "unknown"))}</code>.'
               if built else "Built by handover.py.")
     body = "".join([
-        render_header(data), render_recording(data), render_summary(data), render_facts(data),
-        render_finders(data), render_findings(data), render_shots(data),
+        render_header(data), render_recording(data), render_summary(data), render_findings(data),
+        render_finders(data), render_facts(data),
     ])
     return ('<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<title>Hand-over: {e(data["feature"])}</title><style>{CSS}</style></head>\n'
-            f'<body><main>{body}<footer>{footer}</footer></main></body></html>\n')
+            f'<body><main>{body}<footer>{footer}</footer></main><script>{SCRIPT}</script></body></html>\n')
 
 
 # Recording the walk.
@@ -729,13 +1074,27 @@ def read_recording(out: pathlib.Path) -> dict | None:
     return {**record, "megabytes": round(video.stat().st_size / 1e6, 1) if video.exists() else None}
 
 
-def main(argv=None, root: pathlib.Path = ROOT) -> int:
+def shots_of(out: pathlib.Path) -> list[dict]:
+    """The walk's screenshots, each with the address the page shows it from: the picture itself, written into the
+    page, so the page is one file that shows its pictures wherever it is opened; a very large one stays a file."""
+    shots = []
+    for path in sorted((out / "shots").glob("*.png")):
+        inside = path.stat().st_size <= PICTURE_BYTES
+        src = "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode("ascii") if inside else "shots/" + urllib.parse.quote(path.name)
+        shots.append({"name": path.name, "src": src})
+    return shots
+
+
+def main(argv=None, root: pathlib.Path = ROOT, show=None) -> int:
+    """Build the page. `show`, when given, is called with the page's file: address once it is written (run as a
+    script, that opens it in the browser)."""
     parser = argparse.ArgumentParser(description="Build the hand-over page of one feature.")
     parser.add_argument("feature", help="the folder name under .scratch/")
     parser.add_argument("--base", default="main", help="the commit the build started from (default main)")
     parser.add_argument("--tip", default="HEAD", help="the build's last commit (default HEAD); give --branch with it")
     parser.add_argument("--branch", default=None, help="the branch whose checks runs are counted (default the current branch)")
     parser.add_argument("--no-walk", action="store_true", help="do not run and record the walk; keep any earlier recording")
+    parser.add_argument("--no-open", action="store_true", help="do not open the page in the browser when it is built")
     args = parser.parse_args(argv)
     if args.tip != "HEAD" and not args.branch:
         raise SystemExit("handover: --tip needs --branch: checks runs are logged by branch name, and the checked-out branch may not be the tip's")
@@ -755,16 +1114,18 @@ def main(argv=None, root: pathlib.Path = ROOT) -> int:
     data = page_data(
         args.feature, base_ref=args.base, tip_ref=args.tip, git=facts, runs=runs, files=files, fates=fates,
         missing=missing_proof(root, facts["tip"], fates), summary=summary, recording=read_recording(out),
-        shots=sorted(path.name for path in (out / "shots").glob("*.png")), built=tree_state(root),
+        shots=shots_of(out), built=tree_state(root),
     )
     page = out / "index.html"
     page.write_text(render(data), encoding="utf-8")
     print(page)
     if record and record["result"] != "passed":
         print(f"handover: the acceptance walk {WALK_ENDS[record['result']]}; what it printed is in {out / 'walk-output.txt'}")
-    print(f"open {shlex.quote(str(page))}")
+    print(f"open {shlex.quote(str(page))}", flush=True)
+    if show and not args.no_open:
+        show(page.resolve().as_uri())
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(show=webbrowser.open))

@@ -1,21 +1,29 @@
 {
  "what": [
-  "The Streamlit front end of the Trial Change Monitor was replaced by a plain HTML page, served by a small Python server on your own machine and opened in your browser. Streamlit, the in-browser runtime and the GitHub Pages site were deleted.",
-  "The page follows design.pdf: each watchlist opens on its Needs review queue; a trial page shows previous and new values side by side and marks them reviewed, with Undo; All trials, New matches and Summary are tabs of the same watchlist; Find trials has a screen to itself; renaming, deleting and adding are small dialogs.",
-  "The build was the feature's own tickets, then a review of the whole branch and a round of fix tickets (pr-1-review). All of it went to main in pull request #1."
+  "The Streamlit front end was replaced by a plain HTML page, served by a small Python server on your own machine.",
+  "The page follows design.pdf: each watchlist opens on its Needs review queue, and a trial page shows previous and new values side by side.",
+  "All trials, New matches and Summary are tabs of one watchlist. Find trials has its own screen. Renaming, deleting and adding are small dialogs.",
+  "Streamlit, the in-browser runtime and the GitHub Pages site were deleted.",
+  "It was built as the feature's tickets, then a whole-branch review and a round of fix tickets. All of it is on main, in pull request #1."
  ],
  "so_what": [
   "The analyst sees what changed before opening anything, and can review it without losing their place.",
-  "A trial that could not be checked, a saved search that failed and a registry that could not be reached are each said in words, and nothing that failed is shown as current. One failure is not said in words: with the local server stopped, an action shows the browser's own \"Failed to fetch\". It is one of the findings left as they are, listed below.",
-  "It runs on your machine only and on a desktop only: designed at 1440 pixels wide and working down to 1024. Phones were ruled out in the brief.",
-  "The tickets alone did not catch everything: walkers and the review found defects after the tickets were done, and the re-check after the fixes found more. The page lists 46 findings: the 37 defects the old defect log holds, and the nine walker findings the feature's spec lists as found and not fixed. That is not every finding. The review recorded 62: its 17 blocking ones are below, 10 design choices went to the Open list, 7 small ones were fixed in fix ticket 12, and 28 were dropped as nits, each with a reason (.scratch/pr-1-review/ranked.md). The review's second read after the fixes recorded seven more, and they are not below."
+  "A trial that could not be checked, a saved search that failed and a registry that could not be reached are each said in words. Nothing that failed is shown as current.",
+  "One failure is not in words: with the local server stopped, an action shows the browser's own \"Failed to fetch\". It is among the findings left as they are.",
+  "It runs on your machine only, on a desktop: designed at 1440 pixels wide, working down to 1024. Phones were ruled out in the brief.",
+  "The tickets alone did not catch everything: walkers and the review found defects after the tickets were done, and the re-check found more."
  ],
  "now_what": [
-  "Nothing here waits on a decision about the build: it is merged, and you signed off its run-through on 11 November 2026. This page was made afterwards so that you can judge the page itself.",
-  "The recording was made on the code as it is today, not on the commit the build ended at. The page says which commit.",
-  "The checks run log did not exist when this feature was built, so it has no line for this build and the page cannot say how many check runs were red.",
-  "The findings were converted once: 37 from the old defect log, nine from the spec's list of follow-ups. No severity was recorded for any of them. A walker row from the log can stand for several things the walkers reported, because the log merged them (its first row covers eight). The log names the walk that shows the fix for the re-check findings only; for its eleven first-pass walker findings and for eleven of the review's, the page says: fixed, no check named.",
-  "For the review's seventeen findings the defect log names no fix. Their fates rest on the review's ranked list, which gave each one to a fix ticket that was then merged, and on the review's second read (.scratch/pr-1-review/findings/round-1.md), whose table says each of the seventeen fixes landed. That table names a test or walk for six of them, and those are the checks shown below; for the other eleven it cites lines of code, or mentions a test without naming it. One of the seventeen (a check that still checked a trial removed while it ran) landed with a gap, which fix ticket 18 closed.",
-  "The fix round also left an Open list of 22 items, which stood as accepted at sign-off because no objection was raised (.scratch/html-front-end/hand-over-signoff.md). Ten of them are review findings (items 6 to 15: item 6 was done in fix ticket 08, item 12 was left, and eight were put off to a follow-up) and two are findings of the second read (items 21 and 22, put off). Apart from item 6, which is below as a walker finding, none of the 22 is on this page; they are in .scratch/pr-1-review/spec.md under \"Open list\"."
+  "Nothing waits on a decision about the build. It is merged, and you signed off its run-through on 11 November 2026.",
+  "This page was made afterwards, so that you can judge the page itself.",
+  "The recording was made on today's code, not on the commit the build ended at. The page says which commit.",
+  "The checks run log did not exist during this build, so the page cannot say how many check runs were red.",
+  "The findings here are not every finding: 37 come from the old defect log and nine from the spec's list of walker findings not fixed.",
+  "The review recorded 62. Its 17 blocking ones are here; the other 45 are accounted for in .scratch/pr-1-review/ranked.md. Seven more from its second read are not here.",
+  "No severity was recorded for any finding. One walker row can stand for several things the walkers reported, because the old log merged them.",
+  "Many findings read \"fixed, no check named\": the old log names the walk that shows the fix for the re-check findings only.",
+  "The review's 17 fates rest on its second read, which says each fix landed (.scratch/pr-1-review/findings/round-1.md). It names a test or walk for six of them.",
+  "One of the 17 landed with a gap: a check still checked a trial removed while it ran. Fix ticket 18 closed it.",
+  "The fix round left an Open list of 22 items, accepted at sign-off because no objection was raised. Only item 6 is on this page; the rest are in .scratch/pr-1-review/spec.md."
  ]
 }

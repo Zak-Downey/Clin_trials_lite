@@ -53,7 +53,7 @@ Start every subagent with a fresh context window, of the `general-purpose` type.
    - Write `.scratch/<feature>/hand-over.json`.
    - Commit until `git status --porcelain` prints nothing: delete temporary files you or your subagents made, commit the rest.
    - Run `python3 checks.py` on that commit. If it is red and the build did not stop at step 4, apply the rule for red, add what changed to `now_what`, and do this step again, once. If the build stopped at step 4, red is the true state and `now_what` already says so.
-   - Run `python3 handover.py <feature>`. If it refuses (two findings sharing an id, a line that is not JSON), correct the file it names, and `fates.jsonl` where an id changed, commit, and run it again. If it says the acceptance walk failed, hand over as it is: the page says so.
+   - Run `python3 handover.py <feature>`. It builds the page and opens it in the owner's browser. If it refuses (two findings sharing an id, a line that is not JSON, a summary line too long), correct the file it names, and `fates.jsonl` where an id changed, commit, and run it again. If it says the acceptance walk failed, hand over as it is: the page says so.
 
    Your last message to the owner is the `open` command it printed and nothing else of length. Do not push, merge or open a pull request: he decides from the page (`CLAUDE.md`, "When the owner accepts a build").
 
@@ -88,4 +88,4 @@ The page is computed from these and from git. Keep to the fields exactly; nothin
 {"what": ["what was built, as the user meets it"], "so_what": ["what he can now do that he could not, and what he should try first"], "now_what": ["what is left, unknown or not checkable here"]}
 ```
 
-Two to five short sentences in `what` and in `so_what`; `now_what` is as long as its list needs. Facts and numbers stay out of it: the page computes those. `now_what` carries, in this order and only where they exist: a question the spec could not answer; a ticket not built and the red check that stopped it; every finding left unfixed; what a walker reported it could not try.
+One thing per line. `what` and `so_what` take at most five lines each, and no line of the three is longer than 200 characters: the script refuses more. `now_what` is as long as its list needs, weightiest first, because the page shows its first five lines and folds the rest. Facts and numbers stay out of it: the page computes those. `now_what` carries, in this order and only where they exist: a question the spec could not answer; a ticket not built and the red check that stopped it; every finding left unfixed; what a walker reported it could not try.

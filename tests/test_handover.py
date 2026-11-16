@@ -3,7 +3,8 @@
 These test the parts that read and compute, what the page draws for each state of the
 records, and that the page escapes what it is given. Git facts come from a small real
 repository made in a temporary folder; the walk is run through a stand-in for
-.venv/bin/python. Lacks: the real browser run (`handover.py` is run for real for that).
+.venv/bin/python. Lacks: the real browser run (`handover.py` is run for real for that),
+and so the page's script, which only steps through pictures the page already shows.
 """
 
 from __future__ import annotations
@@ -47,8 +48,24 @@ def row(text: str, label: str) -> str:
 
 
 def top(text: str) -> str:
-    """What the page says before its first section: the title and the strip under it."""
-    return text[:text.index("<h2>The recording</h2>")]
+    """What the page says before its first section: the title and the board under it."""
+    return text[:text.index('<section id="recording">')]
+
+
+def tile(text: str, href: str) -> tuple[str, str]:
+    """(colour, words) of the board's verdict tile that links to `href`."""
+    return re.search(rf'<a class="tile (\w*)" href="{href}">.*?<strong>(.*?)</strong>', top(text), re.S).groups()
+
+
+def chip(text: str, look: str, href: str, words: str) -> bool:
+    """Whether the board has this label, with this look, linking to `href`."""
+    return bool(re.search(rf'<a class="pill {look}" href="{href}">(?:<i class="sw [\w-]+"></i>)?{re.escape(words)}</a>', top(text)))
+
+
+def drawn_green(text: str) -> list[str]:
+    """Everything the page draws as passed: a tile, a label, a check or the headline. (A square of the run history is
+    drawn blue or red, never in the passed green: an old run is not a verdict.)"""
+    return re.findall(r'class="[^"]*(?<![\w-])green(?![\w-])[^"]*"', text)
 
 
 # Joining findings to fates.
@@ -173,6 +190,19 @@ def test_a_hand_over_json_of_the_wrong_shape_stops_the_run_and_names_the_file(tm
     assert handover.read_summary(tmp_path) == {"what": ["Built."]}
 
 
+def test_a_summary_too_long_to_read_at_a_glance_stops_the_run_and_says_what_to_cut(tmp_path):
+    longest, most = "x" * handover.LINE_LENGTH, ["One thing."] * handover.SUMMARY_LINES
+    fits = {"what": most, "so_what": [longest], "now_what": most + most}  # what is left is as long as its list needs
+    (tmp_path / "hand-over.json").write_text(json.dumps(fits), encoding="utf-8")
+    assert handover.read_summary(tmp_path) == fits
+    for wrong, said in (({"what": most + ["One more."]}, "what has 6 lines"), ({"so_what": most + ["One more."]}, "so_what has 6 lines"),
+                        ({"now_what": ["Short.", longest + "x"]}, f"now_what line 2 is {handover.LINE_LENGTH + 1} characters")):
+        (tmp_path / "hand-over.json").write_text(json.dumps(wrong), encoding="utf-8")
+        with pytest.raises(SystemExit) as stopped:
+            handover.read_summary(tmp_path)
+        assert said in str(stopped.value) and "hand-over.json" in str(stopped.value) and "\n" not in str(stopped.value)
+
+
 # The checks run log.
 
 def run(branch, result, at="2026-11-16T10:00:00Z", names=tuple(handover.CHECK_NAMES), **more):
@@ -197,6 +227,7 @@ def test_red_runs_are_counted_for_this_branch_only_and_the_last_run_is_this_bran
     assert facts["runs"] == 3
     assert facts["full"]["at"] == "2026-11-16T10:20:00Z" and facts["full"]["result"] == "green"
     assert facts["later"] is None and facts["why_unknown"] == ""
+    assert [(r["result"], r["full"]) for r in facts["history"]] == [("red", True), ("red", True), ("green", True)]
 
 
 def test_an_absent_run_log_is_unknown_never_zero(tmp_path):
@@ -220,7 +251,7 @@ def test_what_is_unknown_is_drawn_as_unknown_never_as_a_number_or_a_pill():
                   "Findings recorded", "Findings with no fate"):
         assert re.fullmatch(r'<span class="unknown">[a-z ]+</span>', row(text, label)), label
     assert "does not exist" in text
-    assert "pill green" not in text and "Checks: unknown" in top(text)
+    assert not drawn_green(text) and tile(text, "#facts") == ("amber", "Checks: unknown")
     one_empty_file = page(files={"walker-find-trials.jsonl": []})
     assert row(one_empty_file, "Findings recorded") == "0" and row(one_empty_file, "Findings with no fate") == "0"  # looked: a true zero
 
@@ -231,9 +262,10 @@ def test_a_run_of_one_named_check_is_never_the_last_checks_run_and_never_turns_t
     assert runs["full"]["result"] == "red" and runs["later"]["at"] == "2026-11-16T10:20:00Z"
     text = page(runs=runs, git=GIT)
     last = row(text, "Last checks run")
-    assert 'pill red">red<' in last and "pill green" not in text
+    assert 'pill red">red<' in last and not drawn_green(text)
     assert "A later run of unit only was green at 16 Nov 2026, 10:20 UTC; it did not run patterns, escapes, walks." in last
-    assert "Checks RED" in top(text)
+    assert tile(text, "#facts") == ("red", "Checks RED")
+    assert re.findall(r'<span class="(r-\w+)( part)?" title', text) == [("r-red", ""), ("r-green", " part")]  # every run, oldest first
     assert "1 of 2 runs" in row(text, "Red check runs") and "a run of one named check too" in text
 
 
@@ -245,17 +277,54 @@ def test_with_no_run_of_every_check_the_last_checks_run_is_unknown_and_says_why(
     assert row(text, "Last checks run").startswith('<span class="unknown">unknown</span>')
     assert "The last run of patterns, escapes only was green" in text and "it did not run unit, walks" in text
     assert "none of them is a run of every check (patterns, escapes, unit, walks)" in text
-    assert "pill green" not in text and "Checks: unknown" in top(text)
+    assert not drawn_green(text) and tile(text, "#facts") == ("amber", "Checks: unknown")
 
 
 def test_a_green_run_is_drawn_green_only_on_the_build_s_last_commit_as_committed():
     green = lambda **more: page(runs=handover.run_facts([run("feature/x", "green", **more)], "feature/x"), git=GIT)  # noqa: E731
-    assert 'pill green">green<' in row(green(), "Last checks run") and "Checks green</a>" in top(green())
+    assert 'pill green">green<' in row(green(), "Last checks run") and tile(green(), "#facts") == ("green", "Checks green")
+    assert top(green()).count('<span class="chk green">') == 4  # each check of that run, on the tile
     for text in (green(tip="fff9999"), green(dirty=True)):
-        assert "pill green" not in text
-        assert "Checks green, on code that is not the build&#x27;s last commit" in top(text)
+        assert not drawn_green(text) and top(text).count('<span class="chk ">') == 4
+        assert tile(text, "#facts") == ("amber", "Checks green, on code that is not the build&#x27;s last commit")
     assert "on commit fff9999, not the build&#x27;s last commit (abc1234)" in green(tip="fff9999")
     assert "with uncommitted changes in the folder" in green(dirty=True)
+
+
+def test_a_later_run_of_one_check_that_was_not_green_is_on_the_board_not_only_in_the_folded_list():
+    walked = {"git": GIT, "recording": {"commit": "abc1234", "dirty": False, "result": "passed", "megabytes": 1.0},
+              "files": {"walker-a.jsonl": [], "review-a.jsonl": [], "early-read-whole.jsonl": []}}
+    then = lambda result: handover.run_facts([run("feature/x", "green", "2026-11-16T10:00:00Z"),  # noqa: E731
+                                              run("feature/x", result, "2026-11-16T10:20:00Z", names=("unit",))], "feature/x")
+    red = page(runs=then("red"), **walked)
+    assert tile(red, "#facts") == ("red", "Checks green, then a later run of some was RED")
+    assert '<p class="headline red">' in top(red) and "1 thing to look at" in top(red) and "Nothing on record" not in red
+    assert "A later run of unit only was red at 16 Nov 2026, 10:20 UTC; it did not run patterns, escapes, walks." in top(red)
+    assert '<span class="chk green">' not in red and top(red).count('<span class="chk ">') == 4  # the earlier green run is not drawn as passed
+    odd = page(runs=then("stopped"), **walked)
+    assert tile(odd, "#facts") == ("amber", "Checks green, then a later run of some was not green") and '<p class="headline amber">' in top(odd)
+    green = page(runs=then("green"), **walked)  # a later green run of one check changes nothing, and is not said on the board
+    assert tile(green, "#facts") == ("green", "Checks green") and "A later run" not in top(green) and '<p class="headline green">' in top(green)
+    only_red = page(runs=handover.run_facts([run("feature/x", "red", names=("unit",))], "feature/x"), **walked)  # no run of every check at all
+    assert tile(only_red, "#facts") == ("red", "Checks: the last run was RED") and "The last run of unit only was red" in top(only_red)
+
+
+def test_why_a_green_run_is_not_counted_is_said_on_the_tile_itself():
+    green = lambda **more: top(page(runs=handover.run_facts([run("feature/x", "green", **more)], "feature/x"), git=GIT))  # noqa: E731
+    assert "This run was on commit fff9999, not the build&#x27;s last commit (abc1234)." in green(tip="fff9999")
+    assert "This run was with uncommitted changes in the folder." in green(dirty=True)
+    assert "This run was" not in green()
+
+
+def test_the_squares_of_the_run_history_and_the_lines_bar_are_never_the_passed_green():
+    css = handover.CSS
+    ok = re.search(r"--ok: (#\w+)", handover.LIGHT).group(1)
+    assert ".runs .r-green { background: var(--fixed); }" in css and ".runs .part.r-green { border-color: var(--fixed); }" in css
+    for tokens in (handover.LIGHT, handover.DARK):
+        colours = dict(re.findall(r"--([\w-]+): (#\w+)", tokens))
+        assert len({colours[name] for name in ("ok", "warn-fill", "bad-fill", "fixed", "s1", "s2", "s3")}) == 7
+    assert ok not in re.sub(r"--ok(-bg)?: #\w+", "", handover.LIGHT)
+    assert "Blue was green when it ran, red was red" in page(runs=handover.run_facts([run("feature/x", "green")], "feature/x"))
 
 
 def test_a_check_that_was_not_run_has_no_duration_and_a_very_short_one_is_not_zero_minutes():
@@ -325,6 +394,7 @@ def test_git_facts_count_commits_time_files_lines_and_tests_added_and_removed(re
     assert facts["tip"] == git(repo, "rev-parse", "--short", "feature/x")
     text = page(git=facts)
     assert row(text, "Tests") == "3 added, 1 removed"
+    assert [text.count(f'title="{kind}: {count}"') for kind, count in (("product", 4), ("tests and walks", 10))] == [1, 1]  # the lines bar
     assert "of them 4 product, 10 tests and walks, 3 build records and kit (.scratch/, .claude/)" in text
 
 
@@ -428,7 +498,7 @@ def test_a_hostile_string_is_escaped_everywhere_it_is_drawn():
                        "minutes": 1.5, "megabytes": 1.0},
             shots=[HOSTILE + ".png"], built={"at": HOSTILE, "commit": HOSTILE},
         ))
-        assert "<script>" not in text
+        assert text.count("<script") == 1  # the page's own
         assert "<img src=x" not in text
         assert text.count("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; &lt;img src=x onerror=1&gt;") > 30
 
@@ -454,25 +524,56 @@ def test_no_fate_left_and_fixed_with_no_check_each_have_their_own_look_and_no_fa
     assert row(text, "Findings with no fate") == '<span class="badly">1</span>'
 
 
-def test_the_strip_under_the_title_says_what_needs_the_owner_before_anything_else():
-    clean = page([finding("A")], fates={"A": fate("A")}, git=GIT, runs=handover.run_facts([run("feature/x", "green")], "feature/x"),
-                 recording={"commit": "abc1234", "dirty": False, "result": "passed", "megabytes": 1.0})
-    assert "Where it stands" in top(clean)
-    for words in ('pill green" href="#recording">The walk passed<', 'pill green" href="#facts">Checks green<', 'pill " href="#group-0">Fixed: 1<'):
-        assert words in top(clean), words
-    red = page([finding("A")], fates={"A": fate("A")}, git=GIT, runs=handover.run_facts([run("feature/x", "red")], "feature/x"))
-    assert 'pill red" href="#facts">Checks RED<' in top(red) and "pill green" not in top(red)
+def test_the_board_under_the_title_says_what_needs_the_owner_before_anything_else():
+    green_run, every = handover.run_facts([run("feature/x", "green")], "feature/x"), {"walker-a.jsonl": [finding("A")], "review-a.jsonl": [], "early-read-whole.jsonl": []}
+    settled = {"fates": {"A": fate("A")}, "git": GIT, "runs": green_run, "recording": {"commit": "abc1234", "dirty": False, "result": "passed", "megabytes": 1.0}}
+    clean = page(files=every, **settled)
+    assert '<p class="headline green">' in top(clean) and "Nothing on record needs a second look" in top(clean)
+    assert tile(clean, "#recording") == ("green", "The walk passed") and tile(clean, "#facts") == ("green", "Checks green")
+    assert chip(clean, "", "#group-0", "Fixed: 1") and "1 found" in top(clean)
+    assert "settled" not in top(clean) and "What became of a finding is the agents' record: the script did not test it." in top(clean)
+    assert '<a href="#summary">There is no builder&#x27;s summary: hand-over.json is missing.</a>' in top(clean)
+    left = lambda lines: top(page(files=every, summary={"what": [], "so_what": [], "now_what": lines}, **settled))  # noqa: E731
+    assert '<a href="#summary">The builder lists 2 things as left for you, further down.</a>' in left(["Ticket 07 was not built.", "Try it in Safari."])
+    assert "The builder lists 1 thing as left for you" in left(["One."]) and "The builder wrote nothing as left for you." in left([])
+    no_findings = top(page(files={name: [] for name in every}, **{**settled, "fates": {}}))
+    assert '<p class="headline green">' in no_findings and "the findings files hold no findings" in no_findings and "agents" not in no_findings
+    odd_pass = page(files={**every, "walker-a.jsonl": [finding("A", round="third")]}, **settled)
+    assert '<p class="headline amber">' in top(odd_pass) and "1 thing to look at" in top(odd_pass)
+    assert chip(odd_pass, "amber", "#finders", "Pass not recognised: 1")
+    two_did_not_look = top(page([finding("A")], **settled))  # the walker's file only
+    assert '<p class="headline amber">' in two_did_not_look and "2 things to look at before you decide" in two_did_not_look
+    assert "Nothing on record" not in two_did_not_look
+    red = page(files=every, fates={"A": fate("A")}, git=GIT, runs=handover.run_facts([run("feature/x", "red")], "feature/x"))
+    assert tile(red, "#facts") == ("red", "Checks RED") and not drawn_green(red)
+    assert '<p class="headline red">' in top(red) and "2 things to look at" in top(red)  # the checks, and no walk
     no_fate = page([finding("A"), finding("B"), finding("C"), finding("D")],
                    fates={"A": fate("A"), "C": fate("C", "left"), "D": fate("D", check=""), "Z": fate("Z")})
-    for words in ('pill bad" href="#group-0">No fate recorded: 1<', 'pill warn" href="#group-1">Left as it is: 1<',
-                  'pill note" href="#group-2">Fixed, no check named: 1<', 'pill " href="#group-3">Fixed: 1<',
-                  'pill amber" href="#findings">Fate lines matching no finding: 1<', 'pill amber" href="#recording">The walk was not run for this page<',
-                  'pill amber" href="#finders">Review: no findings file<'):
-        assert words in top(no_fate), words
+    for look, href, words in (("bad", "#group-0", "No fate recorded: 1"), ("warn", "#group-1", "Left as it is: 1"),
+                              ("note", "#group-2", "Fixed, no check named: 1"), ("", "#group-3", "Fixed: 1"),
+                              ("amber", "#findings", "Fate lines matching no finding: 1"), ("amber", "#finders", "Review: no findings file")):
+        assert chip(no_fate, look, href, words), words
+    assert tile(no_fate, "#recording") == ("amber", "The walk was not run for this page")
+    assert re.findall(r'<span class="(s-\w+)" style="flex-grow: 1"', top(no_fate)) == ["s-bad", "s-left", "s-nocheck", "s-fixed"]  # the bar
+    assert '<p class="headline red">' in top(no_fate) and "8 things to look at" in top(no_fate) and "4 found" in top(no_fate)
     assert 'id="group-0" class="group bad"' in no_fate
     nothing = top(page())
     nothing = nothing[nothing.index("<header>"):]
-    assert "No findings file was read" in nothing and not re.search(r">[^<]*\b0\b[^<]*<", nothing)  # none recorded is never drawn as 0
+    assert "No findings file was read" in nothing and "Nobody looked" in nothing
+    assert not re.search(r">[^<]*\b0\b[^<]*<", nothing)  # none recorded is never drawn as 0
+
+
+def test_a_reason_every_finding_of_a_group_shares_is_said_once_above_the_cards():
+    why = "Out of scope for this build."
+    same = page([finding("A"), finding("B"), finding("C")], fates={i: fate(i, "left", why=why) for i in "ABC"})
+    assert same.count(why) == 1 and f"The record gives the same reason for all 3: {why}" in same
+    mixed = page([finding("A"), finding("B")], fates={"A": fate("A", "left", why=why), "B": fate("B", "left", why="Another reason.")})
+    assert mixed.count(why) == 1 and "Another reason." in mixed and "the same reason" not in mixed
+    alone = page([finding("A")], fates={"A": fate("A", "left", why=why)})
+    assert alone.count(why) == 1 and "the same reason" not in alone
+    assert "the same reason" not in page([finding("A"), finding("B")], fates={i: fate(i) for i in "AB"})  # no reason given is not a shared reason
+    folded = same[same.index('<section id="findings">'):]
+    assert "those whose record is missing or does not hold up" in folded and "settled" not in folded
 
 
 def test_the_page_labels_what_an_agent_wrote_and_what_the_script_computed():
@@ -488,6 +589,16 @@ def test_the_page_labels_what_an_agent_wrote_and_what_the_script_computed():
     assert all(words not in top(text) for words in agent_words)
     assert "the script did not check them" in sections["summary"] and "the script did not check them" in sections["findings"]
     assert "copied from the findings files" in sections["findings"]
+
+
+def test_what_is_left_shows_its_first_lines_and_folds_the_rest_under_their_count():
+    lines = [f"Left {n}." for n in range(1, 8)]
+    text = page(summary={"what": ["Built."], "so_what": ["It matters."], "now_what": lines})
+    card = text[text.index("What is left for you"):text.index("</section>", text.index("What is left for you"))]
+    shown, folded = card.split("<details>")
+    assert [line in shown for line in lines] == [True] * 5 + [False] * 2
+    assert "<summary>2 more</summary>" in folded and all(line in folded for line in lines[5:])
+    assert "<details>" not in page(summary={"what": ["Built."], "so_what": ["It matters."], "now_what": lines[:5]}).split('id="summary"')[1].split("</section>")[0]
 
 
 def test_the_page_says_so_when_there_is_no_summary_no_recording_and_no_findings_file():
@@ -538,7 +649,8 @@ def test_every_finding_read_is_drawn_once_as_a_card_and_counted_once_in_each_cou
     assert sum(int(n) for n in re.findall(r'<span class="count">(\d+)</span>', text)) == 8  # the groups
     table = re.search(r"<tbody>(.*?)</tbody>", text, re.S).group(1)
     assert sum(int(n) for n in re.findall(r">(\d+)</(?:td|span)>", table)) == 8  # the finders table
-    assert sum(int(n) for n in re.findall(r'href="#group-\d+">[^<]*: (\d+)<', top(text))) == 8  # the strip
+    assert sum(int(n) for n in re.findall(r'href="#group-\d+"><i[^>]*></i>[^<]*: (\d+)<', top(text))) == 8  # the board's labels
+    assert sum(int(n) for n in re.findall(r'style="flex-grow: (\d+)" title', top(text))) == 8 and "8 found" in top(text)  # its bar
     assert row(text, "Findings recorded") == "8"
     assert "<code>walker-a.jsonl</code>: 4" in text and "<code>other.jsonl</code>: 4" in text
 
@@ -551,7 +663,7 @@ def test_the_page_names_the_commit_the_recording_was_made_on_and_shows_the_video
     text = page(recording=RECORDING, shots=["a-01-created.png"])
     assert '<video controls' in text and 'src="recording.webm"' in text
     assert "dd4ea9d" in text and "uncommitted changes" in text and "21:00 UTC" in text
-    assert 'src="shots/a-01-created.png"' in text
+    assert '<img src="shots/a-01-created.png" alt="Step 1: created">' in text and "<figcaption>Step 1: created</figcaption>" in text
     assert "walk-output.txt" not in text  # a walk that passed has nothing to chase
 
 
@@ -561,7 +673,7 @@ def test_a_walk_is_drawn_as_passed_only_when_it_passed_on_the_build_s_last_commi
     elsewhere = page(recording={**RECORDING, "dirty": False}, git=GIT)
     assert "That is not the last commit of the build (abc1234)" in elsewhere
     for text in (elsewhere, page(recording={**RECORDING, "commit": "abc1234"}, git=GIT)):
-        assert "pill green" not in text
+        assert not drawn_green(text)
         assert text.count("The walk passed, on code that is not the build&#x27;s last commit") == 2  # the strip and the section
 
 
@@ -570,8 +682,8 @@ def test_a_walk_is_drawn_as_passed_only_when_it_passed_on_the_build_s_last_commi
 def test_a_walk_that_did_not_pass_is_never_drawn_as_passed_with_or_without_a_video(result, words):
     for megabytes in (11.2, None):
         text = page(recording={**RECORDING, "result": result, "megabytes": megabytes, "reason": "It was stopped after 15 minutes"})
-        assert text.count(words) == 2 and "The walk passed" not in text and "pill green" not in text
-        assert f'pill {"red" if result else "amber"}" href="#recording">{words}<' in top(text)
+        assert text.count(words) == 2 and "The walk passed" not in text and not drawn_green(text)
+        assert tile(text, "#recording") == ("red" if result else "amber", words)
         assert '<a href="walk-output.txt">' in text and "It was stopped after 15 minutes." in text
         assert ("<video" in text) == (megabytes is not None)
         assert ("It left no video file." in text) == (megabytes is None)
@@ -584,14 +696,38 @@ def test_a_walk_that_passed_but_left_no_video_says_so():
     assert "<video" not in text and "It left no video file." in text and "MB" not in text
 
 
-def test_the_page_needs_nothing_from_outside_and_no_script():
+def test_the_walk_s_own_sentence_promises_only_what_the_walk_left():
+    two, one = ["a-01-created.png", "a-02-fresh.png"], ["a-01-created.png"]
+    passed = page(recording=RECORDING, shots=two)
+    assert "2 moments from the acceptance walk, the whole journey by keyboard alone. Step through them, or watch the recording of all of it." in passed
+    assert "Ran for 1.5 minutes" in top(passed)
+    no_film = page(recording={**RECORDING, "megabytes": None}, shots=two)
+    assert "Step through them." in no_film and "watch the recording" not in no_film
+    failed = page(recording={**RECORDING, "result": "failed"}, shots=two)
+    assert "2 moments from the acceptance walk, up to where it stopped. Step through them, or watch the recording." in failed
+    assert "whole journey" not in failed and "all of it" not in failed
+    assert "Ended after 1.5 minutes" in top(failed) and "Ran for" not in top(failed)
+    single = page(recording={**RECORDING, "result": "failed"}, shots=one)
+    assert "1 moment from the acceptance walk, up to where it stopped. The recording shows the rest." in single and "Step through them" not in single
+    assert "The acceptance walk, up to where it stopped." in page(recording={**RECORDING, "result": "did not run", "megabytes": None})
+    inside = page(recording=RECORDING, shots=[{"name": "a-01-created.png", "src": "data:image/png;base64,cG5n"}, {"name": "a-02-fresh.png", "src": "data:image/png;base64,cG5n"},
+                                               {"name": "a-03-big.png", "src": "shots/a-03-big.png"}])
+    assert inside.count('loading="lazy"') == 1 and '<img src="shots/a-03-big.png" alt="Step 3: big" loading="lazy">' in inside  # only a picture that is a file can wait
+
+
+def test_the_page_loads_nothing_from_outside_and_its_one_script_is_its_own():
     text = page([finding("A"), finding("B")], fates={"A": fate("A"), "Z": fate("Z")}, git=GIT, recording={**RECORDING, "result": "failed"},
                 runs=handover.run_facts([run("feature/x", "green")], "feature/x"), shots=["a-01-created.png"],
                 summary={"what": ["w"], "so_what": ["s"], "now_what": ["n"]}, built={"at": "2026-11-16T21:00:00+00:00", "commit": "abc1234"})
-    assert "<script" not in text and "javascript:" not in text
+    assert text.count("<script") == 1 and f"<script>{handover.SCRIPT}</script>" in text and "javascript:" not in text
+    assert not re.search(r"fetch|XMLHttp|WebSocket|import|http|location|cookie|eval|innerHTML", handover.SCRIPT)  # it only shows and hides
+    for part in ('a[href^="#group-"]', "g.open = true", "if (video.error)", "reel.scrollLeft", "ev.preventDefault()", "frames.length < 2"):
+        assert part in handover.SCRIPT, part  # the script is not run here: these pin what a browser look found missing
+    assert '[data-theme="dark"]' in text and ':root:not([data-theme="light"])' in text
     assert "http://" not in text and "https://" not in text and "//" not in text.replace("</", "")
     assert set(re.findall(r'(?:href|src)="([^"]*)"', text)) == {
-        "#recording", "#facts", "#findings", "#finders", "#group-0", "#group-1", "walk-output.txt", "recording.webm", "shots/a-01-created.png"}
+        "#recording", "#facts", "#findings", "#finders", "#summary", "#group-0", "#group-1", "walk-output.txt", "recording.webm",
+        "shots/a-01-created.png"}
     assert "prefers-color-scheme: dark" in text
     assert 'name="viewport"' in text
     assert "only you know" not in text  # blanks nobody can type in are gone
@@ -661,7 +797,8 @@ def test_a_walk_that_passes_leaves_its_own_video_this_run_s_screenshots_and_its_
     assert not (feat / "recording-tmp").exists()
     assert (feat / "walk-output.txt").read_text() == "what the walk printed\n"
     text = (feat / "index.html").read_text()
-    assert "<video" in text and "The walk passed" in text and "02-fresh.png" in text and "01-stale" not in text
+    assert "<video" in text and "The walk passed" in text
+    assert '<img src="data:image/png;base64,cG5n" alt="Step 2: fresh">' in text and "stale" not in text  # the picture is inside the page
     assert "handover:" not in capsys.readouterr().out
 
 
@@ -715,6 +852,33 @@ def test_a_record_file_that_stops_the_run_stops_it_before_the_walk_is_recorded(r
         handover.main(["feat"], root=repo)
     assert str(stopped.value).startswith("handover: ")
     assert (feat / "recording.webm").read_text() == "an earlier video"  # nothing was wiped
+
+
+def test_a_small_screenshot_goes_inside_the_page_and_a_very_large_one_stays_a_file_beside_it(tmp_path, monkeypatch):
+    (tmp_path / "shots").mkdir()
+    (tmp_path / "shots" / "a-01-small.png").write_bytes(b"png")
+    (tmp_path / "shots" / "a-02-large one.png").write_bytes(b"p" * 50)
+    monkeypatch.setattr(handover, "PICTURE_BYTES", 10)
+    assert handover.shots_of(tmp_path) == [{"name": "a-01-small.png", "src": "data:image/png;base64,cG5n"},
+                                           {"name": "a-02-large one.png", "src": "shots/a-02-large%20one.png"}]
+    assert handover.shots_of(tmp_path / "nowhere") == []
+
+
+def test_run_as_a_script_the_page_is_opened_in_the_browser_unless_told_not_to(repo, capsys):
+    (repo / ".scratch" / "feat").mkdir(parents=True)
+    opened = []
+    assert handover.main(["feat", "--no-walk"], root=repo, show=opened.append) == 0
+    page_file = repo / ".scratch" / "feat" / "hand-over" / "index.html"
+    assert opened == [page_file.resolve().as_uri()] and opened[0].startswith("file:///")
+    assert capsys.readouterr().out.splitlines()[-1] == f"open {page_file}"  # still printed, for a session that cannot open it
+    assert handover.main(["feat", "--no-walk", "--no-open"], root=repo, show=opened.append) == 0 and len(opened) == 1
+    capsys.readouterr()
+
+    def broken(address):
+        raise OSError("no browser")
+    with pytest.raises(OSError):
+        handover.main(["feat", "--no-walk"], root=repo, show=broken)
+    assert capsys.readouterr().out.splitlines()[-1] == f"open {page_file}"  # printed before the browser is asked, so it is never lost
 
 
 def test_the_walk_helper_records_nothing_unless_it_is_asked_to(monkeypatch):
