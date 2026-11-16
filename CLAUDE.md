@@ -12,21 +12,12 @@ Default canonical labels: `needs-triage`, `needs-info`, `ready-for-agent`, `read
 
 ### Domain docs
 
-Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
-<!-- software-factory:start (managed by the kit; edit the kit, not this block) -->
-## Software factory
+## Building
 
-How builds are run in this repo. Read the file for your role, not all of them.
-
-- **Orchestrating a build** (the main session running `implement-spec`): `docs/agents/orchestrator.md`.
-- **Dispatched as a subagent**: your role file under `.claude/agents/` is your instructions, and names what else to read.
-- **Every agent**: tool, git, worktree and shell facts in `docs/agents/every-agent.md`; this repo's commands, walk tooling and stand-ins in `docs/agents/local/repo.md`.
-- **Writing or changing tickets**: `docs/agents/tickets.md`.
-- **Reference**: what counts as evidence, `docs/agents/evidence.md`; browser walks, `docs/agents/walkthrough.md`; CI minutes, `docs/agents/ci-spend.md`; what escaped and what each gate found, `docs/agents/local/ledger.md`.
-- **Mechanical rules are enforced, not described.** `.claude/factory/guard_bash.py` refuses the commands listed at its top. `python3 .claude/factory/gate.py` gives the frontier, says whether a ticket may be marked done, and is the ready gate.
-
-### Gate commands
-
-`python3 .claude/factory/gate.py` with no word lists them all. The ones an orchestrating session uses: `config` (validates `docs/agents/local/factory.json`), `checks` (runs every configured suite), `frontier <feature>` (what is ready), `ticket <feature> <NN>` (may this ticket be marked done), `red <feature> <NN> <check>` (writes the run in which a new check failed), `merge <feature> <NN> <branch>` (merges a ticket and runs every suite on the merged tree), `release <feature>` (moves the spec and its `needs-triage` tickets to `ready-for-agent`) and `ready` / `handover` (the ready gate and the user's list).
-<!-- software-factory:end -->
+- **Checks.** `python3 checks.py` runs every check (the unit suite, the pattern rules, the browser walks), prints one line per check and exits non-zero when any is red. `python3 checks.py unit` runs one by name. Nothing is called working until this is green.
+- **A build** is `/implement-spec` (`.claude/skills/implement-spec/SKILL.md`): one ticket at a time, on the feature branch.
+- **Hand-over.** `python3 handover.py <feature>` builds the one page the owner judges a build from.
+- **A correction becomes a check.** When the owner or a reviewer finds a defect the checks missed: first add a check that is red because of it (a unit test, a walk, or a pattern in `checks.py`, whichever is cheapest and can see it), then fix it, then append one line to `docs/agents/local/escapes.jsonl` naming that check.
+- **This repo's commands, walk tooling and stand-ins:** `docs/agents/local/repo.md`.

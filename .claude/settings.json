@@ -1,15 +1,10 @@
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "f=\"$CLAUDE_PROJECT_DIR/.claude/factory/guard_bash.py\"; [ -f \"$f\" ] || exit 0; python3 \"$f\""
-          }
-        ]
-      }
+  "permissions": {
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push origin HEAD:main:*)"
     ]
   },
   "enabledPlugins": {

@@ -1,6 +1,6 @@
 # Rule queue
 
-Rules proposed after an escape, waiting for the user to adopt or retire them. `python3 .claude/factory/gate.py handover <feature>` lists every row that is neither adopted nor retired. One row each.
+Rules proposed after a defect got past the checks, waiting for the owner to adopt or retire them. One row each. A `forbid` rule is adopted by adding its pattern to `PATTERNS` in `checks.py`, which can only be done once the code has no match left.
 
 | id | rule | kind | escape ids | proposed | adopted | review by | retired |
 |---|---|---|---|---|---|---|---|

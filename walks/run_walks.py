@@ -1,12 +1,13 @@
-"""Run the walk suite the way the gate reads it.
+"""Run the walk suite and say which red walks are real.
 
     .venv/bin/python walks/run_walks.py [pytest args]
 
 Runs `pytest walks` across four workers (one browser each) into a file under
 .scratch/<WALK_FEATURE>/walks/, prints the failures, re-runs each failed walk
 alone once, and ends with a `## Result` section: one line per walk that failed or erred,
-`red alone` or `red under load, green alone`, in the gate's shape and also appended to the output
-file. At most ALONE_CAP walks are re-run; the rest are listed as red, not re-run. Exit 1 when any walk failed alone.
+`red alone` or `red under load, green alone`, also appended to the output file
+(`read_results` reads them back). At most ALONE_CAP walks are re-run; the rest are
+listed as red, not re-run. Exit 1 when any walk failed alone.
 """
 
 from __future__ import annotations
@@ -55,9 +56,26 @@ def split_args(argv):
 
 
 def result_line(nodeid: str, verdict: str, where: str) -> str:
-    """`<file> \u203a <title>: <verdict> (retry: <path>)`, the shape the gate's `walk_results` reads."""
+    """`<file> \u203a <title>: <verdict> (retry: <path>)`, the shape `read_results` reads."""
     file, _, title = nodeid.partition("::")
     return f"{file} \u203a {title}: {verdict} (retry: {where})"
+
+
+OUTPUT_RE = re.compile(r"Walk output written to (\S+) \(exit")
+RESULT_RE = re.compile(r"^(.+?) \u203a (.+): (red under load, green alone|red alone) \(retry: (.*)\)$")
+
+
+def read_results(printed: str) -> list[tuple[str, str, str, str]]:
+    """(file, title, verdict, path) for each line of the `## Result` section of the output file
+    a run named in what it printed. Empty when the run named no file or the file has no section."""
+    found = OUTPUT_RE.search(printed)
+    if not found or not pathlib.Path(found.group(1)).is_file():
+        return []
+    text = pathlib.Path(found.group(1)).read_text()
+    if "\n## Result" not in text:
+        return []
+    lines = text.split("\n## Result", 1)[1].split("\n")
+    return [m.groups() for m in map(RESULT_RE.match, lines) if m]
 
 
 def exit_code(code: int, result: list[str]) -> int:
