@@ -6,11 +6,16 @@
 Each check's output goes to .checks/<name>.txt. One line is printed per check and one line is
 appended to .checks/runs.jsonl per run. Exit 1 when a check is red. Red is a non-zero exit code
 or a timeout: nothing here reads a suite's output to decide.
+
+The checks: `patterns` (no file matches a forbidden pattern, PATTERNS below), `escapes` (the
+defect log reads, and each new line names the check that now catches its defect), `unit`
+(pytest over tests/) and `walks` (the browser walks).
 """
 
 from __future__ import annotations
 
 import datetime
+import functools
 import json
 import os
 import pathlib
@@ -31,7 +36,7 @@ CHECKS = [
     ("walks", [PYTHON, "walks/run_walks.py"], 20),
 ]
 
-# A pattern no file may match. Each came from a defect that got past the checks (docs/agents/local/rules.md).
+# A pattern no file may match. Each is a line of CODING_STANDARDS.md that a pattern can see.
 # A rule is added here only when the code has no match left.
 PATTERNS = [
     {
@@ -44,6 +49,7 @@ PATTERNS = [
 
 ESCAPES = "docs/agents/local/escapes.jsonl"
 CHECK_REQUIRED_FROM = "2026-11-17"  # lines from this date on must name the check that now catches the defect
+DATE = re.compile(r"\d{4}-\d{2}-\d{2}$")
 
 
 def pattern_hits(patterns=PATTERNS, root=ROOT) -> list[str]:
@@ -62,8 +68,8 @@ def pattern_hits(patterns=PATTERNS, root=ROOT) -> list[str]:
 
 
 def escape_problems(path=ESCAPES, root=ROOT, required_from=CHECK_REQUIRED_FROM) -> list[str]:
-    """What is wrong with the defect log: a line that is not JSON, a repeated id, or a line from
-    `required_from` on whose `check` does not name a file that exists."""
+    """What is wrong with the defect log: a line that is not JSON, has no id or a repeated one, has
+    no date written YYYY-MM-DD, or is from `required_from` on and its `check` names no file that exists."""
     problems, seen = [], set()
     file = pathlib.Path(root) / path
     if not file.is_file():
@@ -80,7 +86,10 @@ def escape_problems(path=ESCAPES, root=ROOT, required_from=CHECK_REQUIRED_FROM) 
         if not ident or ident in seen:
             problems.append(f"{path}:{number}: id missing or repeated ({ident!r})")
         seen.add(ident)
-        if str(row.get("date", "")) >= required_from:
+        date = str(row.get("date", ""))
+        if not DATE.match(date):
+            problems.append(f"{path}:{number}: {ident} has no date written YYYY-MM-DD ({date!r})")
+        elif date >= required_from:
             check = str(row.get("check", "")).split("::")[0]
             if not check or not (pathlib.Path(root) / check).is_file():
                 problems.append(f"{path}:{number}: {ident} names no check file that exists ({check!r})")
@@ -109,17 +118,21 @@ def run_one(command, minutes, output, root=ROOT, env=None) -> tuple[str, float]:
         except OSError as error:
             out.write(f"could not start {command[0]}: {error}\n")
             return "red", 0.0
+        stopped = False
         try:
             code = process.wait(timeout=minutes * 60)
         except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
-            process.wait()
+            code, stopped = 1, True
+        finally:  # a timeout, Ctrl+C or a closed terminal: the check and its children never outlive this
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+        if stopped:
             out.write(f"\nchecks.py: stopped after {minutes} minutes\n")
-            code = 1
     return ("green" if code == 0 else "red"), round((time.monotonic() - started) / 60, 2)
 
 
-def run(names=(), checks=None, root=ROOT, out=print) -> int:
+def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=True)) -> int:
     checks = CHECKS if checks is None else checks
     known = [name for name, _, _ in checks]
     unknown = [name for name in names if name not in known]
@@ -158,7 +171,6 @@ def run(names=(), checks=None, root=ROOT, out=print) -> int:
         "dirty": bool(git("status", "--porcelain", root=root)),
         "result": "red" if red else "green",
         "minutes": total,
-        "all": not names,
         "checks": results,
     }
     with open(folder / "runs.jsonl", "a") as log:
@@ -180,4 +192,6 @@ def main(argv) -> int:
 
 
 if __name__ == "__main__":
+    for stop in (signal.SIGTERM, signal.SIGHUP):  # stopped from outside: leave through run_one's finally
+        signal.signal(stop, lambda *_: sys.exit(143))
     sys.exit(main(sys.argv[1:]))

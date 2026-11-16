@@ -7,7 +7,7 @@ What is particular to this repo. Every line below is a fact of this repo; a line
 - **Unit suite.** `.venv/bin/python -m pytest -q`, run from the repo root (tests in `tests/`). Under `checks.py` its output goes to `.checks/unit.txt`.
 - **Walk suite.** `.venv/bin/python walks/run_walks.py` (four workers, then each failure alone; output under `.scratch/<feature>/walks/walks-run.txt`). One walk alone: `.venv/bin/python -m pytest walks/test_needs_review_walk.py -q`. Under `checks.py` the check is named `walks`.
 - **Outline a module.** `grep -n '^def \|^class ' <file>.py`
-- **Every check.** `python3 checks.py` runs the suites above and the pattern rules; the list is at the top of `checks.py`. Each check's output is a file under `.checks/` (git-ignored), and each run appends one line to `.checks/runs.jsonl`.
+- **Every check.** `python3 checks.py` runs four checks, cheapest first, stopping at the first red: `patterns` (no file matches a forbidden pattern), `escapes` (the defect log reads, and each new line names its check), `unit` and `walks`; the list is at the top of `checks.py`. A full run takes about four minutes (the walks can take up to twenty when many are red): give it a ten-minute timeout or run it in the background. Each check's output is a file under `.checks/` (git-ignored), and each run appends one line to `.checks/runs.jsonl`.
 
 ## Walks
 
@@ -16,7 +16,7 @@ What is particular to this repo. Every line below is a fact of this repo; a line
 - **Walk output.** `.scratch/<feature>/walks/` (git-ignored): `<walk>-NN-<step>.png`, a `-final` shot of every failed walk, and `walks-run.txt`.
 - **Recording a walk.** `WALK_RECORD=<folder>` records each walk's page as `<folder>/<walk>.webm`, slowed so a person can follow it (`WALK_SLOW_MO` milliseconds a step, default 350). It is for one walk at a time; `python3 handover.py <feature>` uses it to record the acceptance walk for the hand-over page. Unset, nothing is recorded and nothing is slowed.
 - **Shared client plumbing.** `webapp/static/app.js`, `webapp/static/focus.js`, `webapp/static/api.js`, `webapp/static/style.css`, `walks/helper.py`, `walks/conftest.py`, `walks/standin_registry.py`, `walks/serve.py`. A change to one runs the whole walk suite.
-- **Areas.** The shell and sidebar; each watchlist tab (`webapp/static/views/`); Find trials.
+- **Areas.** The shell and sidebar; Needs review; All trials; New matches; Summary; the trial page; Find trials.
 - **Viewports.** 1440 x 900 and 1024 x 768 (every walk runs at both); the acceptance walk (`walks/test_acceptance_walk.py`) runs at both in Chromium and at 1440 x 900 in Playwright's WebKit (`.venv/bin/playwright install webkit` once; it is part of the walks check). The browser runs in Asia/Tokyo and the server in America/New_York, so a time shifted into the browser's zone shows.
 - **Agents running browsers at once.** 3 (a suite run uses four workers; the runner re-runs a failure alone, so load-only flakes show as such).
 - **Not checkable by a walk here.** Wording and legibility, Safari, real hardware, the live registry (`walks/fidelity_check.py` is by hand).
@@ -24,6 +24,8 @@ What is particular to this repo. Every line below is a fact of this repo; a line
 ## Running a walk
 
 Write `walk = make_walk(make_app(seed=helper.seed_queue))`, `walk.page.goto(app.url)`, act by role and name, assert on what is drawn, `walk.shot("step")`. The stand-in registry's switches are `registry.set("revise")` and so on (its control endpoint, never the app). A new guard or helper change runs `walks/test_walk_guards.py`, which runs deliberately broken pages in `walks/broken/`. A walk that proves an error response declares it first with `walk.expect(status, path)`; the guards then treat that response as expected, and fail the walk if it never comes.
+
+A script outside `walks/` (a walker's or reviewer's, under `.scratch/<feature>/findings/scripts/`) runs from the repo root with `WALK_FEATURE=<feature> .venv/bin/python -m pytest -p walks.conftest <script> -q`; a unit one with `-p tests.conftest`. The `-p` loads the fixtures and the hook that fails a walk whose guards tripped; do not copy or import the fixtures by name instead, because that leaves the hook out.
 
 ## Stand-ins
 

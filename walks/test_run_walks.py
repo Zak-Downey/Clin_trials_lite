@@ -7,6 +7,23 @@ import re
 from walks import run_walks
 
 
+OUTPUT_RE = re.compile(r"Walk output written to (\S+) \(exit")
+RESULT_RE = re.compile(r"^(.+?) \u203a (.+): (red under load, green alone|red alone) \(retry: (.*)\)$")
+
+
+def read_results(printed: str) -> list[tuple[str, str, str, str]]:
+    """(file, title, verdict, path) for each line of the `## Result` section of the output file
+    a run named in what it printed. Empty when the run named no file or the file has no section."""
+    found = OUTPUT_RE.search(printed)
+    if not found or not pathlib.Path(found.group(1)).is_file():
+        return []
+    text = pathlib.Path(found.group(1)).read_text()
+    if "\n## Result" not in text:
+        return []
+    lines = text.split("\n## Result", 1)[1].split("\n")
+    return [m.groups() for m in map(RESULT_RE.match, lines) if m]
+
+
 def test_runner_lists_a_walk_that_erred_in_setup_as_well_as_one_that_failed():
     """test_runner_lists_a_walk_that_erred_in_setup_as_well_as_one_that_failed"""
     text = (
@@ -69,8 +86,8 @@ def run_in(tmp_path, capsys, args=(), targets=None):
     return code, capsys.readouterr().out
 
 
-def test_read_results_reads_back_the_verdicts_a_run_wrote(tmp_path, capsys):
-    """test_read_results_reads_back_the_verdicts_a_run_wrote"""
+def test_a_run_ends_with_one_verdict_for_each_red_walk(tmp_path, capsys):
+    """test_a_run_ends_with_one_verdict_for_each_red_walk"""
     (tmp_path / "test_always.py").write_text("def test_always():\n    assert False\n")
     (tmp_path / "test_once.py").write_text(
         "import pathlib\n"
@@ -80,7 +97,7 @@ def test_read_results_reads_back_the_verdicts_a_run_wrote(tmp_path, capsys):
         "    m.write_text('x')\n"
         "    assert not first\n")
     _, out = run_in(tmp_path, capsys)
-    got = run_walks.read_results(out)
+    got = read_results(out)
     verdicts = {(f.rsplit("/", 1)[-1], t): v for f, t, v, _ in got}
     assert verdicts == {("test_always.py", "test_always"): "red alone",
                         ("test_once.py", "test_once"): "red under load, green alone"}
@@ -92,7 +109,7 @@ def test_runner_re_runs_at_most_ten_red_walks_alone_and_lists_the_rest_as_red(tm
     for n in range(12):
         (tmp_path / f"test_m{n:02}.py").write_text(f"def test_m{n:02}():\n    assert False\n")
     code, out = run_in(tmp_path, capsys)
-    got = run_walks.read_results(out)
+    got = read_results(out)
     assert len(got) == 12 and {v for _, _, v, _ in got} == {"red alone"}
     assert len(list((tmp_path / "out").glob("alone-*.txt"))) == 10
     assert sum("not re-run" in path for *_, path in got) == 2
@@ -104,7 +121,7 @@ def test_runner_keeps_the_alone_output_of_same_named_walks_in_different_files_ap
     for name in ("a", "b"):
         (tmp_path / f"test_{name}.py").write_text("def test_x():\n    assert False\n")
     _, out = run_in(tmp_path, capsys)
-    paths = [path for *_, path in run_walks.read_results(out)]
+    paths = [path for *_, path in read_results(out)]
     assert len(paths) == 2 and len(set(paths)) == 2
 
 
@@ -114,16 +131,8 @@ def test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re
     (tmp_path / "test_other.py").write_text("def test_other():\n    assert False\n")
     monkeypatch.chdir(tmp_path)
     _, out = run_in(tmp_path, capsys, args=["test_wanted.py::test_wanted", "--tb=short", "-k", "wanted"], targets=())
-    names = [t for _, t, _, _ in run_walks.read_results(out)]
+    names = [t for _, t, _, _ in read_results(out)]
     assert names == ["test_wanted"]
     alone = (tmp_path / "out" / "alone-test_wanted-test-wanted.txt").read_text()
     assert "1 failed" in alone
     assert "def test_wanted" not in alone  # the short traceback reached the re-run (the default one prints the source)
-
-
-def test_read_results_is_empty_when_the_run_named_no_file_or_wrote_no_result_section(tmp_path):
-    """test_read_results_is_empty_when_the_run_named_no_file_or_wrote_no_result_section"""
-    assert run_walks.read_results("nothing useful") == []
-    assert run_walks.read_results(f"Walk output written to {tmp_path / 'missing.txt'} (exit 1)") == []
-    (tmp_path / "bare.txt").write_text("1 failed in 2s\n")
-    assert run_walks.read_results(f"Walk output written to {tmp_path / 'bare.txt'} (exit 1)") == []
