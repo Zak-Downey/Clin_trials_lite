@@ -10,3 +10,9 @@ venv/
 
 # Walk screenshots and run output (kept for failed walks, never tracked).
 .scratch/*/walks/
+
+# What `python3 checks.py` writes: each check's output and one line per run.
+.checks/
+
+# The hand-over page `python3 handover.py <feature>` builds (a build product, never tracked).
+.scratch/*/hand-over/
