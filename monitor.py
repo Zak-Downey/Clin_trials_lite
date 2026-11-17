@@ -1288,7 +1288,13 @@ def timeline(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
     for event in storage.review_events(conn, nct_id):
         ids = set(event["change_ids"])
         touched = [m for m in moves if ids & set(m["ids"])]
-        base = {"count": len(touched), "from_checks": sorted({m["check"] for m in touched}),
+        # A review is told by the changes it covered that are still shown. One
+        # that covered none (only a change the saved-change rule now leaves
+        # out, storage.list_changes) reviewed nothing to tell, so neither it
+        # nor its undo is an entry.
+        if not touched:
+            continue
+        base ={"count": len(touched), "from_checks": sorted({m["check"] for m in touched}),
                 "event_id": event["id"]}
         entries.append({"kind": "review", "at": event["reviewed_at"], **base})
         if event["undone_at"]:

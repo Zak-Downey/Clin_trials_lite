@@ -188,3 +188,37 @@ def test_a_renamed_or_newly_filled_interventions_list_reads_as_removals_and_addi
     assert (filled["removed"], filled["added"], filled["unchanged"]) == ([], ["B", "A"], [])
     assert (renamed["removed"], renamed["added"], renamed["unchanged"]) == (
         ["Carfilzomib"], ["carfilzomib (Kyprolis)"], ["Dexamethasone"])
+
+
+def test_a_review_that_covered_only_a_hidden_interventions_change_is_not_in_the_history(api, record):
+    """A review saved before repeats stopped counting, of a change that only moved
+    how often a name repeats, reviewed nothing still shown: History leaves it and
+    its undo out rather than reading "Marked 0 changes from 0 checks". A review
+    that also covered a change still shown keeps its entry, counting that one."""
+    conn = storage.connect(api.path)
+    monitor.add(conn, "NCT03412565", 1, fetch=lambda _n: record, when="2026-11-01T08:00:00+00:00")
+    names = monitor.profile_of(conn, "NCT03412565")["interventions"]
+    repeats = {"field": "interventions", "previous": names + [names[0]], "current": names + [names[1]]}
+    storage.add_change(conn, "NCT03412565", repeats, FIRST)
+    storage.add_change(conn, "NCT03412565", repeats, SECOND)
+    storage.add_change(conn, "NCT03412565", {"field": "enrollment", "previous": 10, "current": 20}, SECOND)
+    hidden_first, hidden_second, shown = [
+        r["id"] for r in conn.execute("SELECT id FROM changes ORDER BY id")]
+    alone = storage.review_changes(conn, "NCT03412565", [hidden_first], when="2026-11-07T10:00:00+00:00")
+    storage.undo_review(conn, alone["id"], when="2026-11-07T11:00:00+00:00")
+    storage.review_changes(conn, "NCT03412565", [hidden_second, shown], when="2026-11-09T10:00:00+00:00")
+    conn.close()
+
+    entries = api.get("/api/trials/NCT03412565/history")[1]["entries"]
+    assert [e["kind"] for e in entries] == ["review", "detection", "start"]
+    assert entries[0]["count"] == 1
+
+    # Nothing else leans on the hidden review: the queue is empty and undoing
+    # the review that is still shown returns the one change to it.
+    assert api.get("/api/watchlists/1/needs-review")[1]["trials"] == []
+    status, body = api.post(f"/api/reviews/{alone['id'] + 1}/undo", {})
+    assert status == 200 and body["unreviewed_count"] == 1
+    [queued] = api.get("/api/watchlists/1/needs-review")[1]["trials"]
+    assert queued["change_count"] == 1
+    kinds = [e["kind"] for e in api.get("/api/trials/NCT03412565/history")[1]["entries"]]
+    assert kinds == ["undo", "review", "detection", "start"]
