@@ -2,6 +2,7 @@
 import { get, post } from "/static/api.js";
 import { drawSections } from "/static/views/trial.js";
 import { withNewEntry } from "/static/views/new_watchlist.js";
+import { trialHref } from "/static/views/trial_address.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -43,7 +44,7 @@ export async function render(root, nct, alive = () => true) {
       banner.hidden = false;
       banner.className = "banner";
       const text = done.added.length ? `Added to ${done.list.name}.` : `Already in ${done.list.name}.`;
-      banner.replaceChildren(el("span", {}, text, " "), el("a", { href: `#/trials/${nct}` }, "Open the trial"));
+      banner.replaceChildren(el("span", {}, text, " "), el("a", { href: trialHref(nct, "changes", { list: done.list.id }) }, "Open the trial"));
       window.dispatchEvent(new Event("reviewchange"));
     } catch (err) {
       problem.textContent = err.message;

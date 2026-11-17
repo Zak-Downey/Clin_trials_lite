@@ -4,9 +4,9 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Walk, red first: adding a trial from the registry details page to a watchlist that is not the trial's first, then pressing "Open the trial", reads "Back to <that watchlist>", and the address names it
-- [ ] The registry page's "Back to results" goes where it went before this change (existing walks stay green)
+- [x] Walk, red first: adding a trial from the registry details page to a watchlist that is not the trial's first, then pressing "Open the trial", reads "Back to <that watchlist>", and the address names it
+- [x] The registry page's "Back to results" goes where it went before this change (existing walks stay green)
 
 ## Comments

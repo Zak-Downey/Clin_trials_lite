@@ -229,3 +229,28 @@ def test_walk_a_trial_in_no_watchlist_still_goes_back_to_watchlists(make_app, ma
     assert back.get_attribute("href") == "#/watchlists"
     page.wait_for_url(re.compile(r"#/trials/NCT00000002/history$"))
     walk.shot("no-watchlist-back-to-watchlists")
+
+
+# Ticket 04: "Open the trial" on the registry details page carries the watchlist just added to.
+# NCT00000002 is held only in Myeloma (id 1), so after adding it to Elsewhere (id 2) Myeloma is still its first.
+
+
+def test_walk_open_the_trial_after_adding_from_registry_details_goes_back_to_that_watchlist(make_app, make_walk):
+    """test_walk_open_the_trial_after_adding_from_registry_details_goes_back_to_that_watchlist"""
+    app = make_app(seed=seed_two_queues)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(f"{app.url}#/registry/NCT00000002")
+    page.get_by_role("button", name="Add to watchlist").wait_for()
+    page.get_by_label("Add to").select_option(label="Elsewhere")
+    page.get_by_role("button", name="Add to watchlist").click()
+    page.get_by_text("Added to Elsewhere.").wait_for()
+    assert page.locator("a.back").inner_text() == "‹ Back to results"
+    assert page.locator("a.back").get_attribute("href") == "#/find"
+    walk.shot("added-to-elsewhere")
+    page.get_by_role("link", name="Open the trial").click()
+    page.wait_for_url(re.compile(rf"#/trials/NCT00000002\?list={ELSEWHERE}$"))
+    back = page.get_by_role("link", name="‹ Back to Elsewhere")
+    back.wait_for()
+    assert back.get_attribute("href") == f"#/watchlists/{ELSEWHERE}/needs-review"
+    walk.shot("opened-with-elsewhere")
