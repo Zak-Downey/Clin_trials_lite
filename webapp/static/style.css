@@ -146,6 +146,7 @@ button:disabled { opacity: .5; cursor: default; }
 .split-row.removed .split-names, .split-row.added .split-names { font-weight: 600; }
 .split-row button.link { padding: 0; }
 .split-names .none { color: var(--muted); font-weight: 400; }
+.split-list { margin: 0; padding-left: 18px; }
 .unchanged-names { margin: -2px 0 0 108px; padding-left: 18px; overflow-wrap: anywhere; }
 .unchanged-names[hidden] { display: none; }
 

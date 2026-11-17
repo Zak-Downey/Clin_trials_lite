@@ -254,7 +254,9 @@ function valueCard(change) {
 function splitCard(change) {
   const row = (kind, label, ...names) => el("div", { class: `split-row ${kind}` },
     el("span", { class: "split-label" }, label), el("div", { class: "split-names" }, ...names));
-  const named = (names) => (names.length ? names.join(", ") : el("span", { class: "none" }, "None"));
+  // Each name is its own list item: a registry name may hold a comma, so joined text could not show where one ends.
+  const named = (names) => (names.length ? el("ul", { class: "split-list" }, ...names.map((n) => el("li", {}, n)))
+    : el("span", { class: "none" }, "None"));
   const kept = change.unchanged;
   const rows = [row("removed", "Removed", named(change.removed)), row("added", "Added", named(change.added))];
   if (!kept.length) {
