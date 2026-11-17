@@ -340,3 +340,20 @@ def test_walk_adding_from_registry_details_names_the_watchlist_under_the_title(m
     page.get_by_text("Already in Myeloma.").wait_for()
     assert meta.inner_text().endswith("In: Elsewhere, Myeloma"), meta.inner_text()
     walk.shot("in-both")
+
+
+def test_walk_adding_from_registry_details_by_keyboard_keeps_focus_on_the_button(make_app, make_walk):
+    """test_walk_adding_from_registry_details_by_keyboard_keeps_focus_on_the_button"""
+    app = make_app(seed=seed_two_queues)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(f"{app.url}#/registry/NCT00000003")
+    add = page.get_by_role("button", name="Add to watchlist")
+    add.focus()
+    page.keyboard.press("Enter")
+    page.get_by_text("Added to").wait_for()
+    page.wait_for_timeout(300)  # the focus keeper acts a moment after a control is disabled
+    walk.shot("after-add")
+    assert page.evaluate("document.activeElement.textContent.trim()") == "Add to watchlist"
+    page.keyboard.press("Tab")
+    assert page.evaluate("document.activeElement.textContent.trim()") == "Open the trial"

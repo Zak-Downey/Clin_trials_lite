@@ -39,12 +39,15 @@ export async function render(root, nct, alive = () => true) {
   const add = el("button", { type: "button", class: "primary" }, "Add to watchlist");
   const problem = el("p", { class: "field-error", id: "add-error", role: "alert" });
   add.setAttribute("aria-describedby", "add-error");
+  // aria-disabled, not disabled, while the add is saved: a disabled button drops keyboard focus.
+  const setBusy = (busy) => add.setAttribute("aria-disabled", String(busy));
   add.addEventListener("click", async () => {
-    add.disabled = true;
+    if (add.getAttribute("aria-disabled") === "true") return;
+    setBusy(true);
     problem.textContent = "";
     try {
       const done = await post(`/api/watchlists/${pick.value}/trials`, { nct_ids: [nct] });
-      if (done.failed.length) { problem.textContent = done.failed[0].detail; add.disabled = false; return; }
+      if (done.failed.length) { problem.textContent = done.failed[0].detail; setBusy(false); return; }
       banner.hidden = false;
       banner.className = "banner";
       const text = done.added.length ? `Added to ${done.list.name}.` : `Already in ${done.list.name}.`;
@@ -55,7 +58,7 @@ export async function render(root, nct, alive = () => true) {
     } catch (err) {
       problem.textContent = err.message;
     }
-    add.disabled = false;
+    setBusy(false);
   });
   const head = el("div", { class: "trial-head registry-head" },
     el("div", {}, el("h1", {}, trial.heading), meta),
