@@ -1,0 +1,20 @@
+{
+  "what": [
+    "An interventions change on a trial's Changes tab now lists Removed and Added names, each reading None when empty, one name per line.",
+    "The interventions that stayed are counted (Unchanged 6 interventions); their names open and close behind a Show / Hide button.",
+    "A reordered list, or one where only a repeated name's count moved, is no longer reported as a change anywhere in the app.",
+    "Every other field still shows Previously / Now, and the History tab, change summary and export read as before."
+  ],
+  "so_what": [
+    "You can see which drug a competitor dropped or added without comparing two lists name by name.",
+    "Try first: open NCT03412565 after a check that removes Carfilzomib; the card should read Removed Carfilzomib, Added None, Unchanged 6 interventions."
+  ],
+  "now_what": [
+    "The build changed what the app detects, beyond the display: an interventions change that adds and removes nothing is no longer recorded, and old ones like it are hidden everywhere.",
+    "Those hidden old changes stay in your database; I could not check whether yours holds any, because the build had no copy of it.",
+    "An interventions list going from absent to empty is no longer reported as a change, because nothing was added or removed.",
+    "Added is drawn in the app's teal accent rather than a true green, because the stylesheet has no green; the words Removed and Added carry the meaning.",
+    "The developer simulator makes an addition of Carfilzomib, not a removal; the removal in the walk-through comes from the stand-in registry.",
+    "The walk-through did not try Safari for the new card, a save failing mid-review, or a background check adding a change while the page is open."
+  ]
+}
