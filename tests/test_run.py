@@ -111,21 +111,27 @@ def test_a_busy_port_or_a_missing_folder_is_a_plain_line_not_a_traceback(tmp_pat
     assert proc.returncode == 1 and "Traceback" not in proc.stderr and "folder" in proc.stderr
 
 
-def test_a_plain_start_uses_port_8765_and_stops_with_a_plain_line_when_it_is_taken(tmp_path):
-    """test_a_plain_start_uses_port_8765_and_stops_with_a_plain_line_when_it_is_taken
+def _a_start_kept_off(tmp_path, monkeypatch, port, *args):
+    """Start run.py with `args`, where it would listen on `port`, without letting it serve there.
 
-    The test holds 8765 itself, so it never serves on it; if a copy of the app
-    (or anything else) already holds 8765, that copy is the program in the way,
-    and the expected line is the same.
+    Returns (returncode, stdout, stderr). When the test can hold `port` with a
+    listening socket of its own, run.py runs for real and stops with the
+    busy-port line. When it cannot (a copy of the app runs there, or a copy that
+    just stopped left the port lingering with nothing listening, which run.py
+    would reuse), run.py's main runs in this process with a server that is
+    never made: it records the port asked for and answers that it is busy, so
+    nothing serves on `port` and nothing fights the copy there.
     """
     holder = socket.socket()
     try:
         try:
-            holder.bind(("127.0.0.1", 8765))
+            holder.bind(("127.0.0.1", port))
             holder.listen()
         except OSError as err:
             assert err.errno == errno.EADDRINUSE
-        proc = _start(tmp_path)
+            holder.close()
+            return _main_without_a_server(tmp_path, monkeypatch, port, args)
+        proc = _start(tmp_path, *args)
         try:
             out, err = proc.communicate(timeout=20)
         except subprocess.TimeoutExpired:
@@ -133,8 +139,56 @@ def test_a_plain_start_uses_port_8765_and_stops_with_a_plain_line_when_it_is_tak
             out, err = proc.communicate()
     finally:
         holder.close()
-    assert proc.returncode == 1 and out == "" and "Traceback" not in err
+    return proc.returncode, out, err
+
+
+def _main_without_a_server(tmp_path, monkeypatch, port, args):
+    asked = []
+
+    def busy(db, port):
+        asked.append(port)
+        raise OSError(errno.EADDRINUSE, os.strerror(errno.EADDRINUSE))
+
+    monkeypatch.setenv("MONITOR_DB", str(tmp_path / "m.db"))
+    monkeypatch.setattr(run, "make_server", busy)
+    with pytest.raises(SystemExit) as stopped:
+        run.main(["--no-browser", *args])
+    assert asked == [port]
+    return 1, "", str(stopped.value.code)
+
+
+def test_a_plain_start_uses_port_8765_and_stops_with_a_plain_line_when_it_is_taken(tmp_path, monkeypatch):
+    """test_a_plain_start_uses_port_8765_and_stops_with_a_plain_line_when_it_is_taken
+
+    Never serves on 8765 and never fights a copy of the app running there.
+    """
+    code, out, err = _a_start_kept_off(tmp_path, monkeypatch, 8765)
+    assert code == 1 and out == "" and "Traceback" not in err
     assert "port 8765" in err and "--port" in err
+
+
+def test_a_port_a_stopped_copy_just_served_on_is_still_kept_from_run_py(tmp_path, monkeypatch):
+    """test_a_port_a_stopped_copy_just_served_on_is_still_kept_from_run_py
+
+    review-server-and-checks-01. After the owner stops their copy, its port lingers:
+    nothing listens, yet a plain hold of it fails, and run.py (which reuses the
+    address) would start there over an empty database. The 8765 test's way of
+    keeping run.py off the port must hold for that case too. Uses a free port,
+    never 8765.
+    """
+    port = _free_port()
+    first = _start(tmp_path, "--port", str(port))
+    try:
+        address = first.stdout.readline().split(" at ")[1].strip()
+        for _ in range(3):
+            urllib.request.urlopen(address, timeout=5).read()
+    finally:
+        first.terminate()
+        first.wait(timeout=10)
+    code, out, err = _a_start_kept_off(tmp_path, monkeypatch, port, "--port", str(port))
+    assert code == 1, f"run.py served on the port the test meant to keep it off: {out!r}"
+    assert out == "" and "Traceback" not in err
+    assert f"port {port}" in err and "--port" in err
 
 
 @pytest.mark.parametrize("family,host", [(socket.AF_INET, "0.0.0.0"), (socket.AF_INET6, "::")])
