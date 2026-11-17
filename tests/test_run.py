@@ -13,6 +13,8 @@ import urllib.request
 
 import pathlib
 
+import pytest
+
 import run
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -133,3 +135,29 @@ def test_a_plain_start_uses_port_8765_and_stops_with_a_plain_line_when_it_is_tak
         holder.close()
     assert proc.returncode == 1 and out == "" and "Traceback" not in err
     assert "port 8765" in err and "--port" in err
+
+
+@pytest.mark.parametrize("family,host", [(socket.AF_INET, "0.0.0.0"), (socket.AF_INET6, "::")])
+def test_a_port_held_on_all_addresses_stops_run_py_with_the_busy_port_line(tmp_path, family, host):
+    """test_a_port_held_on_all_addresses_stops_run_py_with_the_busy_port_line
+
+    early-read-whole-01. Most programs listen on all addresses; on macOS the
+    reuse-address option let a bind to 127.0.0.1 succeed beside one and take
+    its browser requests. Uses a free port, never 8765.
+    """
+    holder = socket.socket(family)
+    try:
+        holder.bind((host, 0))
+        holder.listen()
+        port = holder.getsockname()[1]
+        proc = _start(tmp_path, "--port", str(port))
+        try:
+            out, err = proc.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.terminate()
+            out, err = proc.communicate()
+    finally:
+        holder.close()
+    assert proc.returncode == 1, f"run.py started anyway and printed: {out!r}"
+    assert out == "" and "Traceback" not in err
+    assert f"port {port}" in err and "--port" in err

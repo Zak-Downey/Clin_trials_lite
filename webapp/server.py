@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import mimetypes
+import os
 import pathlib
+import socket
 import sqlite3
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -127,10 +130,33 @@ class Handler(BaseHTTPRequestHandler):
         self._dispatch("POST")
 
 
+def _refuse_a_port_already_listening(host: str, port: int) -> None:
+    """Raise EADDRINUSE when something already answers at host:port.
+
+    The server sets the reuse-address option (so a restart right after a stop
+    is not blocked by the last connections' TIME_WAIT), and on macOS that option
+    also lets a bind to 127.0.0.1 succeed beside a program listening on all
+    addresses at the same port, which would then lose its browser requests to
+    this server. Asking the port first catches that; a TIME_WAIT does not answer.
+    """
+    if port == 0:
+        return
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    with socket.socket(family) as probe:
+        probe.settimeout(2)
+        try:
+            answered = probe.connect_ex((host, port)) == 0
+        except OSError:
+            answered = False
+    if answered:
+        raise OSError(errno.EADDRINUSE, os.strerror(errno.EADDRINUSE))
+
+
 def make_server(db_path: str, fetch=None, find=None, find_page=None, host: str = "127.0.0.1", port: int = 0):
     """A server over `db_path` using the given registry functions (None until an endpoint needs them: no registry call is made without one)."""
     if host not in ("127.0.0.1", "localhost", "::1"):
         raise ValueError("The server only binds to the local machine.")
+    _refuse_a_port_already_listening(host, port)
     server = ThreadingHTTPServer((host, port), Handler)
     server.daemon_threads = True
     server.ctx = Context(db_path, fetch, find, find_page)
