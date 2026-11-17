@@ -4,11 +4,11 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Walk, red first: an address naming a watchlist that does not hold the trial opens the trial with "Back to <its first watchlist>", and the address is rewritten to name that watchlist with no `from`
-- [ ] Walk: after that rewrite, the browser's Back leaves the trial page (no extra history step)
-- [ ] Walk: an address naming a deleted watchlist behaves the same way
-- [ ] A trial in no watchlist still reads "Back to watchlists"
+- [x] Walk, red first: an address naming a watchlist that does not hold the trial opens the trial with "Back to <its first watchlist>", and the address is rewritten to name that watchlist with no `from`
+- [x] Walk: after that rewrite, the browser's Back leaves the trial page (no extra history step)
+- [x] Walk: an address naming a deleted watchlist behaves the same way
+- [x] A trial in no watchlist still reads "Back to watchlists"
 
 ## Comments

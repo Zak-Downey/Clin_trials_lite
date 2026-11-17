@@ -4,7 +4,8 @@ Data: walks/test_trial_page_walk.py's seed ("Myeloma", id 1, holds NCT03412565, 
 and fourteen fillers; "Elsewhere", id 2, also holds NCT03412565), plus NCT10000001 added to
 Elsewhere, so the two watchlists' Needs review queues differ after NCT03412565: Myeloma's
 goes on to NCT00000002, Elsewhere's to NCT10000001. Summary links use walks/test_summary_walk.py's
-seed. Lacks: a trial in no watchlist, a stale watchlist in the address (ticket 03).
+seed. Ticket 03's walks (a stale or deleted watchlist in the address, a trial in no
+watchlist) are at the end.
 """
 
 from __future__ import annotations
@@ -145,3 +146,86 @@ def test_walk_a_trial_address_with_no_watchlist_uses_the_first_watchlist_as_befo
     page.get_by_role("button", name="Next trial").click()
     page.wait_for_url(re.compile(r"#/trials/NCT00000002$"))
     page.get_by_role("link", name="‹ Back to Myeloma").wait_for()
+
+
+# Ticket 03: an address naming a watchlist that does not hold the trial falls back quietly.
+# Elsewhere (id 2) holds NCT03412565 and NCT10000001 but not NCT00000002, which only Myeloma holds.
+
+
+def seed_elsewhere_deleted(db, registry):
+    import monitor
+    import storage
+
+    seed_two_queues(db, registry)
+    conn = storage.connect(db)
+    monitor.delete_list(conn, ELSEWHERE)
+    conn.close()
+
+
+def seed_a_trial_in_no_watchlist(db, registry):
+    import monitor
+    import storage
+
+    seed_two_queues(db, registry)
+    conn = storage.connect(db)
+    monitor.remove(conn, "NCT00000002", MYELOMA)
+    conn.close()
+
+
+def test_walk_an_address_naming_a_watchlist_that_does_not_hold_the_trial_falls_back_to_its_first(make_app, make_walk):
+    """test_walk_an_address_naming_a_watchlist_that_does_not_hold_the_trial_falls_back_to_its_first"""
+    app = make_app(seed=seed_two_queues)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(f"{app.url}#/trials/NCT00000002/details?list={ELSEWHERE}&from=all-trials")
+    back = page.get_by_role("link", name="‹ Back to Myeloma")
+    back.wait_for()
+    assert back.get_attribute("href") == f"#/watchlists/{MYELOMA}/needs-review"
+    page.wait_for_url(re.compile(rf"#/trials/NCT00000002/details\?list={MYELOMA}$"))
+    assert page.get_by_role("tab", name="History").get_attribute("href") == f"#/trials/NCT00000002/history?list={MYELOMA}"
+    walk.shot("stale-watchlist-falls-back-to-myeloma")
+
+
+def test_walk_the_rewritten_address_adds_no_step_to_the_browsers_back(make_app, make_walk):
+    """test_walk_the_rewritten_address_adds_no_step_to_the_browsers_back"""
+    app = make_app(seed=seed_two_queues)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(f"{app.url}#/watchlists/{MYELOMA}/needs-review")
+    page.locator('li.card[data-nct="NCT00000002"]').wait_for()
+    page.evaluate(f"location.hash = '#/trials/NCT00000002?list={ELSEWHERE}&from=summary'")
+    page.get_by_role("link", name="‹ Back to Myeloma").wait_for()
+    page.wait_for_url(re.compile(rf"#/trials/NCT00000002\?list={MYELOMA}$"))
+    walk.shot("rewritten-in-place")
+    page.go_back()
+    page.locator('li.card[data-nct="NCT00000002"]').wait_for()
+    assert page.evaluate("location.hash") == f"#/watchlists/{MYELOMA}/needs-review"
+    walk.shot("back-leaves-the-trial")
+
+
+def test_walk_an_address_naming_a_deleted_watchlist_falls_back_to_the_trials_first(make_app, make_walk):
+    """test_walk_an_address_naming_a_deleted_watchlist_falls_back_to_the_trials_first"""
+    app = make_app(seed=seed_elsewhere_deleted)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(f"{app.url}#/trials/NCT03412565?list={ELSEWHERE}&from=all-trials")
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    assert page.locator("a.back").inner_text() == "‹ Back to Myeloma"
+    page.wait_for_url(re.compile(rf"#/trials/NCT03412565\?list={MYELOMA}$"))
+    walk.shot("deleted-watchlist-falls-back-to-myeloma")
+    page.get_by_role("button", name="Next trial").click()
+    page.wait_for_url(re.compile(rf"#/trials/NCT00000002\?list={MYELOMA}$"))
+    page.get_by_role("link", name="‹ Back to Myeloma").wait_for()
+
+
+def test_walk_a_trial_in_no_watchlist_still_goes_back_to_watchlists(make_app, make_walk):
+    """test_walk_a_trial_in_no_watchlist_still_goes_back_to_watchlists"""
+    app = make_app(seed=seed_a_trial_in_no_watchlist)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(f"{app.url}#/trials/NCT00000002/history?list={MYELOMA}")
+    back = page.get_by_role("link", name="‹ Back to watchlists")
+    back.wait_for()
+    assert back.get_attribute("href") == "#/watchlists"
+    page.wait_for_url(re.compile(r"#/trials/NCT00000002/history$"))
+    walk.shot("no-watchlist-back-to-watchlists")

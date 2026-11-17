@@ -20,7 +20,11 @@ export async function render(root, nct, tab, place, alive = () => true) {
   const named = place && trial.watchlists.find((w) => w.id === place.list);
   const home = named || trial.watchlists[0];
   // The trial's own tabs and Next trial carry the address's watchlist and tab forward.
-  const carry = named ? place : null;
+  // An address that names no watchlist carries none, as before.
+  const carry = !place ? null : named ? place : home ? { list: home.id, from: "needs-review" } : null;
+  // An address naming a watchlist that does not hold the trial (removed, deleted, a wrong number)
+  // is rewritten in place to name the one shown, with no extra step for the browser's Back.
+  if (place && !named) history.replaceState(history.state, "", trialHref(nct, tab, carry));
   const others = trial.watchlists.filter((w) => !home || w.id !== home.id);
   const state = { reviewed: false, event: null };
 
