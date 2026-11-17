@@ -10,6 +10,14 @@ const el = (tag, attrs = {}, ...kids) => {
 };
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
+// A removal made on this trial page, while the analyst stays on the trial: { nct, home, undo, last }.
+// Its own tabs are redrawn from the server, which no longer lists the watchlist; this keeps the
+// address, "Back to", Next trial and the Undo on it. Only a reload, or leaving the trial, forgets it.
+let removed = null;
+window.addEventListener("hashchange", () => {
+  if (removed && !new RegExp(`^#/trials/${removed.nct}(/|\\?|$)`, "i").test(location.hash)) removed = null;
+});
+
 // The trial page: header, tabs, and the Changes tab with its review action bar.
 // place: the watchlist and tab the address names ({ list, from }), or null when it names none.
 // alive(): is this still the page the address names? A slow answer for a page the analyst left is dropped.
@@ -17,7 +25,8 @@ export async function render(root, nct, tab, place, alive = () => true) {
   const trial = await get(`/api/trials/${nct}`);
   if (!alive()) return;
   // The list the address names, else the first watchlist holding the trial.
-  const named = place && trial.watchlists.find((w) => w.id === place.list);
+  const kept = place && removed && removed.nct === nct && removed.home.id === place.list ? removed : null;
+  const named = place && (trial.watchlists.find((w) => w.id === place.list) || (kept && kept.home));
   const home = named || trial.watchlists[0];
   // The trial's own tabs and Next trial carry the address's watchlist and tab forward.
   // An address that names no watchlist carries none, as before.
@@ -78,23 +87,30 @@ export async function render(root, nct, tab, place, alive = () => true) {
         try {
           const done = await post(`/api/watchlists/${home.id}/trials/${nct}/remove`);
           trial.watchlists = done.watchlists;
+          removed = { nct, home: { id: home.id, name: home.name }, undo: done.undo, last: !done.watchlists.length };
           drawMenu();
-          const undo = el("button", { type: "button", class: "link" }, "Undo");
-          undo.addEventListener("click", async () => {
-            try {
-              const back = await post("/api/removals/undo", { token: done.undo });
-              trial.watchlists = back.watchlists;
-              drawMenu();
-              banner.hidden = true;
-              window.dispatchEvent(new Event("reviewchange"));
-            } catch (err) { fail(err); }
-          });
-          tell(`Removed from ${home.name}.${done.watchlists.length ? "" : " Its history is kept."}`, undo);
+          tellRemoved();
           window.dispatchEvent(new Event("reviewchange"));
         } catch (err) { fail(err); }
       });
       menu.append(remove);
     }
+  };
+  // The removal's line and its Undo, drawn again on each of the trial's tabs while it stands.
+  const tellRemoved = () => {
+    const made = removed;
+    const undo = el("button", { type: "button", class: "link" }, "Undo");
+    undo.addEventListener("click", async () => {
+      try {
+        const back = await post("/api/removals/undo", { token: made.undo });
+        if (removed === made) removed = null;
+        trial.watchlists = back.watchlists;
+        drawMenu();
+        banner.hidden = true;
+        window.dispatchEvent(new Event("reviewchange"));
+      } catch (err) { fail(err); }
+    });
+    tell(`Removed from ${made.home.name}.${made.last ? " Its history is kept." : ""}`, undo);
   };
   const closeMenu = () => { menu.hidden = true; menuButton.setAttribute("aria-expanded", "false"); };
   menuButton.addEventListener("click", (event) => {
@@ -105,6 +121,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
   document.addEventListener("click", (event) => { if (!menu.contains(event.target)) closeMenu(); });
   menuKeys(menuWrap, menuButton, closeMenu);
   drawMenu();
+  if (kept) tellRemoved();
 
   if (tab === "details") { await drawDetails(body, nct); return; }
   if (tab === "history") { await drawHistory(body, nct); return; }

@@ -254,3 +254,35 @@ def test_walk_open_the_trial_after_adding_from_registry_details_goes_back_to_tha
     back.wait_for()
     assert back.get_attribute("href") == f"#/watchlists/{ELSEWHERE}/needs-review"
     walk.shot("opened-with-elsewhere")
+
+
+# Fixes after the build's review: Remove from this list keeps the watchlist across the trial's own tabs;
+# "Back to" Summary keeps the period within one page load.
+
+
+def test_walk_switching_the_trial_tab_after_removing_it_from_the_list_keeps_that_list(make_app, make_walk):
+    """test_walk_switching_the_trial_tab_after_removing_it_from_the_list_keeps_that_list"""
+    _, walk = open_from_elsewhere(make_app, make_walk)
+    page = walk.page
+    page.get_by_role("button", name="More actions").click()
+    page.get_by_role("menuitem", name="Remove from this list").click()
+    page.get_by_text("Removed from Elsewhere.").wait_for()
+    assert page.locator("a.back").inner_text() == "‹ Back to Elsewhere"
+    walk.shot("removed-from-elsewhere")
+    for tab, ready in (("History", "Trial history"), ("Trial details", None)):
+        page.get_by_role("tab", name=tab).click()
+        if ready:
+            page.get_by_role("heading", name=ready).wait_for()
+        else:
+            page.wait_for_url(re.compile(rf"#/trials/NCT03412565/details\?list={ELSEWHERE}$"))
+        assert page.locator("a.back").inner_text() == "‹ Back to Elsewhere"
+        assert page.evaluate("location.hash").endswith(f"?list={ELSEWHERE}")
+        assert page.get_by_role("button", name="Undo").is_visible()
+    walk.shot("details-keeps-elsewhere")
+    page.get_by_role("tab", name=re.compile("^Changes")).click()
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    assert page.locator("a.back").inner_text() == "‹ Back to Elsewhere"
+    page.get_by_role("button", name="Next trial").click()
+    page.wait_for_url(re.compile(rf"#/trials/NCT10000001\?list={ELSEWHERE}$"))
+    page.get_by_role("link", name="‹ Back to Elsewhere").wait_for()
+    walk.shot("next-trial-in-elsewhere")
