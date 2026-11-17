@@ -818,15 +818,16 @@ def is_synthetic(conn: sqlite3.Connection, nct_id: str) -> bool:
     """Whether what a trial currently shows was fabricated by the simulator.
 
     True while its newest stored state is a simulated one, and while any change
-    found against such a state is still recorded.
+    found against such a state is still shown (read through list_changes, so a
+    saved change the rule leaves out does not count).
     """
     row = conn.execute(
-        "SELECT (SELECT synthetic FROM snapshots WHERE nct_id = ?1"
-        "        ORDER BY id DESC LIMIT 1) AS newest,"
-        "       (SELECT COUNT(*) FROM changes WHERE nct_id = ?1 AND synthetic = 1) AS found",
+        "SELECT synthetic FROM snapshots WHERE nct_id = ? ORDER BY id DESC LIMIT 1",
         (nct_id,),
     ).fetchone()
-    return bool(row["newest"]) or bool(row["found"])
+    return bool(row and row["synthetic"]) or any(
+        c["synthetic"] for c in list_changes(conn, nct_id)
+    )
 
 
 def delete_synthetic(conn: sqlite3.Connection) -> int:
