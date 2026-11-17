@@ -4,14 +4,14 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A plain `python run.py` uses port 8765: a test shows it, red first, without fighting a copy of the app already running on 8765
-- [ ] When 8765 is held by another program, `run.py` exits non-zero with a plain line naming 8765 and `--port`, and no traceback
-- [ ] `--port N` still listens on N
-- [ ] Starting a second time against the same database still prints "already running" with the first copy's address and exits 0
-- [ ] The existing `run.py` subprocess tests that relied on the free default now pass a port explicitly and still pass side by side
-- [ ] The API tests' and the walks' servers still start on free ports
-- [ ] The README names `http://127.0.0.1:8765/` as the address and says links and remembered tabs last across restarts
+- [x] A plain `python run.py` uses port 8765: a test shows it, red first, without fighting a copy of the app already running on 8765
+- [x] When 8765 is held by another program, `run.py` exits non-zero with a plain line naming 8765 and `--port`, and no traceback
+- [x] `--port N` still listens on N
+- [x] Starting a second time against the same database still prints "already running" with the first copy's address and exits 0
+- [x] The existing `run.py` subprocess tests that relied on the free default now pass a port explicitly and still pass side by side
+- [x] The API tests' and the walks' servers still start on free ports
+- [x] The README names `http://127.0.0.1:8765/` as the address and says links and remembered tabs last across restarts
 
 ## Comments

@@ -4,7 +4,9 @@ Lacks: opening a browser (--no-browser), and the live registry (nothing here
 asks for a study).
 """
 
+import errno
 import os
+import socket
 import subprocess
 import sys
 import urllib.request
@@ -22,17 +24,24 @@ def test_the_database_is_monitor_db_in_the_start_folder_unless_monitor_db_is_set
     assert run.database_path({"MONITOR_DB": "/else/x.db"}, "/here") == "/else/x.db"
 
 
+def _free_port():
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
 def test_run_py_serves_the_page_on_localhost_only_and_prints_the_address(tmp_path):
     """test_run_py_serves_the_page_on_localhost_only_and_prints_the_address"""
     env = {**os.environ, "MONITOR_DB": str(tmp_path / "m.db")}
+    port = _free_port()
     proc = subprocess.Popen(
-        [sys.executable, str(ROOT / "run.py"), "--no-browser"],
+        [sys.executable, str(ROOT / "run.py"), "--no-browser", "--port", str(port)],
         cwd=tmp_path, env=env, stdout=subprocess.PIPE, text=True,
     )
     try:
         line = proc.stdout.readline()
         address = line.split(" at ")[1].strip()
-        assert address.startswith("http://127.0.0.1:")
+        assert address == f"http://127.0.0.1:{port}/"
         with urllib.request.urlopen(address, timeout=10) as page:
             html = page.read().decode()
         assert "Trial Change Monitor" in html
@@ -70,7 +79,7 @@ def _start(tmp_path, *args):
 
 def test_a_second_run_on_the_same_database_points_at_the_running_server(tmp_path):
     """test_a_second_run_on_the_same_database_points_at_the_running_server"""
-    first = _start(tmp_path)
+    first = _start(tmp_path, "--port", str(_free_port()))
     try:
         address = first.stdout.readline().split(" at ")[1].strip()
         second = _start(tmp_path)
@@ -94,6 +103,33 @@ def test_a_busy_port_or_a_missing_folder_is_a_plain_line_not_a_traceback(tmp_pat
     assert proc.returncode == 1 and "Traceback" not in err and "port" in err
 
     env = {**os.environ, "MONITOR_DB": str(tmp_path / "nope" / "m.db")}
-    proc = subprocess.run([sys.executable, str(ROOT / "run.py"), "--no-browser"], cwd=tmp_path, env=env,
+    proc = subprocess.run([sys.executable, str(ROOT / "run.py"), "--no-browser", "--port", str(_free_port())],
+                          cwd=tmp_path, env=env,
                           capture_output=True, text=True, timeout=20)
     assert proc.returncode == 1 and "Traceback" not in proc.stderr and "folder" in proc.stderr
+
+
+def test_a_plain_start_uses_port_8765_and_stops_with_a_plain_line_when_it_is_taken(tmp_path):
+    """test_a_plain_start_uses_port_8765_and_stops_with_a_plain_line_when_it_is_taken
+
+    The test holds 8765 itself, so it never serves on it; if a copy of the app
+    (or anything else) already holds 8765, that copy is the program in the way,
+    and the expected line is the same.
+    """
+    holder = socket.socket()
+    try:
+        try:
+            holder.bind(("127.0.0.1", 8765))
+            holder.listen()
+        except OSError as err:
+            assert err.errno == errno.EADDRINUSE
+        proc = _start(tmp_path)
+        try:
+            out, err = proc.communicate(timeout=20)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            out, err = proc.communicate()
+    finally:
+        holder.close()
+    assert proc.returncode == 1 and out == "" and "Traceback" not in err
+    assert "port 8765" in err and "--port" in err
