@@ -12,10 +12,13 @@ export function trialHref(nct, tab = "changes", place = null) {
 }
 
 // The watchlist and tab a trial address names: { list, from } (from is "needs-review" when left out), or null.
+// A list that is not a watchlist number (list=abc, list=0, an empty list=) names no watchlist that can
+// hold the trial: it reads as list 0, so the trial page falls back and rewrites it like a wrong number.
 export function readPlace(hashQuery) {
   const params = new URLSearchParams(hashQuery || "");
-  const list = Number(params.get("list"));
-  if (!Number.isInteger(list) || list <= 0) return null;
+  if (!params.has("list")) return null;
+  const raw = params.get("list");
+  const list = /^\d+$/.test(raw) ? Number(raw) : 0;
   const from = params.get("from");
   return { list, from: FROM.includes(from) ? from : "needs-review" };
 }

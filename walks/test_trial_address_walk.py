@@ -303,3 +303,16 @@ def test_walk_back_to_summary_keeps_the_period_chosen_within_the_visit(make_app,
     assert page.evaluate("location.hash") == "#/watchlists/1/summary?period=month"
     assert page.locator('[aria-label="Period"] [aria-pressed="true"]').inner_text() == "This month"
     walk.shot("back-on-summary-this-month")
+
+
+def test_walk_an_address_whose_list_is_not_a_watchlist_number_is_rewritten_to_the_one_shown(make_app, make_walk):
+    """test_walk_an_address_whose_list_is_not_a_watchlist_number_is_rewritten_to_the_one_shown"""
+    app = make_app(seed=seed_two_queues)
+    walk = make_walk(app)
+    page = walk.page
+    for bad in ("abc", "0", ""):
+        page.goto(f"{app.url}#/trials/NCT03412565?list={bad}")
+        page.get_by_role("button", name="Mark reviewed").wait_for()
+        assert page.locator("a.back").inner_text() == "‹ Back to Myeloma"
+        page.wait_for_url(re.compile(rf"#/trials/NCT03412565\?list={MYELOMA}$"))
+    walk.shot("bad-list-rewritten")
