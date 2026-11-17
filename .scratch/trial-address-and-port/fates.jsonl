@@ -4,3 +4,6 @@
 {"id": "walker-trial-page-01", "fate": "fixed", "commit": "032c199", "check": "walks/test_trial_address_walk.py::test_walk_back_to_summary_keeps_the_period_chosen_within_the_visit", "why": ""}
 {"id": "walker-needs-review-01", "fate": "fixed", "commit": "032c199", "check": "walks/test_trial_address_walk.py::test_walk_back_to_summary_keeps_the_period_chosen_within_the_visit", "why": ""}
 {"id": "walker-trial-page-02", "fate": "fixed", "commit": "b2c258b", "check": "walks/test_trial_address_walk.py::test_walk_an_address_whose_list_is_not_a_watchlist_number_is_rewritten_to_the_one_shown", "why": ""}
+{"id": "walker-find-trials-01", "fate": "fixed", "commit": "8f0e654", "check": "walks/test_trial_address_walk.py::test_walk_adding_from_registry_details_names_the_watchlist_under_the_title", "why": ""}
+{"id": "walker-find-trials-02", "fate": "fixed", "commit": "27d389d", "check": "walks/test_origin_walk.py::test_walk_a_long_watchlist_name_in_add_to_leaves_the_trial_title_readable", "why": ""}
+{"id": "walker-find-trials-03", "fate": "fixed", "commit": "661811e", "check": "walks/test_trial_address_walk.py::test_walk_adding_from_registry_details_by_keyboard_keeps_focus_on_the_button", "why": ""}
