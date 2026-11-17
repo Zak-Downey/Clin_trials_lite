@@ -4,6 +4,7 @@ __pycache__/
 venv/
 *.csv
 *.db
+*.db.lock
 .pytest_cache/
 
 .claude/worktrees/
