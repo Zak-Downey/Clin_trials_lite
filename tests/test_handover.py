@@ -63,11 +63,20 @@ def chip(text: str, look: str, href: str, words: str) -> bool:
     return bool(re.search(rf'<a class="pill {look}" href="{href}">(?:<i class="sw [\w-]+"></i>)?{re.escape(words)}</a>', top(text)))
 
 
-def things(text: str) -> list[tuple[str, str, str, str]]:
-    """(colour, what, why, link) of each thing the list under the headline tells the owner to look at, in order."""
+LOOK = re.compile(r'<li class="(\w+)"><span class="mark"[^>]*>[^<]*</span><div><a href="([^"]*)"><strong>(.*?)</strong></a>'
+                  r'<span class="sub">(.*?)</span>(?:<details><summary>Why this matters</summary><p>(.*?)</p></details>)?</div></li>')
+
+
+def looks(text: str) -> list[tuple[str, str, str, str, str]]:
+    """(colour, link, what, the line in view, the words folded under it) of each thing the list tells the owner to look at."""
     listed = re.search(r'<ol class="look">(.*?)</ol>', top(text), re.S)
-    return re.findall(r'<li class="(\w+)"><span class="mark"[^>]*>[^<]*</span><a href="([^"]*)"><strong>(.*?)</strong><span class="sub">(.*?)</span></a></li>',
-                      listed.group(1)) if listed else []
+    return LOOK.findall(listed.group(1)) if listed else []
+
+
+def things(text: str) -> list[tuple[str, str, str, str]]:
+    """(colour, link, what, why) of each thing the list under the headline tells the owner to look at, in order: `why` is
+    everything the item says, the folded reason first and then the line in view, as one text."""
+    return [(tone, href, what, f"{folded} {shown}".strip()) for tone, href, what, shown, folded in looks(text)]
 
 
 def reviewer(name: str) -> str:
@@ -602,17 +611,18 @@ def test_the_board_under_the_title_says_what_needs_the_owner_before_anything_els
     assert "The outcomes are the build's own record: this page did not test the fixes." in top(clean)  # green, and still the record's claim
     assert '<a href="#summary">This build has no summary file (hand-over.json).</a>' in top(clean)
     left = lambda lines: top(page(files=every, summary={"what": [], "so_what": [], "now_what": lines}, **settled))  # noqa: E731
-    where = "further down this page, under &quot;The builder&#x27;s own summary&quot;. "
     two = left(["Ticket 07 was not built.", "Try it in Safari."])
-    assert (f'<a href="#summary">The build&#x27;s summary file (hand-over.json) also lists what is left for you: 2 lines, {where}'
-            "This page copied them as written and did not judge them: "
-            "read them before you accept this build.</a>") in two  # nothing listed above, so the builder's lines are the owner's to read
-    assert (f"also lists what is left for you: 1 line, {where}This page copied it as written and did not "
-            "judge it: read it before you accept this build.") in left(["One."])
+    assert ('<a href="#summary">The build&#x27;s summary file also lists what is left for you: 2 lines, further down this page. '
+            "This page did not judge them: read them before you accept this build.</a>") in two  # nothing listed above, so the builder's lines are the owner's to read
+    assert ("The lines the build&#x27;s summary file (hand-over.json) lists as left for you are under &quot;The builder&#x27;s own summary&quot;. "
+            "This page copied them as written.</p></details>") in two  # which file they are from and what the page did with them: under the fold
+    assert ("also lists what is left for you: 1 line, further down this page. This page did not judge it: "
+            "read it before you accept this build.") in left(["One."])
     assert '<h2>The builder&#x27;s own summary</h2>' in clean
     assert '<a href="#summary">The build&#x27;s summary file (hand-over.json) is empty.</a>' in left([])
     built_only = top(page(files=every, summary={"what": ["Built."], "so_what": [], "now_what": []}, **settled))
-    assert f"The build&#x27;s summary file (hand-over.json) is shown {where}It lists nothing as left for you.</a>" in built_only
+    assert ('<a href="#summary">The build&#x27;s summary file is shown further down this page, under &quot;The builder&#x27;s own summary&quot;. '
+            "It lists nothing as left for you.</a>") in built_only
     no_findings = top(page(files={name: [] for name in every}, **{**settled, "fates": {}}))
     assert '<p class="headline green">' in no_findings and "the reviewers reported no issues in the reports this page read." in no_findings and "did not test the fixes" not in no_findings
     odd_pass = page(files={**every, "walker-a.jsonl": [finding("A", round="third")]}, **settled)
@@ -636,7 +646,7 @@ def test_the_board_under_the_title_says_what_needs_the_owner_before_anything_els
     assert 'id="group-0" class="group bad"' in no_fate
     nothing = top(page())
     nothing = nothing[nothing.index("<header>"):]
-    assert "<strong>No review report found</strong>" in nothing and '<p class="lead">This page found no review report for this build.</p>' in nothing
+    assert "<strong>No review report found</strong>" in nothing and '<strong>This page found no review report for this build</strong>' in nothing
     assert not re.search(r">[^<]*\b0\b[^<]*<", nothing)  # none recorded is never drawn as 0
 
 
@@ -736,13 +746,13 @@ def test_the_page_labels_what_an_agent_wrote_and_what_the_script_computed():
     for name, body in sections.items():  # an agent's words are drawn only in the two sections that say whose they are
         assert any(words in body for words in agent_words) == (name in ("summary", "findings")), name
     head = top(text)
-    built = re.search(r'<div class="built">(.*?)</div>', head, re.S).group(1)  # the one place above the sections that holds an agent's words
-    assert "<li>Built the thing.</li>" in built and "What was built, in the builder's words" in built
+    built = re.search(r'<details class="built">(.*?)</details>', head, re.S).group(1)  # the one place above the sections that holds an agent's words
+    assert '<span class="first">Built the thing.</span>' in built and "What was built, in the builder's words, not checked by this page" in built
     assert ("This line comes from the build's summary file (hand-over.json), which the agent that runs a build is meant to write. "
             "This page copied it as written and did not check it.") in html.unescape(built)  # the file is named; who wrote it is not claimed
-    assert built.index("did not check it") < built.index("<li>Built the thing.</li>")  # read before the words, not after
+    assert built.index("not checked by this page") < built.index("Built the thing.") < built.index("did not check it")  # whose words, before the words
     assert all(words not in head.replace(built, "") for words in agent_words)
-    assert text.count("Built the thing.") == 1 and head.index('<div class="built">') < head.index('<p class="lead">')  # said once, before the page's own findings
+    assert text.count("Built the thing.") == 1 and head.index('<details class="built">') < head.index('<p class="lead">')  # said once, before the page's own findings
     for name in sections:  # every section but the pictures says whose words or numbers it holds
         label = "agent" if name in ("summary", "findings") else "script"
         assert (f'class="source {label}"' in sections[name]) == (name != "recording"), name
@@ -767,7 +777,8 @@ def test_the_page_says_so_when_there_is_no_summary_no_recording_and_no_findings_
     assert "No screenshots: the walk-through was not run for this page." in text
     assert "hand-over.json" in text  # names the missing summary file
     assert "This page cannot say what was built: the build has no summary file (hand-over.json is missing)." in top(text)
-    assert text.count("This page found no review report for this build.") == 2 and "So there is nothing to list." in text  # under the title, and over the list
+    assert text.count("This page found no review report for this build.") == 1 and "So there is nothing to list." in text  # over the list of issues
+    assert "<strong>This page found no review report for this build</strong>" in top(text)  # and one of the things to look at, under the title
     assert text.count('<span class="unknown">no report found</span>') == 3  # exploratory testing, the code review and the early code review
     assert "This page found no review report, so nothing on this page shows that anyone tested or read the build." in text
     assert "did not run" not in text.replace("the walk-through was not run", "")  # a report not found is not proof that a review was not made
@@ -778,7 +789,7 @@ def test_a_finder_that_looked_and_found_nothing_is_told_apart_from_one_that_neve
     assert looked.count("reviewed, found nothing") == 2
     assert looked.count('<span class="unknown">no report found</span>') == 1 and reviewer("review") + "<td colspan" in looked
     assert reviewer("walker") + '<td class="n soft">none in the reports read</td>' in looked
-    assert looked.count("The reviewers reported no issues in the reports this page read.") == 2  # under the title, and over the list
+    assert looked.count("The reviewers reported no issues in the reports this page read.") == 1  # over the list; the board says it on its tile
     assert "No issues in the 2 reports read" in top(looked) and "Code review: no report found" in top(looked)
     assert "This page read no re-check report, so nothing on record shows that one was made." in looked
     rechecked = page(files={"walker-a.jsonl": [], "walker-a-recheck.jsonl": []})
@@ -806,7 +817,7 @@ def test_fate_lines_that_match_no_finding_are_drawn_first_and_marked_with_or_wit
     assert "nothing to list" not in alone and "reported no issues" not in alone
     assert row(alone, "Outcomes matching no issue") == '<span class="warned">2</span>'
     beside = page([finding("A")], fates={**fates, "A": fate("A")})
-    assert beside.index('<div class="orphans">') < beside.index("<details")
+    assert beside.index('<div class="orphans">') < beside.index("<details", beside.index('<section id="findings">'))
     assert row(page([finding("A")], fates={"A": fate("A")}), "Outcomes matching no issue") == "0"
 
 
@@ -824,7 +835,7 @@ def test_every_finding_read_is_drawn_once_as_a_card_and_counted_once_in_each_cou
         assert text.count(f'<summary>Record <code>{f["id"]}</code></summary>') == 1, f["id"]  # its id, once, on its own record
     assert sum(int(n) for n in re.findall(r"<h3>[^<]*?(\d+) issues?\b[^<]*</h3>", text)) == 8  # the groups' headings
     assert ("reported 8 issues in the reports this page read. The build&#x27;s record marks 3 as fixed (1 of them with no test named), 1 as left unfixed and 1 as not a defect. "
-            "It gives no usable outcome for 3.") in top(text)  # the first sentence counts every one
+            "It gives no usable outcome for 3.") in text  # the sentence over the list counts every one
     table = re.search(r"<tbody>(.*?)</tbody>", text, re.S).group(1)
     assert sum(int(n) for n in re.findall(r">(\d+)</(?:td|span)>", table)) == 8  # the finders table
     assert sum(int(n) for n in re.findall(r'href="#group-\d+"><i[^>]*></i>[^<]*: (\d+)<', top(text))) == 8  # the board's labels
@@ -835,7 +846,7 @@ def test_every_finding_read_is_drawn_once_as_a_card_and_counted_once_in_each_cou
 
 # What the owner reads first, and the evidence kept under it.
 
-def test_the_first_sentence_counts_the_issues_and_their_recorded_outcomes_from_the_records():
+def test_the_issues_sentence_counts_the_issues_and_their_recorded_outcomes_from_the_records():
     said = lambda findings, fates: handover.issues_said(handover.page_data("feat", files={"walker-a.jsonl": findings}, fates=fates))  # noqa: E731
     three = [finding("A"), finding("B"), finding("C")]
     assert said(three, {i: fate(i) for i in "ABC"}) == "The reviewers reported 3 issues in the reports this page read. The build's record marks 3 as fixed."
@@ -847,11 +858,36 @@ def test_the_first_sentence_counts_the_issues_and_their_recorded_outcomes_from_t
     assert said(three, {"A": fate("A"), "B": fate("B", check=""), "C": fate("C", "Fixed")}).endswith(
         "marks 2 as fixed (1 of them with no test named). It gives no usable outcome for 1.")  # an outcome word it does not know is not a fix
     text = page(three, fates={"A": fate("A"), "B": fate("B", "left")}, git=GIT)
-    verdict, lead = re.findall(r'<p class="lead">(.*?)</p>', top(text), re.S)
-    assert lead.endswith("reported 3 issues in the reports this page read. The build&#x27;s record marks 1 as fixed and 1 as left unfixed. It gives no outcome for 1.")
+    (verdict,) = re.findall(r'<p class="lead">(.*?)</p>', top(text), re.S)  # one sentence leads the page; the counts are drawn on the board
     assert verdict == "<strong>Nothing on record shows that the build&#x27;s last commit passes the walk-through or the automated checks.</strong>"
-    assert (text.index('class="built"') < text.index(verdict) < text.index('<p class="terms">') < text.index(lead) < text.index('class="headline') < text.index('<ol class="look">')
-            < text.index('<div class="board">') < text.index("For reference, this page covers commits"))
+    lead = "reported 3 issues in the reports this page read. The build&#x27;s record marks 1 as fixed and 1 as left unfixed. It gives no outcome for 1."
+    assert text.count(lead) == 1 and lead not in top(text)  # written out once, over the list of issues
+    assert (text.index('class="built"') < text.index(verdict) < text.index('<div class="board">') < text.index('class="headline') < text.index('<ol class="look">')
+            < text.index('<details class="reading">') < text.index("For reference, this page covers commits") < text.index(lead))
+
+
+def test_the_top_of_the_page_is_drawn_before_it_is_explained():
+    """Nothing but the page's first sentence has to be read to reach the tiles and the list: what the page's words mean,
+    where its list comes from and why each thing matters all open under folds, and are all still on the page."""
+    more = dict(files={"walker-a.jsonl": [finding("A"), finding("B")]}, fates={"A": fate("A", "left", why="A reason."), "B": fate("B", check="")},
+                summary={"what": ["Built one.", "Built two.", "Built three."], "so_what": [], "now_what": ["One."]})
+    for merged in (False, True):
+        data = handover.page_data("feat", git={**GIT, "merged": merged}, **more)
+        text = handover.render(data)
+        head = top(text)
+        above = re.sub(r"(<details[^>]*>.*?</summary>).*?</details>", r"\1", head[head.index("</h1>"):head.index('<div class="board">')], flags=re.S)
+        assert re.findall(r'<p class="([\w ]+)"', above) == ["kicker found", "lead"] + ["merged"] * merged  # in view above the tiles: one sentence
+        assert '<span class="first">Built one. <span class="more">and 2 more lines</span></span></summary><ul><li>Built two.</li><li>Built three.</li></ul>' in head
+        reading = re.search(r'<details class="reading"><summary>How to read this page, and what its words mean</summary>(.*?)</details>', head, re.S).group(1)
+        for words in (handover.TERMS, handover.WORDS, handover.list_said(len(handover.to_look_at(data)))):
+            assert head.count(handover.e(words)) == 1 and handover.e(words) in reading  # said once, under the fold
+        assert (handover.e(handover.MERGED_HOW) in reading) == merged
+        listed = handover.to_look_at(data)
+        assert len(listed) >= 4 and all(so and do for _, _, so, do, _ in listed)
+        said = lambda words: handover.e(handover.undecided(words, data))  # noqa: E731
+        assert [(shown, folded) for _, _, _, shown, folded in looks(text)] == [(said(do), said(so)) for _, _, so, do, _ in listed]  # what to do in view; why under it
+        between = head[head.index("</ol>"):head.index('<details class="reading">')]
+        assert between.count("<p") == 2  # after the list: whom to tell, and where the builder's own list is
 
 
 def test_the_page_has_every_section_once_in_the_order_it_is_read():
@@ -860,7 +896,7 @@ def test_the_page_has_every_section_once_in_the_order_it_is_read():
     assert text.count("<header>") == 1 and text.index("<header>") < text.index('<section id="recording">')
     for title in ("What it gives you", "What is left for you"):
         assert text.count(f"<h3>{title}</h3>") == 1
-    assert text.count("What was built, in the builder's words</p>") == 1 and "<h3>What was built</h3>" not in text  # at the top, not said again below
+    assert text.count("What was built, in the builder's words, not checked by this page</span>") == 1 and "<h3>What was built</h3>" not in text  # at the top, not said again below
     empty = page()  # with nothing to show, each section is still there and says so
     assert re.findall(r'<section id="(\w+)">', empty) == ["recording", "summary", "findings", "finders", "facts"]
 
@@ -1143,10 +1179,11 @@ def test_each_outcome_s_sentences_are_worded_for_one_issue_and_for_many_and_clai
     assert "blocking use" not in said("fixed", rows(2, severity="blocks"))[1]
 
 
-def test_the_first_sentence_counts_only_the_outcomes_of_reported_issues_and_reads_the_same_in_both_places():
+def test_the_issues_sentence_counts_only_the_outcomes_of_reported_issues():
     text = page([finding("A"), finding("B")], fates={"A": fate("A"), "B": fate("B", "left"), "Z1": fate("Z1"), "Z2": fate("Z2", "left")})
     said = "The reviewers reported 2 issues in the reports this page read. The build&#x27;s record marks 1 as fixed and 1 as left unfixed."
-    assert text.count(f'<p class="lead">{said}</p>') == 2  # under the title and over the list; the two outcomes that match no issue are not in it
+    assert text.count(f'<p class="lead">{said}</p>') == 1 and said not in top(text)  # over the list; the two outcomes that match no issue are not in it
+    assert chip(text, "warn", "#group-0", "Left unfixed: 1") or "Left unfixed: 1" in top(text)  # the board draws the same counts
     assert chip(text, "amber", "#findings", "Outcomes matching no issue: 2")
 
 
@@ -1257,22 +1294,23 @@ def test_a_range_that_holds_no_commit_is_one_of_the_things_to_look_at():
 def test_the_builder_s_summary_is_pointed_to_apart_from_the_page_s_own_list_and_never_quoted_in_it():
     left = lambda lines, **more: top(page(summary={"what": [], "so_what": [], "now_what": lines}, **more))  # noqa: E731
     several = left(["Ticket 07 was not built.", "Try it in Safari."])  # no reviews, no walk, no checks: three things listed
-    assert ("This page worked out these 3 itself, from git and from the build&#x27;s record files: they are not taken from the "
-            "builder&#x27;s summary.") in several  # two of the three come from files a tool wrote, so no author is claimed
-    links = '<p class="soft">Each one links to the part of this page that shows it.</p>'
-    assert several.index('class="headline') < several.index(links) < several.index('<ol class="look">')  # said before the list it describes
+    own = ('<p class="terms">This page worked out these 3 itself, from git and from the build&#x27;s record files: they are not taken from the '
+           "builder&#x27;s summary. Each one links to the part of this page that shows it.</p>")  # two of the three come from files a tool wrote, so no author is claimed
+    assert several.index('<ol class="look">') < several.index('<details class="reading">') < several.index(own)  # under the fold on how to read the page
     assert f"<p>To ask for any of this, or to accept the build, tell the agent you are working with (a new session opened in this project will do). {handover.e(handover.ACCEPTING)}</p>" in several
-    assert ("The build&#x27;s summary file (hand-over.json) also lists what is left for you: 2 lines, further down this page, under "
-            "&quot;The builder&#x27;s own summary&quot;. This page copied them as written and did not compare "
-            "them with the 3 above, so read them as well: a line there may repeat one of these, explain it or disagree with it.") in several
+    assert ('<a href="#summary">The build&#x27;s summary file also lists what is left for you: 2 lines, further down this page. '
+            "This page did not compare them with the 3 above, so read them as well.</a>") in several
+    assert ("lists as left for you are under &quot;The builder&#x27;s own summary&quot;. This page copied them as written: "
+            "a line there may repeat one of these, explain it or disagree with it.</p></details>") in several
     quoted = top(page(summary={"what": ["Built the thing."], "so_what": [], "now_what": ["One."]}))
-    assert "&quot;. It is from the same file as the lines quoted at the top of this page. This page copied it" in quoted
+    assert ("lists as left for you is under &quot;The builder&#x27;s own summary&quot; and the lines quoted at the top of this page come from "
+            "the same file. This page copied it as written") in quoted
     assert "Ticket 07" not in several and "Safari" not in several
     one = top(page([finding("A")], fates={"A": fate("A")}, git=GIT, runs=handover.run_facts(GREEN_RUN, "feature/x"), recording=WALKED,
                    files={"walker-a.jsonl": [finding("A")], "review-a.jsonl": []}, summary={"now_what": ["One."]}))
     assert "1 thing to look at before you accept this build" in one and "This page worked this out itself" in one and "It links to the part of this page that shows it." in one
-    assert ("This page copied it as written and did not compare it with the item above, so read it as well: "
-            "a line there may repeat it, explain it or disagree with it.</a>") in one
+    assert "1 line, further down this page. This page did not compare it with the item above, so read it as well.</a>" in one
+    assert "This page copied it as written: a line there may repeat it, explain it or disagree with it.</p></details>" in one
 
 
 def test_the_page_says_where_its_issues_and_numbers_came_from():
@@ -1444,8 +1482,10 @@ def test_a_build_whose_last_commit_is_already_in_main_is_said_to_be_merged_and_i
     open_, done = (page(files=every, fates=fates, summary=summary, git={**GIT, "merged": merged}) for merged in (False, True))
     assert "before you accept this build" in top(open_) and handover.e(handover.MERGED) not in open_ and handover.e(handover.ACCEPTING) in top(open_)
     assert "accept this build" not in done and "accept the build" not in done and handover.e(handover.ACCEPTING) not in done
-    assert f'</strong></p><p class="lead">{handover.e(handover.MERGED)}</p>' in top(done) and done.count(handover.e(handover.MERGED)) == 1  # the page's own finding, under its first sentence
-    assert handover.MERGED.startswith("This build is already merged: this page found its last commit in main")
+    assert (f'</strong></p><p class="merged"><span class="pill">Already merged</span> {handover.e(handover.MERGED)}</p>' in top(done)
+            and done.count(handover.e(handover.MERGED)) == 1)  # the page's own finding, under its first sentence
+    assert handover.MERGED_HOW.startswith("This build is already merged: this page found its last commit in main")
+    assert done.count(handover.e(handover.MERGED_HOW)) == 1 and "already merged" not in open_.lower()  # how the page knows: once, under the fold
     count = len(things(done))
     assert f"{count} things to look at in this build, which is already merged</p>" in top(done)
     assert "<p>To ask for any of this, tell the agent you are working with (a new session opened in this project will do).</p>" in top(done)

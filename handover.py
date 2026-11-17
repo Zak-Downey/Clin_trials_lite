@@ -337,7 +337,13 @@ def of_the(part: int, total: int) -> str:
 
 
 def state_said(state: str, rows: list[dict], verified: bool = False, top: bool = False) -> tuple[str, str]:
-    """(what the record shows for this group, why that matters to the owner and what they can do about it): whole
+    """(what the record shows for this group, why that matters and what the owner can do), the last two as one text."""
+    what, so, do = state_parts(state, rows, verified, top)
+    return what, f"{so} {do}".strip()
+
+
+def state_parts(state: str, rows: list[dict], verified: bool = False, top: bool = False) -> tuple[str, str, str]:
+    """(what the record shows for this group, why that matters to the owner, what they can do about it): whole
     sentences, worded for one issue or for many. What the record claims is said as the record's claim; only FOUND is
     the page's own finding. `top` is for the list at the top of the page, far from the issues: it says where a reason
     is printed in those terms, and quotes how a reason the whole group shares begins."""
@@ -413,7 +419,7 @@ def state_said(state: str, rows: list[dict], verified: bool = False, top: bool =
     if blocking and state != "fixed":  # the one severity that changes what the owner does next
         whom = ("it" if one else f"all {total}") if blocking == total else f"{blocking} of the {total}"
         so += f" The reviewer{'' if one else 's'} recorded {whom} as blocking use, which means a user cannot finish a task, or loses data."
-    return what, f"{so} {do}".strip()
+    return what, so, do
 
 
 def state_look(state: str, rows=()) -> tuple[str, str, bool]:
@@ -504,8 +510,8 @@ CHECK_GLOSS = {"patterns": "the scan for forbidden code patterns", "escapes": "t
                "unit": "the unit tests", "walks": "the browser tests"}  # checks.py's docstring
 DECISION = "before you accept this build"  # the owner's decision (CLAUDE.md, "When the owner accepts a build")
 # For a build whose last commit is already part of main: the page's own finding, from git, said under its first sentence.
-MERGED = ("This build is already merged: this page found its last commit in main, the project's main line of work. "
-          "So there is nothing left to accept, and what this page lists is for you to know about and, if you choose, ask for.")
+MERGED = "Nothing is left to accept: what this page lists is for you to know about and, if you choose, ask for."
+MERGED_HOW = "This build is already merged: this page found its last commit in main, the project's main line of work."
 AGAIN = "on the build's last commit"
 ASK = "tell the agent you are working with (a new session opened in this project will do)"
 # What accepting sets off: this project's rule (CLAUDE.md, "When the owner accepts a build"), not a fact about one build.
@@ -609,28 +615,31 @@ def later_said(runs: dict) -> str:
     return said
 
 
-def left_said(data: dict, flagged: int = 0) -> str:
-    """That the builder wrote its own summary, where it is, and how many lines it lists as left for the owner: a count
-    of lines, which the script can make without judging them. `flagged` is how many things the page itself lists."""
+def left_said(data: dict, flagged: int = 0) -> tuple[str, str]:
+    """(that the build's summary lists things as left for the owner, how many lines and what to do with them; where
+    those lines come from and what the page did with them). The first is the link under the page's list and the
+    second is said under the fold on how to read the page. The count is of lines, which the script can make without
+    judging them. `flagged` is how many things the page itself lists."""
     summary = data["summary"]
     if summary is None:
-        return "This build has no summary file (hand-over.json)."
+        return "This build has no summary file (hand-over.json).", ""
     if not any(summary.get(key) for key in ("what", "so_what", "now_what")):
-        return "The build's summary file (hand-over.json) is empty."
+        return "The build's summary file (hand-over.json) is empty.", ""
     count = len(summary.get("now_what") or [])
     one = count == 1
-    it, them = ("It is", "it") if one else ("They are", "them")
-    where = f'further down this page, under "{SUMMARY_TITLE}"'
+    them = "it" if one else "them"
     if not count:
-        return f"The build's summary file (hand-over.json) is shown {where}. It lists nothing as left for you."
-    same = f"{it} from the same file as the lines quoted at the top of this page. " if summary.get("what") else ""
-    said = (f"The build's summary file (hand-over.json) also lists what is left for you: {count} line{'' if one else 's'}, {where}. "
-            f"{same}This page copied {them} as written and did not ")
+        return f'The build\'s summary file is shown further down this page, under "{SUMMARY_TITLE}". It lists nothing as left for you.', ""
+    said = f"The build's summary file also lists what is left for you: {count} line{'' if one else 's'}, further down this page."
+    same = " and the lines quoted at the top of this page come from the same file" if summary.get("what") else ""
+    more = (f'The {"line" if one else "lines"} the build\'s summary file (hand-over.json) lists as left for you {"is" if one else "are"} '
+            f'under "{SUMMARY_TITLE}"{same}. This page copied {them} as written')
     if not flagged:
-        return said + f"judge {them}: read {them} {DECISION}."
+        return f"{said} This page did not judge {them}: read {them} {DECISION}.", f"{more}."
     above = "the item above" if flagged == 1 else f"the {flagged} above"
     its = "it" if flagged == 1 else "one of these"
-    return said + f"compare {them} with {above}, so read {them} as well: a line there may repeat {its}, explain it or disagree with it."
+    return (f"{said} This page did not compare {them} with {above}, so read {them} as well.",
+            f"{more}: a line there may repeat {its}, explain it or disagree with it.")
 
 
 def listed(parts: list[str]) -> str:
@@ -678,12 +687,18 @@ def issues_said(data: dict) -> str:
     if other:  # "usable" only when the record does name an outcome and the page cannot read it
         usable = " usable" if any(kind and kind not in OUTCOMES for kind in kinds) else ""
         said += f" {'It' if marks else 'The build' + chr(39) + 's record'} gives no{usable} outcome for {other:,}."
+    return f"{said} {severity_said(found)}".strip()
+
+
+def severity_said(found: list[dict]) -> str:
+    """That the reports record no severity for some or all of the issues, so the page cannot say how serious they are:
+    empty when every issue has one."""
     total, bare = len(found), sum(1 for row in found if not str(row.get("severity") or "").strip())
-    if bare:
-        whom = "this issue" if total == 1 else f"any of the {total:,}" if bare == total else f"{bare:,} of the {total:,}"
-        said += (f" The reviewers' reports record no severity for {whom}, so this page cannot say how serious "
-                 f"{'it is' if bare == 1 else 'they are'}.")
-    return said
+    if not bare:
+        return ""
+    whom = "this issue" if total == 1 else f"any of the {total:,}" if bare == total else f"{bare:,} of the {total:,}"
+    return (f"The reviewers' reports record no severity for {whom}, so this page cannot say how serious "
+            f"{'it is' if bare == 1 else 'they are'}.")
 
 
 def proof_said(data: dict) -> str:
@@ -766,9 +781,15 @@ button:hover { border-color: var(--soft); }
 .lead { font-size: 1.08rem; margin: .5rem 0 0; max-width: 46rem; }
 .terms { margin: .4rem 0 0; max-width: 46rem; color: var(--soft); }
 .built { border-left: 3px solid var(--line); padding: .1rem 0 .1rem .9rem; margin: .7rem 0 1rem; max-width: 46rem; }
+.built summary { cursor: pointer; }
+.built .first { display: block; }
+.built .more { color: var(--accent); font-size: .9rem; white-space: nowrap; }
 .built ul { margin: .3rem 0; padding-left: 1.1rem; }
 .built .soft { margin: .2rem 0 0; font-size: .9rem; }
 p.built { color: var(--soft); }
+.reading { margin-top: .9rem; max-width: 46rem; }
+.merged { margin: .2rem 0 0; max-width: 46rem; } .merged .pill { margin-right: .35rem; }
+.reading summary, ol.look summary { cursor: pointer; color: var(--soft); font-size: .9rem; width: fit-content; }
 .found { margin-top: .9rem; }
 th small { display: block; font-weight: 400; max-width: 24rem; }
 .source { margin: 0 0 .8rem; }
@@ -787,12 +808,16 @@ ol.look li { counter-increment: look; display: flex; align-items: flex-start; ga
   background: var(--warn-bg); border: 1px solid var(--warn-line); }
 ol.look li.red { background: var(--bad-bg); border: 2px solid var(--bad-line); }
 ol.look .mark { width: 1.4rem; height: 1.4rem; font-size: .85rem; margin-top: .1rem; }
-ol.look a { color: var(--ink); text-decoration: none; min-width: 0; }
+ol.look li > div { min-width: 0; }
+ol.look a { color: var(--ink); text-decoration: none; }
+ol.look details p { margin: .15rem 0 .1rem; font-size: .9rem; max-width: 46rem; overflow-wrap: anywhere; }
+.tile.wide .issues { margin-top: .55rem; max-width: 46rem; }
 ol.look a:hover strong { text-decoration: underline; }
 ol.look strong::before { content: counter(look) ". "; }
 ol.look li.amber strong { color: var(--warn); } ol.look li.red strong { color: var(--bad); }
 ol.look .sub { display: block; font-size: .9rem; color: var(--ink); overflow-wrap: anywhere; }
 .board { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; margin-top: .9rem; }
+.board + .headline { margin-top: 1.3rem; }
 .tile { display: grid; grid-template-columns: auto 1fr; gap: .15rem .7rem; align-content: start; padding: 1rem 1.1rem; border-radius: 14px;
   border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none; min-width: 0; }
 .tile > .mark { grid-row: span 3; margin-top: .15rem; }
@@ -1020,83 +1045,87 @@ def fact(label: str, value_html: str, source: str) -> str:
     return f"<div><dt>{e(label)}</dt><dd>{value_html}<small>{e(source)}</small></dd></div>"
 
 
-def walk_why(data: dict) -> str:
-    """Why the walk-through is not drawn as passed, and what the owner can do about it."""
+def walk_why(data: dict) -> tuple[str, str]:
+    """(why the walk-through is not drawn as passed, what the owner can do about it)."""
     recording = data["recording"]
     if not recording:
-        return ("There is no recording and there are no pictures, so this page does not show the app being used. "
+        return ("There is no recording and there are no pictures, so this page does not show the app being used.",
                 "Ask for this page to be built again with the walk-through.")
     off = stale(recording.get("commit"), recording.get("dirty"), (data["git"] or {}).get("tip"))
     if recording.get("result") in WALK_ENDS:
         said = ((f"{recording['reason']}. " if recording.get("reason") else "") + "So nothing on this page shows that the app "
-                "can be used from start to finish. What the run printed is in walk-output.txt, beside this page. ")
-        return said + (f"It was started {off}, so it does not show whether the build's last commit fails either. "
-                       f"Ask for it to be run again {clean_again(off)}." if off else f"Ask for this to be looked into {DECISION}.")
+                "can be used from start to finish. What the run printed is in walk-output.txt, beside this page.")
+        if off:
+            return (f"{said} It was started {off}, so it does not show whether the build's last commit fails either.",
+                    f"Ask for it to be run again {clean_again(off)}.")
+        return said, f"Ask for this to be looked into {DECISION}."
     if recording.get("result") != "passed":
-        return f"Its record (recording.json) does not say how it ended. Ask for it to be run again {AGAIN}."
-    return f"The walk-through passed, but {off}.{gap_said(data)} Ask for it to be run again {clean_again(off)}."
+        return "Its record (recording.json) does not say how it ended.", f"Ask for it to be run again {AGAIN}."
+    return f"The walk-through passed, but {off}.{gap_said(data)}", f"Ask for it to be run again {clean_again(off)}."
 
 
-def checks_why(data: dict) -> str:
-    """Why the automated checks are not drawn as passed, and what the owner can do about it."""
+def checks_why(data: dict) -> tuple[str, str]:
+    """(why the automated checks are not drawn as passed, what the owner can do about it)."""
     runs = data["runs"]
     full, later = runs["full"], later_said(runs)
     rerun = f"Ask for every check to be run {AGAIN}."
     if full is None:
-        return f"{later} {rerun}" if later else (
+        return (later, rerun) if later else (
             f"{runs['why_unknown'] or NO_FULL_RUN} Either the checks were never run for this build or the run was not logged: this page "
-            f"cannot tell which. {rerun}")
+            "cannot tell which.", rerun)
     if full.get("result") not in ("green", "red"):
-        return f"The log of check runs does not say how the last run of every check ended. {rerun}"
+        return "The log of check runs does not say how the last run of every check ended.", rerun
     off = stale(full.get("tip", "unknown"), full.get("dirty"), (data["git"] or {}).get("tip"))
     if full["result"] == "red":
         checks_ = full.get("checks") or []
         red = [check_said(check.get("name", "?")) for check in checks_ if check.get("result") == "red"]
         skipped = [check_said(check.get("name", "?")) for check in checks_ if check.get("result") == "not run"]
         rest = f" {sentence(listed(skipped))} {'was' if len(skipped) == 1 else 'were'} not run after that." if skipped else ""
-        do = (f"That run was {off}, so it does not show whether the build's last commit fails. Ask for every check to be run "
-              f"{clean_again(off)}." if off else f"Ask for the failure to be fixed {DECISION}.")
-        return f"The last run of every check failed{f' at {listed(red)}' if red else ''}.{rest}{' ' + later if later else ''} {do}"
+        failed = f"The last run of every check failed{f' at {listed(red)}' if red else ''}.{rest}{' ' + later if later else ''}"
+        if off:
+            return (f"{failed} That run was {off}, so it does not show whether the build's last commit fails.",
+                    f"Ask for every check to be run {clean_again(off)}.")
+        return failed, f"Ask for the failure to be fixed {DECISION}."
     if later and since_result(runs) != "green":
-        return f"{later} {rerun}"
-    return f"The last run of every check passed, but {off}. Ask for every check to be run {clean_again(off)}."
+        return later, rerun
+    return f"The last run of every check passed, but {off}.", f"Ask for every check to be run {clean_again(off)}."
 
 
-def to_look_at(data: dict) -> list[tuple[str, str, str, str]]:
-    """(amber or red, what, why it matters and what the owner can do, where on the page) for each thing the owner should look
+def to_look_at(data: dict) -> list[tuple[str, str, str, str, str]]:
+    """(amber or red, what, why it matters, what the owner can do, where on the page) for each thing the owner should look
     at before accepting the build: the walk-through, the automated checks, a range that holds no commit, each group of
     issues the record does not show as fixed with a test or as not a defect, each review whose report was not found,
     outcomes matching no issue, and review rounds not recognised. Red comes first. The headline counts this list and
     the page prints it, so the two cannot disagree."""
-    things = [(TONES.get(walk_verdict(data)[0], ""), walk_verdict(data)[1], walk_why(data), "#recording"),
-              (TONES.get(checks_verdict(data)[0], ""), checks_verdict(data)[1], checks_why(data), "#facts")]
+    things = [(TONES.get(walk_verdict(data)[0], ""), walk_verdict(data)[1], *walk_why(data), "#recording"),
+              (TONES.get(checks_verdict(data)[0], ""), checks_verdict(data)[1], *checks_why(data), "#facts")]
     facts = data["git"]
     if facts and not facts["commits"]:
         things.append(("amber", "This page covers no commits",
                        f"The range it was asked for ({facts['base']}..{facts['tip']}) holds no commit, so its numbers describe no "
-                       "build. Ask for this page to be built again from the build's first commit to its last.", "#facts"))
+                       "build.", "Ask for this page to be built again from the build's first commit to its last.", "#facts"))
     for index, (state, rows) in enumerate(data["groups"]):
-        things.append((TONES.get(state_look(state, rows)[1], ""), *state_said(state, rows, top=True), f"#group-{index}"))
+        things.append((TONES.get(state_look(state, rows)[1], ""), *state_parts(state, rows, top=True), f"#group-{index}"))
     if not data["files"]:
         kinds = listed([name.lower() for name in FINDERS.values()])
         things.append(("amber", NO_REVIEW.rstrip("."),
                        f"It looks for the reports of the build's reviews ({kinds}) in one place (findings/*.jsonl) and found none. "
                        "Either no review was made or the reports are somewhere else: this page cannot tell which, so nothing on "
-                       "this page shows that anyone tested or read the build. Ask whether the reviews were made; if they were "
-                       f"not, decide whether you want them made {DECISION}.", "#finders"))
+                       "this page shows that anyone tested or read the build.",
+                       f"Ask whether the reviews were made; if they were not, decide whether you want them made {DECISION}.", "#finders"))
     for finder in data["absent"] if data["files"] else ():
         note = FINDER_NOTES[finder]
         want = ("it can now only be made late, on the finished build: decide whether you want that" if finder == "early-read"
                 else "decide whether you want it made")
         things.append(("amber", f"This page found no report from the {FINDERS[finder].lower()}",
-                       f"{NO_REPORT} In this review, {note[0].lower()}{note[1:]} Ask whether it was made. If it was not, "
-                       f"{want} {DECISION}.", "#finders"))
+                       f"{NO_REPORT} In this review, {note[0].lower()}{note[1:]}",
+                       f"Ask whether it was made. If it was not, {want} {DECISION}.", "#finders"))
     if data["orphans"]:
         count = len(data["orphans"])
         one = count == 1
         things.append(("amber", f"The record gives {'an outcome' if one else 'outcomes'} for {issues(count)} that "
                                 f"{'is' if one else 'are'} in no review report this page read",
-                       f"So {'an issue' if one else 'issues'} may have been reported somewhere this page does not look. "
+                       f"So {'an issue' if one else 'issues'} may have been reported somewhere this page does not look.",
                        f"Ask where {'it was' if one else 'they were'} reported.", "#findings"))
     if odd_passes(data):
         count = odd_passes(data)
@@ -1104,7 +1133,7 @@ def to_look_at(data: dict) -> list[tuple[str, str, str, str]]:
         things.append(("amber", f"{issues(count).capitalize()} {'does' if one else 'do'} not name a review round this page recognises",
                        f"An issue belongs to the first review or to the re-check after the fixes. {'This one names' if one else 'These name'} "
                        f"neither, so {'it is' if one else 'they are'} counted apart, in a column of {'its' if one else 'their'} own "
-                       "in the review table. Ask for the record to be corrected.", "#finders"))
+                       "in the review table.", "Ask for the record to be corrected.", "#finders"))
     flagged = [thing for thing in things if thing[0] in ("amber", "red")]
     return sorted(flagged, key=lambda thing: thing[0] != "red")  # a sort that keeps the order within each look
 
@@ -1185,28 +1214,43 @@ def render_findings_tile(data: dict) -> str:
     if odd_passes(data):
         items.append(pill(f"Review round not recognised: {odd_passes(data)}", "amber", "#finders"))
     return (f'<div class="tile wide"><span class="label">Issues the reviewers reported, by recorded outcome</span>'
-            f'<strong>{e(said)}</strong>{bar}<ul class="standing">{"".join(f"<li>{item}</li>" for item in items)}</ul></div>')
+            f'<strong>{e(said)}</strong>{bar}<ul class="standing">{"".join(f"<li>{item}</li>" for item in items)}</ul>'
+            + (f'<span class="sub issues">{e(severity_said(data["findings"]))}</span>' if severity_said(data["findings"]) else "") + "</div>")
+
+
+WHY = "Why this matters"
+
+
+def render_look(tone: str, what: str, so: str, do: str, href: str) -> str:
+    """One thing to look at: what it is and what the owner can do, with why it matters one click under them. A thing
+    with nothing to do shows its why in that place."""
+    shown, folded = (do, so) if do else (so, "")
+    why = f"<details><summary>{WHY}</summary><p>{e(folded)}</p></details>" if folded else ""
+    return (f'<li class="{tone}">{mark(tone)}<div><a href="{e(href)}"><strong>{e(what)}</strong></a>'
+            f'<span class="sub">{e(shown)}</span>{why}</div></li>')
+
+
+def list_said(count: int) -> str:
+    """Where the page's own list comes from and that each item links on: said under the fold on how to read the page."""
+    if count == 1:
+        return ("This page worked this out itself, from git and from the build's record files: it is not taken "
+                "from the builder's summary. It links to the part of this page that shows it.")
+    return (f"This page worked out these {count} itself, from git and from the build's record files: they are "
+            "not taken from the builder's summary. Each one links to the part of this page that shows it.")
 
 
 def render_standing(data: dict) -> str:
-    """The board under the page's first sentences: how many things need a look before the owner accepts the build, what
-    each one is, why it matters and what the owner can do, and whom to tell; then the builder's summary, the
-    walk-through, the last full run of the checks, and the issues."""
-    flagged = [(tone, what, undecided(why, data), href) for tone, what, why, href in to_look_at(data)]
+    """The board under the page's first sentence, drawn before anything is explained: the walk-through, the last full
+    run of the checks and the issues as tiles; then how many things need a look before the owner accepts the build,
+    each with what it is and what the owner can do, and whom to tell; then where the builder's own list is."""
+    flagged = [(tone, what, undecided(so, data), undecided(do, data), href) for tone, what, so, do, href in to_look_at(data)]
     count, done = len(flagged), merged(data)
     accept = "" if done else f" {e(ACCEPTING)}"
     if flagged:
         worst = "red" if any(tone == "red" for tone, *_ in flagged) else "amber"
-        rows = "".join(f'<li class="{tone}">{mark(tone)}<a href="{e(href)}"><strong>{e(what)}</strong><span class="sub">{e(why)}</span></a></li>'
-                       for tone, what, why, href in flagged)
-        own = ("This page worked this out itself, from git and from the build's record files: it is not taken "
-               "from the builder's summary." if count == 1 else
-               f"This page worked out these {count} itself, from git and from the build's record files: they are "
-               "not taken from the builder's summary.")
-        links = "It links to the part of this page that shows it." if count == 1 else "Each one links to the part of this page that shows it."
-        headline = (f'<p class="headline {worst}">{mark(worst)}{e(headline_said(count, done))}</p><p class="soft">{links}</p>'
-                    f'<ol class="look">{rows}</ol><p>To ask for any of this{"" if done else ", or to accept the build"}, {ASK}.{accept}</p>'
-                    f'<p class="soft">{e(own)}</p>')
+        rows = "".join(render_look(*thing) for thing in flagged)
+        headline = (f'<p class="headline {worst}">{mark(worst)}{e(headline_said(count, done))}</p>'
+                    f'<ol class="look">{rows}</ol><p>To ask for any of this{"" if done else ", or to accept the build"}, {ASK}.{accept}</p>')
     else:
         settled = "the reviewers reported no issues in the reports this page read"
         if data["findings"]:
@@ -1219,33 +1263,39 @@ def render_standing(data: dict) -> str:
         headline = (f'<p class="headline green">{mark("green")}{e(headline_said(0, done))}</p>'
                     "<p class=\"soft\">This page checked: the walk-through and the automated checks passed on the build's last commit, "
                     f"and {settled}.</p>" + ("" if done else f"<p>To accept the build, {ASK}.{accept}</p>"))
-    headline += f'<p class="soft"><a href="#summary">{e(undecided(left_said(data, count), data))}</a></p>'
-    return f'{headline}<div class="board">{render_walk_tile(data)}{render_checks_tile(data)}{render_findings_tile(data)}</div>'
+    headline += f'<p class="soft"><a href="#summary">{e(undecided(left_said(data, count)[0], data))}</a></p>'
+    return f'<div class="board">{render_walk_tile(data)}{render_checks_tile(data)}{render_findings_tile(data)}</div>{headline}'
 
 
 def render_built(data: dict) -> str:
     """What was built, under the title, in the builder's own words: the one place the header prints an agent's words,
-    because nothing the page computes can say what a build is for. The block says whose words they are and that the
-    page did not check them, and no colour, count or item of the page's own list reads them."""
+    because nothing the page computes can say what a build is for. Its label says whose words they are and that the
+    page did not check them; the first line shows, and the rest and where they come from open under it. No colour,
+    count or item of the page's own list reads them."""
     summary = data["summary"]
     lines = (summary or {}).get("what") or []
     if not lines:
         why = ("the build has no summary file (hand-over.json is missing)" if summary is None
                else 'the build\'s summary file (hand-over.json) has nothing under "what"')
         return f'<p class="built">This page cannot say what was built: {e(why)}.</p>'
-    one = len(lines) == 1
-    return ('<div class="built"><p class="kicker">What was built, in the builder\'s words</p>'
-            f'<p class="soft">{"This line comes" if one else "These lines come"} from the build\'s summary file (hand-over.json), '
+    one, rest = len(lines) == 1, len(lines) - 1
+    more = f' <span class="more">and {rest} more line{"" if rest == 1 else "s"}</span>' if rest else ""
+    return ('<details class="built"><summary><span class="kicker">What was built, in the builder\'s words, not checked by this page</span>'
+            f'<span class="first">{e(lines[0])}{more}</span></summary>'
+            + (f'<ul>{"".join(f"<li>{e(line)}</li>" for line in lines[1:])}</ul>' if rest else "")
+            + f'<p class="soft">{"This line comes" if one else "These lines come"} from the build\'s summary file (hand-over.json), '
             f'which the agent that runs a build is meant to write. This page copied {"it" if one else "them"} as written and did '
-            f'not check {"it" if one else "them"}.</p>'
-            f'<ul>{"".join(f"<li>{e(line)}</li>" for line in lines)}</ul></div>')
+            f'not check {"it" if one else "them"}.</p></details>')
+
+
+READING = "How to read this page, and what its words mean"
 
 
 def render_header(data: dict) -> str:
-    """The first thing read. First what was built, in the builder's words and labelled as such. Then the page's own
-    conclusion: whether anything shows that the finished build passes its two tests, with each test said in a
-    sentence; what the reviews reported and what the record says became of it; and what needs a look. How large the
-    build is and which commits the page covers come last, as reference."""
+    """The first thing read, and seen before it is read: what was built, in one line of the builder's words; the page's
+    own conclusion in one sentence; the tiles; and the list of what needs a look. What the page's words mean and where
+    its list comes from open under one fold, so nothing has to be read to reach the tiles. How large the build is and
+    which commits the page covers come last, as reference."""
     facts = data["git"]
     if facts:
         count, first, last = facts["commits"], when(facts["first"]), when(facts["last"])
@@ -1256,12 +1306,18 @@ def render_header(data: dict) -> str:
         covers = f"{made} For reference, this page covers commits <code>{e(facts['base'])}..{e(facts['tip'])}</code>{asked}."
     else:
         covers = f"The range of commits this page covers is {unknown()}."
-    merged_said = f'<p class="lead">{e(MERGED)}</p>' if merged(data) else ""
+    merged_said = f'<p class="merged"><span class="pill">Already merged</span> {e(MERGED)}</p>' if merged(data) else ""
+    how = f'<p class="terms">{e(MERGED_HOW)}</p>' if merged(data) else ""
+    left = left_said(data, len(to_look_at(data)))[1]
+    more = f'<p class="terms">{e(left)}</p>' if left else ""
+    listed_ = len(to_look_at(data))
+    own = f'<p class="terms">{e(list_said(listed_))}</p>' if listed_ else ""
+    reading = (f'<details class="reading"><summary>{READING}</summary><p class="terms">{e(TERMS)}</p>'
+               f'<p class="terms">{e(WORDS)}</p>{how}{own}{more}</details>')
     return (f'<header><p class="kicker">Build hand-over</p><h1>{e(data["feature"])}</h1>{render_built(data)}'
             '<p class="kicker found">What this page found, from git and the build\'s records</p>'
             f'<p class="lead"><strong>{e(proof_said(data))}</strong></p>{merged_said}'
-            f'<p class="terms">{e(TERMS)}</p><p class="terms">{e(WORDS)}</p>'
-            f'<p class="lead">{e(issues_said(data))}</p>{render_standing(data)}<p class="soft">{covers}</p></header>')
+            f'{render_standing(data)}{reading}<p class="soft">{covers}</p></header>')
 
 
 def shot_parts(shot) -> tuple[str, str]:
