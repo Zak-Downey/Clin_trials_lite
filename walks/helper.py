@@ -25,6 +25,40 @@ SHOTS = ROOT / ".scratch" / FEATURE / "walks"
 VIEWPORTS = {"1440x900": (1440, 900), "1024x768": (1024, 768)}
 
 
+def record_dir() -> pathlib.Path | None:
+    """Where to record each walk's page as a video: the directory WALK_RECORD names, or None (no recording)."""
+    return pathlib.Path(os.environ["WALK_RECORD"]).resolve() if os.environ.get("WALK_RECORD") else None
+
+
+def launch_options() -> dict:
+    """Extra browser launch options. None unless recording; then a pause after each
+    browser action (WALK_SLOW_MO milliseconds, default 350) so a person can follow the video."""
+    if not record_dir():
+        return {}
+    return {"slow_mo": int(os.environ.get("WALK_SLOW_MO", "350"))}
+
+
+def context_options(width: int, height: int) -> dict:
+    """Extra browser context options. None unless recording; then the video folder and its size (the viewport's)."""
+    if not record_dir():
+        return {}
+    return {"record_video_dir": str(record_dir()), "record_video_size": {"width": width, "height": height}}
+
+
+def keep_video(page, name: str) -> pathlib.Path | None:
+    """Give a recorded page's video its predictable name, <WALK_RECORD>/<name>.webm.
+
+    Playwright writes the file (under a random name) when the page's context closes, so
+    call this after the close. Returns None when nothing was recorded.
+    """
+    if not record_dir() or page.video is None:
+        return None
+    written = pathlib.Path(page.video.path())
+    if not written.exists():
+        return None
+    return written.replace(record_dir() / f"{name}.webm")
+
+
 class Registry:
     """The stand-in registry on a free port, with its control endpoint."""
 

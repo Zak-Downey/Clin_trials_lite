@@ -1,4 +1,4 @@
-"""By hand, outside the gate: does the stand-in still look like the real registry?
+"""By hand, outside the checks command: does the stand-in still look like the real registry?
 
     python walks/fidelity_check.py
 

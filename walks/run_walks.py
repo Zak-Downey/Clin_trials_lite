@@ -1,12 +1,12 @@
-"""Run the walk suite the way the gate reads it.
+"""Run the walk suite and say which red walks are real.
 
     .venv/bin/python walks/run_walks.py [pytest args]
 
 Runs `pytest walks` across four workers (one browser each) into a file under
 .scratch/<WALK_FEATURE>/walks/, prints the failures, re-runs each failed walk
 alone once, and ends with a `## Result` section: one line per walk that failed or erred,
-`red alone` or `red under load, green alone`, in the gate's shape and also appended to the output
-file. At most ALONE_CAP walks are re-run; the rest are listed as red, not re-run. Exit 1 when any walk failed alone.
+`red alone` or `red under load, green alone`, also appended to the output file. At most ALONE_CAP walks are re-run; the rest are
+listed as red, not re-run. Exit 1 when any walk failed alone.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ def split_args(argv):
 
 
 def result_line(nodeid: str, verdict: str, where: str) -> str:
-    """`<file> \u203a <title>: <verdict> (retry: <path>)`, the shape the gate's `walk_results` reads."""
+    """`<file> \u203a <title>: <verdict> (retry: <path>)`."""
     file, _, title = nodeid.partition("::")
     return f"{file} \u203a {title}: {verdict} (retry: {where})"
 

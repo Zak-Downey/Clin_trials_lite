@@ -1,15 +1,26 @@
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "f=\"$CLAUDE_PROJECT_DIR/.claude/factory/guard_bash.py\"; [ -f \"$f\" ] || exit 0; python3 \"$f\""
-          }
-        ]
-      }
+  "permissions": {
+    "deny": [
+      "Bash(git push* main)",
+      "Bash(git push* main *)",
+      "Bash(git push*:main*)",
+      "Bash(git push*--force*)",
+      "Bash(git push* -f*)",
+      "Bash(git push*--mirror*)",
+      "Bash(pkill:*)",
+      "Bash(killall:*)"
     ]
+  },
+  "enabledPlugins": {
+    "mattpocock-skills@mattpocock": true,
+    "factory@software-factory": false
+  },
+  "extraKnownMarketplaces": {
+    "mattpocock": {
+      "source": {
+        "source": "github",
+        "repo": "mattpocock/skills"
+      }
+    }
   }
 }

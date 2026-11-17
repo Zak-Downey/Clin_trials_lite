@@ -12,7 +12,7 @@ def browser():
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as pw:
-        chromium = pw.chromium.launch()
+        chromium = pw.chromium.launch(**helper.launch_options())  # no options unless WALK_RECORD is set
         yield chromium
         chromium.close()
 
@@ -65,14 +65,15 @@ class Walk:
 @pytest.fixture
 def make_walk(browser, viewport, request):
     """walk = make_walk(app): a page on the app at the viewport, guarded."""
-    contexts = []
+    contexts, recorded = [], []
 
     def build(app) -> Walk:
         width, height = helper.VIEWPORTS[viewport]
         # The browser is put in a different zone from the server so a page that
         # shifts a time into the browser's own zone shows.
         context = browser.new_context(
-            viewport={"width": width, "height": height}, locale="en-US", timezone_id="Asia/Tokyo")
+            viewport={"width": width, "height": height}, locale="en-US", timezone_id="Asia/Tokyo",
+            **helper.context_options(width, height))  # no options unless WALK_RECORD is set
         context.set_default_timeout(5000)
         contexts.append(context)
         page = context.new_page()
@@ -81,11 +82,14 @@ def make_walk(browser, viewport, request):
         walk = Walk(page, helper.Guards(page, app.url.rstrip("/")),
                     f"{helper.shot_name(request.node.nodeid)}{suffix}")
         walks.append(walk)
+        recorded.append((page, walk.name))
         return walk
 
     yield build
     for context in contexts:
         context.close()
+    for page, name in recorded:  # the video file is complete only once its context has closed
+        helper.keep_video(page, name)
 
 
 @pytest.hookimpl(hookwrapper=True)
