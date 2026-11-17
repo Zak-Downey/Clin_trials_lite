@@ -4,11 +4,11 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A record whose interventions differ from the previous one only in how often a name repeats records no change
-- [ ] A record whose interventions are only reordered still records no change
-- [ ] Adding or removing a distinct intervention still records an interventions change
-- [ ] Every other field's detection is unchanged (the existing comparison tests pass untouched)
-- [ ] A unit test for the repeat-only case, red before the fix
-- [ ] The commit message states that detection changed and why
+- [x] A record whose interventions differ from the previous one only in how often a name repeats records no change
+- [x] A record whose interventions are only reordered still records no change
+- [x] Adding or removing a distinct intervention still records an interventions change
+- [x] Every other field's detection is unchanged (the existing comparison tests pass untouched)
+- [x] A unit test for the repeat-only case, red before the fix
+- [x] The commit message states that detection changed and why

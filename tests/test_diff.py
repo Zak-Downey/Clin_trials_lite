@@ -78,6 +78,27 @@ def test_a_reordered_list_is_not_a_change(profile):
     assert diff.compare(previous, current) == []
 
 
+def test_an_intervention_repeated_more_or_fewer_times_is_not_a_change(profile):
+    """The registry can name an intervention once per arm; a name counts once."""
+    names = profile["interventions"]
+    previous, current = changed(
+        {**profile, "interventions": names + [names[0]]},
+        interventions=names + [names[1], names[1]],
+    )
+
+    assert diff.compare(previous, current) == []
+
+
+def test_a_distinct_intervention_added_beside_a_repeat_is_still_a_change(profile):
+    names = profile["interventions"]
+    previous, current = changed(
+        {**profile, "interventions": names + [names[0]]},
+        interventions=names + ["Pomalidomide"],
+    )
+
+    assert [c["field"] for c in diff.compare(previous, current)] == ["interventions"]
+
+
 def test_the_registry_last_updated_date_is_never_reported(profile):
     """It moves by definition whenever anything else does: a circular alert."""
     previous, current = changed(profile, lastUpdatePostDate="2026-01-15")

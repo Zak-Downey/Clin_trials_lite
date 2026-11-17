@@ -14,7 +14,13 @@ from __future__ import annotations
 EXCLUDED = ("lastUpdatePostDate", "resultsUrl")
 
 
-def _comparable(value):
+# The list fields read as names that are each there or not. The registry can
+# name an intervention once per arm, so how often a name repeats is not news:
+# these compare by distinct names. Other list fields keep counting repeats.
+SPLIT = ("interventions",)
+
+
+def _comparable(field, value):
     """The form of a value that decides whether it moved.
 
     The registry's ordering of a list carries no meaning, so lists compare by
@@ -22,7 +28,8 @@ def _comparable(value):
     of mixed types (and Nones) comparable.
     """
     if isinstance(value, list):
-        return sorted(map(repr, value))
+        members = map(repr, value)
+        return sorted(set(members) if field in SPLIT else members)
     return value
 
 
@@ -36,7 +43,7 @@ def compare(previous: dict, current: dict) -> list[dict]:
         {"field": field, "previous": previous.get(field), "current": value}
         for field, value in current.items()
         if field not in EXCLUDED
-        and _comparable(previous.get(field)) != _comparable(value)
+        and _comparable(field, previous.get(field)) != _comparable(field, value)
     ]
 
 
