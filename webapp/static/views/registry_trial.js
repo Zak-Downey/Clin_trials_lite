@@ -32,6 +32,10 @@ export async function render(root, nct, alive = () => true) {
     window.dispatchEvent(new Event("reviewchange"));
     pick.focus({ preventScroll: true });
   });
+  // The watchlists named under the title: redrawn after each add, so it never says "Not monitored" beside "Added to".
+  const holds = [...trial.watchlists];
+  const metaLine = () => [nct, facts, holds.length ? `In: ${holds.map((w) => w.name).join(", ")}` : "Not monitored"].filter(Boolean).join(" · ");
+  const meta = el("p", { class: "meta" }, metaLine());
   const add = el("button", { type: "button", class: "primary" }, "Add to watchlist");
   const problem = el("p", { class: "field-error", id: "add-error", role: "alert" });
   add.setAttribute("aria-describedby", "add-error");
@@ -45,15 +49,16 @@ export async function render(root, nct, alive = () => true) {
       banner.className = "banner";
       const text = done.added.length ? `Added to ${done.list.name}.` : `Already in ${done.list.name}.`;
       banner.replaceChildren(el("span", {}, text, " "), el("a", { href: trialHref(nct, "changes", { list: done.list.id }) }, "Open the trial"));
+      if (!holds.some((w) => w.id === done.list.id)) holds.push(done.list);
+      meta.textContent = metaLine();
       window.dispatchEvent(new Event("reviewchange"));
     } catch (err) {
       problem.textContent = err.message;
     }
     add.disabled = false;
   });
-  const holds = trial.watchlists.length ? `In: ${trial.watchlists.map((w) => w.name).join(", ")}` : "Not monitored";
   const head = el("div", { class: "trial-head" },
-    el("div", {}, el("h1", {}, trial.heading), el("p", { class: "meta" }, [nct, facts, holds].filter(Boolean).join(" · "))),
+    el("div", {}, el("h1", {}, trial.heading), meta),
     el("div", { class: "head-actions" },
       el("a", { class: "source", href: trial.registry_url, target: "_blank", rel: "noopener" }, "Open ClinicalTrials.gov ↗"),
       el("label", { for: "add-to" }, "Add to"), pick, add, problem));

@@ -316,3 +316,27 @@ def test_walk_an_address_whose_list_is_not_a_watchlist_number_is_rewritten_to_th
         assert page.locator("a.back").inner_text() == "‹ Back to Myeloma"
         page.wait_for_url(re.compile(rf"#/trials/NCT03412565\?list={MYELOMA}$"))
     walk.shot("bad-list-rewritten")
+
+
+def test_walk_adding_from_registry_details_names_the_watchlist_under_the_title(make_app, make_walk):
+    """test_walk_adding_from_registry_details_names_the_watchlist_under_the_title"""
+    app = make_app(seed=seed_two_queues)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(f"{app.url}#/registry/NCT00000003")
+    page.get_by_role("button", name="Add to watchlist").wait_for()
+    meta = page.locator(".trial-head .meta")
+    assert meta.inner_text().endswith("Not monitored"), meta.inner_text()
+    page.get_by_label("Add to").select_option(label="Elsewhere")
+    page.get_by_role("button", name="Add to watchlist").click()
+    page.get_by_text("Added to Elsewhere.").wait_for()
+    assert meta.inner_text().endswith("In: Elsewhere"), meta.inner_text()
+    walk.shot("in-elsewhere")
+    page.get_by_label("Add to").select_option(label="Myeloma")
+    page.get_by_role("button", name="Add to watchlist").click()
+    page.get_by_text("Added to Myeloma.").wait_for()
+    assert meta.inner_text().endswith("In: Elsewhere, Myeloma"), meta.inner_text()
+    page.get_by_role("button", name="Add to watchlist").click()
+    page.get_by_text("Already in Myeloma.").wait_for()
+    assert meta.inner_text().endswith("In: Elsewhere, Myeloma"), meta.inner_text()
+    walk.shot("in-both")
