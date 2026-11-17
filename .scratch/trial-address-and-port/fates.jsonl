@@ -1,0 +1,1 @@
+{"id": "early-read-whole-01", "fate": "fixed", "commit": "0d6ef09", "check": "tests/test_run.py::test_a_port_held_on_all_addresses_stops_run_py_with_the_busy_port_line", "why": ""}
