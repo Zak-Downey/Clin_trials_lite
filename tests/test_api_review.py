@@ -144,3 +144,47 @@ def test_a_saved_interventions_change_that_removes_a_name_is_still_shown(api, re
     trial = api.get("/api/trials/NCT03412565")[1]
     assert [c["field"] for g in trial["groups"] for c in g["changes"]] == ["interventions"]
     assert [t["change_count"] for t in api.get("/api/watchlists/1/needs-review")[1]["trials"]] == [1]
+
+
+def test_an_interventions_change_carries_what_was_removed_added_and_unchanged(api, record):
+    """A simulated removal of Carfilzomib (the stand-in registry's "one intervention
+    fewer" record) serves the split; an enrolment change beside it carries none, and
+    every change keeps its previous and current text."""
+    conn = storage.connect(api.path)
+    monitor.add(conn, "NCT03412565", 1, fetch=lambda _n: record, when="2026-11-01T08:00:00+00:00")
+    storage.add_change(
+        conn, "NCT03412565",
+        {"field": "interventions",
+         "previous": ["Daratumumab", "Bortezomib", "Lenalidomide", "Dexamethasone", "Melphalan", "Prednisone", "Carfilzomib"],
+         "current": ["Daratumumab", "Bortezomib", "Lenalidomide", "Dexamethasone", "Melphalan", "Prednisone"]},
+        SECOND, synthetic=True,
+    )
+    storage.add_change(conn, "NCT03412565", {"field": "enrollment", "previous": 248, "current": 265}, SECOND)
+    conn.close()
+
+    trial = api.get("/api/trials/NCT03412565")[1]
+    changes = {c["field"]: c for g in trial["groups"] for c in g["changes"]}
+    moved = changes["interventions"]
+    assert moved["removed"] == ["Carfilzomib"]
+    assert moved["added"] == []
+    assert moved["unchanged"] == ["Daratumumab", "Bortezomib", "Lenalidomide", "Dexamethasone", "Melphalan", "Prednisone"]
+    assert moved["previous"].endswith("Prednisone, Carfilzomib") and moved["current"].endswith("Prednisone")
+    assert moved["simulated"] is True and trial["simulated"] is True
+    other = changes["enrollment"]
+    assert not {"added", "removed", "unchanged"} & set(other)
+    assert (other["previous"], other["current"]) == ("248", "265")
+
+
+def test_a_renamed_or_newly_filled_interventions_list_reads_as_removals_and_additions(api, record):
+    conn = storage.connect(api.path)
+    monitor.add(conn, "NCT03412565", 1, fetch=lambda _n: record, when="2026-11-01T08:00:00+00:00")
+    storage.add_change(conn, "NCT03412565", {"field": "interventions", "previous": ["Carfilzomib", "Dexamethasone"],
+                                             "current": ["carfilzomib (Kyprolis)", "Dexamethasone"]}, FIRST)
+    storage.add_change(conn, "NCT03412565", {"field": "interventions", "previous": [], "current": ["B", "A"]}, SECOND)
+    conn.close()
+
+    groups = api.get("/api/trials/NCT03412565")[1]["groups"]
+    [filled], [renamed] = (g["changes"] for g in groups)
+    assert (filled["removed"], filled["added"], filled["unchanged"]) == ([], ["B", "A"], [])
+    assert (renamed["removed"], renamed["added"], renamed["unchanged"]) == (
+        ["Carfilzomib"], ["carfilzomib (Kyprolis)"], ["Dexamethasone"])

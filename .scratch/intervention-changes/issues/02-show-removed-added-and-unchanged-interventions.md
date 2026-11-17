@@ -13,15 +13,15 @@ Removed and Added are always both shown, an empty side reading "None". The uncha
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] After a simulated removal of Carfilzomib from NCT03412565, the interventions change reads "Removed Carfilzomib", "Added None", "Unchanged 6 interventions"
-- [ ] The six unchanged names are hidden until "Show" is pressed (by keyboard in the walk), and "Hide" folds them again
-- [ ] An addition lists the name under Added with Removed "None"; a swap lists each name on its own side
-- [ ] Empty to filled lists every name under Added; filled to empty lists every name under Removed; a full replacement shows Unchanged "None" with no button
-- [ ] A renamed intervention shows as one removed and one added
-- [ ] The trial API carries added, removed and unchanged on an interventions change only, and keeps the previous and current text on every change
-- [ ] The "Simulated changes" label and marking as reviewed work as before
-- [ ] An enrolment or date change on the same page still shows Previously / Now; History, change summary and export are unchanged
-- [ ] The card fits both supported window sizes without sideways scrolling
-- [ ] Unit tests for the split, an API test through the `api` fixture, and a trial page walk, each red before the fix
+- [x] After a simulated removal of Carfilzomib from NCT03412565, the interventions change reads "Removed Carfilzomib", "Added None", "Unchanged 6 interventions"
+- [x] The six unchanged names are hidden until "Show" is pressed (by keyboard in the walk), and "Hide" folds them again
+- [x] An addition lists the name under Added with Removed "None"; a swap lists each name on its own side
+- [x] Empty to filled lists every name under Added; filled to empty lists every name under Removed; a full replacement shows Unchanged "None" with no button
+- [x] A renamed intervention shows as one removed and one added
+- [x] The trial API carries added, removed and unchanged on an interventions change only, and keeps the previous and current text on every change
+- [x] The "Simulated changes" label and marking as reviewed work as before
+- [x] An enrolment or date change on the same page still shows Previously / Now; History, change summary and export are unchanged
+- [x] The card fits both supported window sizes without sideways scrolling
+- [x] Unit tests for the split, an API test through the `api` fixture, and a trial page walk, each red before the fix
