@@ -517,7 +517,7 @@ def test_the_script_run_on_a_real_repository_writes_the_page_and_ends_with_the_o
     assert "hand-over.json is missing" in text
     assert "<code>review-a.jsonl</code>: reviewed, found nothing" in text and "<code>walker-a.jsonl</code>: 4 issues" in text
     assert reviewer("early-read") + '<td colspan="2"><span class="unknown">no report found</span>' in text
-    assert reviewer("review") + '<td class="n">none found</td><td class="n soft">no report read</td>' in text  # it left a report: it reviewed
+    assert reviewer("review") + '<td class="n">none found</td>' + handover.NO_REPORT_CELL in text  # it left a report: it reviewed
 
 
 def test_the_branch_whose_runs_are_counted_is_the_one_asked_for_and_a_tip_needs_one(repo):
@@ -788,7 +788,8 @@ def test_a_finder_that_looked_and_found_nothing_is_told_apart_from_one_that_neve
     looked = page(files={"walker-find-trials.jsonl": [], "early-read-whole.jsonl": []})
     assert looked.count("reviewed, found nothing") == 2
     assert looked.count('<span class="unknown">no report found</span>') == 1 and reviewer("review") + "<td colspan" in looked
-    assert reviewer("walker") + '<td class="n">none found</td><td class="n soft">no report read</td>' in looked  # read and empty is not "not read"
+    assert reviewer("walker") + '<td class="n">none found</td>' + handover.NO_REPORT_CELL in looked  # read and empty is not "not found"
+    assert handover.NO_REPORT_CELL == '<td class="n soft">no report found<small>not made, or its report is elsewhere</small></td>'
     assert reviewer("early-read") + '<td class="n">none found</td><td class="n soft">none is made</td>' in looked  # the build's steps give it no re-check
     assert looked.count("The reviewers reported no issues in the reports this page read.") == 1  # over the list; the board says it on its tile
     assert "No issues in the 2 reports read" in top(looked) and "Code review: no report found" in top(looked)
@@ -796,7 +797,7 @@ def test_a_finder_that_looked_and_found_nothing_is_told_apart_from_one_that_neve
     rechecked = page(files={"walker-a.jsonl": [], "walker-a-recheck.jsonl": []})
     assert reviewer("walker") + '<td class="n">none found</td><td class="n">none found</td>' in rechecked  # an empty re-check report is a re-check made
     only_again = page(files={"review-whole-recheck.jsonl": [finding("R-1", "review", "recheck")]})
-    assert reviewer("review") + '<td class="n soft">no report read</td><td class="n">1</td>' in only_again
+    assert reviewer("review") + handover.NO_REPORT_CELL + '<td class="n">1</td>' in only_again
     assert "This page read no re-check report" not in rechecked and "This page read no re-check report" not in page()  # one was read; none to expect
     named_by_its_rows = page(files={"1-anything.jsonl": [finding("A", "review")]})
     assert reviewer("review") + '<td class="n">1</td>' in named_by_its_rows and reviewer("walker") + "<td colspan" in named_by_its_rows

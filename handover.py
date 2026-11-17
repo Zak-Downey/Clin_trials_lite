@@ -981,7 +981,7 @@ dd ul, ul.files { margin: .2rem 0; padding-left: 1.1rem; }
 table { border-collapse: collapse; width: 100%; max-width: 38rem; }
 th, td { text-align: left; padding: .4rem .8rem .4rem 0; border-top: 1px solid var(--line); }
 thead th { border-top: 0; color: var(--soft); font-weight: 600; font-size: .9rem; }
-td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; } td.n small { display: block; font-size: .8rem; }
 details.group, .orphans { border: 1px solid var(--line); border-radius: 10px; margin-top: .8rem; padding: .6rem .9rem; }
 details.group.bad { border: 2px solid var(--bad); background: var(--bad-bg); }
 details.group.bad > summary { color: var(--bad); }
@@ -1682,20 +1682,23 @@ def finder_said(finder: str) -> str:
     return FINDERS.get(finder) or (f'A review this page does not recognise: "{finder}"' if finder else "No review named")
 
 
+NO_REPORT_CELL = '<td class="n soft">no report found<small>not made, or its report is elsewhere</small></td>'
+
+
 def render_finders(data: dict) -> str:
     """Who reviewed the build and how much each reported: one row per kind of review, then every report read with its count."""
     counts, files = data["by_finder"], data["files"]
     other = any(row["other"] for row in counts.values())
 
     def cell(finder: str, which: str, n: int) -> str:
-        """A count; "none found" where a report for this round was read and lists nothing; otherwise that none was read."""
+        """A count; "none found" where a report for this round was read and lists nothing; otherwise that none was found."""
         if n:
             return f'<td class="n">{e(n)}</td>'
         if report_read(files, finder, which):
             return '<td class="n">none found</td>'
         if (finder, which) == ("early-read", "recheck"):
             return '<td class="n soft">none is made</td>'
-        return '<td class="n soft">no report read</td>'
+        return NO_REPORT_CELL
 
     rows = []
     for finder, row in counts.items():
