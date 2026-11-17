@@ -8,3 +8,5 @@
 {"id": "walker-find-trials-02", "fate": "fixed", "commit": "27d389d", "check": "walks/test_origin_walk.py::test_walk_a_long_watchlist_name_in_add_to_leaves_the_trial_title_readable", "why": ""}
 {"id": "walker-find-trials-03", "fate": "fixed", "commit": "661811e", "check": "walks/test_trial_address_walk.py::test_walk_adding_from_registry_details_by_keyboard_keeps_focus_on_the_button", "why": ""}
 {"id": "review-server-and-checks-01", "fate": "fixed", "commit": "eefbca9", "check": "tests/test_run.py::test_a_port_a_stopped_copy_just_served_on_is_still_kept_from_run_py", "why": ""}
+{"id": "walker-trial-page-recheck-01", "fate": "fixed", "commit": "96323a3", "check": "walks/test_trial_address_walk.py::test_walk_next_trial_after_removing_and_switching_tabs_goes_on_to_the_following_trial", "why": ""}
+{"id": "walker-trial-page-recheck-02", "fate": "fixed", "commit": "68e5936", "check": "walks/test_trial_address_walk.py::test_walk_back_to_summary_after_changing_the_period_on_a_return_visit_lands_on_the_new_period", "why": ""}
