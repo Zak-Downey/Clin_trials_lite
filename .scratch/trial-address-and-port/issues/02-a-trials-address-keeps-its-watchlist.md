@@ -4,14 +4,14 @@
 
 **Blocked by:** None (can start immediately). The order is 01 first; nothing here needs the fixed port.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Walk, red first: a trial held in two watchlists, opened from the one that is not its first and then reloaded, still reads "Back to <that watchlist>", and Next trial goes to the next trial in that watchlist's Needs review queue
-- [ ] Walk: a new page opened at a trial address with `list` and `from=all-trials` reads "Back to <that watchlist>", and the link opens that watchlist's All trials tab
-- [ ] Walk: links from Needs review, All trials and Summary open trial addresses carrying `list`, and `from` except from Needs review
-- [ ] Walk: the trial's Details and History tabs and Next trial keep `list` and `from` in the address
-- [ ] Walk: a trial address with no `list` behaves as today
-- [ ] The browser's Back from a trial still restores the watchlist's scroll position (existing walk stays green)
-- [ ] Existing walks asserting a trial link's address are changed only where this ticket changed that address
+- [x] Walk, red first: a trial held in two watchlists, opened from the one that is not its first and then reloaded, still reads "Back to <that watchlist>", and Next trial goes to the next trial in that watchlist's Needs review queue
+- [x] Walk: a new page opened at a trial address with `list` and `from=all-trials` reads "Back to <that watchlist>", and the link opens that watchlist's All trials tab
+- [x] Walk: links from Needs review, All trials and Summary open trial addresses carrying `list`, and `from` except from Needs review
+- [x] Walk: the trial's Details and History tabs and Next trial keep `list` and `from` in the address
+- [x] Walk: a trial address with no `list` behaves as today
+- [x] The browser's Back from a trial still restores the watchlist's scroll position (existing walk stays green)
+- [x] Existing walks asserting a trial link's address are changed only where this ticket changed that address
 
 ## Comments

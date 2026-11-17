@@ -129,12 +129,12 @@ def test_walk_the_heading_and_review_changes_open_the_same_trial_address(make_ap
     row = page.locator('li[data-nct="NCT03412565"]')
     heading = row.locator("h3 a")
     review = row.get_by_role("link", name="Review changes")
-    assert heading.get_attribute("href") == review.get_attribute("href") == "#/trials/NCT03412565"
+    assert heading.get_attribute("href") == review.get_attribute("href") == "#/trials/NCT03412565?list=1"
     review.click()
-    page.wait_for_url(re.compile(r"#/trials/NCT03412565$"))
+    page.wait_for_url(re.compile(r"#/trials/NCT03412565\?list=1$"))
     page.go_back()
     page.locator('li[data-nct="NCT03412565"] h3 a').click()
-    page.wait_for_url(re.compile(r"#/trials/NCT03412565$"))
+    page.wait_for_url(re.compile(r"#/trials/NCT03412565\?list=1$"))
 
 
 def test_walk_reload_back_and_forward_keep_the_chosen_watchlist_and_tab(make_app, make_walk):

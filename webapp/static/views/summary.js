@@ -1,6 +1,7 @@
 // The Summary tab (design page 10): a period, a heading, trials grouped by check, Copy and Export.
 import { get, when } from "/static/api.js";
 import { tabs } from "/static/views/tabs.js";
+import { trialHref } from "/static/views/trial_address.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -33,7 +34,7 @@ function valueLine(change) {
   return `${side(change.previous, change.previous_qualifier)} → ${side(change.current, change.qualifier)}`;
 }
 
-function trialCard(trial) {
+function trialCard(trial, listId) {
   const open = el("details", { class: "trial-moves" });
   open.append(el("summary", {}, `View ${plural(trial.change_count, "change")} →`));
   for (const check of trial.checks) {
@@ -48,7 +49,7 @@ function trialCard(trial) {
     open.append(el("h4", { class: "check-head" }, `Detected ${when(check.detected_at)}`), list);
   }
   const head = el("div", { class: "trial-head" },
-    el("h3", {}, el("a", { href: `#/trials/${trial.nct_id}` }, trial.heading)),
+    el("h3", {}, el("a", { href: trialHref(trial.nct_id, "changes", { list: listId, from: "summary" }) }, trial.heading)),
     el("span", { class: "changes" }, plural(trial.change_count, "change")));
   const card = el("li", { class: "card trial", "data-nct": trial.nct_id },
     el("div", { class: "card-body" }, head,
@@ -183,7 +184,7 @@ export async function render(root, listId, watchlist, hashQuery = "", alive = ()
         el("p", {}, "No changes detected in this period."), el("p", {}, "Try a wider range: "), offer));
       return;
     }
-    body.append(el("ul", { class: "queue" }, ...data.trials.map(trialCard)));
+    body.append(el("ul", { class: "queue" }, ...data.trials.map((t) => trialCard(t, listId))));
   }
 
   draw();

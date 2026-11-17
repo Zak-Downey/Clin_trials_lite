@@ -8,6 +8,7 @@ import { render as renderNewMatches } from "/static/views/new_matches.js";
 import { render as renderSummary } from "/static/views/summary.js";
 import { mount as mountCheck } from "/static/views/check.js";
 import { render as renderTrial } from "/static/views/trial.js";
+import { readPlace } from "/static/views/trial_address.js";
 import { newWatchlistDialog } from "/static/views/new_watchlist.js";
 import { banner as savedSearchBanner } from "/static/views/saved_search.js";
 import { render as renderRegistryTrial } from "/static/views/registry_trial.js";
@@ -72,21 +73,22 @@ async function drawSidebar(activeId, alive = () => true) {
   return watchlists;
 }
 
-// Where the analyst came from, so the trial page can say "Back to <watchlist>" and the
-// queue can be put back at the same scroll position. Kept in the page and in the queue
-// entry's history state (which is what browser Back and Forward read).
-let origin = null;
+// The trial's address names the watchlist and tab the analyst came from (trial_address.js).
+// What the address cannot hold is the queue's scroll position: it is kept here, for the
+// trial page's "Back to" link, and in the queue entry's history state (which is what
+// browser Back and Forward read).
+let left = null; // { at: the watchlist address left, scroll }
 let pendingScroll = null;
 
 document.addEventListener("click", (event) => {
   const link = event.target.closest && event.target.closest('a[href^="#/trials/"]');
-  const here = /^#\/watchlists\/(\d+)\//.exec(location.hash);
+  const here = /^#\/watchlists\/\d+\/[^/?]+/.exec(location.hash);
   if (link && here) {
-    origin = { listId: Number(here[1]), tab: location.hash.split("/")[3] || "needs-review", scroll: window.scrollY };
+    left = { at: here[0], scroll: window.scrollY };
     history.replaceState({ scroll: window.scrollY }, "");
   }
   const back = event.target.closest && event.target.closest("a[data-back]");
-  if (back && origin) pendingScroll = origin.scroll;
+  if (back && left && back.getAttribute("href") === left.at) pendingScroll = left.scroll;
 }, true);
 
 window.addEventListener("reviewchange", () => drawSidebar(undefined).catch(() => {}));
@@ -153,7 +155,7 @@ async function route() {
     if (parts[0] === "trials" && parts[1]) {
       await drawSidebar(null, alive);
       if (!alive()) return;
-      await renderTrial(view, parts[1].toUpperCase(), parts[2] || "changes", origin, alive);
+      await renderTrial(view, parts[1].toUpperCase(), parts[2] || "changes", readPlace(hashQuery), alive);
       if (!alive()) return;
       window.scrollTo(0, 0);
       return;

@@ -1,5 +1,6 @@
 import { get, post, when } from "/static/api.js";
 import { menuKeys } from "/static/views/menu_keys.js";
+import { trialHref } from "/static/views/trial_address.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -10,16 +11,20 @@ const el = (tag, attrs = {}, ...kids) => {
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // The trial page: header, tabs, and the Changes tab with its review action bar.
+// place: the watchlist and tab the address names ({ list, from }), or null when it names none.
 // alive(): is this still the page the address names? A slow answer for a page the analyst left is dropped.
-export async function render(root, nct, tab, origin, alive = () => true) {
+export async function render(root, nct, tab, place, alive = () => true) {
   const trial = await get(`/api/trials/${nct}`);
   if (!alive()) return;
-  // The list the analyst came from, else the first watchlist holding the trial.
-  const home = trial.watchlists.find((w) => origin && w.id === origin.listId) || trial.watchlists[0];
+  // The list the address names, else the first watchlist holding the trial.
+  const named = place && trial.watchlists.find((w) => w.id === place.list);
+  const home = named || trial.watchlists[0];
+  // The trial's own tabs and Next trial carry the address's watchlist and tab forward.
+  const carry = named ? place : null;
   const others = trial.watchlists.filter((w) => !home || w.id !== home.id);
   const state = { reviewed: false, event: null };
 
-  const back = el("a", { class: "back", "data-back": "", href: home ? `#/watchlists/${home.id}/${origin && origin.listId === home.id && origin.tab || "needs-review"}` : "#/watchlists" },
+  const back = el("a", { class: "back", "data-back": "", href: home ? `#/watchlists/${home.id}/${named ? place.from : "needs-review"}` : "#/watchlists" },
     `‹ Back to ${home ? home.name : "watchlists"}`);
   const meta = el("p", { class: "meta" }, [nct, trial.last_checked ? `Last checked ${when(trial.last_checked)}` : "Not yet checked"].join(" · "));
   if (trial.check_failed) {
@@ -36,10 +41,10 @@ export async function render(root, nct, tab, origin, alive = () => true) {
       menuWrap));
   const banner = el("div", { class: "banner", role: "status", hidden: "" });
   const count = el("span", { class: "tab-count" });
-  const changesTab = el("a", { role: "tab", "aria-selected": String(tab === "changes"), href: `#/trials/${nct}` }, "Changes ", count);
+  const changesTab = el("a", { role: "tab", "aria-selected": String(tab === "changes"), href: trialHref(nct, "changes", carry) }, "Changes ", count);
   const tabs = el("nav", { class: "tabs", role: "tablist", "aria-label": "Trial" }, changesTab,
-    el("a", { role: "tab", "aria-selected": String(tab === "details"), href: `#/trials/${nct}/details` }, "Trial details"),
-    el("a", { role: "tab", "aria-selected": String(tab === "history"), href: `#/trials/${nct}/history` }, "History"));
+    el("a", { role: "tab", "aria-selected": String(tab === "details"), href: trialHref(nct, "details", carry) }, "Trial details"),
+    el("a", { role: "tab", "aria-selected": String(tab === "history"), href: trialHref(nct, "history", carry) }, "History"));
   const body = el("div", { class: "trial-body" });
   root.replaceChildren(back, title, banner, tabs, body);
 
@@ -181,7 +186,7 @@ export async function render(root, nct, tab, origin, alive = () => true) {
   }
   const at = order.indexOf(nct);
   const following = at >= 0 ? order[at + 1] : order.find((n) => n !== nct);
-  if (following) next.addEventListener("click", () => { location.hash = `#/trials/${following}`; });
+  if (following) next.addEventListener("click", () => { location.hash = trialHref(following, "changes", carry); });
   else { next.disabled = true; next.title = "No other trial needs review"; }
   draw();
 }
