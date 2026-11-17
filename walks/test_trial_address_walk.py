@@ -286,3 +286,20 @@ def test_walk_switching_the_trial_tab_after_removing_it_from_the_list_keeps_that
     page.wait_for_url(re.compile(rf"#/trials/NCT10000001\?list={ELSEWHERE}$"))
     page.get_by_role("link", name="‹ Back to Elsewhere").wait_for()
     walk.shot("next-trial-in-elsewhere")
+
+
+def test_walk_back_to_summary_keeps_the_period_chosen_within_the_visit(make_app, make_walk):
+    """test_walk_back_to_summary_keeps_the_period_chosen_within_the_visit"""
+    _, walk = summary_seed.open_summary(make_app, make_walk)
+    page = walk.page
+    page.get_by_role("button", name="This month").click()
+    page.wait_for_url("**/summary?period=month")
+    page.locator('li.card.trial[data-nct="NCT03412565"] h3 a').click()
+    page.get_by_role("tab", name="History").click()
+    page.get_by_role("heading", name="Trial history").wait_for()
+    walk.shot("trial-from-summary-this-month")
+    page.get_by_role("link", name="‹ Back to Myeloma").click()
+    page.locator("#summary-heading").wait_for()
+    assert page.evaluate("location.hash") == "#/watchlists/1/summary?period=month"
+    assert page.locator('[aria-label="Period"] [aria-pressed="true"]').inner_text() == "This month"
+    walk.shot("back-on-summary-this-month")

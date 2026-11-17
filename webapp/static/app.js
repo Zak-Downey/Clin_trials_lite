@@ -74,21 +74,21 @@ async function drawSidebar(activeId, alive = () => true) {
 }
 
 // The trial's address names the watchlist and tab the analyst came from (trial_address.js).
-// What the address cannot hold is the queue's scroll position: it is kept here, for the
-// trial page's "Back to" link, and in the queue entry's history state (which is what
-// browser Back and Forward read).
-let left = null; // { at: the watchlist address left, scroll }
+// What the address cannot hold is the queue's scroll position and the watchlist address's own
+// query (Summary's period): they are kept here, for the trial page's "Back to" link within this
+// page load, and the scroll in the queue entry's history state (which browser Back and Forward read).
+let left = null; // { at: the watchlist address left, without its query; full: with it; scroll }
 let pendingScroll = null;
 
 document.addEventListener("click", (event) => {
   const link = event.target.closest && event.target.closest('a[href^="#/trials/"]');
   const here = /^#\/watchlists\/\d+\/[^/?]+/.exec(location.hash);
   if (link && here) {
-    left = { at: here[0], scroll: window.scrollY };
+    left = { at: here[0], full: location.hash, scroll: window.scrollY };
     history.replaceState({ scroll: window.scrollY }, "");
   }
   const back = event.target.closest && event.target.closest("a[data-back]");
-  if (back && left && back.getAttribute("href") === left.at) pendingScroll = left.scroll;
+  if (back && left && [left.at, left.full].includes(back.getAttribute("href"))) pendingScroll = left.scroll;
 }, true);
 
 window.addEventListener("reviewchange", () => drawSidebar(undefined).catch(() => {}));
@@ -155,7 +155,10 @@ async function route() {
     if (parts[0] === "trials" && parts[1]) {
       await drawSidebar(null, alive);
       if (!alive()) return;
-      await renderTrial(view, parts[1].toUpperCase(), parts[2] || "changes", readPlace(hashQuery), alive);
+      // "Back to" the watchlist tab the analyst left returns to it as it was (Summary's period).
+      const place = readPlace(hashQuery);
+      if (place && left && left.at === `#/watchlists/${place.list}/${place.from}`) place.back = left.full;
+      await renderTrial(view, parts[1].toUpperCase(), parts[2] || "changes", place, alive);
       if (!alive()) return;
       window.scrollTo(0, 0);
       return;

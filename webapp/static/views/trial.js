@@ -19,7 +19,8 @@ window.addEventListener("hashchange", () => {
 });
 
 // The trial page: header, tabs, and the Changes tab with its review action bar.
-// place: the watchlist and tab the address names ({ list, from }), or null when it names none.
+// place: the watchlist and tab the address names ({ list, from }, and back: that tab's address as the
+// analyst left it in this page load), or null when it names none.
 // alive(): is this still the page the address names? A slow answer for a page the analyst left is dropped.
 export async function render(root, nct, tab, place, alive = () => true) {
   const trial = await get(`/api/trials/${nct}`);
@@ -37,7 +38,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
   const others = trial.watchlists.filter((w) => !home || w.id !== home.id);
   const state = { reviewed: false, event: null };
 
-  const back = el("a", { class: "back", "data-back": "", href: home ? `#/watchlists/${home.id}/${named ? place.from : "needs-review"}` : "#/watchlists" },
+  const back = el("a", { class: "back", "data-back": "", href: !home ? "#/watchlists" : named && place.back || `#/watchlists/${home.id}/${named ? place.from : "needs-review"}` },
     `‹ Back to ${home ? home.name : "watchlists"}`);
   const meta = el("p", { class: "meta" }, [nct, trial.last_checked ? `Last checked ${when(trial.last_checked)}` : "Not yet checked"].join(" · "));
   if (trial.check_failed) {
