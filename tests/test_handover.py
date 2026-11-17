@@ -62,6 +62,13 @@ def chip(text: str, look: str, href: str, words: str) -> bool:
     return bool(re.search(rf'<a class="pill {look}" href="{href}">(?:<i class="sw [\w-]+"></i>)?{re.escape(words)}</a>', top(text)))
 
 
+def things(text: str) -> list[tuple[str, str, str, str]]:
+    """(colour, what, why, link) of each thing the list under the headline tells the owner to look at, in order."""
+    listed = re.search(r'<ol class="look">(.*?)</ol>', top(text), re.S)
+    return re.findall(r'<li class="(\w+)"><span class="mark"[^>]*>[^<]*</span><a href="([^"]*)"><strong>(.*?)</strong><span class="sub">(.*?)</span></a></li>',
+                      listed.group(1)) if listed else []
+
+
 def drawn_green(text: str) -> list[str]:
     """Everything the page draws as passed: a tile, a label, a check or the headline. (A square of the run history is
     drawn blue or red, never in the passed green: an old run is not a verdict.)"""
@@ -576,6 +583,36 @@ def test_a_reason_every_finding_of_a_group_shares_is_said_once_above_the_cards()
     assert "those whose record is missing or does not hold up" in folded and "settled" not in folded
 
 
+def test_the_headline_s_count_is_a_list_that_names_each_thing_says_why_and_links_to_it():
+    green_run = handover.run_facts([run("feature/x", "green", tip="fff9999")], "feature/x")
+    text = page([finding("A"), finding("B"), finding("C"), finding("D")], git=GIT, runs=green_run,
+                fates={"A": fate("A"), "C": fate("C", "left"), "D": fate("D", check=""), "Z": fate("Z")},
+                recording={"commit": "abc1234", "dirty": True, "result": "passed", "megabytes": 1.0})
+    listed = things(text)
+    assert [(colour, link, what) for colour, link, what, _ in listed] == [
+        ("amber", "#recording", "The walk passed, on code that is not the build&#x27;s last commit"),
+        ("amber", "#facts", "Checks green, on code that is not the build&#x27;s last commit"),
+        ("red", "#group-0", "No fate recorded: 1 finding"), ("amber", "#group-1", "Left as it is: 1 finding"),
+        ("amber", "#group-2", "Fixed, no check named: 1 finding"),
+        ("amber", "#finders", "Review: no findings file"), ("amber", "#finders", "Early read: no findings file"),
+        ("amber", "#findings", "Fate lines matching no finding: 1")]
+    assert f"{len(listed)} things to look at before you decide" in top(text)  # the count is the list's length
+    whys = [why for *_, why in listed]
+    assert whys[0] == "It ran with uncommitted changes in the folder, so it does not show that the last commit, as committed, passes."
+    assert whys[1] == "That run was on commit fff9999, not the build&#x27;s last commit (abc1234)."
+    assert whys[2].startswith("fates.jsonl names no fate") and whys[3] == "Recorded as known and left."
+    assert whys[5] == "A finder writes its file even when it finds nothing, so this one did not run."
+    assert all(why for why in whys) and "Fixed: 1" not in "".join(what for _, _, what, _ in listed)  # what is fixed with its check is not listed
+    red = page(runs=handover.run_facts([run("feature/x", "red")], "feature/x"), git=GIT, recording={**RECORDING, "result": "failed", "reason": "It was stopped after 15 minutes"})
+    assert things(red)[:2] == [("red", "#recording", "The walk FAILED", "It was stopped after 15 minutes."),
+                               ("red", "#facts", "Checks RED", "Red in the last run of every check: patterns, escapes, unit, walks.")]
+    assert things(page())[0] == ("amber", "#recording", "The walk was not run for this page", "So there is no recording and there are no pictures.")
+    every = {"walker-a.jsonl": [], "review-a.jsonl": [], "early-read-whole.jsonl": []}
+    clean = page(files=every, git=GIT, runs=handover.run_facts([run("feature/x", "green")], "feature/x"),
+                 recording={"commit": "abc1234", "dirty": False, "result": "passed", "megabytes": 1.0})
+    assert things(clean) == [] and '<ol class="look">' not in clean  # nothing to look at: no list
+
+
 def test_the_page_labels_what_an_agent_wrote_and_what_the_script_computed():
     text = page([finding("A", what="The finder saw this.")], fates={"A": fate("A", "left", why="The fixer gave this reason.")},
                 summary={"what": ["Built the thing."], "so_what": ["It matters."], "now_what": ["Decide."]})
@@ -674,7 +711,7 @@ def test_a_walk_is_drawn_as_passed_only_when_it_passed_on_the_build_s_last_commi
     assert "That is not the last commit of the build (abc1234)" in elsewhere
     for text in (elsewhere, page(recording={**RECORDING, "commit": "abc1234"}, git=GIT)):
         assert not drawn_green(text)
-        assert text.count("The walk passed, on code that is not the build&#x27;s last commit") == 2  # the strip and the section
+        assert text.count("The walk passed, on code that is not the build&#x27;s last commit") == 3  # the list, the tile and the section
 
 
 @pytest.mark.parametrize("result, words", [("failed", "The walk FAILED"), ("did not run", "The walk did not run"),
@@ -682,7 +719,7 @@ def test_a_walk_is_drawn_as_passed_only_when_it_passed_on_the_build_s_last_commi
 def test_a_walk_that_did_not_pass_is_never_drawn_as_passed_with_or_without_a_video(result, words):
     for megabytes in (11.2, None):
         text = page(recording={**RECORDING, "result": result, "megabytes": megabytes, "reason": "It was stopped after 15 minutes"})
-        assert text.count(words) == 2 and "The walk passed" not in text and not drawn_green(text)
+        assert text.count(words) == 3 and "The walk passed" not in text and not drawn_green(text)  # the list, the tile and the section
         assert tile(text, "#recording") == ("red" if result else "amber", words)
         assert '<a href="walk-output.txt">' in text and "It was stopped after 15 minutes." in text
         assert ("<video" in text) == (megabytes is not None)

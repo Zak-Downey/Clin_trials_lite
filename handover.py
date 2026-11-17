@@ -434,6 +434,16 @@ button:hover { border-color: var(--soft); }
 .green > .mark { background: var(--ok); } .amber > .mark { background: var(--warn-fill); color: #1b1300; } .red > .mark { background: var(--bad-fill); color: #fff; }
 .headline { display: flex; align-items: center; gap: .6rem; font-size: 1.35rem; font-weight: 650; margin: 1rem 0 .2rem; }
 .headline.green { color: var(--ok); } .headline.amber { color: var(--warn); } .headline.red { color: var(--bad); }
+ol.look { list-style: none; margin: .5rem 0 .6rem; padding: 0; counter-reset: look; display: grid; gap: .4rem; }
+ol.look li { counter-increment: look; display: flex; align-items: flex-start; gap: .7rem; padding: .55rem .8rem; border-radius: 10px;
+  background: var(--warn-bg); border: 1px solid var(--warn-line); }
+ol.look li.red { background: var(--bad-bg); border: 2px solid var(--bad-line); }
+ol.look .mark { width: 1.4rem; height: 1.4rem; font-size: .85rem; margin-top: .1rem; }
+ol.look a { color: var(--ink); text-decoration: none; min-width: 0; }
+ol.look a:hover strong { text-decoration: underline; }
+ol.look strong::before { content: counter(look) ". "; }
+ol.look li.amber strong { color: var(--warn); } ol.look li.red strong { color: var(--bad); }
+ol.look .sub { display: block; font-size: .9rem; color: var(--ink); overflow-wrap: anywhere; }
 .board { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; margin-top: .9rem; }
 .tile { display: grid; grid-template-columns: auto 1fr; gap: .15rem .7rem; align-content: start; padding: 1rem 1.1rem; border-radius: 14px;
   border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none; min-width: 0; }
@@ -652,14 +662,55 @@ def fact(label: str, value_html: str, source: str) -> str:
     return f"<div><dt>{e(label)}</dt><dd>{value_html}<small>{e(source)}</small></dd></div>"
 
 
-def to_look_at(data: dict) -> list[str]:
-    """One "amber" or "red" for each thing the board marks: the walk, the checks, each group of findings the record
-    does not show as fixed with a check or as not a defect, each finder that did not run, fate lines matching no
-    finding, findings whose pass is not recognised, and no findings file read."""
-    tones = [TONES.get(walk_verdict(data)[0], ""), TONES.get(checks_verdict(data)[0], "")]
-    tones += [TONES.get(state_look(state)[1], "") for state, _ in data["groups"]]
-    tones += ["amber"] * (len(data["absent"]) + bool(data["orphans"]) + (not data["files"]) + bool(odd_passes(data)))
-    return [tone for tone in tones if tone in ("amber", "red")]
+def walk_why(data: dict) -> str:
+    """One plain sentence on why the walk is not drawn as passed."""
+    recording = data["recording"]
+    if not recording:
+        return "So there is no recording and there are no pictures."
+    if recording.get("result") in WALK_ENDS:
+        return f"{recording['reason']}." if recording.get("reason") else "What it printed is in walk-output.txt, beside this page."
+    if recording.get("result") != "passed":
+        return "recording.json does not say how the walk ended."
+    off = stale(recording.get("commit"), recording.get("dirty"), (data["git"] or {}).get("tip"))
+    return f"It ran {off}, so it does not show that the last commit, as committed, passes."
+
+
+def checks_why(data: dict) -> str:
+    """One plain sentence on why the checks are not drawn as passed."""
+    runs = data["runs"]
+    full, later = runs["full"], runs["later"]
+    if full is None:
+        return later_said(runs) if later else runs["why_unknown"] or "No run of every check is logged for this branch."
+    if full.get("result") not in ("green", "red"):
+        return "The log does not say how the last run of every check ended."
+    if full["result"] == "red":
+        red = [str(check.get("name", "?")) for check in full.get("checks") or [] if check.get("result") == "red"]
+        return f"Red in the last run of every check: {', '.join(red)}." if red else "The last run of every check was red."
+    if later and later.get("result") != "green":
+        return later_said(runs)
+    return f"That run was {stale(full.get('tip', 'unknown'), full.get('dirty'), (data['git'] or {}).get('tip'))}."
+
+
+def to_look_at(data: dict) -> list[tuple[str, str, str, str]]:
+    """(amber or red, what, why, where on the page) for each thing the owner should look at before deciding: the
+    walk, the checks, each group of findings the record does not show as fixed with a check or as not a defect, each
+    finder that did not run, fate lines matching no finding, no findings file read, and passes not recognised.
+    The headline counts this list and the page prints it, so the two cannot disagree."""
+    things = [(TONES.get(walk_verdict(data)[0], ""), walk_verdict(data)[1], walk_why(data), "#recording"),
+              (TONES.get(checks_verdict(data)[0], ""), checks_verdict(data)[1], checks_why(data), "#facts")]
+    for index, (state, rows) in enumerate(data["groups"]):
+        title, look, _, note = state_look(state)
+        things.append((TONES.get(look, ""), f"{title}: {len(rows)} finding{'' if len(rows) == 1 else 's'}", note, f"#group-{index}"))
+    things += [("amber", f"{FINDERS[finder]}: no findings file",
+                "A finder writes its file even when it finds nothing, so this one did not run.", "#finders") for finder in data["absent"]]
+    if data["orphans"]:
+        things.append(("amber", f"Fate lines matching no finding: {len(data['orphans'])}", "fates.jsonl names findings the page did not read.", "#findings"))
+    if not data["files"]:
+        things.append(("amber", "No findings file was read", "So the record does not show that anyone looked.", "#finders"))
+    if odd_passes(data):
+        things.append(("amber", f"Pass not recognised: {odd_passes(data)}",
+                       "These findings name a pass that is neither the first pass nor the re-check.", "#finders"))
+    return [thing for thing in things if thing[0] in ("amber", "red")]
 
 
 def odd_passes(data: dict) -> int:
@@ -729,12 +780,16 @@ def render_findings_tile(data: dict) -> str:
 
 
 def render_standing(data: dict) -> str:
-    """The board under the title: how many things need a look, then the walk, the last run of every check, and the findings."""
+    """The board under the title: how many things need a look and what each one is, then the walk, the last run of
+    every check, and the findings."""
     flagged = to_look_at(data)
     if flagged:
-        worst, count = ("red" if "red" in flagged else "amber"), len(flagged)
+        worst, count = ("red" if any(tone == "red" for tone, *_ in flagged) else "amber"), len(flagged)
+        listed = "".join(f'<li class="{tone}">{mark(tone)}<a href="{e(href)}"><strong>{e(what)}</strong><span class="sub">{e(why)}</span></a></li>'
+                         for tone, what, why, href in flagged)
         headline = (f'<p class="headline {worst}">{mark(worst)}{count} thing{"" if count == 1 else "s"} to look at before you decide</p>'
-                    '<p class="soft">Each is marked amber or red below. Counted by the script from git and the record files, not by an agent.</p>')
+                    f'<ol class="look">{listed}</ol>'
+                    '<p class="soft">Counted by the script from git and the record files, not by an agent. Each one links to its place on this page.</p>')
     else:
         settled = ("every finding is recorded as fixed, with its check named, or as not a defect. What became of a finding is "
                    "the agents' record: the script did not test it" if data["findings"] else "the findings files hold no findings")
