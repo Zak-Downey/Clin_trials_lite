@@ -57,7 +57,7 @@ export async function render(root, nct, alive = () => true) {
     }
     add.disabled = false;
   });
-  const head = el("div", { class: "trial-head" },
+  const head = el("div", { class: "trial-head registry-head" },
     el("div", {}, el("h1", {}, trial.heading), meta),
     el("div", { class: "head-actions" },
       el("a", { class: "source", href: trial.registry_url, target: "_blank", rel: "noopener" }, "Open ClinicalTrials.gov ↗"),

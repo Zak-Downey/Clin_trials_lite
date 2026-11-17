@@ -210,6 +210,10 @@ li.card.result input[type=checkbox], .select-page input { width: 20px; height: 2
 .find-bar .count { margin-right: 4px; }
 .find-bar > label { margin-left: auto; }
 .head-actions { flex-wrap: wrap; }
+/* Registry details: the title keeps its width; a long watchlist name in "Add to" is cut, not the title */
+.registry-head > div:first-child { flex: 1 1 320px; min-width: 240px; }
+.registry-head .head-actions { flex: 0 1 auto; justify-content: flex-end; }
+#add-to { max-width: 16em; min-width: 0; text-overflow: ellipsis; }
 
 .table-tools { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin: 0 0 12px; }
 .table-tools .field:first-child { flex: 1 1 auto; max-width: 560px; }
