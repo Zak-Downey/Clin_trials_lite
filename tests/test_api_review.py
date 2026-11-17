@@ -102,3 +102,45 @@ def test_a_review_request_without_a_list_of_ids_or_for_an_unknown_trial_is_refus
     assert api.post("/api/trials/NCT03412565/review", {})[0] == 400
     assert api.post("/api/trials/NCT09999999/review", {"ids": []})[1]["error"]["kind"] == "trial_not_found"
     assert api.get("/api/trials/NCT09999999")[1]["error"]["kind"] == "trial_not_found"
+
+
+def test_a_saved_interventions_change_that_adds_and_removes_nothing_is_on_no_surface(api, record):
+    """A change saved before repeats stopped counting (only how often a name repeats
+    moved) is not news: no surface sends the analyst to a change that names nothing."""
+    conn = storage.connect(api.path)
+    monitor.add(conn, "NCT03412565", 1, fetch=lambda _n: record, when="2026-11-01T08:00:00+00:00")
+    names = monitor.profile_of(conn, "NCT03412565")["interventions"]
+    storage.add_change(
+        conn, "NCT03412565",
+        {"field": "interventions", "previous": names + [names[0]], "current": names + [names[1], names[1]]},
+        FIRST,
+    )
+    conn.close()
+
+    trial = api.get("/api/trials/NCT03412565")[1]
+    assert trial["groups"] == [] and trial["change_count"] == 0
+    assert api.get("/api/watchlists/1/needs-review")[1]["trials"] == []
+    [row] = api.get("/api/watchlists/1/all-trials")[1]["trials"]
+    assert row["review"]["state"] == "none" and row["latest_change"] is None
+    [overview] = api.get("/api/watchlists")[1]["watchlists"]
+    assert overview["needs_review_count"] == 0
+    assert api.get("/api/trials/NCT03412565/changes")[1]["changes"] == []
+    assert [e["kind"] for e in api.get("/api/trials/NCT03412565/history")[1]["entries"]] == ["start"]
+    summary = api.get("/api/watchlists/1/summary?period=custom&from=2026-11-01&to=2026-11-30")[1]
+    assert summary["counts"]["field_changes"] == 0
+
+
+def test_a_saved_interventions_change_that_removes_a_name_is_still_shown(api, record):
+    conn = storage.connect(api.path)
+    monitor.add(conn, "NCT03412565", 1, fetch=lambda _n: record, when="2026-11-01T08:00:00+00:00")
+    names = monitor.profile_of(conn, "NCT03412565")["interventions"]
+    storage.add_change(
+        conn, "NCT03412565",
+        {"field": "interventions", "previous": names + [names[0]], "current": names[:-1]},
+        FIRST,
+    )
+    conn.close()
+
+    trial = api.get("/api/trials/NCT03412565")[1]
+    assert [c["field"] for g in trial["groups"] for c in g["changes"]] == ["interventions"]
+    assert [t["change_count"] for t in api.get("/api/watchlists/1/needs-review")[1]["trials"]] == [1]
