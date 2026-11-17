@@ -33,6 +33,7 @@ Start every subagent with a fresh context window, of the `general-purpose` type.
 
 3. For each ticket in turn, use a fresh **implementer subagent**, in the foreground. Point it at the spec, its ticket and `docs/agents/local/repo.md`. It:
    - calls the Skill tool with `mattpocock-skills:tdd` to build the ticket. The seams are the two in `CLAUDE.md` (walks for pages, the `api` fixture for the rest), whatever the spec lists, so it does not ask;
+   - names each walk it adds for what the user does and sees, and takes a `walk.shot("<step>")` at each moment worth seeing. The walks this build adds or changes are the owner's walk-through: `handover.py` records them, under their names, and shows the owner nothing else of the app;
    - ticks the ticket's boxes it has met, sets `Status: done`, and commits on the feature branch with the ticket number in the message.
 
 4. When the implementer reports, run `python3 checks.py`. Start the next ticket only on green.
@@ -47,13 +48,17 @@ Start every subagent with a fresh context window, of the `general-purpose` type.
 
 7. **Fix on the same branch.** Use one fresh implementer subagent per area, one after another, each given that area's findings files together and pointed at "The files the page is built from" below. Within an area: `blocks` first, then `wrong`, then `cosmetic`. For each finding, in one commit of its own, in this order: a check that is red because of it goes into the suite (the walker's script made into a walk, or a unit test); then the fix; then one line in `.scratch/<feature>/fates.jsonl`. A finding that is not a defect, or is left unfixed, still gets its line, with the reason in `why`. Run `python3 checks.py` after each implementer reports. Then compare the ids in `findings/` with the ids in `fates.jsonl`: any id without a fate line goes to a fresh implementer, named by id.
 
-8. **Re-check once.** Send walkers again to the areas the fixes touched, with `pass` set to `recheck`. Fix what they find by step 7's rules. Do not start a third round: anything still open gets the fate `left`.
+8. **Re-check once.** Skip this step when step 7 changed no code. Otherwise, in parallel:
+   - walkers again to the areas the fixes touched, with `pass` set to `recheck`;
+   - one reviewer with the brief `.claude/skills/implement-spec/reviewer.md`, finder `review`, area `whole`, `pass` set to `recheck`, on step 7's commits alone (`git diff <the commit before step 7's first>..HEAD`). Nobody has read that code: step 6 read the branch before it was fixed.
+
+   Fix what they find by step 7's rules. Do not start a third round: anything still open gets the fate `left`.
 
 9. **Hand over.** This step runs however the build ended.
    - Write `.scratch/<feature>/hand-over.json`.
    - Commit until `git status --porcelain` prints nothing: delete temporary files you or your subagents made, commit the rest.
    - Run `python3 checks.py` on that commit. If it is red and the build did not stop at step 4, apply the rule for red, add what changed to `now_what`, and do this step again, once. If the build stopped at step 4, red is the true state and `now_what` already says so.
-   - Run `python3 handover.py <feature>`. It builds the page, opens it in the owner's browser and prints the page's headline. If it refuses (two findings sharing an id, a line that is not JSON, a summary line too long), correct the file it names, and `fates.jsonl` where an id changed, commit, and run it again. If it says the acceptance walk failed, did not run or did not finish, hand over as it is: the page says so.
+   - Run `python3 handover.py <feature>`. It builds the page, opens it in the owner's browser and prints the page's headline. If it refuses (two findings sharing an id, a line that is not JSON, a summary line too long), correct the file it names, and `fates.jsonl` where an id changed, commit, and run it again. It records the walks this build added or changed, or the acceptance walk when there are none. If it says the walk-through or the acceptance walk failed, did not run or did not finish, hand over as it is: the page says so.
 
    Your last message to the owner is one sentence saying how the build ended, then the headline `handover.py` printed (the page's own count of what to look at, so your message and the page agree), then the `open` command it printed. The page carries the rest. Do not push, merge or open a pull request: the owner decides from the page (`CLAUDE.md`, "When the owner accepts a build").
 
@@ -70,7 +75,7 @@ The page is computed from these and from git. Keep to the fields exactly: the sc
 - `id`: `<finder>-<area>-<NN>` on the first pass and `<finder>-<area>-recheck-<NN>` on the re-check, so no two findings ever share an id. Fates are matched to findings by id alone.
 - `finder`: `early-read`, `walker` or `review`.
 - `pass`: `first` or `recheck`.
-- `area`: one of the areas in `docs/agents/local/repo.md`, `server-and-checks`, or `whole` (the early read).
+- `area`: one of the areas in `docs/agents/local/repo.md`, `server-and-checks`, or `whole` (the early read, and the re-check's reviewer).
 - `severity`: `blocks` (a user cannot finish a task, or loses data), `wrong` (the app shows or stores something untrue, or goes against the spec), `cosmetic` (looks off; nothing is untrue).
 - `check`: the script or test that is red because of the defect; empty when the finder could not write one.
 

@@ -517,7 +517,7 @@ def test_the_script_run_on_a_real_repository_writes_the_page_and_ends_with_the_o
     assert "hand-over.json is missing" in text
     assert "<code>review-a.jsonl</code>: reviewed, found nothing" in text and "<code>walker-a.jsonl</code>: 4 issues" in text
     assert reviewer("early-read") + '<td colspan="2"><span class="unknown">no report found</span>' in text
-    assert reviewer("review") + '<td class="n soft">none in the reports read</td>' in text  # it left a report: it reviewed
+    assert reviewer("review") + '<td class="n">none found</td><td class="n soft">no report read</td>' in text  # it left a report: it reviewed
 
 
 def test_the_branch_whose_runs_are_counted_is_the_one_asked_for_and_a_tip_needs_one(repo):
@@ -788,11 +788,15 @@ def test_a_finder_that_looked_and_found_nothing_is_told_apart_from_one_that_neve
     looked = page(files={"walker-find-trials.jsonl": [], "early-read-whole.jsonl": []})
     assert looked.count("reviewed, found nothing") == 2
     assert looked.count('<span class="unknown">no report found</span>') == 1 and reviewer("review") + "<td colspan" in looked
-    assert reviewer("walker") + '<td class="n soft">none in the reports read</td>' in looked
+    assert reviewer("walker") + '<td class="n">none found</td><td class="n soft">no report read</td>' in looked  # read and empty is not "not read"
+    assert reviewer("early-read") + '<td class="n">none found</td><td class="n soft">none is made</td>' in looked  # the build's steps give it no re-check
     assert looked.count("The reviewers reported no issues in the reports this page read.") == 1  # over the list; the board says it on its tile
     assert "No issues in the 2 reports read" in top(looked) and "Code review: no report found" in top(looked)
     assert "This page read no re-check report, so nothing on record shows that one was made." in looked
     rechecked = page(files={"walker-a.jsonl": [], "walker-a-recheck.jsonl": []})
+    assert reviewer("walker") + '<td class="n">none found</td><td class="n">none found</td>' in rechecked  # an empty re-check report is a re-check made
+    only_again = page(files={"review-whole-recheck.jsonl": [finding("R-1", "review", "recheck")]})
+    assert reviewer("review") + '<td class="n soft">no report read</td><td class="n">1</td>' in only_again
     assert "This page read no re-check report" not in rechecked and "This page read no re-check report" not in page()  # one was read; none to expect
     named_by_its_rows = page(files={"1-anything.jsonl": [finding("A", "review")]})
     assert reviewer("review") + '<td class="n">1</td>' in named_by_its_rows and reviewer("walker") + "<td colspan" in named_by_its_rows
@@ -1363,11 +1367,17 @@ def feat(repo):
     return out
 
 
-def test_a_walk_that_passes_leaves_its_own_video_this_run_s_screenshots_and_its_record(repo, feat, capsys):
+@pytest.fixture
+def whole(monkeypatch):
+    """A build that added or changed no walk of its own, so the standing walk through the whole app is the one recorded."""
+    monkeypatch.setattr(handover, "changed_walks", lambda *args: [])
+
+
+def test_a_walk_that_passes_leaves_its_own_video_this_run_s_screenshots_and_its_record(repo, feat, whole, capsys):
     stand_in(repo, 0, video=True)
     assert handover.main(["feat"], root=repo) == 0
     record = json.loads((feat / "recording.json").read_text())
-    assert record["result"] == "passed" and record["returncode"] == 0 and record["walk"] == handover.WALK
+    assert record["result"] == "passed" and record["returncode"] == 0 and record["walk"] == handover.WALK and record["shows"] == "whole"
     assert record["commit"] == git(repo, "rev-parse", "--short", "HEAD")
     assert (feat / "recording.webm").read_text() == "named"  # not the stray that sorts first, not the earlier one
     assert [shot.name for shot in (feat / "shots").iterdir()] == [f"{PREFIX}-02-fresh.png"]
@@ -1382,7 +1392,7 @@ def test_a_walk_that_passes_leaves_its_own_video_this_run_s_screenshots_and_its_
 
 
 @pytest.mark.parametrize("exit_code, result, words", [(1, "failed", "failed"), (4, "did not run", "did not run")])
-def test_a_walk_that_fails_is_said_on_the_page_and_in_one_printed_line_and_the_page_is_still_built(repo, feat, capsys, exit_code, result, words):
+def test_a_walk_that_fails_is_said_on_the_page_and_in_one_printed_line_and_the_page_is_still_built(repo, feat, whole, capsys, exit_code, result, words):
     stand_in(repo, exit_code, video=False)
     assert handover.main(["feat"], root=repo) == 0
     record = json.loads((feat / "recording.json").read_text())
@@ -1396,7 +1406,7 @@ def test_a_walk_that_fails_is_said_on_the_page_and_in_one_printed_line_and_the_p
     assert printed[-1] == f"open {feat / 'index.html'}"
 
 
-def test_a_walk_that_cannot_start_or_is_stopped_leaves_no_earlier_pass_standing(repo, feat, capsys, monkeypatch):
+def test_a_walk_that_cannot_start_or_is_stopped_leaves_no_earlier_pass_standing(repo, feat, whole, capsys, monkeypatch):
     assert handover.main(["feat"], root=repo) == 0  # this repository has no .venv/bin/python
     record = json.loads((feat / "recording.json").read_text())
     assert record["result"] == "did not run" and record["reason"].startswith("The command that runs it could not start: ")
@@ -1545,3 +1555,144 @@ def test_main_carries_the_merge_and_the_walk_through_s_distance_from_git_onto_th
     assert said.endswith("in this build, which is already merged") and handover.e(said.removeprefix("The page's headline: ")) in built
     assert handover.e(handover.MERGED) in built and "accept this build" not in built
     assert f"Commit {before} is 1 commit before the build&#x27;s last commit, so the walk-through did not use that last commit of the build." in built
+
+
+# The walk-through shows what the build changed: the walks it added or changed, each recorded on its own.
+
+OWN = {"shows": "build", "at": "2026-11-16T21:00:00+00:00", "commit": "abc1234", "dirty": False, "result": "passed", "minutes": 0.6,
+       "megabytes": 2.0, "walks": [
+           {"walk": "walks/test_z_walk.py::test_walk_a_removed_name_reads_removed[1440x900]", "result": "passed",
+            "clips": ["test-walk-a-removed-name-reads-removed-1440x900.webm"]},
+           {"walk": "walks/test_z_walk.py::test_walk_a_comma_stays_one_name[1440x900]", "result": "passed",
+            "clips": ["test-walk-a-comma-stays-one-name-1440x900.webm", "test-walk-a-comma-stays-one-name-1440x900-page2.webm"]}]}
+OWN_SHOTS = ["test-walk-a-comma-stays-one-name-1440x900-01-comma.png", "test-walk-a-removed-name-reads-removed-1440x900-01-folded.png",
+             "test-walk-a-removed-name-reads-removed-1440x900-02-unfolded.png"]
+
+
+def test_a_walk_through_of_the_build_s_own_walks_names_each_and_plays_each_on_its_own():
+    text = page(recording=OWN, shots=OWN_SHOTS, git=GIT)
+    section = text[text.index('<section id="recording">'):text.index("</section>", text.index('<section id="recording">'))]
+    assert tile(text, "#recording") == ("green", "Passed on the build&#x27;s last commit")
+    assert "2 browser tests this build added or changed. Ran for 0.6 minutes, on commit <code>abc1234</code>" in top(text)
+    assert ("3 moments from the walk-through: the 2 browser tests this build added or changed, each run in a real browser. "
+            "Step through them, or watch the recordings.") in section
+    assert '<ol class="walks"><li>A removed name reads removed</li><li>A comma stays one name</li></ol>' in section  # a pass needs no word beside each
+    captions = re.findall(r"<figcaption>(.*?)</figcaption>", section[:section.index('<div class="film">')])
+    assert captions == ["A removed name reads removed · Step 1: folded", "A removed name reads removed · Step 2: unfolded",
+                        "A comma stays one name · Step 1: comma"]  # in the walks' order, not the files'
+    assert section.count("<video") == 3 and 'src="recording.webm"' not in text
+    assert ('<figure class="clip"><figcaption>1 of 2: A removed name reads removed</figcaption><video controls preload="metadata" '
+            'src="clips/test-walk-a-removed-name-reads-removed-1440x900.webm" data-frame="0">') in section
+    assert 'src="clips/test-walk-a-comma-stays-one-name-1440x900-page2.webm" data-frame="2">' in section  # a walk's second page is its own video
+    assert "<summary>The 2 browser tests it runs</summary>" in section and "<code>walks/test_z_walk.py::test_walk_a_comma_stays_one_name[1440x900]</code>" in section
+    assert handover.e(handover.TERMS_OWN) in text and handover.e(handover.TERMS) not in text
+    assert "from start to finish" not in text and "whole journey" not in text  # nothing here claims the whole app was walked
+    assert handover.e(handover.TERMS) in page(recording=RECORDING) and handover.e(handover.TERMS_OWN) not in page(recording=RECORDING)
+
+
+def test_a_walk_through_of_the_build_s_own_walks_that_did_not_pass_says_how_each_ended():
+    walks = [{**OWN["walks"][0]}, {**OWN["walks"][1], "result": "failed"}, {"walk": "walks/test_z_walk.py::test_walk_never_reached[1440x900]", "result": None, "clips": []}]
+    text = page(recording={**OWN, "result": "failed", "walks": walks}, shots=OWN_SHOTS, git=GIT)
+    assert tile(text, "#recording") == ("red", "Failed") and not drawn_green(text)
+    assert ('<li>A removed name reads removed <span class="soft">passed</span></li><li>A comma stays one name <span class="soft">failed</span></li>'
+            '<li>Never reached <span class="unknown">result not recorded</span></li>') in text
+    assert "the 3 browser tests this build added or changed, up to where the run stopped. Step through them, or watch the recordings." in text
+    assert "So this page does not show that what the build changed works in a browser." in top(text) and "from start to finish" not in text
+    assert "<figcaption>3 of 3: Never reached</figcaption><p>It left no video file.</p>" in text
+    assert "It left no video file." in page(recording={**OWN, "megabytes": None}) and "<video" not in page(recording={**OWN, "megabytes": None})
+
+
+def test_the_standing_walk_is_said_to_be_a_stand_in_only_when_the_build_had_no_walk_of_its_own():
+    said = "This build added or changed no browser test of its own, so this is the standing walk through the whole app."
+    assert said in page(recording={**RECORDING, "shows": "whole"}) and said not in page(recording=RECORDING)  # an older record does not say which
+    assert handover.walk_title("walks/test_a.py::test_walk_a_filter_survives_paging[1440x900]") == "A filter survives paging"
+    assert handover.walk_title("walks/test_a.py::test_export") == "Export"
+
+
+def test_the_walks_a_build_added_or_changed_are_the_test_functions_with_a_line_of_their_own_changed(tmp_path):
+    root = tmp_path / "repo"
+    (root / "walks").mkdir(parents=True)
+    git(root, "init", "-q", "-b", "main")
+    (root / "walks" / "helper.py").write_text("def test_looks_like_a_walk():\n    pass\n")
+    (root / "walks" / "test_a_walk.py").write_text(
+        "def open_it():\n    return 1\n\n\ndef test_walk_kept():\n    open_it()\n# a note\n\n\n"
+        "def test_walk_edited():\n    open_it()\n    assert 1\n\n\ndef test_walk_trimmed():\n    open_it()\n    assert 1\n    assert 2\n")
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "start")
+    git(root, "checkout", "-q", "-b", "feature/x")
+    (root / "walks" / "helper.py").write_text("def test_looks_like_a_walk():\n    return 2\n")
+    (root / "walks" / "test_a_walk.py").write_text(
+        "def open_it():\n    return 2\n\n\ndef test_walk_kept():\n    open_it()\n\n\n"
+        "def test_walk_edited():\n    open_it()\n    assert 3\n\n\ndef test_walk_trimmed():\n    open_it()\n    assert 2\n")
+    (root / "walks" / "test_b_walk.py").write_text(
+        "import pytest\n\n\ndef not_a_test():\n    pass\n\n\n@pytest.mark.slow\ndef test_walk_new():\n    pass\n")
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "build")
+    # Not test_walk_kept: its helper changed and a line after it went, but no line of its own. Not helper.py: it is not a walk file.
+    assert handover.changed_walks(root, "main", "HEAD") == [
+        ("walks/test_a_walk.py", "test_walk_edited"), ("walks/test_a_walk.py", "test_walk_trimmed"), ("walks/test_b_walk.py", "test_walk_new")]
+    assert handover.changed_walks(root, "main", "main") == [] and handover.changed_walks(root, "no-such-branch", "HEAD") == []
+
+
+def test_each_changed_walk_is_recorded_once_at_one_window_size(tmp_path):
+    tests = [("walks/test_a_walk.py", "test_walk_edited"), ("walks/test_acc.py", "test_j"), ("walks/test_b_walk.py", "test_plain"),
+             ("walks/test_b_walk.py", "test_not_collected")]
+    bare = [f"{path}::{name}" for path, name in tests]
+    assert handover.walk_ids(tmp_path, tests) == bare and handover.walk_ids(tmp_path, []) == []  # no python here: asked for as they are named
+    python = tmp_path / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text("\n".join(["#!/bin/sh", "cat <<'END'",
+                                 "walks/test_a_walk.py::test_walk_edited[1024x768]", "walks/test_a_walk.py::test_walk_edited[1440x900]",
+                                 "walks/test_acc.py::test_j[webkit-1440x900]", "walks/test_acc.py::test_j[chromium-1024x768]",
+                                 "walks/test_acc.py::test_j[chromium-1440x900]", "walks/test_b_walk.py::test_plain", "", "6 tests collected in 0.01s",
+                                 "END", ""]))
+    python.chmod(0o755)
+    assert handover.walk_ids(tmp_path, tests) == ["walks/test_a_walk.py::test_walk_edited[1440x900]", "walks/test_acc.py::test_j[chromium-1440x900]",
+                                                  "walks/test_b_walk.py::test_plain", "walks/test_b_walk.py::test_not_collected"]
+
+
+def test_a_build_with_walks_of_its_own_gets_those_recorded_and_not_the_whole_app(repo, feat, capsys):
+    (repo / "walks" / "test_new_walk.py").write_text("def test_walk_one():\n    pass\n\n\ndef test_walk_two():\n    pass\n")
+    git(repo, "add", "walks")
+    git(repo, "commit", "-q", "-m", "two walks")
+    one, two = "test-walk-one-1440x900", "test-walk-two-1440x900"
+    python = repo / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True, exist_ok=True)
+    python.write_text("\n".join([
+        "#!/bin/sh",
+        'case "$*" in *--collect-only*)',
+        "  echo 'walks/test_new_walk.py::test_walk_one[1440x900]'; echo 'walks/test_new_walk.py::test_walk_one[1024x768]'",
+        "  echo 'walks/test_new_walk.py::test_walk_two[1440x900]'; exit 0;; esac",
+        'echo "$WALK_SLOW_MO|$*" > given.txt',
+        'for a in "$@"; do case "$a" in --junitxml=*) J="${a#--junitxml=}";; esac; done',
+        f'printf first > "$WALK_RECORD/{one}.webm"; printf second > "$WALK_RECORD/{one}-page2.webm"; printf third > "$WALK_RECORD/{two}.webm"',
+        'printf stray > "$WALK_RECORD/a-stray.webm"',
+        "mkdir -p .scratch/feat/walks",
+        f"printf png > .scratch/feat/walks/{one}-01-opened.png; printf png > .scratch/feat/walks/{two}-01-broke.png",
+        """printf '<testsuites><testsuite><testcase classname="walks.test_new_walk" name="test_walk_one[1440x900]"/>'"""
+        """'<testcase classname="walks.test_new_walk" name="test_walk_two[1440x900]"><failure/></testcase></testsuite></testsuites>' > "$J\"""",
+        "echo what the walks printed",
+        "exit 1", ""]))
+    python.chmod(0o755)
+    assert handover.main(["feat"], root=repo) == 0
+    record = json.loads((feat / "recording.json").read_text())
+    assert record["shows"] == "build" and record["result"] == "failed" and "walk" not in record
+    assert record["walks"] == [
+        {"walk": "walks/test_new_walk.py::test_walk_one[1440x900]", "result": "passed", "clips": [f"{one}-page2.webm", f"{one}.webm"]},
+        {"walk": "walks/test_new_walk.py::test_walk_two[1440x900]", "result": "failed", "clips": [f"{two}.webm"]},
+        {"walk": "walks/test_walk.py::test_walk_it", "result": None, "clips": []}]  # the walk the fixture's build added: not collected, so asked for by name
+    assert sorted(clip.name for clip in (feat / "clips").iterdir()) == [f"{one}-page2.webm", f"{one}.webm", f"{two}.webm"]  # not the stray
+    assert not (feat / "recording.webm").exists() and not (feat / "recording-tmp").exists()  # the earlier whole-app video is gone
+    assert sorted(shot.name for shot in (feat / "shots").iterdir()) == [f"{one}-01-opened.png", f"{two}-01-broke.png"]
+    asked = (repo / "given.txt").read_text()
+    assert asked.startswith(f"{handover.OWN_SLOW_MO}|")  # a short walk is recorded slowly enough to follow
+    assert "test_walk_one[1440x900]" in asked and "test_walk_two[1440x900]" in asked and "1024x768" not in asked and handover.WALK not in asked
+    assert handover.read_recording(feat)["megabytes"] is not None
+    text = (feat / "index.html").read_text()
+    assert "The walk-through failed" in text and f'src="clips/{two}.webm"' in text and 'src="recording.webm"' not in text
+    assert ('<li>One <span class="soft">passed</span></li><li>Two <span class="soft">failed</span></li>'
+            '<li>It <span class="unknown">result not recorded</span></li>') in text
+    assert "<figcaption>Two · Step 1: broke</figcaption>" in text
+    printed = capsys.readouterr().out.splitlines()
+    assert "Recording the 3 browser tests this build added or changed:" in printed
+    assert printed[-2] == f"handover: the walk-through failed; what it printed is in {feat / 'walk-output.txt'}"
