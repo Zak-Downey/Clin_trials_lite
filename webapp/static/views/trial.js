@@ -10,9 +10,9 @@ const el = (tag, attrs = {}, ...kids) => {
 };
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-// A removal made on this trial page, while the analyst stays on the trial: { nct, home, undo, last }.
+// A removal made on this trial page, while the analyst stays on the trial: { nct, home, undo, last, order }.
 // Its own tabs are redrawn from the server, which no longer lists the watchlist; this keeps the
-// address, "Back to", Next trial and the Undo on it. Only a reload, or leaving the trial, forgets it.
+// address, "Back to", Next trial (order: the queue as it stood before the removal) and the Undo on it. Only a reload, or leaving the trial, forgets it.
 let removed = null;
 window.addEventListener("hashchange", () => {
   if (removed && !new RegExp(`^#/trials/${removed.nct}(/|\\?|$)`, "i").test(location.hash)) removed = null;
@@ -37,6 +37,11 @@ export async function render(root, nct, tab, place, alive = () => true) {
   if (place && !named) history.replaceState(history.state, "", trialHref(nct, tab, carry));
   const others = trial.watchlists.filter((w) => !home || w.id !== home.id);
   const state = { reviewed: false, event: null };
+  // The watchlist's Needs review queue as it stood when the page opened: Next trial goes to the one after this.
+  let order = kept ? kept.order : null;
+  const queueOf = async (id) => {
+    try { return (await get(`/api/watchlists/${id}/needs-review`)).trials.map((t) => t.nct_id); } catch { return []; }
+  };
 
   const back = el("a", { class: "back", "data-back": "", href: !home ? "#/watchlists" : named && place.back || `#/watchlists/${home.id}/${named ? place.from : "needs-review"}` },
     `‹ Back to ${home ? home.name : "watchlists"}`);
@@ -86,9 +91,10 @@ export async function render(root, nct, tab, place, alive = () => true) {
       remove.addEventListener("click", async () => {
         closeMenu();
         try {
+          if (!order) order = await queueOf(home.id); // the queue after the removal no longer holds this trial
           const done = await post(`/api/watchlists/${home.id}/trials/${nct}/remove`);
           trial.watchlists = done.watchlists;
-          removed = { nct, home: { id: home.id, name: home.name }, undo: done.undo, last: !done.watchlists.length };
+          removed = { nct, home: { id: home.id, name: home.name }, undo: done.undo, last: !done.watchlists.length, order };
           drawMenu();
           tellRemoved();
           window.dispatchEvent(new Event("reviewchange"));
@@ -201,11 +207,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
     } catch (err) { fail(err); } finally { marking = false; }
   });
 
-  // The queue as it stood when the page opened: Next trial goes to the one after this.
-  let order = [];
-  if (home) {
-    try { order = (await get(`/api/watchlists/${home.id}/needs-review`)).trials.map((t) => t.nct_id); } catch { order = []; }
-  }
+  if (!order) order = home ? await queueOf(home.id) : [];
   const at = order.indexOf(nct);
   const following = at >= 0 ? order[at + 1] : order.find((n) => n !== nct);
   if (following) next.addEventListener("click", () => { location.hash = trialHref(following, "changes", carry); });

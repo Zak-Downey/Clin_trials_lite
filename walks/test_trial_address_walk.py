@@ -357,3 +357,33 @@ def test_walk_adding_from_registry_details_by_keyboard_keeps_focus_on_the_button
     assert page.evaluate("document.activeElement.textContent.trim()") == "Add to watchlist"
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement.textContent.trim()") == "Open the trial"
+
+
+# Fixes after the re-check: Next trial after a removal and a switch of the trial's tabs.
+
+
+def test_walk_next_trial_after_removing_and_switching_tabs_goes_on_to_the_following_trial(make_app, make_walk):
+    """test_walk_next_trial_after_removing_and_switching_tabs_goes_on_to_the_following_trial"""
+    app = make_app(seed=seed_two_queues)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(f"{app.url}#/watchlists/{MYELOMA}/needs-review")
+    page.locator("li.card h3 a").nth(4).wait_for()
+    queue = page.locator("li.card").evaluate_all("cs => cs.map(c => c.dataset.nct)")
+    page.locator("li.card h3 a").nth(2).click()
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    page.get_by_role("button", name="More actions").click()
+    page.get_by_role("menuitem", name="Remove from this list").click()
+    page.locator(".banner", has_text="Removed from Myeloma").wait_for()
+    page.get_by_role("tab", name="History").click()
+    page.get_by_role("heading", name="Trial history").wait_for()
+    page.get_by_role("tab", name=re.compile("^Changes")).click()
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    page.wait_for_timeout(500)  # Next trial is wired once the page knows the queue; nothing drawn says when
+    walk.shot("removed-then-back-on-changes")
+    page.get_by_role("button", name="Next trial").click()
+    page.wait_for_function(f"!location.hash.includes('{queue[2]}')")
+    assert page.evaluate("location.hash") == f"#/trials/{queue[3]}?list={MYELOMA}"
+    page.get_by_role("link", name="‹ Back to Myeloma").wait_for()
+    walk.shot("next-trial-is-the-fourth")
+
