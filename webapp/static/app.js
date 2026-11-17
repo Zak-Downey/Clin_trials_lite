@@ -90,6 +90,13 @@ document.addEventListener("click", (event) => {
   const back = event.target.closest && event.target.closest("a[data-back]");
   if (back && left && [left.at, left.full].includes(back.getAttribute("href"))) pendingScroll = left.scroll;
 }, true);
+// Leaving that same watchlist tab again (the browser's Forward after its Back) keeps its address as it
+// is now: Summary moves its period with replaceState, so the address kept at the click may be stale.
+// Registered before route's own listener, so the trial page drawn next reads it.
+window.addEventListener("hashchange", (event) => {
+  const was = new URL(event.oldURL).hash;
+  if (left && (was === left.at || was.startsWith(`${left.at}?`))) left.full = was;
+});
 
 window.addEventListener("reviewchange", () => drawSidebar(undefined).catch(() => {}));
 

@@ -359,7 +359,8 @@ def test_walk_adding_from_registry_details_by_keyboard_keeps_focus_on_the_button
     assert page.evaluate("document.activeElement.textContent.trim()") == "Open the trial"
 
 
-# Fixes after the re-check: Next trial after a removal and a switch of the trial's tabs.
+# Fixes after the re-check: Next trial after a removal and a switch of the trial's tabs; "Back to"
+# Summary after the period changed on a visit made with the browser's Back and Forward.
 
 
 def test_walk_next_trial_after_removing_and_switching_tabs_goes_on_to_the_following_trial(make_app, make_walk):
@@ -387,3 +388,23 @@ def test_walk_next_trial_after_removing_and_switching_tabs_goes_on_to_the_follow
     page.get_by_role("link", name="‹ Back to Myeloma").wait_for()
     walk.shot("next-trial-is-the-fourth")
 
+def test_walk_back_to_summary_after_changing_the_period_on_a_return_visit_lands_on_the_new_period(make_app, make_walk):
+    """test_walk_back_to_summary_after_changing_the_period_on_a_return_visit_lands_on_the_new_period"""
+    _, walk = summary_seed.open_summary(make_app, make_walk)
+    page = walk.page
+    page.get_by_role("button", name="This month").click()
+    page.wait_for_url("**/summary?period=month")
+    page.locator('li.card.trial[data-nct="NCT03412565"] h3 a').click()
+    page.get_by_role("tab", name="History").wait_for()
+    page.go_back()
+    page.locator("#summary-heading").wait_for()
+    page.get_by_role("button", name="This week").click()
+    page.wait_for_url("**/summary?period=week")
+    walk.shot("summary-changed-to-this-week")
+    page.go_forward()
+    page.locator("a.back").wait_for()
+    page.get_by_role("link", name="‹ Back to Myeloma").click()
+    page.locator("#summary-heading").wait_for()
+    assert page.evaluate("location.hash") == "#/watchlists/1/summary?period=week"
+    assert page.locator('[aria-label="Period"] [aria-pressed="true"]').inner_text() == "This week"
+    walk.shot("back-on-summary-this-week")
