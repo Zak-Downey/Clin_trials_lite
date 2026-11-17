@@ -31,6 +31,8 @@ import json
 import os
 import sqlite3
 
+import diff
+
 # Overridable so tests and throwaway demos don't write to the working database.
 DB_PATH = os.environ.get("MONITOR_DB", "monitor.db")
 
@@ -774,14 +776,21 @@ def add_change(
 
 
 def list_changes(conn: sqlite3.Connection, nct_id: str | None = None) -> list[dict]:
-    """Recorded changes, newest first. All trials unless one is named."""
+    """Recorded changes, newest first. All trials unless one is named.
+
+    The one place saved changes are read, so the rule for what counts as a
+    change applies here as well as at detection: an interventions change saved
+    before repeats stopped counting, which adds and removes nothing, is left
+    out (diff.stands), and so is on no page, count, history or summary. The
+    row itself stays in storage.
+    """
     if nct_id is None:
         rows = conn.execute("SELECT * FROM changes ORDER BY id DESC").fetchall()
     else:
         rows = conn.execute(
             "SELECT * FROM changes WHERE nct_id = ? ORDER BY id DESC", (nct_id,)
         ).fetchall()
-    return [
+    changes = [
         {
             "id": row["id"],
             "nct_id": row["nct_id"],
@@ -794,13 +803,12 @@ def list_changes(conn: sqlite3.Connection, nct_id: str | None = None) -> list[di
         }
         for row in rows
     ]
+    return [c for c in changes if diff.stands(c)]
 
 
 def count_unreviewed(conn: sqlite3.Connection, nct_id: str) -> int:
     """How many of a trial's recorded changes have not been marked as read."""
-    return conn.execute(
-        "SELECT COUNT(*) AS n FROM changes WHERE nct_id = ? AND reviewed = 0", (nct_id,)
-    ).fetchone()["n"]
+    return sum(1 for c in list_changes(conn, nct_id) if not c["reviewed"])
 
 
 # --- synthetic data
@@ -810,15 +818,16 @@ def is_synthetic(conn: sqlite3.Connection, nct_id: str) -> bool:
     """Whether what a trial currently shows was fabricated by the simulator.
 
     True while its newest stored state is a simulated one, and while any change
-    found against such a state is still recorded.
+    found against such a state is still shown (read through list_changes, so a
+    saved change the rule leaves out does not count).
     """
     row = conn.execute(
-        "SELECT (SELECT synthetic FROM snapshots WHERE nct_id = ?1"
-        "        ORDER BY id DESC LIMIT 1) AS newest,"
-        "       (SELECT COUNT(*) FROM changes WHERE nct_id = ?1 AND synthetic = 1) AS found",
+        "SELECT synthetic FROM snapshots WHERE nct_id = ? ORDER BY id DESC LIMIT 1",
         (nct_id,),
     ).fetchone()
-    return bool(row["newest"]) or bool(row["found"])
+    return bool(row and row["synthetic"]) or any(
+        c["synthetic"] for c in list_changes(conn, nct_id)
+    )
 
 
 def delete_synthetic(conn: sqlite3.Connection) -> int:

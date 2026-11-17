@@ -1,0 +1,42 @@
+{
+  "what": [
+    "An interventions change on a trial's Changes tab now lists Removed and Added names, each reading None when empty, one name per line.",
+    "The interventions that stayed are counted (Unchanged 6 interventions); their names open and close behind a Show / Hide button.",
+    "A reordered list, or one where only a repeated name's count moved, is no longer reported as a change anywhere in the app.",
+    "Every other field still shows Previously / Now, and the History tab, change summary and export read as before."
+  ],
+  "so_what": [
+    "You can see which drug a competitor dropped or added without comparing two lists name by name.",
+    "Try first: open NCT03412565 after a check that removes Carfilzomib; the card should read Removed Carfilzomib, Added None, Unchanged 6 interventions."
+  ],
+  "now_what": [
+    "The build changed what the app detects, beyond the display: an interventions change that adds and removes nothing is no longer recorded, and old ones like it are hidden everywhere.",
+    "Those hidden old changes stay in your database; I could not check whether yours holds any, because the build had no copy of it.",
+    "An interventions list going from absent to empty is no longer reported as a change, because nothing was added or removed.",
+    "Added is drawn in the app's teal accent rather than a true green, because the stylesheet has no green; the words Removed and Added carry the meaning.",
+    "The developer simulator makes an addition of Carfilzomib, not a removal; the removal in the walk-through comes from the stand-in registry.",
+    "The walk-through did not try Safari for the new card, a save failing mid-review, or a background check adding a change while the page is open."
+  ],
+  "walk_through": [
+    {
+      "test": "test_walk_a_removed_intervention_reads_removed_added_none_and_six_unchanged_behind_show",
+      "title": "An intervention that was dropped is listed under Removed",
+      "legend": "A check found that this trial no longer lists Carfilzomib. Its card should read Removed: Carfilzomib, Added: None, Unchanged: 6 interventions. Pressing Show should open the six names, and pressing it again should close them."
+    },
+    {
+      "test": "test_walk_a_simulated_added_intervention_reads_removed_none_and_keeps_the_simulated_label",
+      "title": "An intervention that was added is listed under Added",
+      "legend": "A simulated check finds Carfilzomib added to this trial. The card should read Removed: None, Added: Carfilzomib, under the heading that says the changes are simulated. Mark reviewed is then pressed, and the card should show as reviewed."
+    },
+    {
+      "test": "test_walk_a_replaced_emptied_and_filled_list_each_read_by_side",
+      "title": "A list that was replaced, emptied or filled reads correctly on each side",
+      "legend": "First trial: both interventions were replaced, so two names should sit under Removed, two under Added, and Unchanged should say None. Second trial: one change emptied the list and an earlier one filled it; each card should say None on its empty side."
+    },
+    {
+      "test": "test_walk_a_name_holding_a_comma_reads_as_one_entry_apart_from_two_names",
+      "title": "A name with a comma in it stays one entry",
+      "legend": "One intervention is named Interferon alfa-2b, recombinant, and the registry later split it into two names. The one name should sit on a single line under Removed, and the two names on separate lines under Added."
+    }
+  ]
+}

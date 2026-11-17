@@ -78,6 +78,93 @@ def test_a_reordered_list_is_not_a_change(profile):
     assert diff.compare(previous, current) == []
 
 
+def test_an_intervention_repeated_more_or_fewer_times_is_not_a_change(profile):
+    """The registry can name an intervention once per arm; a name counts once."""
+    names = profile["interventions"]
+    previous, current = changed(
+        {**profile, "interventions": names + [names[0]]},
+        interventions=names + [names[1], names[1]],
+    )
+
+    assert diff.compare(previous, current) == []
+
+
+def test_a_distinct_intervention_added_beside_a_repeat_is_still_a_change(profile):
+    names = profile["interventions"]
+    previous, current = changed(
+        {**profile, "interventions": names + [names[0]]},
+        interventions=names + ["Pomalidomide"],
+    )
+
+    assert [c["field"] for c in diff.compare(previous, current)] == ["interventions"]
+
+
+def test_the_split_names_an_intervention_removed(profile):
+    names = profile["interventions"]
+
+    assert diff.split(names, names[:-1]) == {
+        "added": [],
+        "removed": [names[-1]],
+        "unchanged": names[:-1],
+    }
+
+
+def test_the_split_names_an_intervention_added_and_one_removed_on_their_own_sides():
+    assert diff.split(["A", "B", "C"], ["A", "D", "C"]) == {
+        "added": ["D"],
+        "removed": ["B"],
+        "unchanged": ["A", "C"],
+    }
+
+
+def test_the_split_keeps_the_current_order_for_added_and_unchanged_and_the_previous_for_removed():
+    assert diff.split(["X", "C", "Y", "A"], ["B", "A", "D", "C"]) == {
+        "added": ["B", "D"],
+        "removed": ["X", "Y"],
+        "unchanged": ["A", "C"],
+    }
+
+
+def test_the_split_counts_a_repeated_name_once():
+    assert diff.split(["A", "B", "A"], ["B", "B", "A", "C", "C"]) == {
+        "added": ["C"],
+        "removed": [],
+        "unchanged": ["B", "A"],
+    }
+
+
+def test_the_split_of_an_empty_or_absent_list_reads_every_name_as_added_or_removed():
+    assert diff.split(None, ["A", "B"]) == {"added": ["A", "B"], "removed": [], "unchanged": []}
+    assert diff.split([], ["A", "B"]) == {"added": ["A", "B"], "removed": [], "unchanged": []}
+    assert diff.split(["A", "B"], []) == {"added": [], "removed": ["A", "B"], "unchanged": []}
+
+
+def test_the_split_matches_names_by_exact_text_so_a_rename_is_one_out_and_one_in():
+    assert diff.split(["Carfilzomib"], ["carfilzomib (Kyprolis)"]) == {
+        "added": ["carfilzomib (Kyprolis)"],
+        "removed": ["Carfilzomib"],
+        "unchanged": [],
+    }
+
+
+def test_a_split_field_moved_exactly_when_its_split_adds_or_removes_a_name():
+    """Detection and the Removed/Added display read the same rule."""
+    pairs = [
+        (["A", "B"], ["B", "A"]),
+        (["A", "B", "A"], ["A", "B", "B"]),
+        (["A"], ["A", "B"]),
+        (["A", "B"], ["A"]),
+        ([], ["A"]),
+        (None, []),
+    ]
+    for previous, current in pairs:
+        parts = diff.split(previous, current)
+        moved = bool(parts["added"] or parts["removed"])
+        assert diff.moved("interventions", previous, current) is moved, (previous, current)
+        reported = diff.compare({"interventions": previous}, {"interventions": current})
+        assert bool(reported) is moved, (previous, current)
+
+
 def test_the_registry_last_updated_date_is_never_reported(profile):
     """It moves by definition whenever anything else does: a circular alert."""
     previous, current = changed(profile, lastUpdatePostDate="2026-01-15")

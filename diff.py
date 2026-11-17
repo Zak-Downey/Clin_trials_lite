@@ -14,6 +14,36 @@ from __future__ import annotations
 EXCLUDED = ("lastUpdatePostDate", "resultsUrl")
 
 
+# The list fields read as names that are each there or not, and so are shown
+# as added, removed and unchanged. The registry can name an intervention once
+# per arm, so how often a name repeats is not news. A field in this set moved
+# only when its split adds or removes a name; other list fields keep counting
+# repeats. Another list field opts in by joining the set.
+SPLIT = ("interventions",)
+
+
+def _distinct(names) -> list:
+    """Each name once, in the order it first appears."""
+    return list(dict.fromkeys(names or ()))
+
+
+def split(previous, current) -> dict[str, list]:
+    """What moved between two lists of names: added, removed and unchanged.
+
+    Names compare as distinct, exact text: a name repeated counts once, and a
+    renamed one is one removed and one added. Added and unchanged keep the
+    current list's order; removed keeps the previous list's. An absent list is
+    an empty one.
+    """
+    before, after = _distinct(previous), _distinct(current)
+    had, has = set(before), set(after)
+    return {
+        "added": [name for name in after if name not in had],
+        "removed": [name for name in before if name not in has],
+        "unchanged": [name for name in after if name in had],
+    }
+
+
 def _comparable(value):
     """The form of a value that decides whether it moved.
 
@@ -26,6 +56,31 @@ def _comparable(value):
     return value
 
 
+def moved(field: str, previous, current) -> bool:
+    """Whether a field's value moved: the one rule for detecting a change and for
+    deciding whether a change already saved is still one.
+
+    A field in SPLIT moved only when its split adds or removes a name.
+    """
+    if field in SPLIT:
+        parts = split(previous, current)
+        return bool(parts["added"] or parts["removed"])
+    return _comparable(previous) != _comparable(current)
+
+
+def stands(change: dict) -> bool:
+    """Whether a change already saved is still a change.
+
+    A change saved before a field joined SPLIT may add and remove nothing (an
+    intervention named more or fewer times, nothing else): it is no longer one,
+    and is read under the same rule detection now uses. Any other field's saved
+    change stands as it was recorded.
+    """
+    if change["field"] in SPLIT:
+        return moved(change["field"], change["previous"], change["current"])
+    return True
+
+
 def compare(previous: dict, current: dict) -> list[dict]:
     """The fields that moved between two profiles, in profile order.
 
@@ -35,8 +90,7 @@ def compare(previous: dict, current: dict) -> list[dict]:
     return [
         {"field": field, "previous": previous.get(field), "current": value}
         for field, value in current.items()
-        if field not in EXCLUDED
-        and _comparable(previous.get(field)) != _comparable(value)
+        if field not in EXCLUDED and moved(field, previous.get(field), value)
     ]
 
 

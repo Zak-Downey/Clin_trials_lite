@@ -108,13 +108,7 @@ export async function render(root, nct, tab, origin, alive = () => true) {
       `Detected ${when(group.detected_at)}`].filter(Boolean).join(" · ");
     const section = el("section", { class: "check-group" }, el("p", { class: "meta group-dates" }, dates));
     for (const change of group.changes) {
-      const word = (q) => (q ? ` · ${q}` : "");
-      // A long value gets the whole width: Previously above Now, rather than side by side.
-      const long = [change.previous, change.current].some((v) => v.length > 80 || v.includes("\n"));
-      const card = el("article", { class: long ? "change long" : "change" },
-        el("h3", { class: "field-name" }, change.label),
-        el("div", { class: "value previously" }, el("span", { class: "tag" }, "Previously"), el("p", {}, change.previous + word(change.previous_qualifier))),
-        el("div", { class: "value now" }, el("span", { class: "tag" }, "Now"), el("p", {}, change.current + word(change.qualifier))));
+      const card = change.removed ? splitCard(change) : valueCard(change);
       const label = el("span", { class: "reviewed-label", hidden: "" }, "Reviewed");
       card.prepend(label);
       cards.push(label);
@@ -245,6 +239,42 @@ const clock = (time) => {
 };
 
 // History: one newest-first timeline.
+function valueCard(change) {
+  const word = (q) => (q ? ` · ${q}` : "");
+  // A long value gets the whole width: Previously above Now, rather than side by side.
+  const long = [change.previous, change.current].some((v) => v.length > 80 || v.includes("\n"));
+  return el("article", { class: long ? "change long" : "change" },
+    el("h3", { class: "field-name" }, change.label),
+    el("div", { class: "value previously" }, el("span", { class: "tag" }, "Previously"), el("p", {}, change.previous + word(change.previous_qualifier))),
+    el("div", { class: "value now" }, el("span", { class: "tag" }, "Now"), el("p", {}, change.current + word(change.qualifier))));
+}
+
+// A list read as names that each came or went: Removed, then Added, then the
+// count of what stayed, its names folded behind Show. The server sends the three.
+function splitCard(change) {
+  const row = (kind, label, ...names) => el("div", { class: `split-row ${kind}` },
+    el("span", { class: "split-label" }, label), el("div", { class: "split-names" }, ...names));
+  // Each name is its own list item: a registry name may hold a comma, so joined text could not show where one ends.
+  const named = (names) => (names.length ? el("ul", { class: "split-list" }, ...names.map((n) => el("li", {}, n)))
+    : el("span", { class: "none" }, "None"));
+  const kept = change.unchanged;
+  const rows = [row("removed", "Removed", named(change.removed)), row("added", "Added", named(change.added))];
+  if (!kept.length) {
+    rows.push(row("unchanged", "Unchanged", named(kept)));
+  } else {
+    const list = el("ul", { class: "unchanged-names", hidden: "" }, ...kept.map((n) => el("li", {}, n)));
+    const toggle = el("button", { type: "button", class: "link", "aria-expanded": "false" }, "Show");
+    toggle.addEventListener("click", () => {
+      list.hidden = !list.hidden;
+      toggle.setAttribute("aria-expanded", String(!list.hidden));
+      toggle.textContent = list.hidden ? "Show" : "Hide";
+    });
+    rows.push(row("unchanged", "Unchanged", `${plural(kept.length, "intervention")} `, toggle), list);
+  }
+  return el("article", { class: "change split" }, el("h3", { class: "field-name" }, change.label),
+    el("div", { class: "split-rows" }, ...rows));
+}
+
 async function drawHistory(body, nct) {
   const { entries } = await get(`/api/trials/${nct}/history`);
   const list = el("ol", { class: "timeline" });

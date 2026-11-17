@@ -229,3 +229,16 @@ def test_a_real_change_after_a_simulated_one_is_recorded_as_real(
 
     assert storage.is_synthetic(simulated, "NCT03412565") is False
     assert [c["field"] for c in storage.list_changes(simulated)] == ["enrollment"]
+
+
+def test_a_simulated_change_the_saved_change_rule_leaves_out_does_not_flag_the_trial(watched):
+    """A simulated interventions change that only moved how often a name repeats
+    is on no page, so it does not mark the trial as showing simulated data."""
+    names = monitor.profile_of(watched, "NCT03412565")["interventions"]
+    storage.add_change(
+        watched, "NCT03412565",
+        {"field": "interventions", "previous": names + [names[0]], "current": names},
+        "2026-01-03T00:00:00+00:00", synthetic=True,
+    )
+
+    assert storage.is_synthetic(watched, "NCT03412565") is False
