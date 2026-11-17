@@ -1,1 +1,3 @@
 {"id": "early-read-whole-01", "fate": "fixed", "commit": "0d6ef09", "check": "tests/test_run.py::test_a_port_held_on_all_addresses_stops_run_py_with_the_busy_port_line", "why": ""}
+{"id": "review-trial-page-01", "fate": "fixed", "commit": "9e24b48", "check": "walks/test_trial_address_walk.py::test_walk_switching_the_trial_tab_after_removing_it_from_the_list_keeps_that_list", "why": ""}
+{"id": "walker-needs-review-02", "fate": "fixed", "commit": "9e24b48", "check": "walks/test_trial_address_walk.py::test_walk_switching_the_trial_tab_after_removing_it_from_the_list_keeps_that_list", "why": ""}
