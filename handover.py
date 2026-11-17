@@ -6,7 +6,7 @@ Run from the repo root. The page is one file: its pictures, its styles and its o
 screenshot over 1.5 MB stays a file beside it), and it loads nothing from outside its own folder. When it is built
 it opens in the browser. The facts on the page are computed here, from git and from
 machine-readable files; the only words an agent writes are the what / so what / now
-what of hand-over.json and the words inside findings and fates. Wherever the page prints them it says whose they
+what of hand-over.json, the title and legend of each part of its walk_through, and the words inside findings and fates. Wherever the page prints them it says whose they
 are and that it did not check them, and what they say never changes a colour, a count or the page's own list of
 things to look at. Whether one exists does, in one place: a `not-a-defect` outcome with no reason written is listed
 for the owner. Nothing here reads Markdown.
@@ -15,7 +15,8 @@ The page is written for the owner, who has neither the code nor the records open
 .claude/rules/human-facing-writing.md. It leads with what happened and why that matters, and keeps each issue's
 whole record folded under it. Its words for the records' fields: a finding is an issue, a fate an outcome, a fate's
 check a test, a finder a review (the `walker` finder is exploratory testing; "browser tests" is kept for the `walks`
-check), a pass a review round, the recorded run of walks the walk-through, and a checks run a run of the automated checks.
+check), a pass a review round, the recorded run of walks the walk-through (one walk in it is a part), and a checks run a run
+of the automated checks.
 The field names themselves are unchanged.
 
 Reads (all optional; what is missing is shown as missing, never as zero):
@@ -23,12 +24,14 @@ Reads (all optional; what is missing is shown as missing, never as zero):
   .checks/runs.jsonl                    one line per checks run
   .scratch/<feature>/findings/*.jsonl   one line per finding; an empty file is a look that found nothing
   .scratch/<feature>/fates.jsonl        one line per finding id: what became of it
-  .scratch/<feature>/hand-over.json     {"what": [...], "so_what": [...], "now_what": [...]}
+  .scratch/<feature>/hand-over.json     {"what": [...], "so_what": [...], "now_what": [...], "walk_through": [...]}
 
-Writes, beside index.html: the walk-through, which is the walks this build added or changed (a test function in
-walks/test_*.py with an added or changed line of its own), each recorded as clips/<walk>.webm; a build that added or
-changed none gets the standing walk through the whole app instead, as recording.webm. The page plays them from beside
-itself. Also recording.json (which walks, when, on which commit and how each ended), shots/*.png and walk-output.txt.
+Writes, beside index.html: the walk-through. It is one recording in parts: a part is a walk this build added or changed
+(a test function in walks/test_*.py with an added or changed line of its own) that hand-over.json lists under
+walk_through, with the title and the legend the page prints for it; each part is recorded as clips/<walk>.webm and the
+page plays them one after another. A build that added or changed no walk gets the standing walk through the whole app
+instead, as recording.webm. The page plays them from beside itself. Also
+recording.json (which walks, when, on which commit and how each ended), shots/*.png and walk-output.txt.
 A walk that fails is said on the page and in one printed line; the exit code is still 0.
 """
 
@@ -94,6 +97,8 @@ FOUND_ONE = " This page found the test's file in the build's last commit and the
 WALK_ENDS = {"failed": "failed", "did not run": "did not run", "did not finish": "did not finish"}
 RUN_ENDS = {"green": "passed", "red": "failed"}  # the run log's words for a result, and the page's
 SUMMARY_LINES, LINE_LENGTH = 5, 200  # what and so_what: at most this many lines; any line of hand-over.json: at most this long
+TITLE_LENGTH, LEGEND_LENGTH = 80, 300  # a part of the walk-through: its title and its legend, at most this long
+CODE_NAME = re.compile(r"[\w.:/]*(?:\w_\w|::)[\w.:/]*")  # a name from the code (test_walk_x, file::name): never in a title or a legend
 PICTURE_BYTES = 1_500_000  # a screenshot up to this size is put inside the page; a larger one stays a file beside it
 
 
@@ -162,6 +167,19 @@ def read_summary(feature_dir: pathlib.Path) -> dict | None:
             if len(line) > LINE_LENGTH:
                 raise SystemExit(f"handover: {path}: {key} line {index} is {len(line)} characters; the page gives a line at most "
                                  f"{LINE_LENGTH}. Say one thing in it, shorter, or split it in two.")
+    parts = summary.get("walk_through", []) if summary else []
+    if not (isinstance(parts, list) and all(isinstance(part, dict) and all(
+            isinstance(part.get(key), str) and part[key].strip() for key in ("test", "title", "legend")) for part in parts)):
+        raise SystemExit(f"handover: {path}: walk_through must be a list of objects, each with a test, a title and a legend")
+    for index, part in enumerate(parts, 1):
+        for key, most in (("title", TITLE_LENGTH), ("legend", LEGEND_LENGTH)):
+            if len(part[key]) > most:
+                raise SystemExit(f"handover: {path}: walk_through entry {index}: the {key} is {len(part[key])} characters; the page "
+                                 f"gives it at most {most}.")
+            name = CODE_NAME.search(part[key])
+            if name:
+                raise SystemExit(f"handover: {path}: walk_through entry {index}: the {key} holds a name from the code "
+                                 f"({name.group(0)}). The owner reads it as written: say what a user does and sees, in plain words.")
     return summary
 
 
@@ -557,10 +575,14 @@ def own_walks(recording: dict | None) -> list[dict]:
     return [walk for walk in walks if isinstance(walk, dict) and walk.get("walk")] if isinstance(walks, list) else []
 
 
-def walk_title(nodeid: str) -> str:
-    """A walk's test name as words: test_walk_a_filter_survives_paging[1440x900] is "A filter survives paging"."""
-    words = re.sub(r"^test_(walk_)?", "", nodeid.split("::")[-1].split("[", 1)[0]).replace("_", " ").strip()
-    return words[:1].upper() + words[1:] if words else nodeid
+def part_words(walk: dict) -> tuple[str, str]:
+    """(title, legend) of one part of the walk-through, as the builder wrote them in hand-over.json."""
+    title, legend = str(walk.get("title") or "").strip().rstrip("."), str(walk.get("legend") or "").strip()
+    return title or "A part the builder gave no title", legend or "The builder wrote no note saying what this part tests."
+
+
+def parts_said(count: int) -> str:
+    return f"{number(count)} part{'' if count == 1 else 's'}"
 
 
 def walk_prefix(nodeid: str) -> str:
@@ -691,10 +713,11 @@ def listed(parts: list[str]) -> str:
 
 # The page's two tests of the whole build, said once, under its first sentence, before either name is used again.
 # The checks are listed from checks.py's own list, so a check added there is named here.
-TERMS_OWN = ("The walk-through is a recorded run of the browser tests this build added or changed, in a real browser "
-             "(Chromium, 1440 by 900 pixels), against a stand-in for the trials registry. It shows what the build changed, "
-             "not the whole app, and a change the build wrote no browser test for is not in it. The automated checks are the "
-             f"{len(CHECK_NAMES)} checks this project runs with one command: {listed([check_said(name) for name in CHECK_NAMES])}. "
+TERMS_OWN = ("The walk-through is a recording of the app being used in a real browser (Chromium, 1440 by 900 pixels), "
+             "against a stand-in for the trials registry. It shows what this build changed, not the whole app. Each part is one "
+             "browser test that this build added or changed and that the builder chose to show; the title and the note on a "
+             "part are the builder's words. A change the build wrote no browser test for is not in it. The automated checks "
+             f"are the {len(CHECK_NAMES)} checks this project runs with one command: {listed([check_said(name) for name in CHECK_NAMES])}. "
              "Those tests are among the browser tests the checks run; this page judges the walk-through only from its own "
              "recorded run of them, not from a run of the checks.")
 TERMS = ("The walk-through is an automated run of one whole journey through the app, by keyboard alone, in a real browser "
@@ -905,9 +928,14 @@ figure { margin: 0; }
 .story figcaption { margin-top: .4rem; } .story figcaption b { color: var(--ink); margin-right: .4rem; }
 .story .film { margin-top: 1rem; } .story .cantplay { display: none; }
 .story.nofilm video { display: none; } .story.nofilm .cantplay { display: block; }
-.story .clip { margin: 0 0 1.6rem; } .story .clip figcaption { margin: 0 0 .5rem; font-size: 1.05rem; color: var(--ink); }
+.story .clip { margin: 0 0 1.6rem; } .story .clip figcaption { margin: .6rem 0 0; font-size: 1.05rem; color: var(--ink); }
 .clip.nofilm video { display: none; } .clip.nofilm .cantplay { display: block; }
-ol.walks { margin: .2rem 0 1rem 1.4rem; padding: 0; } ol.walks li { margin: .2rem 0; }
+.story.live .clip { display: none; margin: 0; } .story.live .clip.on { display: block; }
+ol.parts { list-style: none; counter-reset: part; display: flex; flex-wrap: wrap; gap: .5rem; margin: .2rem 0 1rem; padding: 0; }
+ol.parts li { counter-increment: part; }
+ol.parts a { display: block; padding: .35rem .7rem; border: 1px solid var(--line); border-radius: .5rem; color: var(--ink); text-decoration: none; }
+ol.parts a::before { content: counter(part) ". "; color: var(--soft); }
+ol.parts a.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .story.live .stage { display: block; cursor: pointer; }
 .story.live .frame { display: none; } .story.live .frame.on { display: block; }
 .story.live .frame figcaption { font-size: 1.05rem; color: var(--ink); }
@@ -1000,19 +1028,27 @@ SCRIPT = """
   var frames = [].slice.call(story.querySelectorAll(".frame"));
   var film = story.querySelector(".film");
   var videos = [].slice.call(story.querySelectorAll("video"));
+  var clips = [].slice.call(story.querySelectorAll(".clip"));
+  var chips = [].slice.call(document.querySelectorAll("#recording .parts a"));
+  var view = function () {}, played = false;
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) { n.className = cls; } if (text) { n.textContent = text; } if (tag === "button") { n.type = "button"; } return n; }
+  function part(k) {
+    clips.forEach(function (c, i) { c.classList.toggle("on", i === k); });
+    chips.forEach(function (c, i) { c.classList.toggle("on", i === k); });
+  }
   videos.forEach(function (video, k) {
     var box = video.closest(".clip") || story, from = video.getAttribute("data-frame");
-    video.addEventListener("ended", function () {  /* the recordings play one after another, each held on its last moment first */
+    video.addEventListener("play", function () { played = true; });
+    video.addEventListener("ended", function () {  /* the parts play one after another, each held on its last moment first */
       var following = videos[k + 1];
       if (!following || story.getAttribute("data-view") !== "film") { return; }
       setTimeout(function () {
         if (story.getAttribute("data-view") !== "film" || !video.ended) { return; }
-        following.closest(".clip").scrollIntoView({ block: "nearest", behavior: "smooth" });
+        part(clips.indexOf(following.closest(".clip")));
         following.play().catch(function () {});
       }, 1200);
     });
-    video.addEventListener("error", function () { box.classList.add("nofilm"); });
+    video.addEventListener("error", function () { box.classList.add("nofilm"); if (!played) { view("pictures"); } });
     if (video.error) { box.classList.add("nofilm"); }
     var still = from !== null ? frames[+from] : (frames.length > 1 ? frames[1] : null);
     if (still) { video.poster = still.querySelector("img").src; }
@@ -1025,6 +1061,7 @@ SCRIPT = """
   function show(i) {
     at = (i + frames.length) % frames.length;
     frames.forEach(function (f, k) { f.classList.toggle("on", k === at); });
+    if (frames[at].hasAttribute("data-part")) { part(+frames[at].getAttribute("data-part")); }
     [].forEach.call(reel.children, function (t, k) { t.classList.toggle("on", k === at); });
     count.textContent = (at + 1) + " of " + frames.length;
     var t = reel.children[at];
@@ -1060,7 +1097,7 @@ SCRIPT = """
   bar.parentNode.insertBefore(reel, bar.nextSibling);
   if (film) {
     var pick = el("div", "switch"), pictures = el("button", "", "Pictures"), recording = el("button", "", "Recording");
-    var view = function (which) {
+    view = function (which) {
       story.setAttribute("data-view", which);
       pictures.classList.toggle("on", which === "pictures");
       recording.classList.toggle("on", which === "film");
@@ -1071,12 +1108,23 @@ SCRIPT = """
     pick.appendChild(pictures);
     pick.appendChild(recording);
     story.insertBefore(pick, story.firstChild);
-    if (videos.length > 1) { film.insertBefore(el("p", "soft", "Play the first recording and the rest follow, one after another."), film.firstChild); }
-    view("pictures");
+    if (clips.length > 1) { film.insertBefore(el("p", "soft", "Press play once and the parts follow one another. Choose a part above to jump to it."), film.firstChild); }
+    chips.forEach(function (chip, k) {
+      chip.addEventListener("click", function (ev) {
+        var from = chip.getAttribute("data-frame"), mine = clips[k] ? clips[k].querySelector("video") : null;
+        ev.preventDefault();
+        stop();
+        videos.forEach(function (video) { video.pause(); });
+        if (from !== null) { show(+from); } else { part(k); }
+        if (story.getAttribute("data-view") === "film" && mine) { mine.currentTime = 0; mine.play().catch(function () {}); }
+      });
+    });
+    view(story.hasAttribute("data-film") && !videos.some(function (video) { return video.error; }) ? "film" : "pictures");
   }
   if (frames.length < 2) { bar.style.display = "none"; reel.style.display = "none"; stage.onclick = null; stage.style.cursor = "auto"; }
   story.classList.add("live");
   show(0);
+  if (clips.length && story.getAttribute("data-view") === "film") { part(0); }
 }());
 """
 
@@ -1220,7 +1268,7 @@ def render_walk_tile(data: dict) -> str:
     took = (f'{"Ended after" if stopped else "Ran for"} {e(minutes(recording["minutes"]))}, on' if recording.get("minutes") is not None
             else f'How long it ran was not recorded. It {"was started" if stopped else "ran"} on')
     own = own_walks(recording)
-    shown = f"{tests_said(len(own)).capitalize()} this build added or changed. " if own else ""
+    shown = f"A recording of what this build changed, in {parts_said(len(own))}. " if own else ""
     sub = (f'<span class="sub">{shown}{took} commit <code>{e(recording.get("commit", "unknown"))}</code></span>'
            if recording else '<span class="sub">There is no recording and there are no pictures</span>')
     look, _, short = walk_verdict(data)
@@ -1394,6 +1442,78 @@ def shot_parts(shot) -> tuple[str, str]:
     return caption, shot["src"] if isinstance(shot, dict) else "shots/" + urllib.parse.quote(name)
 
 
+def render_parts(data: dict, own: list[dict], said: list[str]) -> str:
+    """The walk-through of what the build changed: one recording in parts, each part under the builder's title and
+    legend, and the same parts as pictures. Without script every part is drawn, one under another."""
+    recording, total = data["recording"], len(own)
+    look, _, short = walk_verdict(data)
+    passed, filmed = recording.get("result") == "passed", recording.get("megabytes") is not None
+    prefixes = [walk_prefix(walk["walk"]) for walk in own]
+
+    def part_of(shot) -> int:
+        """Which part a screenshot is from, by its file name; after them all when from none."""
+        name = shot["name"] if isinstance(shot, dict) else str(shot)
+        mine = [index for index, prefix in enumerate(prefixes) if name.startswith(prefix)]
+        return max(mine, key=lambda index: len(prefixes[index])) if mine else total
+
+    def ended(walk: dict) -> str:
+        """How one part ended, said only when the run as a whole did not pass: a pass needs no word on each part."""
+        if passed:
+            return ""
+        result = walk.get("result")
+        words = {"passed": "This part passed.", "failed": "This part failed.", "did not run": "This part did not run."}
+        return f' <span class="soft">{words[result]}</span>' if result in words else f" {unknown('How this part ended was not recorded.')}"
+
+    shots = sorted(data["shots"], key=part_of)  # in the parts' order; sorted() keeps each part's pictures in theirs
+    per = [sum(1 for shot in shots if part_of(shot) == index) for index in range(total)]
+    frames, first, seen = [], {}, [0] * total
+    for index, shot in enumerate(shots):
+        plain, src = shot_parts(shot)
+        part = part_of(shot)
+        lazy = ' loading="lazy"' if index and not src.startswith("data:") else ""  # only a picture that is a file can wait
+        if part == total:
+            frames.append(f'<figure class="frame"><img src="{e(src)}" alt="{e(plain)}"{lazy}><figcaption>{e(plain)}</figcaption></figure>')
+            continue
+        first.setdefault(part, index)
+        seen[part] += 1
+        title, legend = part_words(own[part])
+        lead, which = f"Part {part + 1} of {total}. {title}.", f"Picture {seen[part]} of {per[part]} from this part."
+        frames.append(f'<figure class="frame" data-part="{part}"><img src="{e(src)}" alt="{e(lead)} {e(which)}"{lazy}>'
+                      f'<figcaption><b>{e(lead)}</b> {e(legend)} <span class="soft">{which}</span></figcaption></figure>')
+    stage = f'<div class="stage">{"".join(frames)}</div>' if frames else "<p>No pictures: the walk-through left none.</p>"
+    chips, clips = [], []
+    for index, walk in enumerate(own):
+        title, legend = part_words(walk)
+        still = f' data-frame="{first[index]}"' if index in first else ""
+        chips.append(f'<li><a href="#part-{index + 1}" data-part="{index}"{still}>{e(title)}</a></li>')
+        videos = "".join(
+            f'<video controls preload="metadata" src="{e(src)}"{still}></video><p class="soft cantplay">This window cannot play this '
+            f'part. Open <a href="{e(src)}">its video file</a>, which is beside this page, in Safari or Chrome.</p>'
+            for src in ("clips/" + urllib.parse.quote(str(clip)) for clip in walk.get("clips") or []))
+        clips.append(f'<figure class="clip" id="part-{index + 1}" data-part="{index}">{videos or "<p>This part left no video.</p>"}'
+                     f"<figcaption><b>Part {index + 1} of {total}. {e(title)}.</b> {e(legend)}{ended(walk)}</figcaption></figure>")
+    film = f'<div class="film">{"".join(clips)}</div>' if filmed else ""
+    one = total == 1
+    about = ((f"One recording{'' if one else f' in {parts_said(total)}'}." if filmed else
+              f"{parts_said(total).capitalize()}, in pictures only: the walk-through left no video.")
+             + (f" {'It' if one else 'Each part'} shows {'what' if one else 'one thing'} this build changed, in a real browser, and the "
+                f"note under {'it' if one else 'each part'} says what is being tested.")
+             + ("" if passed else f" The run did not pass: {'the part says how it' if one else 'each part says how it'} ended."))
+    left = [str(name) for name in recording.get("left_out") or []]
+    if left:
+        said.append(f"The build changed {number(len(left))} other browser test{'' if len(left) == 1 else 's'} and left "
+                    f"{'it' if len(left) == 1 else 'them'} out of this recording.")
+    behind = "".join(f"<li>Part {index + 1}: <code>{e(walk['walk'])}</code></li>" for index, walk in enumerate(own))
+    behind += "".join(f"<li>Changed by the build and left out of the recording: <code>{e(name)}</code></li>" for name in left)
+    return (f'<section id="recording"><h2>The walk-through: what this build changed</h2><p>{pill(short, look)} {about}</p>'
+            f'<ol class="parts">{"".join(chips)}</ol>'
+            f'<div class="story" id="story" tabindex="-1"{" data-film" if filmed else ""}>{stage}{film}</div>'
+            '<p class="source agent">The title and the note on each part are the builder\'s words. This page copied them as written and '
+            "did not check them against what the part shows.</p>"
+            f'<p class="soft">{" ".join(said)}</p>'
+            f'<details class="record"><summary>The browser test behind each part</summary><ul class="files">{behind}</ul></details></section>')
+
+
 def render_recording(data: dict) -> str:
     """The walk: its verdict, its screenshots as a picture story, and the recording."""
     recording, head = data["recording"], '<section id="recording"><h2>The walk-through, in pictures</h2>'
@@ -1415,68 +1535,29 @@ def render_recording(data: dict) -> str:
     said.append(f'How long it ran was not recorded{size}.' if took is None else
                 f'{"The attempt ended after" if stopped else "It ran for"} {e(minutes(took))}{size}.')
     own = own_walks(recording)
-    prefixes = [walk_prefix(walk["walk"]) for walk in own]
-
-    def walk_of(shot) -> int:
-        """Which of the build's own walks a screenshot is from, by its file name; after them all when from none."""
-        name = shot["name"] if isinstance(shot, dict) else str(shot)
-        mine = [index for index, prefix in enumerate(prefixes) if name.startswith(prefix)]
-        return max(mine, key=lambda index: len(prefixes[index])) if mine else len(prefixes)
-
-    shots = sorted(data["shots"], key=walk_of) if own else data["shots"]  # in the walks' order; sorted() keeps each walk's steps in theirs
-    frames, first_frame = [], {}
-    for index, shot in enumerate(shots):
+    if own:
+        return render_parts(data, own, said)
+    frames = []
+    for index, shot in enumerate(data["shots"]):
         caption, src = shot_parts(shot)
-        if own and walk_of(shot) < len(own):
-            first_frame.setdefault(walk_of(shot), index)
-            caption = f'{walk_title(own[walk_of(shot)]["walk"])} · {caption}'
         lazy = ' loading="lazy"' if index and not src.startswith("data:") else ""  # only a picture that is a file can wait
         frames.append(f'<figure class="frame"><img src="{e(src)}" alt="{e(caption)}"{lazy}>'
                       f"<figcaption>{e(caption)}</figcaption></figure>")
     stage = f'<div class="stage">{"".join(frames)}</div>' if frames else "<p>No screenshots: the walk-through left none.</p>"
+    film = ('<div class="film"><video controls preload="metadata" src="recording.webm"></video>'
+            '<p class="soft cantplay">This window cannot play the recording. Open <a href="recording.webm"><code>recording.webm</code></a>, '
+            "which is beside this page, in Safari or Chrome.</p></div>" if megabytes is not None else "<p>It left no video file.</p>")
     count, passed, filmed = len(data["shots"]), recording.get("result") == "passed", megabytes is not None
-    if own:
-        clips = []
-        for index, walk in enumerate(own):
-            still = f' data-frame="{first_frame[index]}"' if index in first_frame else ""
-            videos = "".join(
-                f'<video controls preload="metadata" src="{e(src)}"{still}></video><p class="soft cantplay">This window cannot play '
-                f'this recording. Open <a href="{e(src)}"><code>{e(src)}</code></a>, which is beside this page, in Safari or Chrome.</p>'
-                for src in ("clips/" + urllib.parse.quote(str(clip)) for clip in walk.get("clips") or []))
-            clips.append(f'<figure class="clip"><figcaption>{index + 1} of {len(own)}: {e(walk_title(walk["walk"]))}</figcaption>'
-                         f'{videos or "<p>It left no video file.</p>"}</figure>')
-        film = f'<div class="film">{"".join(clips)}</div>' if filmed else "<p>It left no video file.</p>"
-        tests = f"the {tests_said(len(own))} this build added or changed"
-        whole = f"{tests}, each run in a real browser" if passed else f"{tests}, up to where the run stopped"
-        watch = f", or watch the recording{'' if len(own) == 1 else 's'}" if filmed else ""
-    else:
-        film = ('<div class="film"><video controls preload="metadata" src="recording.webm"></video>'
-                '<p class="soft cantplay">This window cannot play the recording. Open <a href="recording.webm"><code>recording.webm</code></a>, '
-                "which is beside this page, in Safari or Chrome.</p></div>" if filmed else "<p>It left no video file.</p>")
-        whole = "one whole journey through the app, from start to finish, by keyboard alone" if passed else "the app used up to where the run stopped"
-        watch = f", or watch the recording{' of all of it' if passed else ''}" if filmed else ""
+    whole = "one whole journey through the app, from start to finish, by keyboard alone" if passed else "the app used up to where the run stopped"
+    watch = f", or watch the recording{' of all of it' if passed else ''}" if filmed else ""
     about = (f"{count} moments from the walk-through: {whole}. Step through them{watch}." if count > 1
              else f"1 moment from the walk-through: {whole}.{' The recording shows the rest.' if filmed else ''}" if count
              else f"The walk-through: {whole}." if passed else "")
-    if not own:
-        if recording.get("shows") == "whole":
-            said.append("This build added or changed no browser test of its own, so this is the standing walk through the whole app.")
-        return (f'{head}<p>{pill(short, look)} {about}</p><div class="story" id="story" tabindex="-1">{stage}{film}</div>'
-                f'<p class="soft">{" ".join(said)} The test it runs: <code>{e(recording.get("walk", ""))}</code></p></section>')
-
-    def ended(walk: dict) -> str:
-        """How one walk ended, said only when the run as a whole did not pass: a pass needs no word beside each name."""
-        if passed:
-            return ""
-        result = walk.get("result")
-        return f' <span class="soft">{e(result)}</span>' if result == "passed" or result in WALK_ENDS else f" {unknown('result not recorded')}"
-
-    listing = "".join(f"<li>{e(walk_title(walk['walk']))}{ended(walk)}</li>" for walk in own)
-    ids = "".join(f"<li><code>{e(walk['walk'])}</code></li>" for walk in own)
-    return (f'{head}<p>{pill(short, look)} {about}</p><ol class="walks">{listing}</ol>'
-            f'<div class="story" id="story" tabindex="-1">{stage}{film}</div>'
-            f'<p class="soft">{" ".join(said)} The names above are the tests\' own names, as the build wrote them.</p>'
-            f'<details class="record"><summary>The {tests_said(len(own))} it runs</summary><ul class="files">{ids}</ul></details></section>')
+    if recording.get("shows") == "whole":
+        said.append("This build added or changed no browser test of its own, so this is the standing walk through the whole app.")
+    return (f'{head}<p>{pill(short, look)} {about}</p><div class="story" id="story" tabindex="-1">{stage}{film}</div>'
+            f'<p class="soft">{" ".join(said)}</p><details class="record"><summary>The browser test behind it</summary>'
+            f'<ul class="files"><li><code>{e(recording.get("walk", ""))}</code></li></ul></details></section>')
 
 
 def render_summary(data: dict) -> str:
@@ -1813,6 +1894,31 @@ def walk_ids(root: pathlib.Path, tests: list[tuple[str, str]]) -> list[str]:
     return ids
 
 
+def walk_parts(summary: dict | None, changed: list[tuple[str, str]], path: pathlib.Path) -> tuple[list[dict], list[str]]:
+    """(the parts of the walk-through, the changed walks left out of it). A part is an entry of hand-over.json's
+    walk_through, in the builder's order: {"test": (file, name), "title", "legend"}. A build that changed walks and
+    lists none stops the run, and so does an entry that names no walk the build added or changed, or one named twice."""
+    entries = (summary or {}).get("walk_through") or []
+    names = {f"{file}::{name}": (file, name) for file, name in changed}
+    listed_tests = "".join(f"\n  {key}" for key in names) or "\n  (none)"
+    if changed and not entries:
+        raise SystemExit(
+            f"handover: this build added or changed {tests_said(len(changed))} and {path} has no walk_through, so the owner's "
+            'recording would have no words. Add "walk_through": one {"test", "title", "legend"} for each of these the owner '
+            f"should see, in the order to show them (`.claude/skills/implement-spec/SKILL.md` has the format):{listed_tests}")
+    parts, used = [], []
+    for index, entry in enumerate(entries, 1):
+        mine = [key for key, (_, name) in names.items() if entry["test"] in (name, key)]
+        if len(mine) != 1 or mine[0] in used:
+            why = ("is listed twice" if mine and mine[0] in used else "is the name of more than one of them: write it as file::name" if mine
+                   else "is not a browser test this build added or changed")
+            raise SystemExit(f"handover: {path}: walk_through entry {index}: {entry['test']} {why}. "
+                             f"The browser tests this build added or changed:{listed_tests}")
+        used.append(mine[0])
+        parts.append({"test": names[mine[0]], "title": entry["title"].strip(), "legend": entry["legend"].strip()})
+    return parts, [key for key in names if key not in used]
+
+
 def junit_results(path: pathlib.Path) -> dict[str, str]:
     """{pytest id: passed, failed or did not run} from a run's JUnit file; {} when the run left none that can be read."""
     try:
@@ -1827,10 +1933,10 @@ def junit_results(path: pathlib.Path) -> dict[str, str]:
     return results
 
 
-def record_walk(root: pathlib.Path, feature: str, out: pathlib.Path, picked=()) -> dict:
+def record_walk(root: pathlib.Path, feature: str, out: pathlib.Path, picked=(), left_out=()) -> dict:
     """Run the walk-through with recording on; leave the videos, shots/, recording.json and walk-output.txt in `out`.
-    `picked` is the walks the build added or changed (walk_ids): each is recorded as clips/<walk>.webm. With none, the
-    standing walk through the whole app is recorded, as recording.webm.
+    `picked` is the parts of the walk-through, each {"walk": its pytest id, "title", "legend"}: each is recorded as
+    clips/<walk>.webm. With none, the standing walk through the whole app is recorded, as recording.webm.
     The result is passed, failed (pytest ran it and it failed), did not run (pytest ended any other way) or did not finish."""
     scratch, shots, clips = out / "recording-tmp", out / "shots", out / "clips"
     shutil.rmtree(clips, ignore_errors=True)
@@ -1839,7 +1945,8 @@ def record_walk(root: pathlib.Path, feature: str, out: pathlib.Path, picked=()) 
         folder.mkdir(parents=True)
     for old in ("recording.webm", "recording.json"):  # an earlier run's pass must not outlive this run
         (out / old).unlink(missing_ok=True)
-    ids = list(picked) or [WALK]
+    words = {part["walk"]: part for part in picked}
+    ids = list(words) or [WALK]
     record = {**({} if picked else {"walk": WALK}), "shows": "build" if picked else "whole", **tree_state(root)}
     limit = max(900, 180 * len(ids))
     started = time.time()
@@ -1873,7 +1980,9 @@ def record_walk(root: pathlib.Path, feature: str, out: pathlib.Path, picked=()) 
             for video in sorted(scratch.glob(f"{walk_prefix(one)}*.webm")):  # a walk that opened a second page left a second video
                 video.replace(clips / video.name)
                 kept.append(video.name)
-            record["walks"].append({"walk": one, "result": results.get(one), "clips": kept})
+            record["walks"].append({"walk": one, "title": words[one]["title"], "legend": words[one]["legend"],
+                                    "result": results.get(one), "clips": kept})
+        record["left_out"] = list(left_out)
     elif (scratch / f"{walk_prefix(WALK)}.webm").exists():
         (scratch / f"{walk_prefix(WALK)}.webm").replace(out / "recording.webm")
     shutil.rmtree(scratch, ignore_errors=True)
@@ -1929,14 +2038,17 @@ def main(argv=None, root: pathlib.Path = ROOT, show=None) -> int:
     facts = git_facts(root, args.base, args.tip)
     files, fates, summary = read_findings(feature_dir), read_fates(feature_dir), read_summary(feature_dir)
     runs = run_facts(read_runs(root / ".checks" / "runs.jsonl"), args.branch or git(root, "rev-parse", "--abbrev-ref", "HEAD"))
-    record = None
+    record, picked, left_out = None, [], []
+    if not args.no_walk:  # which walks, and the words for each: a refusal here costs no recording
+        parts, left_out = walk_parts(summary, changed_walks(root, args.base, args.tip), feature_dir / "hand-over.json")
+        picked = [{"walk": nodeid, "title": part["title"], "legend": part["legend"]}
+                  for part, nodeid in zip(parts, walk_ids(root, [part["test"] for part in parts]))]
     if not args.no_walk:
-        picked = walk_ids(root, changed_walks(root, args.base, args.tip))
         if picked:
-            print(f"Recording the {tests_said(len(picked))} this build added or changed:", *picked, sep="\n  ", flush=True)
+            print(f"Recording the walk-through, {parts_said(len(picked))}:", *(part["walk"] for part in picked), sep="\n  ", flush=True)
         else:
             print(f"This build added or changed no walk, so recording the acceptance walk (about two minutes): {WALK}", flush=True)
-        record = record_walk(root, args.feature, out, picked)
+        record = record_walk(root, args.feature, out, picked, left_out)
     recording = read_recording(out)
     data = page_data(
         args.feature, base_ref=args.base, tip_ref=args.tip, git=facts, runs=runs, files=files, fates=fates,

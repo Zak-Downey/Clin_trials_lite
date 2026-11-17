@@ -33,7 +33,7 @@ Start every subagent with a fresh context window, of the `general-purpose` type.
 
 3. For each ticket in turn, use a fresh **implementer subagent**, in the foreground. Point it at the spec, its ticket and `docs/agents/local/repo.md`. It:
    - calls the Skill tool with `mattpocock-skills:tdd` to build the ticket. The seams are the two in `CLAUDE.md` (walks for pages, the `api` fixture for the rest), whatever the spec lists, so it does not ask;
-   - names each walk it adds for what the user does and sees, and takes a `walk.shot("<step>")` at each moment worth seeing. The walks this build adds or changes are the owner's walk-through: `handover.py` records them, under their names, and shows the owner nothing else of the app;
+   - takes a `walk.shot("<step>")` at each moment worth seeing in a walk it adds. The walks this build adds or changes are the owner's walk-through: `handover.py` records the ones `hand-over.json` lists under `walk_through`, as one recording in parts, and shows the owner nothing else of the app;
    - ticks the ticket's boxes it has met, sets `Status: done`, and commits on the feature branch with the ticket number in the message.
 
 4. When the implementer reports, run `python3 checks.py`. Start the next ticket only on green.
@@ -58,13 +58,13 @@ Start every subagent with a fresh context window, of the `general-purpose` type.
    - Write `.scratch/<feature>/hand-over.json`.
    - Commit until `git status --porcelain` prints nothing: delete temporary files you or your subagents made, commit the rest.
    - Run `python3 checks.py` on that commit. If it is red and the build did not stop at step 4, apply the rule for red, add what changed to `now_what`, and do this step again, once. If the build stopped at step 4, red is the true state and `now_what` already says so.
-   - Run `python3 handover.py <feature>`. It builds the page, opens it in the owner's browser and prints the page's headline. If it refuses (two findings sharing an id, a line that is not JSON, a summary line too long), correct the file it names, and `fates.jsonl` where an id changed, commit, and run it again. It records the walks this build added or changed, or the acceptance walk when there are none. If it says the walk-through or the acceptance walk failed, did not run or did not finish, hand over as it is: the page says so.
+   - Run `python3 handover.py <feature>`. It builds the page, opens it in the owner's browser and prints the page's headline. If it refuses (two findings sharing an id, a line that is not JSON, a summary line too long, a build that changed walks and lists none under `walk_through`, a part's title or legend that is too long or holds a name from the code), correct the file it names, and `fates.jsonl` where an id changed, commit, and run it again. It records the walks `walk_through` lists, or the acceptance walk when the build added or changed no walk. If it says the walk-through or the acceptance walk failed, did not run or did not finish, hand over as it is: the page says so.
 
    Your last message to the owner is one sentence saying how the build ended, then the headline `handover.py` printed (the page's own count of what to look at, so your message and the page agree), then the `open` command it printed. The page carries the rest. Do not push, merge or open a pull request: the owner decides from the page (`CLAUDE.md`, "When the owner accepts a build").
 
 ## The files the page is built from
 
-The page is computed from these and from git. Keep to the fields exactly: the script reads no prose. The owner does: a finding's `what`, a fate's `why` and the three lists of `hand-over.json` are printed on the owner's page as written, as plain text (a backtick or an asterisk shows as typed), so they follow `.claude/rules/human-facing-writing.md`. Use the page's words in them (issue, outcome, test, review, walk-through, automated checks: `handover.py`'s docstring has the list).
+The page is computed from these and from git. Keep to the fields exactly: the script reads no prose. The owner does: a finding's `what`, a fate's `why`, the three lists of `hand-over.json` and each `title` and `legend` of its `walk_through` are printed on the owner's page as written, as plain text (a backtick or an asterisk shows as typed), so they follow `.claude/rules/human-facing-writing.md`. Use the page's words in them (issue, outcome, test, review, walk-through, automated checks: `handover.py`'s docstring has the list).
 
 `.scratch/<feature>/findings/<finder>-<area>.jsonl` (add `-recheck` for the second pass), one finding per line:
 
@@ -90,7 +90,15 @@ The page is computed from these and from git. Keep to the fields exactly: the sc
 `.scratch/<feature>/hand-over.json`, written by you:
 
 ```json
-{"what": ["what was built, as the user meets it"], "so_what": ["what the owner can now do that they could not, and what to try first"], "now_what": ["what is left, unknown or not checkable here"]}
+{"what": ["what was built, as the user meets it"], "so_what": ["what the owner can now do that they could not, and what to try first"], "now_what": ["what is left, unknown or not checkable here"], "walk_through": [{"test": "test_walk_a_filter_survives_paging", "title": "A filter is kept from page to page", "legend": "The list is filtered to recruiting trials, then turned to page two. Page two should still show recruiting trials only."}]}
 ```
+
+`walk_through` is the owner's recording of what the build changed: one entry per part, in the order to show them. The page plays the parts as one recording and prints each part's `title` and `legend` under it, the way a figure carries its legend, so the owner knows what they are watching without the code open.
+
+- `test`: a walk this build added or changed, by its function name (`file::name` where two files share a name). The script refuses any other.
+- `title`: the change as the user meets it, in at most 80 characters.
+- `legend`: what is done in the recording and what should be seen, in at most 300 characters. Write it from the walk's steps and its last assertion.
+- Neither holds a name from the code (a test, a function, a file): the script refuses one.
+- List each walk that shows a change the spec asked for. A walk the build edited only in passing may be left out: the page counts it as left out and names it under a fold. A build that added or changed no walk has no `walk_through`.
 
 One thing per line. `what` and `so_what` take at most five lines each, and no line of the three is longer than 200 characters: the script refuses more. `now_what` is as long as its list needs, weightiest first, because the page shows its first five lines and folds the rest. Leave out what the page counts for itself (issues and their outcomes, commits, files, check runs, how long the build took): a typed number can disagree with the page's. The page prints `what` at its top, labelled as your words and unchecked: write there what a user now meets, and keep how the build went for `now_what`. `now_what` carries, in this order and only where they exist: a question the spec could not answer; a ticket not built and the red check that stopped it; every finding left unfixed; what a walker reported it could not try.
