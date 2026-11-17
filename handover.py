@@ -6,8 +6,17 @@ Run from the repo root. The page is one file: its pictures, its styles and its o
 screenshot over 1.5 MB stays a file beside it), and it loads nothing from outside its own folder. When it is built
 it opens in the browser. The facts on the page are computed here, from git and from
 machine-readable files; the only words an agent writes are the what / so what / now
-what of hand-over.json and the words inside findings and fates, and the page says so.
-Nothing here reads Markdown.
+what of hand-over.json and the words inside findings and fates. Wherever the page prints them it says whose they
+are and that it did not check them, and what they say never changes a colour, a count or the page's own list of
+things to look at. Whether one exists does, in one place: a `not-a-defect` outcome with no reason written is listed
+for the owner. Nothing here reads Markdown.
+
+The page is written for the owner, who has neither the code nor the records open, so its fixed text follows
+.claude/rules/human-facing-writing.md. It leads with what happened and why that matters, and keeps each issue's
+whole record folded under it. Its words for the records' fields: a finding is an issue, a fate an outcome, a fate's
+check a test, a finder a review (the `walker` finder is exploratory testing; "browser tests" is kept for the `walks`
+check), a pass a review round, the acceptance walk the walk-through, and a checks run a run of the automated checks.
+The field names themselves are unchanged.
 
 Reads (all optional; what is missing is shown as missing, never as zero):
   git                                   the commits of <base>..<tip>
@@ -44,27 +53,36 @@ import checks
 ROOT = pathlib.Path(__file__).resolve().parent
 
 # The walk that is recorded: the whole journey, keyboard only, Chromium at 1440 x 900.
+MAIN = "main"  # the branch a build is merged into (CLAUDE.md, "When the owner accepts a build")
 WALK = "walks/test_acceptance_walk.py::test_walk_the_whole_journey_by_keyboard_alone[chromium-1440x900]"
 CHECK_NAMES = [name for name, _, _ in checks.CHECKS]  # a checks run is "full" when it lists every one of these
 
-FINDERS = {"walker": "Walker", "review": "Review", "early-read": "Early read"}
-PASSES = {"first": "First pass", "recheck": "Re-check"}
-SEVERITIES = {"blocks": "blocks use", "wrong": "wrong", "cosmetic": "cosmetic", "not recorded": "severity not recorded"}
-# What became of a finding, in the order the page shows the groups: heading, look, drawn open, what it means.
-STATES = {
-    "no-fate": ("No fate recorded", "bad", True,
-                "fates.jsonl names no fate for these findings, so the record does not say what became of them."),
-    "left": ("Left as it is", "warn", True, "Recorded as known and left."),
-    "fixed-not-found": ("Fixed, but what the record names was not found", "warn", True,
-                        "Recorded as fixed, but handover.py could not find the check's file or the commit. Each says which."),
-    "fixed-no-check": ("Fixed, no check named", "note", False,
-                       "Recorded as fixed, but the record names no test or walk that shows the fix holds."),
-    "fixed": ("Fixed", "", False, "Recorded as fixed, each naming the test or walk that shows it."),
-    "not-a-defect": ("Not a defect", "", False, "Recorded as not a defect."),
+# The page's own words. The record files say finding, fate, finder, pass and check; the page says issue, outcome,
+# review, round and test, because its reader has not read the record formats (.claude/rules/human-facing-writing.md).
+FINDERS = {"walker": "Exploratory testing", "review": "Code review", "early-read": "Early code review"}
+FINDER_NOTES = {
+    "walker": "Agents use the running app in a real browser and try to break it.",
+    "review": "Agents read the build's code changes for faults the tests would not catch.",
+    "early-read": "One agent reads the code after the build's first piece of work, before the rest is built on it.",
 }
-FOUND = (" handover.py found each check's file in the build's last commit and each commit in the repository; "
-         "it did not run the checks.")
-WALK_ENDS = {"failed": "FAILED", "did not run": "did not run", "did not finish": "did not finish"}
+PASSES = {"first": "First review", "recheck": "Re-check after the fixes"}
+SEVERITIES = {"blocks": "blocks use", "wrong": "wrong", "cosmetic": "cosmetic"}  # the three the format names, most serious first
+OUTCOMES = {"fixed": "fixed", "left": "left unfixed", "not-a-defect": "not a defect"}  # the three fates, in the page's words
+# What the record says happened to an issue, in the order the page shows the groups: heading, look, drawn open.
+# What each group means to the reader is state_said's.
+STATES = {
+    "no-fate": ("No outcome recorded", "bad", True),
+    "left": ("Left unfixed", "warn", True),
+    "fixed-not-found": ("Marked fixed, proof incomplete", "warn", True),
+    "fixed-no-check": ("Marked fixed, no test named", "note", False),
+    "fixed": ("Marked fixed, test named", "", False),
+    "not-a-defect": ("Not a defect", "", False),
+}
+FOUND = (" This page found each test's file in the build's last commit and each commit in the repository. "
+         "It did not run the tests.")
+FOUND_ONE = " This page found the test's file in the build's last commit and the commit in the repository. It did not run the test."
+WALK_ENDS = {"failed": "failed", "did not run": "did not run", "did not finish": "did not finish"}
+RUN_ENDS = {"green": "passed", "red": "failed"}  # the run log's words for a result, and the page's
 SUMMARY_LINES, LINE_LENGTH = 5, 200  # what and so_what: at most this many lines; any line of hand-over.json: at most this long
 PICTURE_BYTES = 1_500_000  # a screenshot up to this size is put inside the page; a larger one stays a file beside it
 
@@ -149,6 +167,11 @@ def git(repo: pathlib.Path, *args: str) -> str:
     return done.stdout.strip()
 
 
+def git_ok(repo: pathlib.Path, *args: str) -> bool:
+    """Whether a git command succeeds: for a question git answers with its exit status."""
+    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True).returncode == 0
+
+
 # Computing.
 
 def moment(stamp: str) -> datetime.datetime:
@@ -168,7 +191,7 @@ def git_facts(repo: pathlib.Path, base: str, tip: str) -> dict:
     first, last = (times[0], times[-1]) if times else (None, None)
     span = moment(last) - moment(first) if times else None
     files = removed = 0
-    added = {"product": 0, "tests and walks": 0, "build records and kit (.scratch/, .claude/)": 0}
+    added = {"product": 0, "tests and browser tests": 0, "build records and agent instructions (.scratch/, .claude/)": 0}
     for line in git(repo, "diff", "--numstat", f"{base}...{tip}").splitlines():
         plus, minus, path = line.split("\t", 2)
         path = re.sub(r"\{[^{}]* => ([^{}]*)\}", r"\1", path).split(" => ")[-1].replace("//", "/")  # a renamed file: its new path
@@ -177,7 +200,14 @@ def git_facts(repo: pathlib.Path, base: str, tip: str) -> dict:
         added[kind] += int(plus) if plus.isdigit() else 0  # a binary file has "-" for both
         removed += int(minus) if minus.isdigit() else 0
     tests = git(repo, "diff", f"{base}...{tip}", "--", "tests", "walks")
+    # Already merged: the range holds commits and its last one is part of main. Main as last fetched from the remote is
+    # asked first, so a merge made only in this folder, which the owner never saw, does not count; the local branch is
+    # asked only when the folder has no remote main. None when it has neither.
+    main = next((ref for ref in (f"refs/remotes/origin/{MAIN}", f"refs/heads/{MAIN}")
+                 if git_ok(repo, "rev-parse", "--verify", "--quiet", ref)), None)
+    merged = (bool(times) and git_ok(repo, "merge-base", "--is-ancestor", tip, main)) if main else None
     return {
+        "merged": merged,
         "base": git(repo, "rev-parse", "--short", base), "tip": git(repo, "rev-parse", "--short", tip),
         "commits": len(times), "first": first, "last": last,
         "minutes": round(span.total_seconds() / 60) if span is not None else None,
@@ -186,21 +216,42 @@ def git_facts(repo: pathlib.Path, base: str, tip: str) -> dict:
     }
 
 
+def commit_gap(repo: pathlib.Path, commit, tip: str) -> tuple[int, int] | None:
+    """(commits that `commit` has and the build's last commit does not, commits the last commit has and `commit` does
+    not). None when git does not know the commit, so the page says nothing of the distance."""
+    if not commit or not git_ok(repo, "cat-file", "-e", f"{commit}^{{commit}}"):
+        return None
+    ahead, behind = git(repo, "rev-list", "--left-right", "--count", f"{commit}...{tip}").split()
+    return int(ahead), int(behind)
+
+
 def run_facts(runs: list[dict] | None, branch: str, names=None) -> dict:
     """The checks runs of one branch: how many, how many red, each run's result in order (`history`), the last
-    run of every check (`full`) and, when the branch's last run is not that one, the last run (`later`). None,
-    with why, where the log does not say."""
-    facts = {"runs": None, "red": None, "full": None, "later": None, "history": [], "branch": branch,
+    run of every check (`full`) and, for each check run again after it in a run of only some checks, that check's
+    most recent result and when (`since`; with no full run, every logged run counts). A later pass of one check
+    therefore never hides an earlier failure of another. None, with why, where the log does not say."""
+    facts = {"runs": None, "red": None, "full": None, "since": {}, "history": [], "branch": branch,
              "names": list(CHECK_NAMES if names is None else names), "why_unknown": ""}
     if runs is None:
-        return {**facts, "why_unknown": "No checks run was logged: .checks/runs.jsonl does not exist."}
+        return {**facts, "why_unknown": "No run of the checks was logged: the log file .checks/runs.jsonl does not exist."}
     own = [run for run in runs if run.get("branch") == branch]
     if not own:
-        return {**facts, "why_unknown": f"The checks run log (.checks/runs.jsonl) has no line for branch {branch}."}
-    full = [run for run in own if not missed(run, facts["names"])]
+        return {**facts, "why_unknown": f"The log of check runs (.checks/runs.jsonl) has no entry for this build's branch, {branch}."}
+    full = [index for index, run in enumerate(own) if not missed(run, facts["names"])]
+    since = {}
+    for run in own[full[-1] + 1:] if full else own:  # oldest first, so a check's later result replaces its earlier one
+        listed_ = [check for check in run.get("checks") or [] if check.get("result") != "not run"]
+        for check in listed_ or [{"name": "a run that names no check", "result": run.get("result")}]:
+            since[str(check.get("name", "?"))] = {"result": str(check.get("result")), "at": run.get("at")}
     history = [{"at": run.get("at"), "result": str(run.get("result")), "full": not missed(run, facts["names"])} for run in own]
     return {**facts, "runs": len(own), "red": sum(run.get("result") == "red" for run in own), "history": history,
-            "full": full[-1] if full else None, "later": None if full and full[-1] is own[-1] else own[-1]}
+            "full": own[full[-1]] if full else None, "since": since}
+
+
+def since_result(runs: dict) -> str:
+    """green, red or other for the checks run again after the last full run, taken together; green when none was."""
+    results = {last["result"] for last in runs["since"].values()}
+    return "red" if "red" in results else "green" if results <= {"green"} else "other"
 
 
 def missed(run: dict, names: list[str]) -> list[str]:
@@ -210,19 +261,21 @@ def missed(run: dict, names: list[str]) -> list[str]:
 
 
 def missing_proof(repo: pathlib.Path, tip: str, fates: dict[str, dict]) -> dict[str, str]:
-    """{finding id: what could not be found} for each fate recorded as fixed with a check: the check's file
-    (the part before ::) must be in the tip commit and the fate's commit must be in the repository."""
+    """{finding id: what could not be found} for each fate recorded as fixed: a commit it names must be in the
+    repository, and where it names a check, the check's file (the part before ::) must be in the tip commit and a
+    commit must be named."""
     found = lambda name: subprocess.run(["git", "cat-file", "-e", name], cwd=repo, capture_output=True).returncode == 0  # noqa: E731
     missing = {}
     for ident, fate in fates.items():
         check, commit = str(fate.get("check") or "").strip(), str(fate.get("commit") or "").strip()
-        if fate.get("fate") != "fixed" or not check:
+        if fate.get("fate") != "fixed":
             continue
-        path = check.split("::")[0]
-        lacks = [] if found(f"{tip}:{path}") else [f"the check's file {path} is not in the build's last commit ({tip})"]
-        if not commit:
+        lacks = []
+        if check and not found(f"{tip}:{check.split('::')[0]}"):
+            lacks.append(f"the test's file {check.split('::')[0]} is not in the build's last commit ({tip})")
+        if check and not commit:
             lacks.append("no commit is named")
-        elif not found(f"{commit}^{{commit}}"):
+        elif commit and not found(f"{commit}^{{commit}}"):
             lacks.append(f"commit {commit} is not in the repository")
         if lacks:
             missing[ident] = " and ".join(lacks)
@@ -248,19 +301,131 @@ def join(findings: list[dict], fates: dict[str, dict], missing: dict[str, str] |
 
 
 def group_by_state(joined: list[dict]) -> list[tuple[str, list[dict]]]:
-    """The joined findings in groups: no fate first, then any fate the format does not name, then STATES' order."""
-    named = list(STATES)
+    """The joined findings in groups: no fate first, then any fate the format does not name, then STATES' order.
+    Within a group the most serious recorded severity comes first; findings of one severity keep the order they were read in."""
+    named, ranks = list(STATES), list(SEVERITIES)
+    rank = lambda f: ranks.index(f.get("severity")) if f.get("severity") in ranks else len(ranks)  # noqa: E731
     order = named[:1] + sorted({f["state"] for f in joined} - set(STATES)) + named[1:]
-    groups = [(state, [f for f in joined if f["state"] == state]) for state in order]
+    groups = [(state, sorted((f for f in joined if f["state"] == state), key=rank)) for state in order]
     return [(state, rows) for state, rows in groups if rows]
 
 
-def state_look(state: str, verified: bool = False) -> tuple[str, str, bool, str]:
-    """(heading, look, drawn open, what it means) of a group."""
-    if state not in STATES:
-        return state.capitalize(), "bad", True, "A fate the record format does not name."
-    title, look, opened, note = STATES[state]
-    return title, look, opened, note + (FOUND if state == "fixed" and verified else "")
+def issues(count: int) -> str:
+    return f"{count:,} issue{'' if count == 1 else 's'}"
+
+
+def reason(fate: dict | None) -> str:
+    """The reason a fate line gives; one that is only spaces is none."""
+    return str((fate or {}).get("why") or "").strip()
+
+
+def shared_reason(rows: list[dict]) -> str:
+    """The one reason every issue of a group gives, when the group has several issues and all give the same one; else ""."""
+    whys = {reason(row.get("fate")) for row in rows}
+    return whys.pop() if len(rows) > 1 and len(whys) == 1 else ""
+
+
+def first_sentence(text: str, most: int = 240) -> str:
+    """The first sentence of a reason, for quoting; "" when it has no clear end or runs past `most` characters."""
+    found = re.match(r"(.+?[.!?])(?=\s|$)", text.strip(), re.S)
+    return found.group(1) if found and len(found.group(1)) <= most else ""
+
+
+def of_the(part: int, total: int) -> str:
+    """'all 8' or '3 of the 8'."""
+    return f"all {total:,}" if part == total else f"{part:,} of the {total:,}"
+
+
+def state_said(state: str, rows: list[dict], verified: bool = False, top: bool = False) -> tuple[str, str]:
+    """(what the record shows for this group, why that matters to the owner and what they can do about it): whole
+    sentences, worded for one issue or for many. What the record claims is said as the record's claim; only FOUND is
+    the page's own finding. `top` is for the list at the top of the page, far from the issues: it says where a reason
+    is printed in those terms, and quotes how a reason the whole group shares begins."""
+    total, one, count = len(rows), len(rows) == 1, issues(len(rows))
+    it, each, below = ("it", "it", "the issue below") if one else ("them", "each one", "the issues below")
+    once, beside = f"printed once above {below}", f"printed with {below}"
+    if top:
+        once = beside = f"printed with the issue{'' if one else 's'}, further down this page"
+    unreasoned = sum(1 for row in rows if not reason(row.get("fate")))
+    blocking = sum(1 for row in rows if row.get("severity") == "blocks")
+    same = bool(shared_reason(rows))
+    begins = first_sentence(shared_reason(rows)) if top else ""
+    begins = f' The reason, which this page did not check, begins: "{begins}"' if begins else ""
+    read = "Read the reason" if one or same else "Read each reason"
+    do = ""
+    if state == "no-fate":
+        what = f"The build's record gives no outcome for {count}"
+        so = (f"Nothing on record says whether {'this issue' if one else 'any of these issues'} was fixed, left unfixed or judged "
+              f"not a defect, so treat {each} as open.")
+        do = f"Ask what became of {it} {DECISION}."
+    elif state == "left":
+        what = f"The record marks {count} as left unfixed"
+        if not unreasoned:
+            so = (f"The build's record gives the same reason for leaving all {total}, {once}.{begins}" if same else
+                  f"The build's record gives a reason for leaving {each}, {beside}.")
+            do = f"{read} and decide whether you accept it."
+        elif unreasoned == total:
+            so, do = f"The build's record gives no reason for leaving {it} unfixed.", "Ask for the reason, then decide whether you accept it."
+        else:
+            lone = total - unreasoned == 1
+            so = (f"The build's record gives no reason for leaving {unreasoned} of the {total} unfixed. "
+                  f"{'The reason it does give is' if lone else 'The reasons it does give are'} {beside}.")
+            do = f"Read {'it' if lone else 'them'}, ask for the rest, and decide whether you accept each reason."
+    elif state == "fixed-not-found":
+        what = f"The record marks {count} as fixed, but the proof it gives is incomplete"
+        so = (f"The test's file or the commit for the fix was not found, or no commit is named, so this page could not trace "
+              f"{'the fix' if one else 'each fix'}. {'The issue' if one else 'Each issue'} says which.")
+        do = f"Ask for the missing proof before you count {it} as fixed."
+    elif state == "fixed-no-check":
+        what = f"The record names no test for {count} it marks as fixed"
+        so = (f"So this page can point to no test that shows {'this fix works' if one else 'these fixes work'}, or that the fault "
+              "would be caught if it came back. A test may exist that the record does not name.")
+        lost = sum(1 for row in rows if row.get("lacks"))
+        if lost:
+            so += (" This page could not find the commit the record names for the fix." if one else
+                   f" This page could not find the commit the record names for {of_the(lost, total)}; each of those issues says which.")
+        do = f"{'Try the fix yourself' if one else 'Try the fixes that matter to you'}, or ask for a test{'' if one else ' for each'}."
+    elif state == "fixed":
+        what = f"The record marks {count} as fixed and names a test for {'it' if one else 'each'}"
+        so = f"{'The fix' if one else 'Each fix'} names the test that is meant to show it works."
+        whole = sum(1 for row in rows if "::" not in str((row.get("fate") or {}).get("check") or ""))
+        if whole:  # a file of tests is weaker proof than one test: the record does not say which test in it shows the fix
+            so += (" The record names a whole test file, not one test in it." if one else
+                   f" For {of_the(whole, total)}, the record names a whole test file, not one test in it.")
+        so += (FOUND_ONE if one else FOUND) if verified else ""
+    elif state == "not-a-defect":
+        what = f"The record judges {count} not to be a defect"
+        so = "This is the build's own judgement, and this page did not check it."
+        if unreasoned == total:
+            so, do = so + " The record gives no reason.", "Ask for the reason, then decide whether you agree."
+        elif unreasoned:
+            so += f" The record gives no reason for {unreasoned} of the {total}."
+            do = "Read the reasons it does give, ask for the rest, and decide whether you agree."
+        else:
+            so += (f" The record gives the same reason for all {total}, {once}.{begins}" if same else
+                   f" The record gives a reason{'' if one else ' for each'}, {beside}.")
+            do = f"{read} and decide whether you agree." if blocking else ""
+    else:
+        what = f'The record gives {count} an outcome this page does not recognise: "{state.partition(": ")[2]}"'
+        so = (f"This page knows three outcomes: fixed, left unfixed and not a defect. This one tells it nothing, so treat "
+              f"{'the issue' if one else 'each issue'} as open.")
+        do = "Ask for the record to be corrected."
+    if blocking and state != "fixed":  # the one severity that changes what the owner does next
+        whom = ("it" if one else f"all {total}") if blocking == total else f"{blocking} of the {total}"
+        so += f" The reviewer{'' if one else 's'} recorded {whom} as blocking use, which means a user cannot finish a task, or loses data."
+    return what, f"{so} {do}".strip()
+
+
+def state_look(state: str, rows=()) -> tuple[str, str, bool]:
+    """(heading, look, drawn open) of a group. Two groups are folded and quiet unless something in them needs the
+    owner: issues judged not a defect that a reviewer recorded as blocking use or that give no reason, and fixes with
+    no test named whose commit was not found."""
+    heading, look, opened = STATES.get(state) or (f'Outcome not recognised ("{state.partition(": ")[2]}")', "bad", True)
+    if state == "not-a-defect" and any(row.get("severity") == "blocks" or not reason(row.get("fate")) for row in rows):
+        look, opened = "warn", True
+    if state == "fixed-no-check" and any(row.get("lacks") for row in rows):
+        look, opened = "warn", True
+    return heading, look, opened
 
 
 def orphan_fates(findings: list[dict], fates: dict[str, dict]) -> list[dict]:
@@ -280,15 +445,21 @@ def count_by_finder(findings: list[dict]) -> dict[str, dict[str, int]]:
     return counts
 
 
+def wrote(name: str, finder: str) -> bool:
+    """Whether a findings file's name says this finder wrote it: 1-walker.jsonl, walker-recheck.jsonl."""
+    return bool(re.search(rf"(^|-){re.escape(finder)}(-|\.)", name))
+
+
 def absent_finders(files: dict[str, list[dict]]) -> list[str]:
-    """The format's finders with no findings file at all: none whose rows name it, none named <finder>-..."""
+    """The format's finders with no findings file at all: none whose rows name it, and none whose name does."""
     named = {str(row.get("finder", "")) for rows in files.values() for row in rows}
-    return [finder for finder in FINDERS if finder not in named and not any(name.startswith(finder + "-") for name in files)]
+    return [finder for finder in FINDERS if finder not in named and not any(wrote(name, finder) for name in files)]
 
 
 def page_data(feature: str, *, base_ref: str = "", tip_ref: str = "", git: dict | None = None, runs: dict | None = None,
               files: dict[str, list[dict]] | None = None, fates: dict | None = None, missing: dict[str, str] | None = None,
-              summary: dict | None = None, recording: dict | None = None, shots=(), built: dict | None = None) -> dict:
+              summary: dict | None = None, recording: dict | None = None, shots=(), built: dict | None = None,
+              walk_gap: tuple[int, int] | None = None) -> dict:
     """Everything the page shows, in one dictionary. `files` is read_findings' answer; `missing` is
     missing_proof's, or None when nobody looked for the checks and commits the fates name."""
     files, fates = files or {}, fates or {}
@@ -299,66 +470,235 @@ def page_data(feature: str, *, base_ref: str = "", tip_ref: str = "", git: dict 
         "runs": runs or run_facts(None, ""), "summary": summary, "recording": recording, "shots": list(shots),
         "files": files, "findings": joined, "groups": group_by_state(joined), "verified": missing is not None,
         "by_finder": count_by_finder(findings), "absent": absent_finders(files),
-        "orphans": orphan_fates(findings, fates), "built": built or {},
+        "orphans": orphan_fates(findings, fates), "built": built or {}, "walk_gap": walk_gap,
     }
+
+
+def same_commit(one, other) -> bool:
+    """Whether two abbreviations name one commit: git shortens a commit to different lengths in different places."""
+    one, other = str(one or ""), str(other or "")
+    return one == other or (min(len(one), len(other)) >= 4 and (one.startswith(other) or other.startswith(one)))
 
 
 def stale(commit, dirty, tip) -> str:
     """Why a walk or a checks run does not speak for the build's last commit; "" when it does."""
-    why = [f"on commit {commit}, not the build's last commit ({tip})"] if tip and commit != tip else []
+    why = [f"on commit {commit}, not the build's last commit ({tip})"] if tip and not same_commit(commit, tip) else []
     return " and ".join(why + (["with uncommitted changes in the folder"] if dirty else []))
 
 
-def walk_verdict(data: dict) -> tuple[str, str]:
-    """(look, words) for the recorded walk. Green only for a pass on the build's last commit, as committed."""
+def clean_again(off: str) -> str:
+    """Where to ask for a run again: on the last commit, and with nothing uncommitted when that was what was wrong."""
+    return AGAIN + (", with nothing uncommitted in the folder" if "uncommitted" in off else "")
+
+
+def passed_but(off: str) -> str:
+    """A tile's few words for a pass that does not speak for the last commit as committed."""
+    return "Not shown to pass as committed" if off.startswith("with") else "Not shown to pass on the build's last commit"
+
+
+NOT_LAST = "so it does not show that the build's last commit passes"
+NO_FULL_RUN = "No run of every check is logged for this build's branch."
+NO_REPORT = ("This page looks for review reports in one place (findings/*.jsonl). Where it finds none from a review, either "
+             "the review was not made or its report is somewhere else: this page cannot tell which.")
+CHECK_GLOSS = {"patterns": "the scan for forbidden code patterns", "escapes": "the check of the defect log",
+               "unit": "the unit tests", "walks": "the browser tests"}  # checks.py's docstring
+DECISION = "before you accept this build"  # the owner's decision (CLAUDE.md, "When the owner accepts a build")
+# For a build whose last commit is already part of main: the page's own finding, from git, said under its first sentence.
+MERGED = ("This build is already merged: this page found its last commit in main, the project's main line of work. "
+          "So there is nothing left to accept, and what this page lists is for you to know about and, if you choose, ask for.")
+AGAIN = "on the build's last commit"
+ASK = "tell the agent you are working with (a new session opened in this project will do)"
+# What accepting sets off: this project's rule (CLAUDE.md, "When the owner accepts a build"), not a fact about one build.
+ACCEPTING = ("In this project, when you accept a build the agent pushes the build's branch and opens a pull request, "
+             "and you merge it yourself.")
+
+
+def merged(data: dict) -> bool:
+    """Whether git shows the build's last commit in main already. False when git was not read or has no main."""
+    return bool((data["git"] or {}).get("merged"))
+
+
+def undecided(text: str, data: dict) -> str:
+    """The text as it stands, or, for a build that is already merged, without "before you accept this build": that
+    decision is behind the owner, and the page does not ask for it again."""
+    return text.replace(f" {DECISION}", "") if merged(data) else text
+
+
+def gap_said(data: dict) -> str:
+    """How far the walk-through's commit is from the build's last commit, as a sentence; "" when the two are one
+    commit or git does not know the walk-through's."""
+    recording, gap = data["recording"] or {}, data.get("walk_gap")
+    if not gap or not any(gap):
+        return ""
+    ahead, behind = gap
+    commits = lambda count: f"{count:,} commit{'' if count == 1 else 's'}"  # noqa: E731
+    commit = recording.get("commit")
+    if not behind:
+        return (f" Commit {commit} holds the whole build and {commits(ahead)} made after it, which {'is' if ahead == 1 else 'are'} "
+                "not part of the build, so the app the walk-through used may differ from the finished build.")
+    if not ahead:
+        return (f" Commit {commit} is {commits(behind)} before the build's last commit, so the walk-through did not use "
+                f"{'that last commit' if behind == 1 else f'the last {commits(behind)}'} of the build.")
+    return (f" Commit {commit} is on another line of work: it has {commits(ahead)} the build does not have, and lacks "
+            f"the build's last {commits(behind)}.")
+
+
+def walk_verdict(data: dict) -> tuple[str, str, str]:
+    """(look, the verdict as a sentence, the verdict as a tile's few words) for the recorded walk. Green only for a
+    pass on the build's last commit, as committed."""
     recording = data["recording"]
     if not recording:
-        return "amber", "The walk was not run for this page"
+        return "amber", "The walk-through was not run for this page", "Not run for this page"
     result = recording.get("result")
     if result in WALK_ENDS:
-        return "red", f"The walk {WALK_ENDS[result]}"
+        return "red", f"The walk-through {WALK_ENDS[result]}", WALK_ENDS[result].capitalize()
     if result != "passed":
-        return "amber", "The walk's result is unknown"
-    if stale(recording.get("commit"), recording.get("dirty"), (data["git"] or {}).get("tip")):
-        return "amber", "The walk passed, on code that is not the build's last commit"
-    return "green", "The walk passed"
+        return "amber", "How the walk-through ended is unknown", "Result unknown"
+    off = stale(recording.get("commit"), recording.get("dirty"), (data["git"] or {}).get("tip"))
+    if off:
+        return "amber", "The build's last commit is not shown to pass the walk-through", passed_but(off)
+    return "green", "The walk-through passed", "Passed on the build's last commit"
 
 
-def checks_verdict(data: dict) -> tuple[str, str]:
-    """(look, words) for the last run of every check. Green only for a green run on the build's last commit, as committed."""
-    full, later = data["runs"]["full"], data["runs"]["later"]
-    after = str(later.get("result")) if later else "green"  # the branch's last run, when it ran only some checks
+def checks_verdict(data: dict) -> tuple[str, str, str]:
+    """(look, the verdict as a sentence, the verdict as a tile's few words) for the last full run, the last that ran
+    every check. Green only for a pass on the build's last commit, as committed."""
+    full, after = data["runs"]["full"], since_result(data["runs"])  # after: the checks run again since, in runs of only some
     if full is None or full.get("result") not in ("green", "red"):
-        return ("red", "Checks: the last run was RED") if after == "red" else ("amber", "Checks: unknown")
+        return (("red", "The automated checks failed in their last run", "Failed in their last run") if after == "red" else
+                ("amber", "Nothing on record shows whether the build passes the automated checks", "No result on record"))
     if full["result"] == "red":
-        return "red", "Checks RED"
+        return "red", "The automated checks failed", "Failed"
     if after != "green":
-        return ("red" if after == "red" else "amber"), f"Checks green, then a later run of some was {'RED' if after == 'red' else 'not green'}"
-    if stale(full.get("tip"), full.get("dirty"), (data["git"] or {}).get("tip")):
-        return "amber", "Checks green, on code that is not the build's last commit"
-    return "green", "Checks green"
+        how = "failed" if after == "red" else "did not pass"
+        return ("red" if after == "red" else "amber"), f"A later run of only some of the automated checks {how}", f"Passed, then a later partial run {how}"
+    off = stale(full.get("tip"), full.get("dirty"), (data["git"] or {}).get("tip"))
+    if off:
+        return "amber", "The build's last commit is not shown to pass the automated checks", passed_but(off)
+    return "green", "The automated checks passed", "Passed on the build's last commit"
+
+
+def ended(result) -> str:
+    """A run's logged result as a verb: passed, failed, or the log's own word for anything else."""
+    return RUN_ENDS.get(str(result), f"ended as {result if result else 'unknown'}")
+
+
+def check_said(name) -> str:
+    """A check's name in a sentence: what it is, then the name the log and the chips use."""
+    return f"{CHECK_GLOSS[name]} ({name})" if name in CHECK_GLOSS else str(name)
+
+
+def sentence(text: str) -> str:
+    """The text with its first letter a capital, the rest as written."""
+    return text[:1].upper() + text[1:]
 
 
 def later_said(runs: dict) -> str:
-    """In words, the branch's last run when it ran only some checks; "" when its last run ran every check."""
-    later = runs["later"]
-    if not later:
+    """In words, what the runs of only some checks show since the last run of every check (or, with no such run, in
+    the whole log): each check's most recent result and when, then the checks those runs did not run. "" when
+    there are none."""
+    since = runs["since"]
+    if not since:
         return ""
-    ran = ", ".join(str(check.get("name", "?")) for check in later.get("checks") or [])
-    return (f'{"A later run" if runs["full"] else "The last run"} of {ran or "no check"} only was {later.get("result", "unknown")} at '
-            f'{when(later.get("at"))}; it did not run {", ".join(missed(later, runs["names"]))}.')
+    ran = [f"{check_said(name)} {ended(last['result'])} ({when(last['at'])})" for name, last in since.items()]
+    rest = [check_said(name) for name in runs["names"] if name not in since]
+    lead = "After the last run of every check, some checks were run again" if runs["full"] else "The log holds runs of only some checks"
+    said = f"{lead}: most recently, {listed(ran)}."
+    if rest:
+        said += f" {sentence(listed(rest))} {'was' if len(rest) == 1 else 'were'} not run {'again' if runs['full'] else 'in them'}."
+    return said
 
 
-def left_said(data: dict) -> str:
-    """How many things the builder lists as left for the owner: a count of lines, which the script can make without judging them."""
-    if data["summary"] is None:
-        return "There is no builder's summary: hand-over.json is missing."
-    count = len(data["summary"].get("now_what") or [])
-    return (f"The builder lists {count} thing{'' if count == 1 else 's'} as left for you, further down." if count
-            else "The builder wrote nothing as left for you.")
+def left_said(data: dict, flagged: int = 0) -> str:
+    """That the builder wrote its own summary, where it is, and how many lines it lists as left for the owner: a count
+    of lines, which the script can make without judging them. `flagged` is how many things the page itself lists."""
+    summary = data["summary"]
+    if summary is None:
+        return "This build has no summary file (hand-over.json)."
+    if not any(summary.get(key) for key in ("what", "so_what", "now_what")):
+        return "The build's summary file (hand-over.json) is empty."
+    count = len(summary.get("now_what") or [])
+    one = count == 1
+    it, them = ("It is", "it") if one else ("They are", "them")
+    where = f'further down this page, under "{SUMMARY_TITLE}"'
+    if not count:
+        return f"The build's summary file (hand-over.json) is shown {where}. It lists nothing as left for you."
+    same = f"{it} from the same file as the lines quoted at the top of this page. " if summary.get("what") else ""
+    said = (f"The build's summary file (hand-over.json) also lists what is left for you: {count} line{'' if one else 's'}, {where}. "
+            f"{same}This page copied {them} as written and did not ")
+    if not flagged:
+        return said + f"judge {them}: read {them} {DECISION}."
+    above = "the item above" if flagged == 1 else f"the {flagged} above"
+    its = "it" if flagged == 1 else "one of these"
+    return said + f"compare {them} with {above}, so read {them} as well: a line there may repeat {its}, explain it or disagree with it."
 
 
-# Rendering.
+def listed(parts: list[str]) -> str:
+    """'a', 'a and b', 'a, b and c'."""
+    return " and ".join([", ".join(parts[:-1])] * (len(parts) > 1) + parts[-1:])
+
+
+# The page's two tests of the whole build, said once, under its first sentence, before either name is used again.
+# The checks are listed from checks.py's own list, so a check added there is named here.
+TERMS = ("The walk-through is an automated run of one whole journey through the app, by keyboard alone, in a real browser "
+         "(Chromium, 1440 by 900 pixels), against a stand-in for the trials registry. The automated checks are the "
+         f"{len(CHECK_NAMES)} checks this project runs with one command: {listed([check_said(name) for name in CHECK_NAMES])}. "
+         "The walk-through is one of those browser tests; this page judges it only from a recorded run of it on its own, not "
+         "from a run of the checks.")
+# The three other words the page's first sentences lean on, each said once, under TERMS.
+WORDS = ("A commit is one saved step of the work, and the build's last commit is the finished build. The reviewers are "
+         "agents that test the running app or read the code; this page reads the issues from their report files. The build's record "
+         "is the file (fates.jsonl) that says what became of each issue: fixed, left unfixed, or not a defect.")
+SUMMARY_TITLE = "The builder's own summary"
+NO_REVIEW = "This page found no review report for this build."
+
+
+def headline_said(count: int, merged: bool = False) -> str:
+    """The page's headline: how many things it lists for the owner to look at. main() prints the same words."""
+    which = "in this build, which is already merged" if merged else DECISION
+    return (f"{count} thing{'' if count == 1 else 's'} to look at {which}" if count else
+            f"This page found nothing that needs a second look {which}")
+
+
+def issues_said(data: dict) -> str:
+    """How many issues the reports hold, what the record says happened to them and whether the reports say how serious
+    they are, counted here from the record files."""
+    found = data["findings"]
+    if not found:
+        return "The reviewers reported no issues in the reports this page read." if data["files"] else NO_REVIEW
+    kinds = [str((f["fate"] or {}).get("fate") or "") for f in found]
+    untested = sum(1 for f in found if f["state"] == "fixed-no-check")
+    marks = [f"{kinds.count(kind):,} as {words}" for kind, words in OUTCOMES.items() if kinds.count(kind)]
+    if untested:  # the part of "fixed" the owner most needs to know, said where the number first appears
+        marks[0] += f" ({'' if untested == kinds.count('fixed') else f'{untested:,} of them '}with no test named)"
+    other = sum(1 for kind in kinds if kind not in OUTCOMES)
+    said = f"The reviewers reported {issues(len(found))} in the reports this page read."
+    if marks:
+        said += f" The build's record marks {listed(marks)}."
+    if other:  # "usable" only when the record does name an outcome and the page cannot read it
+        usable = " usable" if any(kind and kind not in OUTCOMES for kind in kinds) else ""
+        said += f" {'It' if marks else 'The build' + chr(39) + 's record'} gives no{usable} outcome for {other:,}."
+    total, bare = len(found), sum(1 for row in found if not str(row.get("severity") or "").strip())
+    if bare:
+        whom = "this issue" if total == 1 else f"any of the {total:,}" if bare == total else f"{bare:,} of the {total:,}"
+        said += (f" The reviewers' reports record no severity for {whom}, so this page cannot say how serious "
+                 f"{'it is' if bare == 1 else 'they are'}.")
+    return said
+
+
+def proof_said(data: dict) -> str:
+    """The page's own conclusion, the first thing read: whether anything on record shows that the build's last commit
+    passes its two tests of the whole build. A failure is said first, then what is not shown, then what passed."""
+    looks = (("the walk-through", *walk_verdict(data)[:2]), ("the automated checks", *checks_verdict(data)[:2]))
+    if all(look == "green" for _, look, _ in looks):
+        return "The build's last commit passed the walk-through and the automated checks."
+    said = [f"{words}." for _, look, words in looks if look == "red"]
+    unshown = [name for name, look, _ in looks if look == "amber"]
+    if unshown:
+        said.append(f"Nothing on record shows that the build's last commit passes {' or '.join(unshown)}.")
+    said += [f"The build's last commit passed {name}." for name, look, _ in looks if look == "green"]
+    return " ".join(said)
+
 
 def e(value) -> str:
     """Any value as text that is safe inside HTML, attributes included."""
@@ -422,10 +762,18 @@ button { font: inherit; color: var(--ink); background: var(--card); border: 1px 
 button:hover { border-color: var(--soft); }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .kicker { text-transform: uppercase; letter-spacing: .08em; font-size: .78rem; font-weight: 600; color: var(--soft); margin: 0; }
-.soft, .source, figcaption, .meta, .fate, dd small { color: var(--soft); font-size: .9rem; }
+.soft, .source, figcaption, dd small, th small { color: var(--soft); font-size: .9rem; }
+.lead { font-size: 1.08rem; margin: .5rem 0 0; max-width: 46rem; }
+.terms { margin: .4rem 0 0; max-width: 46rem; color: var(--soft); }
+.built { border-left: 3px solid var(--line); padding: .1rem 0 .1rem .9rem; margin: .7rem 0 1rem; max-width: 46rem; }
+.built ul { margin: .3rem 0; padding-left: 1.1rem; }
+.built .soft { margin: .2rem 0 0; font-size: .9rem; }
+p.built { color: var(--soft); }
+.found { margin-top: .9rem; }
+th small { display: block; font-weight: 400; max-width: 24rem; }
 .source { margin: 0 0 .8rem; }
-.source.agent::before { content: "Agent's words"; }
-.source.script::before { content: "Counted by the script"; }
+.source.agent::before { content: "Agents' words"; }
+.source.script::before { content: "Counted by this page"; }
 .source::before { display: inline-block; margin-right: .5rem; padding: 0 .5rem; border-radius: 999px; font-size: .78rem; font-weight: 600;
   border: 1px solid var(--line); color: var(--ink); }
 .source.agent::before { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn); }
@@ -539,15 +887,25 @@ details.group.note { border: 1px dashed var(--warn); }
 details.group.note > summary { color: var(--warn); }
 summary { cursor: pointer; font-weight: 600; }
 summary h3 { display: inline; }
-.count { font-weight: 600; margin-left: .4rem; }
+.why { margin: .5rem 0; max-width: 52rem; }
+.sev { display: inline-block; margin-right: .2rem; padding: 0 .45rem; border-radius: 999px; font-size: .78rem; font-weight: 600;
+  border: 1px solid var(--line); color: var(--soft); vertical-align: .08rem; }
+.sev.blocks { border-color: var(--bad-line); background: var(--bad-bg); color: var(--bad); }
+details.trace { margin-top: .35rem; font-size: .88rem; color: var(--soft); }
+details.trace > summary { font-weight: 400; }
+details.trace dl { margin: .3rem 0 0; }
+details.trace dl > div { display: grid; grid-template-columns: 9.5rem 1fr; gap: 0 .8rem; padding: .15rem 0; }
+details.trace dt { font-weight: 400; }
+details.trace dd { color: var(--ink); }
 ol.findings { list-style: none; margin: .6rem 0 0; padding: 0; }
 ol.findings > li { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: .6rem .8rem; margin-top: .5rem; overflow-wrap: anywhere; }
 ol.findings p { margin: .15rem 0; }
+ol.findings .why { font-size: .93rem; }
 footer { color: var(--soft); font-size: .85rem; margin-top: 1.5rem; }
 @media (max-width: 600px) {
   body { font-size: 16px; }
   section { padding: .9rem .8rem; }
-  dl.facts > div { grid-template-columns: 1fr; }
+  dl.facts > div, details.trace dl > div { grid-template-columns: 1fr; }
   .stat.span { grid-column: auto; }
   .board { grid-template-columns: 1fr; }
 }
@@ -663,54 +1021,92 @@ def fact(label: str, value_html: str, source: str) -> str:
 
 
 def walk_why(data: dict) -> str:
-    """One plain sentence on why the walk is not drawn as passed."""
+    """Why the walk-through is not drawn as passed, and what the owner can do about it."""
     recording = data["recording"]
     if not recording:
-        return "So there is no recording and there are no pictures."
-    if recording.get("result") in WALK_ENDS:
-        return f"{recording['reason']}." if recording.get("reason") else "What it printed is in walk-output.txt, beside this page."
-    if recording.get("result") != "passed":
-        return "recording.json does not say how the walk ended."
+        return ("There is no recording and there are no pictures, so this page does not show the app being used. "
+                "Ask for this page to be built again with the walk-through.")
     off = stale(recording.get("commit"), recording.get("dirty"), (data["git"] or {}).get("tip"))
-    return f"It ran {off}, so it does not show that the last commit, as committed, passes."
+    if recording.get("result") in WALK_ENDS:
+        said = ((f"{recording['reason']}. " if recording.get("reason") else "") + "So nothing on this page shows that the app "
+                "can be used from start to finish. What the run printed is in walk-output.txt, beside this page. ")
+        return said + (f"It was started {off}, so it does not show whether the build's last commit fails either. "
+                       f"Ask for it to be run again {clean_again(off)}." if off else f"Ask for this to be looked into {DECISION}.")
+    if recording.get("result") != "passed":
+        return f"Its record (recording.json) does not say how it ended. Ask for it to be run again {AGAIN}."
+    return f"The walk-through passed, but {off}.{gap_said(data)} Ask for it to be run again {clean_again(off)}."
 
 
 def checks_why(data: dict) -> str:
-    """One plain sentence on why the checks are not drawn as passed."""
+    """Why the automated checks are not drawn as passed, and what the owner can do about it."""
     runs = data["runs"]
-    full, later = runs["full"], runs["later"]
+    full, later = runs["full"], later_said(runs)
+    rerun = f"Ask for every check to be run {AGAIN}."
     if full is None:
-        return later_said(runs) if later else runs["why_unknown"] or "No run of every check is logged for this branch."
+        return f"{later} {rerun}" if later else (
+            f"{runs['why_unknown'] or NO_FULL_RUN} Either the checks were never run for this build or the run was not logged: this page "
+            f"cannot tell which. {rerun}")
     if full.get("result") not in ("green", "red"):
-        return "The log does not say how the last run of every check ended."
+        return f"The log of check runs does not say how the last run of every check ended. {rerun}"
+    off = stale(full.get("tip", "unknown"), full.get("dirty"), (data["git"] or {}).get("tip"))
     if full["result"] == "red":
-        red = [str(check.get("name", "?")) for check in full.get("checks") or [] if check.get("result") == "red"]
-        return f"Red in the last run of every check: {', '.join(red)}." if red else "The last run of every check was red."
-    if later and later.get("result") != "green":
-        return later_said(runs)
-    return f"That run was {stale(full.get('tip', 'unknown'), full.get('dirty'), (data['git'] or {}).get('tip'))}."
+        checks_ = full.get("checks") or []
+        red = [check_said(check.get("name", "?")) for check in checks_ if check.get("result") == "red"]
+        skipped = [check_said(check.get("name", "?")) for check in checks_ if check.get("result") == "not run"]
+        rest = f" {sentence(listed(skipped))} {'was' if len(skipped) == 1 else 'were'} not run after that." if skipped else ""
+        do = (f"That run was {off}, so it does not show whether the build's last commit fails. Ask for every check to be run "
+              f"{clean_again(off)}." if off else f"Ask for the failure to be fixed {DECISION}.")
+        return f"The last run of every check failed{f' at {listed(red)}' if red else ''}.{rest}{' ' + later if later else ''} {do}"
+    if later and since_result(runs) != "green":
+        return f"{later} {rerun}"
+    return f"The last run of every check passed, but {off}. Ask for every check to be run {clean_again(off)}."
 
 
 def to_look_at(data: dict) -> list[tuple[str, str, str, str]]:
-    """(amber or red, what, why, where on the page) for each thing the owner should look at before deciding: the
-    walk, the checks, each group of findings the record does not show as fixed with a check or as not a defect, each
-    finder that did not run, fate lines matching no finding, no findings file read, and passes not recognised.
-    The headline counts this list and the page prints it, so the two cannot disagree."""
+    """(amber or red, what, why it matters and what the owner can do, where on the page) for each thing the owner should look
+    at before accepting the build: the walk-through, the automated checks, a range that holds no commit, each group of
+    issues the record does not show as fixed with a test or as not a defect, each review whose report was not found,
+    outcomes matching no issue, and review rounds not recognised. Red comes first. The headline counts this list and
+    the page prints it, so the two cannot disagree."""
     things = [(TONES.get(walk_verdict(data)[0], ""), walk_verdict(data)[1], walk_why(data), "#recording"),
               (TONES.get(checks_verdict(data)[0], ""), checks_verdict(data)[1], checks_why(data), "#facts")]
+    facts = data["git"]
+    if facts and not facts["commits"]:
+        things.append(("amber", "This page covers no commits",
+                       f"The range it was asked for ({facts['base']}..{facts['tip']}) holds no commit, so its numbers describe no "
+                       "build. Ask for this page to be built again from the build's first commit to its last.", "#facts"))
     for index, (state, rows) in enumerate(data["groups"]):
-        title, look, _, note = state_look(state)
-        things.append((TONES.get(look, ""), f"{title}: {len(rows)} finding{'' if len(rows) == 1 else 's'}", note, f"#group-{index}"))
-    things += [("amber", f"{FINDERS[finder]}: no findings file",
-                "A finder writes its file even when it finds nothing, so this one did not run.", "#finders") for finder in data["absent"]]
-    if data["orphans"]:
-        things.append(("amber", f"Fate lines matching no finding: {len(data['orphans'])}", "fates.jsonl names findings the page did not read.", "#findings"))
+        things.append((TONES.get(state_look(state, rows)[1], ""), *state_said(state, rows, top=True), f"#group-{index}"))
     if not data["files"]:
-        things.append(("amber", "No findings file was read", "So the record does not show that anyone looked.", "#finders"))
+        kinds = listed([name.lower() for name in FINDERS.values()])
+        things.append(("amber", NO_REVIEW.rstrip("."),
+                       f"It looks for the reports of the build's reviews ({kinds}) in one place (findings/*.jsonl) and found none. "
+                       "Either no review was made or the reports are somewhere else: this page cannot tell which, so nothing on "
+                       "this page shows that anyone tested or read the build. Ask whether the reviews were made; if they were "
+                       f"not, decide whether you want them made {DECISION}.", "#finders"))
+    for finder in data["absent"] if data["files"] else ():
+        note = FINDER_NOTES[finder]
+        want = ("it can now only be made late, on the finished build: decide whether you want that" if finder == "early-read"
+                else "decide whether you want it made")
+        things.append(("amber", f"This page found no report from the {FINDERS[finder].lower()}",
+                       f"{NO_REPORT} In this review, {note[0].lower()}{note[1:]} Ask whether it was made. If it was not, "
+                       f"{want} {DECISION}.", "#finders"))
+    if data["orphans"]:
+        count = len(data["orphans"])
+        one = count == 1
+        things.append(("amber", f"The record gives {'an outcome' if one else 'outcomes'} for {issues(count)} that "
+                                f"{'is' if one else 'are'} in no review report this page read",
+                       f"So {'an issue' if one else 'issues'} may have been reported somewhere this page does not look. "
+                       f"Ask where {'it was' if one else 'they were'} reported.", "#findings"))
     if odd_passes(data):
-        things.append(("amber", f"Pass not recognised: {odd_passes(data)}",
-                       "These findings name a pass that is neither the first pass nor the re-check.", "#finders"))
-    return [thing for thing in things if thing[0] in ("amber", "red")]
+        count = odd_passes(data)
+        one = count == 1
+        things.append(("amber", f"{issues(count).capitalize()} {'does' if one else 'do'} not name a review round this page recognises",
+                       f"An issue belongs to the first review or to the re-check after the fixes. {'This one names' if one else 'These name'} "
+                       f"neither, so {'it is' if one else 'they are'} counted apart, in a column of {'its' if one else 'their'} own "
+                       "in the review table. Ask for the record to be corrected.", "#finders"))
+    flagged = [thing for thing in things if thing[0] in ("amber", "red")]
+    return sorted(flagged, key=lambda thing: thing[0] != "red")  # a sort that keeps the order within each look
 
 
 def odd_passes(data: dict) -> int:
@@ -719,7 +1115,7 @@ def odd_passes(data: dict) -> int:
 
 
 def tile(look: str, label: str, words: str, sub_html: str, href: str) -> str:
-    """One of the two verdict tiles: a sign, what it is, the verdict in words, and one line under it."""
+    """One of the two verdict tiles: a sign, what it is, the verdict in a few words, and the facts of the run under it."""
     tone = TONES.get(look, "")
     return (f'<a class="tile {tone}" href="{e(href)}">{mark(tone)}<span class="label">{e(label)}</span>'
             f"<strong>{e(words)}</strong>{sub_html}</a>")
@@ -727,89 +1123,145 @@ def tile(look: str, label: str, words: str, sub_html: str, href: str) -> str:
 
 def render_walk_tile(data: dict) -> str:
     recording = data["recording"] or {}
-    ran = "Ended after" if recording.get("result") in WALK_ENDS else "Ran for"
-    sub = (f'<span class="sub">{ran} {e(minutes(recording.get("minutes")))}, on commit <code>{e(recording.get("commit", "unknown"))}</code></span>'
-           if recording else '<span class="sub">So there is no recording and there are no pictures</span>')
-    look, words = walk_verdict(data)
-    return tile(look, "Acceptance walk", words, sub, "#recording")
+    stopped = recording.get("result") in WALK_ENDS  # an attempt that failed, did not start or was stopped did not "run for" a time
+    took = (f'{"Ended after" if stopped else "Ran for"} {e(minutes(recording["minutes"]))}, on' if recording.get("minutes") is not None
+            else f'How long it ran was not recorded. It {"was started" if stopped else "ran"} on')
+    sub = (f'<span class="sub">{took} commit <code>{e(recording.get("commit", "unknown"))}</code></span>'
+           if recording else '<span class="sub">There is no recording and there are no pictures</span>')
+    look, _, short = walk_verdict(data)
+    off = stale(recording.get("commit"), recording.get("dirty"), (data["git"] or {}).get("tip")) if recording.get("result") == "passed" else ""
+    if off and recording.get("commit"):
+        ran = f' It ran for {e(minutes(recording["minutes"]))}.' if recording.get("minutes") is not None else ""
+        sub = (f'<span class="sub">It passed on commit <code>{e(recording["commit"])}</code>'
+               f'{", with uncommitted changes in the folder" if recording.get("dirty") else ""}.{ran}</span>')
+    return tile(look, "Walk-through", short, sub, "#recording")
+
+
+def chip(name) -> str:
+    """A check's name on a chip or in a list: what it is, then the name the log uses."""
+    return check_said(name).removeprefix("the ")
 
 
 def render_checks_tile(data: dict) -> str:
     runs, tip = data["runs"], (data["git"] or {}).get("tip")
-    full, later = runs["full"], runs["later"]
-    look, words = checks_verdict(data)
+    full, later = runs["full"], later_said(runs)
+    look, _, short = checks_verdict(data)
+    sub = ""
     if full is None:
-        sub = f'<span class="sub">{e(runs["why_unknown"] or "No run of every check is logged for this branch.")}</span>'
+        sub += f'<span class="sub">{e(runs["why_unknown"] or NO_FULL_RUN)}</span>'
     else:
         off = stale(full.get("tip", "unknown"), full.get("dirty"), tip)
         looks = {"green": "green" if look == "green" else "", "red": "red"}  # a check is drawn green only when the verdict is
-        each = "".join(f'<span class="chk {looks.get(str(check.get("result")), "")}">{e(check.get("name", "?"))}: {e(check.get("result", "unknown"))}</span>'
-                       for check in full.get("checks") or [])
-        sub = f'<span class="sub">{each}</span><span class="sub">The last run of every check took {e(minutes(full.get("minutes")))}</span>'
+        each = "".join(f'<span class="chk {looks.get(str(check.get("result")), "")}">{e(chip(check.get("name", "?")))}: '
+                       f'{e(RUN_ENDS.get(str(check.get("result")), check.get("result", "unknown")))}</span>' for check in full.get("checks") or [])
+        sub += f'<span class="sub">{each}</span><span class="sub">The last full run took {e(minutes(full.get("minutes")))}</span>'
         sub += f'<span class="sub">This run was {e(off)}.</span>' if off else ""
-    if later and (full is None or later.get("result") != "green"):  # said on the tile, not only in the folded list
-        sub += f'<span class="sub">{e(later_said(runs))}</span>'
-    return tile(look, "Checks", words, sub, "#facts")
+    if later and (full is None or since_result(runs) != "green"):  # said on the tile, not only in the folded list
+        sub += f'<span class="sub">{e(later)}</span>'
+    return tile(look, "Automated checks", short, sub, "#facts")
 
 
 def render_findings_tile(data: dict) -> str:
-    """The findings as one bar, a part for each thing that became of them, and a label for each part that links to its list."""
+    """The issues as one bar, a part for each outcome the record gives, and a label for each part that links to its list."""
     items, bar = [], ""
     if data["findings"]:
         parts = []
         for index, (state, rows) in enumerate(data["groups"]):
-            title, look = state_look(state)[:2]
+            title, look = state_look(state, rows)[:2]
             swatch = SEGMENTS.get(state, "s-bad")
             parts.append(f'<span class="{swatch}" style="flex-grow: {len(rows)}" title="{e(title)}: {len(rows)}"></span>')
             items.append(pill(f"{title}: {len(rows)}", look, f"#group-{index}", swatch))
         count = len(data["findings"])
-        said = f"{number(count)} found"
-        bar = f'<div class="bar" role="img" aria-label="{e(said)}, by what became of them">{"".join(parts)}</div>'
+        said = f"{number(count)} reported"
+        bar = f'<div class="bar" role="img" aria-label="{e(said)}, by the outcome the build recorded for each">{"".join(parts)}</div>'
     else:
         count = len(data["files"])
-        said = "None found" if count else "Nobody looked"
-        items.append(pill(f"No findings in the {count} findings file{'' if count == 1 else 's'} read" if count
-                          else "No findings file was read", "" if count else "amber", "#finders"))
-    items += [pill(f"{FINDERS[finder]}: no findings file", "amber", "#finders") for finder in data["absent"]]
+        said = "None reported" if count else "No review report found"
+        items.append(pill(f"No issues in the {count} report{'' if count == 1 else 's'} read" if count
+                          else "No review report found", "" if count else "amber", "#finders"))
+    items += [pill(f"{FINDERS[finder]}: no report found", "amber", "#finders") for finder in data["absent"]]
     if data["orphans"]:
-        items.append(pill(f"Fate lines matching no finding: {len(data['orphans'])}", "amber", "#findings"))
+        items.append(pill(f"Outcomes matching no issue: {len(data['orphans'])}", "amber", "#findings"))
     if odd_passes(data):
-        items.append(pill(f"Pass not recognised: {odd_passes(data)}", "amber", "#finders"))
-    return (f'<div class="tile wide"><span class="label">Findings: what the walkers and reviewers reported</span>'
+        items.append(pill(f"Review round not recognised: {odd_passes(data)}", "amber", "#finders"))
+    return (f'<div class="tile wide"><span class="label">Issues the reviewers reported, by recorded outcome</span>'
             f'<strong>{e(said)}</strong>{bar}<ul class="standing">{"".join(f"<li>{item}</li>" for item in items)}</ul></div>')
 
 
 def render_standing(data: dict) -> str:
-    """The board under the title: how many things need a look and what each one is, then the walk, the last run of
-    every check, and the findings."""
-    flagged = to_look_at(data)
+    """The board under the page's first sentences: how many things need a look before the owner accepts the build, what
+    each one is, why it matters and what the owner can do, and whom to tell; then the builder's summary, the
+    walk-through, the last full run of the checks, and the issues."""
+    flagged = [(tone, what, undecided(why, data), href) for tone, what, why, href in to_look_at(data)]
+    count, done = len(flagged), merged(data)
+    accept = "" if done else f" {e(ACCEPTING)}"
     if flagged:
-        worst, count = ("red" if any(tone == "red" for tone, *_ in flagged) else "amber"), len(flagged)
-        listed = "".join(f'<li class="{tone}">{mark(tone)}<a href="{e(href)}"><strong>{e(what)}</strong><span class="sub">{e(why)}</span></a></li>'
-                         for tone, what, why, href in flagged)
-        headline = (f'<p class="headline {worst}">{mark(worst)}{count} thing{"" if count == 1 else "s"} to look at before you decide</p>'
-                    f'<ol class="look">{listed}</ol>'
-                    '<p class="soft">Counted by the script from git and the record files, not by an agent. Each one links to its place on this page.</p>')
+        worst = "red" if any(tone == "red" for tone, *_ in flagged) else "amber"
+        rows = "".join(f'<li class="{tone}">{mark(tone)}<a href="{e(href)}"><strong>{e(what)}</strong><span class="sub">{e(why)}</span></a></li>'
+                       for tone, what, why, href in flagged)
+        own = ("This page worked this out itself, from git and from the build's record files: it is not taken "
+               "from the builder's summary." if count == 1 else
+               f"This page worked out these {count} itself, from git and from the build's record files: they are "
+               "not taken from the builder's summary.")
+        links = "It links to the part of this page that shows it." if count == 1 else "Each one links to the part of this page that shows it."
+        headline = (f'<p class="headline {worst}">{mark(worst)}{e(headline_said(count, done))}</p><p class="soft">{links}</p>'
+                    f'<ol class="look">{rows}</ol><p>To ask for any of this{"" if done else ", or to accept the build"}, {ASK}.{accept}</p>'
+                    f'<p class="soft">{e(own)}</p>')
     else:
-        settled = ("every finding is recorded as fixed, with its check named, or as not a defect. What became of a finding is "
-                   "the agents' record: the script did not test it" if data["findings"] else "the findings files hold no findings")
-        headline = (f'<p class="headline green">{mark("green")}Nothing on record needs a second look</p>'
-                    "<p class=\"soft\">Counted by the script: the walk passed and every check was green on the build's last commit, "
-                    f"and {settled}.</p>")
-    headline += f'<p class="soft"><a href="#summary">{e(left_said(data))}</a></p>'
+        settled = "the reviewers reported no issues in the reports this page read"
+        if data["findings"]:
+            settled = ("every reported issue is recorded either as not a defect or as fixed, each fix naming the test meant to "
+                       "show it works. The outcomes are the build's own record: this page did not test the fixes")
+            judged = sum(len(rows) for state, rows in data["groups"] if state == "not-a-defect")
+            if judged:  # each gives a reason and none is rated as blocking use, or the group would be listed above
+                settled += (f". {issues(judged).capitalize()} {'is' if judged == 1 else 'are'} judged not a defect: that is the "
+                            "build's own judgement, which this page did not check")
+        headline = (f'<p class="headline green">{mark("green")}{e(headline_said(0, done))}</p>'
+                    "<p class=\"soft\">This page checked: the walk-through and the automated checks passed on the build's last commit, "
+                    f"and {settled}.</p>" + ("" if done else f"<p>To accept the build, {ASK}.{accept}</p>"))
+    headline += f'<p class="soft"><a href="#summary">{e(undecided(left_said(data, count), data))}</a></p>'
     return f'{headline}<div class="board">{render_walk_tile(data)}{render_checks_tile(data)}{render_findings_tile(data)}</div>'
 
 
+def render_built(data: dict) -> str:
+    """What was built, under the title, in the builder's own words: the one place the header prints an agent's words,
+    because nothing the page computes can say what a build is for. The block says whose words they are and that the
+    page did not check them, and no colour, count or item of the page's own list reads them."""
+    summary = data["summary"]
+    lines = (summary or {}).get("what") or []
+    if not lines:
+        why = ("the build has no summary file (hand-over.json is missing)" if summary is None
+               else 'the build\'s summary file (hand-over.json) has nothing under "what"')
+        return f'<p class="built">This page cannot say what was built: {e(why)}.</p>'
+    one = len(lines) == 1
+    return ('<div class="built"><p class="kicker">What was built, in the builder\'s words</p>'
+            f'<p class="soft">{"This line comes" if one else "These lines come"} from the build\'s summary file (hand-over.json), '
+            f'which the agent that runs a build is meant to write. This page copied {"it" if one else "them"} as written and did '
+            f'not check {"it" if one else "them"}.</p>'
+            f'<ul>{"".join(f"<li>{e(line)}</li>" for line in lines)}</ul></div>')
+
+
 def render_header(data: dict) -> str:
+    """The first thing read. First what was built, in the builder's words and labelled as such. Then the page's own
+    conclusion: whether anything shows that the finished build passes its two tests, with each test said in a
+    sentence; what the reviews reported and what the record says became of it; and what needs a look. How large the
+    build is and which commits the page covers come last, as reference."""
     facts = data["git"]
     if facts:
+        count, first, last = facts["commits"], when(facts["first"]), when(facts["last"])
+        made = ("This build has no commits yet." if not count else
+                f"The build is {e(number(count))} commit{'' if count == 1 else 's'}, made "
+                + (f"on {e(first)}." if first == last else f"between {e(first)} and {e(last)}."))
         asked = f" (asked for as {e(data['base_ref'])} to {e(data['tip_ref'])})" if data["base_ref"] else ""
-        covers = (f"Covers {e(number(facts['commits']))} commits, <code>{e(facts['base'])}..{e(facts['tip'])}</code>{asked}: "
-                  f"{e(when(facts['first']))} to {e(when(facts['last']))}.")
+        covers = f"{made} For reference, this page covers commits <code>{e(facts['base'])}..{e(facts['tip'])}</code>{asked}."
     else:
-        covers = f"The range of commits it covers is {unknown()}."
-    return (f'<header><p class="kicker">Build hand-over</p><h1>{e(data["feature"])}</h1>'
-            f'<p class="soft">{covers}</p>{render_standing(data)}</header>')
+        covers = f"The range of commits this page covers is {unknown()}."
+    merged_said = f'<p class="lead">{e(MERGED)}</p>' if merged(data) else ""
+    return (f'<header><p class="kicker">Build hand-over</p><h1>{e(data["feature"])}</h1>{render_built(data)}'
+            '<p class="kicker found">What this page found, from git and the build\'s records</p>'
+            f'<p class="lead"><strong>{e(proof_said(data))}</strong></p>{merged_said}'
+            f'<p class="terms">{e(TERMS)}</p><p class="terms">{e(WORDS)}</p>'
+            f'<p class="lead">{e(issues_said(data))}</p>{render_standing(data)}<p class="soft">{covers}</p></header>')
 
 
 def shot_parts(shot) -> tuple[str, str]:
@@ -822,80 +1274,83 @@ def shot_parts(shot) -> tuple[str, str]:
 
 def render_recording(data: dict) -> str:
     """The walk: its verdict, its screenshots as a picture story, and the recording."""
-    recording, head = data["recording"], '<section id="recording"><h2>The walk, in pictures</h2>'
+    recording, head = data["recording"], '<section id="recording"><h2>The walk-through, in pictures</h2>'
     if not recording:
-        return head + ("<p>No recording: the walk was not run for this page.</p>"
-                       "<p>No screenshots: the walk was not run for this page.</p></section>")
-    look, words = walk_verdict(data)
+        return head + ("<p>No recording: the walk-through was not run for this page.</p>"
+                       "<p>No screenshots: the walk-through was not run for this page.</p></section>")
+    look, _, short = walk_verdict(data)
     megabytes, tip, commit = recording.get("megabytes"), (data["git"] or {}).get("tip"), recording.get("commit", "unknown")
     said = [f'Run {e(when(recording.get("at")))} on commit <code>{e(commit)}</code>'
             f'{", with uncommitted changes in the folder" if recording.get("dirty") else ""}.']
-    if tip and commit != tip:
-        said.append(f"That is not the last commit of the build ({e(tip)}): the walk ran on the code that was in the folder at the time.")
+    if tip and not same_commit(commit, tip):
+        said.append(f"That is not the last commit of the build ({e(tip)}): the walk-through ran on the code that was in the folder at the time.")
     if recording.get("reason"):
         said.append(f'{e(recording["reason"])}.')
     if recording.get("result") != "passed":
         said.append('What it printed is in <a href="walk-output.txt"><code>walk-output.txt</code></a>, beside this page.')
-    said.append(f'It ran for {e(minutes(recording.get("minutes")))}{f"; the recording is {e(megabytes)} MB" if megabytes is not None else ""}.')
+    took, size = recording.get("minutes"), f"; the recording is {e(megabytes)} MB" if megabytes is not None else ""
+    stopped = recording.get("result") in WALK_ENDS
+    said.append(f'How long it ran was not recorded{size}.' if took is None else
+                f'{"The attempt ended after" if stopped else "It ran for"} {e(minutes(took))}{size}.')
     frames = []
     for index, shot in enumerate(data["shots"]):
         caption, src = shot_parts(shot)
         lazy = ' loading="lazy"' if index and not src.startswith("data:") else ""  # only a picture that is a file can wait
         frames.append(f'<figure class="frame"><img src="{e(src)}" alt="{e(caption)}"{lazy}>'
                       f"<figcaption>{e(caption)}</figcaption></figure>")
-    stage = f'<div class="stage">{"".join(frames)}</div>' if frames else "<p>No screenshots: the walk left none.</p>"
+    stage = f'<div class="stage">{"".join(frames)}</div>' if frames else "<p>No screenshots: the walk-through left none.</p>"
     film = ('<div class="film"><video controls preload="metadata" src="recording.webm"></video>'
             '<p class="soft cantplay">This window cannot play the recording. Open <a href="recording.webm"><code>recording.webm</code></a>, '
             "which is beside this page, in Safari or Chrome.</p></div>" if megabytes is not None else "<p>It left no video file.</p>")
     count, passed, filmed = len(data["shots"]), recording.get("result") == "passed", megabytes is not None
-    whole = "the whole journey by keyboard alone" if passed else "up to where it stopped"
+    whole = "one whole journey through the app, from start to finish, by keyboard alone" if passed else "the app used up to where the run stopped"
     watch = f", or watch the recording{' of all of it' if passed else ''}" if filmed else ""
-    about = (f"{count} moments from the acceptance walk, {whole}. Step through them{watch}." if count > 1
-             else f"1 moment from the acceptance walk, {whole}.{' The recording shows the rest.' if filmed else ''}" if count
-             else f"The acceptance walk, {whole}.")
-    return (f'{head}<p>{pill(words, look)} {about}</p><div class="story" id="story" tabindex="-1">{stage}{film}</div>'
-            f'<p class="soft">{" ".join(said)} Walk: <code>{e(recording.get("walk", ""))}</code></p></section>')
+    about = (f"{count} moments from the walk-through: {whole}. Step through them{watch}." if count > 1
+             else f"1 moment from the walk-through: {whole}.{' The recording shows the rest.' if filmed else ''}" if count
+             else f"The walk-through: {whole}." if passed else "")
+    return (f'{head}<p>{pill(short, look)} {about}</p><div class="story" id="story" tabindex="-1">{stage}{film}</div>'
+            f'<p class="soft">{" ".join(said)} The test it runs: <code>{e(recording.get("walk", ""))}</code></p></section>')
 
 
 def render_summary(data: dict) -> str:
     summary = data["summary"]
-    head = '<section id="summary"><h2>In the builder\'s words</h2>'
+    head = f'<section id="summary"><h2>{e(SUMMARY_TITLE)}</h2>'
     if summary is None:
-        return head + f'<p>The build agent wrote no summary: {unknown("hand-over.json is missing")}</p></section>'
+        return head + f'<p>This build has no summary file: {unknown("hand-over.json is missing")}</p></section>'
     cards = []
-    for key, kicker, title in (("what", "What", "What was built"), ("so_what", "So what", "What it gives you"),
-                               ("now_what", "Now what", "What is left for you")):
+    for key, kicker, title in (("so_what", "So what", "What it gives you"), ("now_what", "Now what", "What is left for you")):
         lines = summary.get(key) or []
         listed = lambda some: "".join(f"<li>{e(line)}</li>" for line in some)  # noqa: E731
         first, rest = lines[:SUMMARY_LINES], lines[SUMMARY_LINES:]  # the agent writes the weightiest first; the tail is folded, and counted
         more = f"<details><summary>{len(rest)} more</summary><ul>{listed(rest)}</ul></details>" if rest else ""
         body = listed(first) if lines else f"<li>{unknown('nothing written')}</li>"
         cards.append(f'<div class="card{" next" if key == "now_what" else ""}"><p class="kicker">{kicker}</p><h3>{title}</h3><ul>{body}</ul>{more}</div>')
-    return (head + '<p class="source agent">Written by the build agent. These are its words, copied from hand-over.json; '
-            'the script did not check them.</p>' + f'<div class="cards">{"".join(cards)}</div></section>')
+    return (head + '<p class="source agent">These two lists, and the list of what was built at the top of this page, come from '
+            'the build\'s summary file (hand-over.json), which the agent that runs a build is meant to write. This page copies '
+            'them as written and did not check them.</p>' + f'<div class="cards">{"".join(cards)}</div></section>')
 
 
 def render_last_run(data: dict) -> str:
     """The last run of every check, with its checks; then, in words, any later run that ran only some."""
     runs, tip = data["runs"], (data["git"] or {}).get("tip")
-    full, later, said = runs["full"], runs["later"], []
+    full, later, said = runs["full"], later_said(runs), []
     if full is None:
         said.append(unknown())
     else:
         off = stale(full.get("tip", "unknown"), full.get("dirty"), tip)
         looks = {"green": "amber" if off else "green", "red": "red"}  # green is drawn green only for the last commit as committed
         listed = "".join(
-            f'<li>{e(check.get("name", "?"))}: {pill(check.get("result", "unknown"), looks.get(str(check.get("result")), ""))}'
+            f'<li>{e(chip(check.get("name", "?")))}: {pill(RUN_ENDS.get(str(check.get("result")), check.get("result", "unknown")), looks.get(str(check.get("result")), ""))}'
             f'{"" if check.get("result") == "not run" else " " + e(minutes(check.get("minutes"))) + ","} '
             f'output <code>{e(check.get("output", ""))}</code></li>' for check in full.get("checks") or [])
         look = looks.get(str(full.get("result")), "amber")
-        said.append(f'{pill(full.get("result", "unknown"), look)} {e(when(full.get("at")))}, {e(minutes(full.get("minutes")))}, '
+        said.append(f'{pill(RUN_ENDS.get(str(full.get("result")), full.get("result", "unknown")), look)} {e(when(full.get("at")))}, {e(minutes(full.get("minutes")))}, '
                     f'on commit <code>{e(full.get("tip", "unknown"))}</code>')
         if off:
-            said.append(f'<p><span class="warned">This run was {e(off)}: it does not show the last commit as committed passes.</span></p>')
+            said.append(f'<p><span class="warned">This run was {e(off)}, {NOT_LAST}.</span></p>')
         said.append(f"<ul>{listed}</ul>")
     if later:
-        said.append(f"<p>{e(later_said(runs))}</p>")
+        said.append(f"<p>{e(later)}</p>")
     return "".join(said)
 
 
@@ -913,26 +1368,27 @@ def render_stats(data: dict) -> str:
              stat("Commits", value("commits")), stat("Files changed", value("files"))]
     kinds = [(kind, count) for kind, count in (facts.get("added_by") or {}).items() if count]
     if kinds:
-        names = {"product": "product", "tests and walks": "tests and walks"}
+        names = {"product": "product", "tests and browser tests": "tests and browser tests"}
         bar = "".join(f'<span class="c{index}" style="flex-grow: {count}" title="{e(kind)}: {e(number(count))}"></span>'
                       for index, (kind, count) in enumerate(kinds, 1))
-        legend = "".join(f'<span><i class="sw c{index}"></i>{e(names.get(kind, "build records"))} {e(number(count))}</span>'
+        legend = "".join(f'<span><i class="sw c{index}"></i>{e(names.get(kind, "records and agent instructions"))} {e(number(count))}</span>'
                          for index, (kind, count) in enumerate(kinds, 1))
         tiles.append(stat("Lines added", value("added"), f'<span class="bar">{bar}</span><span class="legend">{legend}</span>'
-                          f'{e(number(facts.get("removed")))} removed', wide=True))
+                          f' {e(number(facts.get("removed")))} removed', wide=True))
     else:
         tiles.append(stat("Lines added", value("added"), f'{value("removed")} removed' if facts else ""))
     tiles.append(stat("Tests added", value("tests_added"), f'{value("tests_removed")} removed' if facts else ""))
     if runs["runs"] is None:
-        tiles.append(stat("Checks runs", unknown(), e(runs["why_unknown"]), wide=True))
+        tiles.append(stat("Runs of the checks", unknown(), e(runs["why_unknown"]), wide=True))
     else:
         history, shown = runs.get("history") or [], (runs.get("history") or [])[-80:]
         squares = "".join(
             f'<span class="{"r-" + run["result"] if run["result"] in ("green", "red") else ""}{"" if run["full"] else " part"}" '
-            f'title="{e(when(run["at"]))}: {e(run["result"])}{"" if run["full"] else ", some checks only"}"></span>' for run in shown)
+            f'title="{e(when(run["at"]))}: {e(ended(run["result"]))}{"" if run["full"] else ", some checks only"}"></span>' for run in shown)
         more = f"The last {len(shown)} are drawn. " if len(history) > len(shown) else ""
-        tiles.append(stat("Checks runs", f'{e(number(runs["runs"]))}', f'<span class="runs">{squares}</span>'
-                          f'{e(number(runs["red"]))} red. {more}Oldest first. Blue was green when it ran, red was red; a hollow square ran only some checks.', wide=True))
+        tiles.append(stat("Runs of the checks", f'{e(number(runs["runs"]))}', f'<span class="runs">{squares}</span>'
+                          f'{e(number(runs["red"]))} failed. {more}Oldest first. A blue square is a run that passed, a red one a run that failed; '
+                          'a hollow square ran only some checks.', wide=True))
     return f'<div class="stats">{"".join(tiles)}</div>'
 
 
@@ -943,125 +1399,170 @@ def render_facts(data: dict) -> str:
     flagged = lambda count, look: f'<span class="{look}">{e(number(count))}</span>' if count else e(number(count))  # noqa: E731
     every = ", ".join(runs["names"])
     log = runs["why_unknown"] or f".checks/runs.jsonl, the lines for branch {runs['branch']}"
-    last = log if runs["full"] or runs["why_unknown"] else f"{log}: none of them is a run of every check ({every})"
+    last = log if runs["full"] or runs["why_unknown"] else f"{log}: none of them is a full run, one of every check ({every})"
     red = unknown() if runs["red"] is None else f"{e(number(runs['red']))} of {e(number(runs['runs']))} runs"
     no_fate = sum(1 for f in data["findings"] if f["state"] == "no-fate")
-    none_read = unknown("no findings file was read")
+    none_read = unknown("no review report was found")
     split = ("; of them " + ", ".join(f"{number(count)} {kind}" for kind, count in facts["added_by"].items())) if facts.get("added_by") else ""
     tests = f"{value('tests_added')} added, {value('tests_removed')} removed" if facts else unknown()
     rows = [
-        fact("Last checks run", render_last_run(data), last),
-        fact("Red check runs", red, log if runs["why_unknown"] else f"{log}; every run is counted, a run of one named check too"),
-        fact("Findings recorded", e(number(len(data["findings"]))) if files else none_read,
+        fact("Last full run of the checks", render_last_run(data), last),
+        fact("Failed runs of the checks", red, log if runs["why_unknown"] else f"{log}; every run is counted, a run of one named check too"),
+        fact("Issues reported", e(number(len(data["findings"]))) if files else none_read,
              f"findings/*.jsonl: {number(len(files))} file{'' if len(files) == 1 else 's'} read"),
-        fact("Findings with no fate", flagged(no_fate, "badly") if files else none_read, "findings with no fate named in fates.jsonl"),
-        fact("Fate lines matching no finding", flagged(len(data["orphans"]), "warned"), "lines of fates.jsonl whose id is no finding's"),
+        fact("Issues with no outcome recorded", flagged(no_fate, "badly") if files else none_read, "issues with no outcome named in fates.jsonl"),
+        fact("Outcomes matching no issue", flagged(len(data["orphans"]), "warned"), "lines of fates.jsonl whose id is no reported issue's"),
         fact("Commits", value("commits"), span),
         fact("First commit", e(when(facts.get("first"))) if facts.get("first") else unknown(), span),
         fact("Last commit", e(when(facts.get("last"))) if facts.get("last") else unknown(), span),
         fact("Build time", e(minutes(facts["minutes"])) if facts.get("minutes") is not None else unknown(),
              "last commit minus first commit: clock time between them, not time worked"),
-        fact("Files changed", value("files"), "git: the files that differ between the two ends of the range"),
+        fact("Files changed", value("files"), "git: the files the build changed, from where it branched off to its last commit"),
         fact("Lines added", value("added"), f"git: lines added in those files{split}"),
         fact("Lines removed", value("removed"), "git: lines removed from those files"),
         fact("Tests", tests, "lines starting def test_ that the build added and removed under tests/ and walks/; "
                              "a test that was moved or renamed counts as both"),
     ]
-    return ('<section id="facts"><h2>The build in numbers</h2><p class="source script">Computed by handover.py from git and the build\'s '
-            'record files. No agent typed a number here.</p>' + render_stats(data) +
+    return ('<section id="facts"><h2>The build in numbers</h2><p class="source script">This page computed or copied every number here '
+            'from git and the build\'s record files.</p>' + render_stats(data) +
             '<details class="record"><summary>Every number, and where it came from</summary>'
             f'<dl class="facts">{"".join(rows)}</dl></details></section>')
 
 
+def finder_said(finder: str) -> str:
+    """A finder in the page's words; one the format does not name is shown as written and said to be unrecognised."""
+    return FINDERS.get(finder) or (f'A review this page does not recognise: "{finder}"' if finder else "No review named")
+
+
 def render_finders(data: dict) -> str:
-    """Who looked and what they found: one row per finder, then every findings file read with its count."""
+    """Who reviewed the build and how much each reported: one row per kind of review, then every report read with its count."""
     counts, files = data["by_finder"], data["files"]
     other = any(row["other"] for row in counts.values())
-    cell = lambda n: f'<td class="n">{e(n)}</td>' if n else '<td class="n soft">none recorded</td>'  # noqa: E731
+    cell = lambda n: f'<td class="n">{e(n)}</td>' if n else '<td class="n soft">none in the reports read</td>'  # noqa: E731
     rows = []
     for finder, row in counts.items():
         cells = cell(row["first"]) + cell(row["recheck"])
         if other:
             cells += f'<td class="n">{unknown(row["other"])}</td>' if row["other"] else '<td class="n soft">none</td>'
         if finder in data["absent"]:
-            cells = f'<td colspan="{2 + other}">{unknown("no findings file: did not run")}</td>'
-        rows.append(f"<tr><th>{e(FINDERS.get(finder, finder or 'no finder named'))}</th>{cells}</tr>")
-    extra = '<th class="n">Pass not recognised</th>' if other else ""
-    read = "".join(f"<li><code>{e(name)}</code>: {e(number(len(found))) if found else 'looked, found nothing'}</li>"
+            cells = f'<td colspan="{2 + other}">{unknown("no report found")}</td>'
+        does = f'<small>{e(FINDER_NOTES[finder])}</small>' if finder in FINDER_NOTES else ""
+        rows.append(f"<tr><th>{e(finder_said(finder))}{does}</th>{cells}</tr>")
+    extra = '<th class="n">Round not recognised</th>' if other else ""
+    empty = lambda name: ("reviewed, found nothing" if any(wrote(name, finder) for finder in FINDERS)  # noqa: E731
+                          else "empty report: its name does not say which review wrote it")
+    read = "".join(f"<li><code>{e(name)}</code>: {e(issues(len(found))) if found else empty(name)}</li>"
                    for name, found in files.items())
-    read = (f'<details class="record"><summary>The {number(len(files))} findings file{"" if len(files) == 1 else "s"} read</summary>'
+    read = (f'<details class="record"><summary>The {number(len(files))} report{"" if len(files) == 1 else "s"} read</summary>'
             f'<ul class="files">{read}</ul></details>' if files
-            else f"<p>{unknown('No findings file was read, so the record does not show that anyone looked.')}</p>")
-    return ('<section id="finders"><h2>Who looked</h2>'
-            '<p class="source script">Counted by handover.py from findings/*.jsonl. The re-check is the second look, after the fixes. '
-            'A finder writes its file even when it finds nothing, so a finder with no file did not run.</p>'
-            f'<div class="scroll"><table><thead><tr><th>Found by</th><th class="n">{PASSES["first"]}</th><th class="n">{PASSES["recheck"]}</th>{extra}</tr></thead>'
-            f'<tbody>{"".join(rows)}</tbody></table></div>{read}</section>')
+            else f"<p>{unknown('This page found no review report, so nothing on this page shows that anyone tested or read the build.')}</p>")
+    rechecked = any(str(row.get("pass", "")) == "recheck" for row in data["findings"]) or any("recheck" in name for name in files)
+    intro = ("The numbers are issues reported. A re-check is a second review of the areas the fixes touched, made after the fixes."
+             + (" This page read no re-check report, so nothing on record shows that one was made." if files and not rechecked else ""))
+    return ('<section id="finders"><h2>Who reviewed the build</h2>'
+            f'<p>{intro}</p>'
+            f'<div class="scroll"><table><thead><tr><th>Review</th><th class="n">{PASSES["first"]}</th><th class="n">{PASSES["recheck"]}</th>{extra}</tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table></div>'
+            f'<p class="source script">This page counted these from the reviewers\' report files. {NO_REPORT}</p>{read}</section>')
 
 
-def render_finding(finding: dict, shared: str = "") -> str:
-    """One finding as a card. `shared` is a reason its whole group gives, already printed once above the cards."""
-    severity = str(finding.get("severity", "") or "not recorded")
+def trace(label: str, value_html: str) -> str:
+    return f"<div><dt>{e(label)}</dt><dd>{value_html}</dd></div>"
+
+
+def render_finding(finding: dict, shared: str = "", same_as: str = "") -> str:
+    """One issue. In view: what the reviewer reported, how serious they recorded it to be, the reason the record gives
+    where the issue is not recorded as fixed, and anything of its proof that was not found. Folded under it: its whole
+    record, so every id, commit and test stays on the page. `shared` is a reason its whole group gives, already printed
+    once above the list; `same_as` is the id of an earlier issue in the list that gives this issue's reason word for
+    word. Nothing is said twice."""
+    fate, state = finding["fate"] or {}, finding["state"]
+    severity, why = str(finding.get("severity") or "").strip(), reason(fate)
     finder, which = str(finding.get("finder", "")), str(finding.get("pass", ""))
-    meta = [finding.get("id", ""), FINDERS.get(finder, finder), PASSES.get(which, which), finding.get("area", ""),
-            SEVERITIES.get(severity, severity)]
-    lines = [f'<p class="what">{e(finding.get("what", ""))}</p>',
-             f'<p class="meta">{" · ".join(e(part) for part in meta if part)}</p>']
-    if finding.get("where"):
-        lines.append(f'<p class="meta">Where: {e(finding["where"])}</p>')
-    fate = finding["fate"]
-    if finding.get("check") and finding["check"] != (fate or {}).get("check"):  # said once when the fate names the same check
-        lines.append(f'<p class="meta">Shown by: <code>{e(finding["check"])}</code></p>')
-    if fate:
-        said = [f"{e(state_look(finding['state'])[0])}."]
-        if fate.get("commit"):
-            said.append(f"Commit <code>{e(fate['commit'])}</code>.")
-        if str(fate.get("check") or "").strip():
-            said.append(f"Check: <code>{e(fate['check'])}</code>.")
-        if fate.get("why") and fate["why"] != shared:
-            said.append(e(fate["why"]))
-        lines.append(f'<p class="fate">{" ".join(said)}</p>')
+    fixed = state in ("fixed", "fixed-no-check", "fixed-not-found")
+    tag = f'<span class="sev{" blocks" if severity == "blocks" else ""}">{e(SEVERITIES[severity])}</span> ' if severity in SEVERITIES else ""
+    lines = [f'<p class="what">{tag}{e(finding.get("what", ""))}</p>']
+    if why and why != shared and not fixed:
+        lines.append(f'<p class="why"><b>Reason recorded:</b> the same as for <code>{e(same_as)}</code>, above.</p>' if same_as
+                     else f'<p class="why"><b>Reason recorded:</b> {e(why)}</p>')
     if finding["lacks"]:
-        lines.append(f'<p><span class="warned">Not found: {e(finding["lacks"])}.</span></p>')
+        lines.append(f'<p><span class="warned">Missing: {e(finding["lacks"])}.</span></p>')
+    code = lambda text: f"<code>{e(text)}</code>"  # noqa: E731
+    by = ", ".join(part for part in (finder_said(finder) if finder else "", PASSES.get(which, which).lower()) if part)
+    rows = [trace("Reported by", e(by or "not recorded")), trace("Area", e(finding.get("area") or "not recorded")),
+            trace("Severity", e(SEVERITIES.get(severity, severity or "not recorded in the review report")))]
+    if finding.get("where"):
+        rows.append(trace("Where", e(finding["where"])))
+    if finding.get("check") and finding["check"] != fate.get("check"):  # said once when the outcome names the same test
+        rows.append(trace("Reviewer's test", code(finding["check"])))
+    rows.append(trace("Outcome recorded", e(fate.get("fate") or "none")))
+    if fate.get("commit"):
+        rows.append(trace("Commit", code(fate["commit"])))
+    named = str(fate.get("check") or "").strip()
+    if fixed or named:  # a name with no :: is a whole file of tests, and the record does not say which test shows the fix
+        whole = " (a whole test file: the record does not say which test in it)" if named and "::" not in named else ""
+        rows.append(trace("Test named", code(named) + whole if named else "none"))
+    if why and why != shared and fixed:
+        rows.append(trace("Note recorded", e(why)))
+    lines.append(f'<details class="trace"><summary>Record {code(finding.get("id", ""))}</summary><dl>{"".join(rows)}</dl></details>')
     return f'<li class="finding">{"".join(lines)}</li>'
 
 
 def render_findings(data: dict) -> str:
-    head = ('<section id="findings"><h2>Every finding, and what became of it</h2>'
-            '<p class="source agent">Joined by handover.py from findings/*.jsonl and fates.jsonl. The words of each finding are copied '
-            'from the findings files and the words of each fate from fates.jsonl; the script did not check them. '
-            'The open groups are the findings left as they are and those whose record is missing or does not hold up; '
-            'the groups recorded as fixed or as not a defect are folded.</p>')
+    """Every issue, in two layers. First what happened, in sentences: how many were reported and what the record says
+    became of them, one heading per outcome with what it means for the owner, and a reason a whole group shares said
+    once. Under that the evidence: each issue in its reviewer's words with its record folded beneath it."""
+    found = data["findings"]
+    head = f'<section id="findings"><h2>The issues found, and what happened to each</h2><p class="lead">{e(issues_said(data))}</p>'
     orphans = ""
     if data["orphans"]:
         count = len(data["orphans"])
-        listed = "".join(f'<li><code>{e(fate.get("id", ""))}</code>: {e(fate.get("fate") or "no fate named")}. {e(fate.get("why") or "")}</li>'
-                         for fate in data["orphans"])
-        orphans = (f'<div class="orphans"><p><strong>{count} fate line{"" if count == 1 else "s"} name{"s" if count == 1 else ""} a finding '
-                   'the page did not read.</strong> Findings may have been written somewhere handover.py does not look '
-                   f'(it reads findings/*.jsonl only).</p><ul>{listed}</ul></div>')
-    if not data["findings"]:
-        none = "" if orphans else ("<p>The findings files read hold no findings.</p>" if data["files"]
-                                   else "<p>No findings file was read, so there is nothing to list.</p>")
-        return head + orphans + none + "</section>"
+        def orphan(fate: dict) -> str:  # the outcome in the page's words; a reason only when the record gives one
+            kind, why = str(fate.get("fate") or ""), reason(fate)
+            outcome = OUTCOMES.get(kind) or (f'"{kind}", as written' if kind else "no outcome named")
+            return f'<li><code>{e(fate.get("id", ""))}</code>: {e(outcome)}.{" Reason recorded: " + e(why) if why else ""}</li>'
+        rows = "".join(orphan(fate) for fate in data["orphans"])
+        one = count == 1
+        orphans = (f'<div class="orphans"><p><strong>The record gives {"an outcome" if one else "outcomes"} for {issues(count)} that '
+                   f'{"is" if one else "are"} in no review report this page read.</strong> '
+                   f'{"The outcome" if one else "Each outcome"} below names an issue this page did not read. An issue may have been '
+                   f'reported somewhere it does not look: it reads findings/*.jsonl only.</p><ul>{rows}</ul></div>')
+    if not found:
+        return head + orphans + ("" if data["files"] or orphans else "<p>So there is nothing to list.</p>") + "</section>"
+    odd = sum(1 for row in found if str(row.get("severity") or "").strip() not in ("", *SEVERITIES))
+    ranked = (f" {issues(odd).capitalize()} record{'s' if odd == 1 else ''} a severity this page does not recognise; it is shown "
+              f"as written in {'that issue' if odd == 1 else 'each issue'}'s record." if odd else "")
+    source = ('<p class="source agent">Each description is copied from the review report files as written, and each outcome and reason is '
+              f'what the build\'s record says. This page reproduces them and did not check them.{ranked} A group is shown open when its '
+              'issues were left unfixed, have no usable outcome recorded, are marked fixed with a test file or commit this page '
+              'could not find, or are judged not a defect with no reason given or against a reviewer\'s rating of "blocks use". '
+              'Every other group is folded: select its heading to open it. '
+              'Each issue\'s full record is folded under it. Sources: findings/*.jsonl and fates.jsonl.</p>')
     groups = []
     for index, (state, rows) in enumerate(data["groups"]):
-        title, look, opened, note = state_look(state, data["verified"])
-        whys = {str((row["fate"] or {}).get("why") or "") for row in rows}
-        shared = whys.pop() if len(rows) > 1 and len(whys) == 1 else ""  # one reason for all: said once, not on every card
-        same = f'<p class="fate">The record gives the same reason for all {len(rows)}: {e(shared)}</p>' if shared else ""
+        look, opened = state_look(state, rows)[1:]
+        what, so_what = state_said(state, rows, data["verified"])
+        so_what = undecided(so_what, data)
+        shared = shared_reason(rows)  # one reason for all: said once, not on every issue
+        same = (f'<p class="why"><b>The reason recorded, the same for all {len(rows)}:</b> {e(shared)}</p>' if shared else "")
+        first, cards = {}, []  # the first issue in the list to give each reason
+        for row in rows:
+            why = reason(row["fate"])
+            cards.append(render_finding(row, shared, first.get(why, "") if why else ""))
+            first.setdefault(why, str(row.get("id", "")))
         groups.append(
             f'<details id="group-{index}" class="group {look}"{" open" if opened else ""}>'
-            f'<summary><i class="sw {SEGMENTS.get(state, "s-bad")}"></i><h3>{e(title)}</h3><span class="count">{len(rows)}</span></summary>'
-            f'<p class="soft">{e(note)}</p>{same}'
-            f'<ol class="findings">{"".join(render_finding(row, shared) for row in rows)}</ol></details>')
-    return head + orphans + "".join(groups) + "</section>"
+            f'<summary><i class="sw {SEGMENTS.get(state, "s-bad")}"></i><h3>{e(what)}</h3></summary>'
+            f'<p>{e(so_what)}</p>{same}'
+            f'<ol class="findings">{"".join(cards)}</ol></details>')
+    return head + source + orphans + "".join(groups) + "</section>"
 
 
 def render(data: dict) -> str:
     """The whole page, as one HTML document with its CSS and its one small script inside."""
     built = data["built"]
-    footer = (f'Built by handover.py {e(when(built.get("at")))} from the folder at commit <code>{e(built.get("commit", "unknown"))}</code>.'
+    footer = (f'Built by handover.py {e(when(built.get("at")))} from the folder at commit <code>{e(built.get("commit", "unknown"))}</code>'
+              f'{", with uncommitted changes in the folder" if built.get("dirty") else ""}.'
               if built else "Built by handover.py.")
     body = "".join([
         render_header(data), render_recording(data), render_summary(data), render_findings(data),
@@ -1100,12 +1601,14 @@ def record_walk(root: pathlib.Path, feature: str, out: pathlib.Path) -> dict:
         printed = run.stdout + run.stderr
         record.update(result={0: "passed", 1: "failed"}.get(run.returncode, "did not run"), returncode=run.returncode)
         if record["result"] == "did not run":
-            record["reason"] = f"pytest ended with exit code {run.returncode}, which is neither a pass nor a failed walk"
+            record["reason"] = (f"The test runner (pytest) ended with exit code {run.returncode}, which is neither a pass nor a "
+                                "failure of the walk-through")
     except (subprocess.TimeoutExpired, OSError) as error:
         timed_out = isinstance(error, subprocess.TimeoutExpired)
         parts = [error.stdout, error.stderr] if timed_out else [str(error)]
         printed = "".join(part.decode(errors="replace") if isinstance(part, bytes) else part or "" for part in parts)
-        record.update(result="did not finish", reason="It was stopped after 15 minutes" if timed_out else f"It could not start: {error}")
+        record.update(result="did not finish" if timed_out else "did not run",
+                      reason="It was stopped after 15 minutes" if timed_out else f"The command that runs it could not start: {error}")
     record["minutes"] = round((time.time() - started) / 60, 1)
     (out / "walk-output.txt").write_text(printed, encoding="utf-8")
     # The walk's video and screenshots are named after it (walks/helper.py keep_video, shot_name); take this run's only.
@@ -1166,14 +1669,16 @@ def main(argv=None, root: pathlib.Path = ROOT, show=None) -> int:
     if not args.no_walk:
         print(f"Recording the acceptance walk (about two minutes): {WALK}", flush=True)
         record = record_walk(root, args.feature, out)
+    recording = read_recording(out)
     data = page_data(
         args.feature, base_ref=args.base, tip_ref=args.tip, git=facts, runs=runs, files=files, fates=fates,
-        missing=missing_proof(root, facts["tip"], fates), summary=summary, recording=read_recording(out),
-        shots=shots_of(out), built=tree_state(root),
+        missing=missing_proof(root, facts["tip"], fates), summary=summary, recording=recording,
+        shots=shots_of(out), built=tree_state(root), walk_gap=commit_gap(root, (recording or {}).get("commit"), args.tip),
     )
     page = out / "index.html"
     page.write_text(render(data), encoding="utf-8")
     print(page)
+    print(f"The page's headline: {headline_said(len(to_look_at(data)), merged(data))}")
     if record and record["result"] != "passed":
         print(f"handover: the acceptance walk {WALK_ENDS[record['result']]}; what it printed is in {out / 'walk-output.txt'}")
     print(f"open {shlex.quote(str(page))}", flush=True)

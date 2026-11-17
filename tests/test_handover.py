@@ -9,6 +9,7 @@ and so the page's script, which only steps through pictures the page already sho
 
 from __future__ import annotations
 
+import html
 import json
 import os
 import pathlib
@@ -69,6 +70,22 @@ def things(text: str) -> list[tuple[str, str, str, str]]:
                       listed.group(1)) if listed else []
 
 
+def reviewer(name: str) -> str:
+    """The head cell of one review's row in the table of who reviewed the build: its name, then what it does."""
+    return f"<th>{handover.FINDERS[name]}<small>{handover.e(handover.FINDER_NOTES[name])}</small></th>"
+
+
+def cards(text: str) -> list[str]:
+    """Each issue as the page draws it, its folded record included."""
+    return [card.split("</li>")[0] for card in text.split('<li class="finding">')[1:]]
+
+
+def record(text: str, id: str) -> dict[str, str]:
+    """The folded record of one issue: {label: value as drawn}."""
+    folded = re.search(rf"<summary>Record <code>{re.escape(id)}</code></summary><dl>(.*?)</dl>", text, re.S).group(1)
+    return dict(re.findall(r"<div><dt>(.*?)</dt><dd>(.*?)</dd></div>", folded))
+
+
 def drawn_green(text: str) -> list[str]:
     """Everything the page draws as passed: a tile, a label, a check or the headline. (A square of the run history is
     drawn blue or red, never in the passed green: an old run is not a verdict.)"""
@@ -85,8 +102,9 @@ def test_a_finding_with_no_fate_line_is_grouped_first_under_no_fate_recorded():
     groups = handover.group_by_state(joined)
     assert [state for state, _ in groups][0] == "no-fate"
     assert [f["id"] for f in groups[0][1]] == ["B", "D"]  # a fate line that names no fate is no fate either
-    assert handover.STATES["no-fate"][0] == "No fate recorded"
-    assert "names no fate" in handover.STATES["no-fate"][3]  # true of both
+    assert handover.STATES["no-fate"][0] == "No outcome recorded"
+    what, so_what = handover.state_said("no-fate", groups[0][1])
+    assert what == "The build's record gives no outcome for 2 issues" and "treat each one as open" in so_what  # true of both
 
 
 def test_a_fixed_fate_that_names_no_check_is_marked_fixed_no_check_named():
@@ -95,16 +113,19 @@ def test_a_fixed_fate_that_names_no_check_is_marked_fixed_no_check_named():
         {"A": fate("A"), "B": fate("B", check=""), "C": fate("C", check="   ")},
     )
     assert {f["id"]: f["state"] for f in joined} == {"A": "fixed", "B": "fixed-no-check", "C": "fixed-no-check"}
-    assert handover.STATES["fixed-no-check"][0] == "Fixed, no check named"
+    assert handover.STATES["fixed-no-check"][0] == "Marked fixed, no test named"
 
 
 def test_a_fixed_fate_whose_check_or_commit_was_not_found_is_not_fixed():
     joined = handover.join([finding("A"), finding("B")], {"A": fate("A"), "B": fate("B")}, {"B": "commit abc1234 is not in the repository"})
     assert {f["id"]: f["state"] for f in joined} == {"A": "fixed", "B": "fixed-not-found"}
     text = page([finding("A"), finding("B")], fates={"A": fate("A"), "B": fate("B")}, missing={"B": "commit abc1234 is not in the repository"})
-    assert "Not found: commit abc1234 is not in the repository." in text
-    assert "handover.py found each check" in text  # said of the Fixed group, because it looked
-    assert "handover.py found each check" not in page([finding("A")], fates={"A": fate("A")})  # nobody looked: not claimed
+    assert "Missing: commit abc1234 is not in the repository." in text
+    assert 'class="group warn" open' in group_tag(text, "what B looks like")  # a fix whose proof is missing is drawn open
+    assert "This page found the test&#x27;s file" in text and "It did not run the test." in text  # said of the fixed group, because it looked
+    both = page([finding("A"), finding("B")], fates={"A": fate("A"), "B": fate("B")}, missing={})
+    assert "This page found each test&#x27;s file" in both and "It did not run the tests." in both  # worded for one fix or for many
+    assert "This page found the test" not in page([finding("A")], fates={"A": fate("A")})  # nobody looked: not claimed
 
 
 def test_the_groups_are_in_order_with_a_fate_the_format_does_not_name_straight_after_no_fate():
@@ -143,10 +164,10 @@ def test_a_pass_the_format_does_not_name_is_counted_in_a_column_drawn_only_then(
     del rows[3]["pass"]
     assert handover.count_by_finder(rows)["walker"] == {"first": 1, "recheck": 0, "other": 3}
     text = page(rows)
-    assert "Pass not recognised" in text
-    walker = re.search(r"<tr><th>Walker</th>(.*?)</tr>", text).group(1)
+    assert "Round not recognised" in text
+    walker = re.search(rf"<tr>{re.escape(reviewer('walker'))}(.*?)</tr>", text).group(1)
     assert sum(int(n) for n in re.findall(r">(\d+)<", walker)) == 4  # the row adds up to the walker's findings
-    assert "Pass not recognised" not in page([finding("1"), finding("2", round="recheck")])
+    assert "Round not recognised" not in page([finding("1"), finding("2", round="recheck")])
 
 
 # Reading the record files.
@@ -233,7 +254,7 @@ def test_red_runs_are_counted_for_this_branch_only_and_the_last_run_is_this_bran
     assert facts["red"] == 2
     assert facts["runs"] == 3
     assert facts["full"]["at"] == "2026-11-16T10:20:00Z" and facts["full"]["result"] == "green"
-    assert facts["later"] is None and facts["why_unknown"] == ""
+    assert facts["since"] == {} and facts["why_unknown"] == ""
     assert [(r["result"], r["full"]) for r in facts["history"]] == [("red", True), ("red", True), ("green", True)]
 
 
@@ -254,48 +275,54 @@ def test_a_run_log_with_no_line_for_this_branch_is_unknown_never_zero(tmp_path):
 
 def test_what_is_unknown_is_drawn_as_unknown_never_as_a_number_or_a_pill():
     text = page(runs=handover.run_facts(None, "feature/x"))
-    for label in ("Last checks run", "Red check runs", "Commits", "Files changed", "Lines added", "Tests",
-                  "Findings recorded", "Findings with no fate"):
+    for label in ("Last full run of the checks", "Failed runs of the checks", "Commits", "Files changed", "Lines added", "Tests",
+                  "Issues reported", "Issues with no outcome recorded"):
         assert re.fullmatch(r'<span class="unknown">[a-z ]+</span>', row(text, label)), label
     assert "does not exist" in text
-    assert not drawn_green(text) and tile(text, "#facts") == ("amber", "Checks: unknown")
+    assert not drawn_green(text) and tile(text, "#facts") == ("amber", "No result on record")
     one_empty_file = page(files={"walker-find-trials.jsonl": []})
-    assert row(one_empty_file, "Findings recorded") == "0" and row(one_empty_file, "Findings with no fate") == "0"  # looked: a true zero
+    assert row(one_empty_file, "Issues reported") == "0" and row(one_empty_file, "Issues with no outcome recorded") == "0"  # looked: a true zero
 
 
 def test_a_run_of_one_named_check_is_never_the_last_checks_run_and_never_turns_the_pill_green():
     runs = handover.run_facts([run("feature/x", "red", "2026-11-16T10:00:00Z"),
                                run("feature/x", "green", "2026-11-16T10:20:00Z", names=("unit",))], "feature/x")
-    assert runs["full"]["result"] == "red" and runs["later"]["at"] == "2026-11-16T10:20:00Z"
+    assert runs["full"]["result"] == "red" and runs["since"] == {"unit": {"result": "green", "at": "2026-11-16T10:20:00Z"}}
     text = page(runs=runs, git=GIT)
-    last = row(text, "Last checks run")
-    assert 'pill red">red<' in last and not drawn_green(text)
-    assert "A later run of unit only was green at 16 Nov 2026, 10:20 UTC; it did not run patterns, escapes, walks." in last
-    assert tile(text, "#facts") == ("red", "Checks RED")
+    last = row(text, "Last full run of the checks")
+    assert 'pill red">failed<' in last and not drawn_green(text)
+    assert ("After the last run of every check, some checks were run again: most recently, the unit tests (unit) passed (16 Nov 2026, 10:20 UTC). "
+            "The scan for forbidden code patterns (patterns), the check of the defect log (escapes) and the browser tests (walks) were not run again.") in last
+    assert tile(text, "#facts") == ("red", "Failed")
     assert re.findall(r'<span class="(r-\w+)( part)?" title', text) == [("r-red", ""), ("r-green", " part")]  # every run, oldest first
-    assert "1 of 2 runs" in row(text, "Red check runs") and "a run of one named check too" in text
+    assert "1 of 2 runs" in row(text, "Failed runs of the checks") and "a run of one named check too" in text
 
 
 def test_with_no_run_of_every_check_the_last_checks_run_is_unknown_and_says_why():
     old_line = run("feature/x", "green", names=("patterns", "escapes"), all=True)  # an old line's "all" decides nothing
     runs = handover.run_facts([old_line], "feature/x")
-    assert runs["full"] is None and runs["later"] == old_line
+    assert runs["full"] is None and set(runs["since"]) == {"patterns", "escapes"}
     text = page(runs=runs, git=GIT)
-    assert row(text, "Last checks run").startswith('<span class="unknown">unknown</span>')
-    assert "The last run of patterns, escapes only was green" in text and "it did not run unit, walks" in text
-    assert "none of them is a run of every check (patterns, escapes, unit, walks)" in text
-    assert not drawn_green(text) and tile(text, "#facts") == ("amber", "Checks: unknown")
+    assert row(text, "Last full run of the checks").startswith('<span class="unknown">unknown</span>')
+    assert ("The log holds runs of only some checks: most recently, the scan for forbidden code patterns (patterns) passed (16 Nov 2026, 10:00 UTC) "
+            "and the check of the defect log (escapes) passed (16 Nov 2026, 10:00 UTC).") in text
+    assert "The unit tests (unit) and the browser tests (walks) were not run in them." in text
+    assert "none of them is a full run, one of every check (patterns, escapes, unit, walks)" in text
+    assert not drawn_green(text) and tile(text, "#facts") == ("amber", "No result on record")
 
 
 def test_a_green_run_is_drawn_green_only_on_the_build_s_last_commit_as_committed():
     green = lambda **more: page(runs=handover.run_facts([run("feature/x", "green", **more)], "feature/x"), git=GIT)  # noqa: E731
-    assert 'pill green">green<' in row(green(), "Last checks run") and tile(green(), "#facts") == ("green", "Checks green")
+    assert 'pill green">passed<' in row(green(), "Last full run of the checks") and tile(green(), "#facts") == ("green", "Passed on the build&#x27;s last commit")
     assert top(green()).count('<span class="chk green">') == 4  # each check of that run, on the tile
-    for text in (green(tip="fff9999"), green(dirty=True)):
+    for text, words in ((green(tip="fff9999"), "Not shown to pass on the build&#x27;s last commit"),
+                        (green(dirty=True), "Not shown to pass as committed")):  # the tile leads with the limit, and says which of the two it was
         assert not drawn_green(text) and top(text).count('<span class="chk ">') == 4
-        assert tile(text, "#facts") == ("amber", "Checks green, on code that is not the build&#x27;s last commit")
+        assert tile(text, "#facts") == ("amber", words)
+        assert things(text)[1][2] == "The build&#x27;s last commit is not shown to pass the automated checks"
     assert "on commit fff9999, not the build&#x27;s last commit (abc1234)" in green(tip="fff9999")
     assert "with uncommitted changes in the folder" in green(dirty=True)
+    assert things(green(dirty=True))[1][3].endswith("Ask for every check to be run on the build&#x27;s last commit, with nothing uncommitted in the folder.")
 
 
 def test_a_later_run_of_one_check_that_was_not_green_is_on_the_board_not_only_in_the_folded_list():
@@ -304,16 +331,39 @@ def test_a_later_run_of_one_check_that_was_not_green_is_on_the_board_not_only_in
     then = lambda result: handover.run_facts([run("feature/x", "green", "2026-11-16T10:00:00Z"),  # noqa: E731
                                               run("feature/x", result, "2026-11-16T10:20:00Z", names=("unit",))], "feature/x")
     red = page(runs=then("red"), **walked)
-    assert tile(red, "#facts") == ("red", "Checks green, then a later run of some was RED")
+    assert tile(red, "#facts") == ("red", "Passed, then a later partial run failed")
+    assert things(red)[0][2] == "A later run of only some of the automated checks failed"
     assert '<p class="headline red">' in top(red) and "1 thing to look at" in top(red) and "Nothing on record" not in red
-    assert "A later run of unit only was red at 16 Nov 2026, 10:20 UTC; it did not run patterns, escapes, walks." in top(red)
+    assert "some checks were run again: most recently, the unit tests (unit) failed (16 Nov 2026, 10:20 UTC). The scan for forbidden code patterns (patterns)," in top(red)
     assert '<span class="chk green">' not in red and top(red).count('<span class="chk ">') == 4  # the earlier green run is not drawn as passed
     odd = page(runs=then("stopped"), **walked)
-    assert tile(odd, "#facts") == ("amber", "Checks green, then a later run of some was not green") and '<p class="headline amber">' in top(odd)
+    assert tile(odd, "#facts") == ("amber", "Passed, then a later partial run did not pass") and '<p class="headline amber">' in top(odd)
     green = page(runs=then("green"), **walked)  # a later green run of one check changes nothing, and is not said on the board
-    assert tile(green, "#facts") == ("green", "Checks green") and "A later run" not in top(green) and '<p class="headline green">' in top(green)
+    assert tile(green, "#facts") == ("green", "Passed on the build&#x27;s last commit") and "run again" not in top(green) and '<p class="headline green">' in top(green)
     only_red = page(runs=handover.run_facts([run("feature/x", "red", names=("unit",))], "feature/x"), **walked)  # no run of every check at all
-    assert tile(only_red, "#facts") == ("red", "Checks: the last run was RED") and "The last run of unit only was red" in top(only_red)
+    assert tile(only_red, "#facts") == ("red", "Failed in their last run") and "The log holds runs of only some checks: most recently, the unit tests (unit) failed" in top(only_red)
+    assert things(only_red)[0][2] == "The automated checks failed in their last run"
+
+
+def test_a_check_that_failed_when_run_again_stays_failed_until_that_same_check_passes():
+    walked = {"git": GIT, "recording": {"commit": "abc1234", "dirty": False, "result": "passed", "megabytes": 1.0},
+              "files": {"walker-a.jsonl": [], "review-a.jsonl": [], "early-read-whole.jsonl": []}}
+    start = [run("feature/x", "green", "2026-11-16T10:00:00Z"), run("feature/x", "red", "2026-11-16T10:20:00Z", names=("unit",))]
+    hidden = handover.run_facts(start + [run("feature/x", "green", "2026-11-16T10:30:00Z", names=("patterns",))], "feature/x")
+    assert hidden["since"] == {"unit": {"result": "red", "at": "2026-11-16T10:20:00Z"}, "patterns": {"result": "green", "at": "2026-11-16T10:30:00Z"}}
+    assert handover.since_result(hidden) == "red"  # a later pass of another check does not hide the failure
+    text = page(runs=hidden, **walked)
+    assert tile(text, "#facts") == ("red", "Passed, then a later partial run failed") and '<p class="headline red">' in top(text)
+    assert ("most recently, the unit tests (unit) failed (16 Nov 2026, 10:20 UTC) and the scan for forbidden code patterns (patterns) passed "
+            "(16 Nov 2026, 10:30 UTC). The check of the defect log (escapes) and the browser tests (walks) were not run again.") in top(text)
+    mended = handover.run_facts(start + [run("feature/x", "green", "2026-11-16T10:30:00Z", names=("unit",))], "feature/x")
+    assert handover.since_result(mended) == "green" and tile(page(runs=mended, **walked), "#facts") == ("green", "Passed on the build&#x27;s last commit")
+    skipped = run("feature/x", "red", "2026-11-16T10:40:00Z", names=("unit", "walks"))
+    skipped["checks"][1].update(result="not run")  # a check a run lists as not run was not run again
+    assert set(handover.run_facts(start[:1] + [skipped], "feature/x")["since"]) == {"unit"}
+    bare = handover.run_facts(start[:1] + [{"at": "2026-11-16T10:50:00Z", "branch": "feature/x", "result": "red", "checks": []}], "feature/x")
+    assert bare["since"] == {"a run that names no check": {"result": "red", "at": "2026-11-16T10:50:00Z"}} and handover.since_result(bare) == "red"
+    assert handover.since_result(handover.run_facts(start[:1], "feature/x")) == "green"  # nothing run again: nothing to add
 
 
 def test_why_a_green_run_is_not_counted_is_said_on_the_tile_itself():
@@ -331,16 +381,16 @@ def test_the_squares_of_the_run_history_and_the_lines_bar_are_never_the_passed_g
         colours = dict(re.findall(r"--([\w-]+): (#\w+)", tokens))
         assert len({colours[name] for name in ("ok", "warn-fill", "bad-fill", "fixed", "s1", "s2", "s3")}) == 7
     assert ok not in re.sub(r"--ok(-bg)?: #\w+", "", handover.LIGHT)
-    assert "Blue was green when it ran, red was red" in page(runs=handover.run_facts([run("feature/x", "green")], "feature/x"))
+    assert "A blue square is a run that passed, a red one a run that failed" in page(runs=handover.run_facts([run("feature/x", "green")], "feature/x"))
 
 
 def test_a_check_that_was_not_run_has_no_duration_and_a_very_short_one_is_not_zero_minutes():
     line = run("feature/x", "red")
     line["checks"][0].update(minutes=0.0)
     line["checks"][3].update(result="not run", minutes=0.0)
-    last = row(page(runs=handover.run_facts([line], "feature/x")), "Last checks run")
-    assert "patterns: " in last and "under 0.1 minutes" in last
-    assert re.search(r'walks: <span class="pill ">not run</span> output', last)
+    last = row(page(runs=handover.run_facts([line], "feature/x")), "Last full run of the checks")
+    assert "scan for forbidden code patterns (patterns): " in last and "under 0.1 minutes" in last
+    assert re.search(r'browser tests \(walks\): <span class="pill ">not run</span> output', last)
     assert "0 minutes" not in last
 
 
@@ -392,22 +442,24 @@ def test_git_facts_count_commits_time_files_lines_and_tests_added_and_removed(re
     assert handover.when(facts["last"]) == "2 Nov 2026, 10:30 UTC"
     assert facts["minutes"] == 90
     assert facts["files"] == 7  # app.py, tests/test_new.py, walks/test_walk.py, notes.py, walks/helper.py, tests/test_old.py, .claude/notes.md
-    assert facts["added_by"] == {"product": 2 + 2, "tests and walks": 6 + 2 + 2, "build records and kit (.scratch/, .claude/)": 3}
+    assert facts["added_by"] == {"product": 2 + 2, "tests and browser tests": 6 + 2 + 2, "build records and agent instructions (.scratch/, .claude/)": 3}
     assert facts["added"] == 17
     assert facts["removed"] == 1 + 2
     assert facts["tests_added"] == 3  # test_a, test_b, test_walk_it; not notes.py, not the string
     assert facts["tests_removed"] == 1  # test_old
     assert facts["base"] == git(repo, "rev-parse", "--short", "main")
     assert facts["tip"] == git(repo, "rev-parse", "--short", "feature/x")
+    assert facts["merged"] is False  # the build's last commit is not in main
     text = page(git=facts)
     assert row(text, "Tests") == "3 added, 1 removed"
-    assert [text.count(f'title="{kind}: {count}"') for kind, count in (("product", 4), ("tests and walks", 10))] == [1, 1]  # the lines bar
-    assert "of them 4 product, 10 tests and walks, 3 build records and kit (.scratch/, .claude/)" in text
+    assert [text.count(f'title="{kind}: {count}"') for kind, count in (("product", 4), ("tests and browser tests", 10))] == [1, 1]  # the lines bar
+    assert "of them 4 product, 10 tests and browser tests, 3 build records and agent instructions (.scratch/, .claude/)" in text
 
 
 def test_git_facts_of_an_empty_range_leave_the_times_unknown(repo):
     facts = handover.git_facts(repo, "feature/x", "feature/x")
-    assert facts["commits"] == 0
+    assert facts["commits"] == 0 and facts["merged"] is False  # no commits: nothing to call merged
+    assert handover.git_facts(repo, "main", "main")["merged"] is False
     assert facts["first"] is None and facts["last"] is None and facts["minutes"] is None
 
 
@@ -422,10 +474,13 @@ def test_a_fixed_fate_needs_its_check_s_file_in_the_last_commit_and_its_commit_i
         "both": fate("both", check="nowhere.py::test_x", commit="--help"),
         "left": fate("left", "left", check="nowhere.py", commit=""),  # only fixed fates are looked up
         "no-check": fate("no-check", check="", commit=""),
+        "no-check-found": fate("no-check-found", check="", commit=tip),
+        "no-check-lost": fate("no-check-lost", check="", commit="0123abc"),  # a commit a fix names is looked up, test or no test
     }
     missing = handover.missing_proof(repo, tip, fates)
-    assert set(missing) == {"gone", "no-commit", "bad-commit", "both"}
-    assert missing["gone"] == f"the check's file tests/test_old.py is not in the build's last commit ({tip})"
+    assert set(missing) == {"gone", "no-commit", "bad-commit", "both", "no-check-lost"}
+    assert missing["no-check-lost"] == "commit 0123abc is not in the repository"
+    assert missing["gone"] == f"the test's file tests/test_old.py is not in the build's last commit ({tip})"
     assert missing["no-commit"] == "no commit is named"
     assert missing["bad-commit"] == "commit 0123abc is not in the repository"
     assert "nowhere.py" in missing["both"] and "commit --help is not in the repository" in missing["both"]
@@ -441,16 +496,19 @@ def test_the_script_run_on_a_real_repository_writes_the_page_and_ends_with_the_o
     write_lines(repo / ".checks" / "runs.jsonl", [run("feature/x", "red"), run("feature/x", "green"), run("main", "red")])
     assert handover.main(["feat", "--base", "main", "--tip", "feature/x", "--branch", "feature/x", "--no-walk"], root=repo) == 0
     page_file = feature / "hand-over" / "index.html"
-    assert capsys.readouterr().out.splitlines()[-1] == f"open {page_file}"
+    printed = capsys.readouterr().out.splitlines()
+    assert printed[-1] == f"open {page_file}"
     text = page_file.read_text(encoding="utf-8")
+    headline = re.search(r'<p class="headline \w+"><span[^>]*>[^<]*</span>(.*?)</p>', text).group(1)
+    assert printed[-2] == f"The page's headline: {headline}" and "things to look at before you accept this build" in headline  # what the agent tells the owner is the page's own count
     assert "No recording" in text and "<video" not in text  # --no-walk and no earlier recording
     assert "1 of 2 runs" in text  # the red runs of feature/x
-    assert "No fate recorded" in text and text.index("what W-2") < text.index("what W-4") < text.index("what W-3") < text.index("what W-1")
-    assert "Not found: the check&#x27;s file walks/test_gone.py is not in the build&#x27;s last commit" in text
+    assert "No outcome recorded" in text and text.index("what W-2") < text.index("what W-4") < text.index("what W-3") < text.index("what W-1")
+    assert "Missing: the test&#x27;s file walks/test_gone.py is not in the build&#x27;s last commit" in text
     assert "hand-over.json is missing" in text
-    assert "<code>review-a.jsonl</code>: looked, found nothing" in text and "<code>walker-a.jsonl</code>: 4" in text
-    assert "<th>Early read</th><td colspan=\"2\"><span class=\"unknown\">no findings file: did not run</span>" in text
-    assert "<th>Review</th><td class=\"n soft\">none recorded</td>" in text  # it has a file: it looked
+    assert "<code>review-a.jsonl</code>: reviewed, found nothing" in text and "<code>walker-a.jsonl</code>: 4 issues" in text
+    assert reviewer("early-read") + '<td colspan="2"><span class="unknown">no report found</span>' in text
+    assert reviewer("review") + '<td class="n soft">none in the reports read</td>' in text  # it left a report: it reviewed
 
 
 def test_the_branch_whose_runs_are_counted_is_the_one_asked_for_and_a_tip_needs_one(repo):
@@ -527,60 +585,88 @@ def test_no_fate_left_and_fixed_with_no_check_each_have_their_own_look_and_no_fa
     assert 'class="group warn" open' in tags["LEFT"]
     assert 'class="group note"' in tags["NOCHECK"] and "open" not in tags["NOCHECK"]  # marked, but folded
     assert 'class="group "' in tags["FIXED"] and "open" not in tags["FIXED"]
-    assert "No fate recorded" in text and "Fixed, no check named" in text and "Fate: fixed" in text
-    assert row(text, "Findings with no fate") == '<span class="badly">1</span>'
+    assert "No outcome recorded" in text and "Marked fixed, no test named" in text and "Outcome not recognised (&quot;Fixed&quot;)" in text
+    assert row(text, "Issues with no outcome recorded") == '<span class="badly">1</span>'
 
 
 def test_the_board_under_the_title_says_what_needs_the_owner_before_anything_else():
     green_run, every = handover.run_facts([run("feature/x", "green")], "feature/x"), {"walker-a.jsonl": [finding("A")], "review-a.jsonl": [], "early-read-whole.jsonl": []}
     settled = {"fates": {"A": fate("A")}, "git": GIT, "runs": green_run, "recording": {"commit": "abc1234", "dirty": False, "result": "passed", "megabytes": 1.0}}
     clean = page(files=every, **settled)
-    assert '<p class="headline green">' in top(clean) and "Nothing on record needs a second look" in top(clean)
-    assert tile(clean, "#recording") == ("green", "The walk passed") and tile(clean, "#facts") == ("green", "Checks green")
-    assert chip(clean, "", "#group-0", "Fixed: 1") and "1 found" in top(clean)
-    assert "settled" not in top(clean) and "What became of a finding is the agents' record: the script did not test it." in top(clean)
-    assert '<a href="#summary">There is no builder&#x27;s summary: hand-over.json is missing.</a>' in top(clean)
+    assert '<p class="headline green">' in top(clean) and "This page found nothing that needs a second look before you accept this build" in top(clean)
+    assert f"<p>To accept the build, tell the agent you are working with (a new session opened in this project will do). {handover.e(handover.ACCEPTING)}</p>" in top(clean)  # what to do next, whom to tell, and what it sets off
+    passed = "Passed on the build&#x27;s last commit"
+    assert tile(clean, "#recording") == ("green", passed) and tile(clean, "#facts") == ("green", passed)
+    assert "every reported issue is recorded either as not a defect or as fixed, each fix naming the test meant to show it works." in top(clean)
+    assert chip(clean, "", "#group-0", "Marked fixed, test named: 1") and "1 reported" in top(clean)
+    assert "The outcomes are the build's own record: this page did not test the fixes." in top(clean)  # green, and still the record's claim
+    assert '<a href="#summary">This build has no summary file (hand-over.json).</a>' in top(clean)
     left = lambda lines: top(page(files=every, summary={"what": [], "so_what": [], "now_what": lines}, **settled))  # noqa: E731
-    assert '<a href="#summary">The builder lists 2 things as left for you, further down.</a>' in left(["Ticket 07 was not built.", "Try it in Safari."])
-    assert "The builder lists 1 thing as left for you" in left(["One."]) and "The builder wrote nothing as left for you." in left([])
+    where = "further down this page, under &quot;The builder&#x27;s own summary&quot;. "
+    two = left(["Ticket 07 was not built.", "Try it in Safari."])
+    assert (f'<a href="#summary">The build&#x27;s summary file (hand-over.json) also lists what is left for you: 2 lines, {where}'
+            "This page copied them as written and did not judge them: "
+            "read them before you accept this build.</a>") in two  # nothing listed above, so the builder's lines are the owner's to read
+    assert (f"also lists what is left for you: 1 line, {where}This page copied it as written and did not "
+            "judge it: read it before you accept this build.") in left(["One."])
+    assert '<h2>The builder&#x27;s own summary</h2>' in clean
+    assert '<a href="#summary">The build&#x27;s summary file (hand-over.json) is empty.</a>' in left([])
+    built_only = top(page(files=every, summary={"what": ["Built."], "so_what": [], "now_what": []}, **settled))
+    assert f"The build&#x27;s summary file (hand-over.json) is shown {where}It lists nothing as left for you.</a>" in built_only
     no_findings = top(page(files={name: [] for name in every}, **{**settled, "fates": {}}))
-    assert '<p class="headline green">' in no_findings and "the findings files hold no findings" in no_findings and "agents" not in no_findings
+    assert '<p class="headline green">' in no_findings and "the reviewers reported no issues in the reports this page read." in no_findings and "did not test the fixes" not in no_findings
     odd_pass = page(files={**every, "walker-a.jsonl": [finding("A", round="third")]}, **settled)
     assert '<p class="headline amber">' in top(odd_pass) and "1 thing to look at" in top(odd_pass)
-    assert chip(odd_pass, "amber", "#finders", "Pass not recognised: 1")
+    assert chip(odd_pass, "amber", "#finders", "Review round not recognised: 1")
     two_did_not_look = top(page([finding("A")], **settled))  # the walker's file only
-    assert '<p class="headline amber">' in two_did_not_look and "2 things to look at before you decide" in two_did_not_look
-    assert "Nothing on record" not in two_did_not_look
+    assert '<p class="headline amber">' in two_did_not_look and "2 things to look at before you accept this build" in two_did_not_look
+    assert "found nothing that needs" not in two_did_not_look
     red = page(files=every, fates={"A": fate("A")}, git=GIT, runs=handover.run_facts([run("feature/x", "red")], "feature/x"))
-    assert tile(red, "#facts") == ("red", "Checks RED") and not drawn_green(red)
+    assert tile(red, "#facts") == ("red", "Failed") and not drawn_green(red)
     assert '<p class="headline red">' in top(red) and "2 things to look at" in top(red)  # the checks, and no walk
     no_fate = page([finding("A"), finding("B"), finding("C"), finding("D")],
                    fates={"A": fate("A"), "C": fate("C", "left"), "D": fate("D", check=""), "Z": fate("Z")})
-    for look, href, words in (("bad", "#group-0", "No fate recorded: 1"), ("warn", "#group-1", "Left as it is: 1"),
-                              ("note", "#group-2", "Fixed, no check named: 1"), ("", "#group-3", "Fixed: 1"),
-                              ("amber", "#findings", "Fate lines matching no finding: 1"), ("amber", "#finders", "Review: no findings file")):
+    for look, href, words in (("bad", "#group-0", "No outcome recorded: 1"), ("warn", "#group-1", "Left unfixed: 1"),
+                              ("note", "#group-2", "Marked fixed, no test named: 1"), ("", "#group-3", "Marked fixed, test named: 1"),
+                              ("amber", "#findings", "Outcomes matching no issue: 1"), ("amber", "#finders", "Code review: no report found")):
         assert chip(no_fate, look, href, words), words
-    assert tile(no_fate, "#recording") == ("amber", "The walk was not run for this page")
+    assert tile(no_fate, "#recording") == ("amber", "Not run for this page")
     assert re.findall(r'<span class="(s-\w+)" style="flex-grow: 1"', top(no_fate)) == ["s-bad", "s-left", "s-nocheck", "s-fixed"]  # the bar
-    assert '<p class="headline red">' in top(no_fate) and "8 things to look at" in top(no_fate) and "4 found" in top(no_fate)
+    assert '<p class="headline red">' in top(no_fate) and "8 things to look at" in top(no_fate) and "4 reported" in top(no_fate)
     assert 'id="group-0" class="group bad"' in no_fate
     nothing = top(page())
     nothing = nothing[nothing.index("<header>"):]
-    assert "No findings file was read" in nothing and "Nobody looked" in nothing
+    assert "<strong>No review report found</strong>" in nothing and '<p class="lead">This page found no review report for this build.</p>' in nothing
     assert not re.search(r">[^<]*\b0\b[^<]*<", nothing)  # none recorded is never drawn as 0
 
 
 def test_a_reason_every_finding_of_a_group_shares_is_said_once_above_the_cards():
     why = "Out of scope for this build."
     same = page([finding("A"), finding("B"), finding("C")], fates={i: fate(i, "left", why=why) for i in "ABC"})
-    assert same.count(why) == 1 and f"The record gives the same reason for all 3: {why}" in same
+    assert f"<b>The reason recorded, the same for all 3:</b> {why}" in same
+    assert "The build&#x27;s record gives the same reason for leaving all 3, printed once above the issues below. Read the reason and" in same
+    # the list at the top is far from the issues: it says where the reason is, and quotes how it begins as the record's, unchecked
+    assert next(why for _, href, _, why in things(same) if href == "#group-0").startswith("The build&#x27;s record gives the same reason for leaving all 3, printed with the issues, further down this "
+                                          f"page. The reason, which this page did not check, begins: &quot;{why}&quot; Read the reason and")
+    assert same.count(why) == 2 and top(same).count(why) == 1  # once in that list, once above the three issues
+    long = " ".join(["A reason that runs on and on"] * 12) + "."
+    assert handover.first_sentence("One. Two.") == "One." and handover.first_sentence(long) == "" and handover.first_sentence("no end") == ""
+    assert "begins:" not in top(page([finding("A"), finding("B")], fates={i: fate(i, "left", why=long) for i in "AB"}))  # too long to quote: only where it is
     mixed = page([finding("A"), finding("B")], fates={"A": fate("A", "left", why=why), "B": fate("B", "left", why="Another reason.")})
-    assert mixed.count(why) == 1 and "Another reason." in mixed and "the same reason" not in mixed
+    assert mixed.count(why) == 1 and "Another reason." in mixed and "the same for all" not in mixed and "the same reason" not in mixed
+    assert "The build&#x27;s record gives a reason for leaving each one, printed with the issues below. Read each reason and" in mixed
+    assert mixed.count("<b>Reason recorded:</b>") == 2  # each issue's own reason is in view, not folded
+    some = page([finding(i) for i in "ABCD"], fates={"A": fate("A", "left", why=why), "B": fate("B", "left", why="Another reason."),
+                                                     "C": fate("C", "left", why=why), "D": fate("D", "left")})
+    assert some.count(f"<b>Reason recorded:</b> {why}") == 1 and "the same for all" not in some  # shared by some: said at the first of them
+    assert some.count("<b>Reason recorded:</b> the same as for <code>A</code>, above.") == 1
+    assert [record(some, i).get("Note recorded") for i in "ABCD"] == [None, None, None, None]  # in view once, not folded as well
+    assert "<b>Reason recorded:</b>" not in cards(some)[3] and cards(some)[2].index("what C looks like") < cards(some)[2].index("the same as for")
     alone = page([finding("A")], fates={"A": fate("A", "left", why=why)})
-    assert alone.count(why) == 1 and "the same reason" not in alone
-    assert "the same reason" not in page([finding("A"), finding("B")], fates={i: fate(i) for i in "AB"})  # no reason given is not a shared reason
+    assert alone.count(why) == 1 and "the same for all" not in alone
+    assert "the same for all" not in page([finding("A"), finding("B")], fates={i: fate(i) for i in "AB"})  # no reason given is not a shared reason
     folded = same[same.index('<section id="findings">'):]
-    assert "those whose record is missing or does not hold up" in folded and "settled" not in folded
+    assert "A group is shown open when its issues were left unfixed, have no usable outcome recorded," in folded and "settled" not in folded
 
 
 def test_the_headline_s_count_is_a_list_that_names_each_thing_says_why_and_links_to_it():
@@ -590,23 +676,51 @@ def test_the_headline_s_count_is_a_list_that_names_each_thing_says_why_and_links
                 recording={"commit": "abc1234", "dirty": True, "result": "passed", "megabytes": 1.0})
     listed = things(text)
     assert [(colour, link, what) for colour, link, what, _ in listed] == [
-        ("amber", "#recording", "The walk passed, on code that is not the build&#x27;s last commit"),
-        ("amber", "#facts", "Checks green, on code that is not the build&#x27;s last commit"),
-        ("red", "#group-0", "No fate recorded: 1 finding"), ("amber", "#group-1", "Left as it is: 1 finding"),
-        ("amber", "#group-2", "Fixed, no check named: 1 finding"),
-        ("amber", "#finders", "Review: no findings file"), ("amber", "#finders", "Early read: no findings file"),
-        ("amber", "#findings", "Fate lines matching no finding: 1")]
-    assert f"{len(listed)} things to look at before you decide" in top(text)  # the count is the list's length
+        ("red", "#group-0", "The build&#x27;s record gives no outcome for 1 issue"),  # what is red comes first
+        ("amber", "#recording", "The build&#x27;s last commit is not shown to pass the walk-through"),
+        ("amber", "#facts", "The build&#x27;s last commit is not shown to pass the automated checks"),
+        ("amber", "#group-1", "The record marks 1 issue as left unfixed"),
+        ("amber", "#group-2", "The record names no test for 1 issue it marks as fixed"),
+        ("amber", "#finders", "This page found no report from the code review"), ("amber", "#finders", "This page found no report from the early code review"),
+        ("amber", "#findings", "The record gives an outcome for 1 issue that is in no review report this page read")]
+    assert f"{len(listed)} things to look at before you accept this build" in top(text)  # the count is the list's length
     whys = [why for *_, why in listed]
-    assert whys[0] == "It ran with uncommitted changes in the folder, so it does not show that the last commit, as committed, passes."
-    assert whys[1] == "That run was on commit fff9999, not the build&#x27;s last commit (abc1234)."
-    assert whys[2].startswith("fates.jsonl names no fate") and whys[3] == "Recorded as known and left."
-    assert whys[5] == "A finder writes its file even when it finds nothing, so this one did not run."
-    assert all(why for why in whys) and "Fixed: 1" not in "".join(what for _, _, what, _ in listed)  # what is fixed with its check is not listed
+    assert whys[0] == ("Nothing on record says whether this issue was fixed, left unfixed or judged not a defect, so treat it as open. "
+                       "Ask what became of it before you accept this build.")
+    assert whys[1] == ("The walk-through passed, but with uncommitted changes in the folder. Ask for it to be run again on the build&#x27;s last commit, "
+                       "with nothing uncommitted in the folder.")
+    assert whys[2] == ("The last run of every check passed, but on commit fff9999, not the build&#x27;s last commit (abc1234). "
+                       "Ask for every check to be run on the build&#x27;s last commit.")
+    assert whys[3] == "The build&#x27;s record gives no reason for leaving it unfixed. Ask for the reason, then decide whether you accept it."  # none was given: said, not papered over
+    assert whys[4].endswith("A test may exist that the record does not name. Try the fix yourself, or ask for a test.")
+    assert whys[5] == handover.e(f"{handover.NO_REPORT} In this review, agents read the build's code changes for faults the tests would not catch. "
+                                 "Ask whether it was made. If it was not, decide whether you want it made before you accept this build.")
+    assert whys[6].endswith("Ask whether it was made. If it was not, it can now only be made late, on the finished build: decide whether you want that "
+                            "before you accept this build.")  # the early review's moment has passed, and the page says so
+    assert "did not run" not in "".join(whys[5:7]) and "cannot tell which" in whys[5] and "cannot tell which" in whys[6]  # no report is not proof of no review
+    assert whys[7] == "So an issue may have been reported somewhere this page does not look. Ask where it was reported."
+    assert all(re.search(r"\b(Ask|Decide|Read|Try|decide) [^.]*\.$", why) for why in whys), whys  # each one ends on what the owner can do
+    assert all(why for why in whys) and "names a test for each" not in "".join(what for _, _, what, _ in listed)  # what is fixed with its test is not listed
     red = page(runs=handover.run_facts([run("feature/x", "red")], "feature/x"), git=GIT, recording={**RECORDING, "result": "failed", "reason": "It was stopped after 15 minutes"})
-    assert things(red)[:2] == [("red", "#recording", "The walk FAILED", "It was stopped after 15 minutes."),
-                               ("red", "#facts", "Checks RED", "Red in the last run of every check: patterns, escapes, unit, walks.")]
-    assert things(page())[0] == ("amber", "#recording", "The walk was not run for this page", "So there is no recording and there are no pictures.")
+    assert things(red)[:2] == [
+        ("red", "#recording", "The walk-through failed", "It was stopped after 15 minutes. So nothing on this page shows that the app can be used from "
+         "start to finish. What the run printed is in walk-output.txt, beside this page. It was started on commit dd4ea9d, not the build&#x27;s last "
+         "commit (abc1234) and with uncommitted changes in the folder, so it does not show whether the build&#x27;s last commit fails either. "
+         "Ask for it to be run again on the build&#x27;s last commit, with nothing uncommitted in the folder."),
+        ("red", "#facts", "The automated checks failed", "The last run of every check failed at the scan for forbidden code patterns (patterns), "
+         "the check of the defect log (escapes), the unit tests (unit) and the browser tests (walks). Ask for the failure to be fixed before you "
+         "accept this build.")]
+    on_tip = page(git=GIT, recording={**RECORDING, "commit": "abc1234", "dirty": False, "result": "failed", "reason": "It was stopped after 15 minutes"})
+    assert things(on_tip)[0][3].endswith("beside this page. Ask for this to be looked into before you accept this build.")  # a failure of the last commit itself
+    assert things(page())[0] == ("amber", "#recording", "The walk-through was not run for this page",
+                                 "There is no recording and there are no pictures, so this page does not show the app being used. "
+                                 "Ask for this page to be built again with the walk-through.")
+    assert things(page())[2] == ("amber", "#finders", "This page found no review report for this build",
+                                 "It looks for the reports of the build&#x27;s reviews (exploratory testing, code review and early code review) in one "
+                                 "place (findings/*.jsonl) and found none. Either no review was made or the reports are somewhere else: this page cannot "
+                                 "tell which, so nothing on this page shows that anyone tested or read the build. Ask whether the reviews were made; if "
+                                 "they were not, decide whether you want them made before you accept this build.")
+    assert len(things(page())) == 3  # one entry for the reviews, not one for each
     every = {"walker-a.jsonl": [], "review-a.jsonl": [], "early-read-whole.jsonl": []}
     clean = page(files=every, git=GIT, runs=handover.run_facts([run("feature/x", "green")], "feature/x"),
                  recording={"commit": "abc1234", "dirty": False, "result": "passed", "megabytes": 1.0})
@@ -616,22 +730,30 @@ def test_the_headline_s_count_is_a_list_that_names_each_thing_says_why_and_links
 def test_the_page_labels_what_an_agent_wrote_and_what_the_script_computed():
     text = page([finding("A", what="The finder saw this.")], fates={"A": fate("A", "left", why="The fixer gave this reason.")},
                 summary={"what": ["Built the thing."], "so_what": ["It matters."], "now_what": ["Decide."]})
-    assert "Written by the build agent" in text
-    assert "Computed by handover.py" in text
-    assert text.index("Written by the build agent") < text.index("Computed by handover.py")
+    assert "Agents' words" in handover.CSS and "Counted by this page" in handover.CSS  # the two labels
     sections = {match.group(1): match.group(2) for match in re.finditer(r'<section id="(\w+)">(.*?)</section>', text, re.S)}
     agent_words = ("Built the thing.", "It matters.", "Decide.", "The finder saw this.", "The fixer gave this reason.")
     for name, body in sections.items():  # an agent's words are drawn only in the two sections that say whose they are
         assert any(words in body for words in agent_words) == (name in ("summary", "findings")), name
-    assert all(words not in top(text) for words in agent_words)
-    assert "the script did not check them" in sections["summary"] and "the script did not check them" in sections["findings"]
-    assert "copied from the findings files" in sections["findings"]
+    head = top(text)
+    built = re.search(r'<div class="built">(.*?)</div>', head, re.S).group(1)  # the one place above the sections that holds an agent's words
+    assert "<li>Built the thing.</li>" in built and "What was built, in the builder's words" in built
+    assert ("This line comes from the build's summary file (hand-over.json), which the agent that runs a build is meant to write. "
+            "This page copied it as written and did not check it.") in html.unescape(built)  # the file is named; who wrote it is not claimed
+    assert built.index("did not check it") < built.index("<li>Built the thing.</li>")  # read before the words, not after
+    assert all(words not in head.replace(built, "") for words in agent_words)
+    assert text.count("Built the thing.") == 1 and head.index('<div class="built">') < head.index('<p class="lead">')  # said once, before the page's own findings
+    for name in sections:  # every section but the pictures says whose words or numbers it holds
+        label = "agent" if name in ("summary", "findings") else "script"
+        assert (f'class="source {label}"' in sections[name]) == (name != "recording"), name
+    assert "did not check them" in sections["summary"] and "did not check them" in sections["findings"]
+    assert "copied from the review report files as written" in sections["findings"] and "what the build's record says" in sections["findings"]
 
 
 def test_what_is_left_shows_its_first_lines_and_folds_the_rest_under_their_count():
     lines = [f"Left {n}." for n in range(1, 8)]
     text = page(summary={"what": ["Built."], "so_what": ["It matters."], "now_what": lines})
-    card = text[text.index("What is left for you"):text.index("</section>", text.index("What is left for you"))]
+    card = text[text.index("<h3>What is left for you"):text.index("</section>", text.index("<h3>What is left for you"))]
     shown, folded = card.split("<details>")
     assert [line in shown for line in lines] == [True] * 5 + [False] * 2
     assert "<summary>2 more</summary>" in folded and all(line in folded for line in lines[5:])
@@ -641,35 +763,51 @@ def test_what_is_left_shows_its_first_lines_and_folds_the_rest_under_their_count
 def test_the_page_says_so_when_there_is_no_summary_no_recording_and_no_findings_file():
     text = page()
     assert "<video" not in text
-    assert "No recording: the walk was not run for this page." in text
-    assert "No screenshots: the walk was not run for this page." in text
+    assert "No recording: the walk-through was not run for this page." in text
+    assert "No screenshots: the walk-through was not run for this page." in text
     assert "hand-over.json" in text  # names the missing summary file
-    assert "No findings file was read" in text
-    assert text.count("no findings file: did not run") == 3  # the walker, the review and the early read
+    assert "This page cannot say what was built: the build has no summary file (hand-over.json is missing)." in top(text)
+    assert text.count("This page found no review report for this build.") == 2 and "So there is nothing to list." in text  # under the title, and over the list
+    assert text.count('<span class="unknown">no report found</span>') == 3  # exploratory testing, the code review and the early code review
+    assert "This page found no review report, so nothing on this page shows that anyone tested or read the build." in text
+    assert "did not run" not in text.replace("the walk-through was not run", "")  # a report not found is not proof that a review was not made
 
 
 def test_a_finder_that_looked_and_found_nothing_is_told_apart_from_one_that_never_ran():
     looked = page(files={"walker-find-trials.jsonl": [], "early-read-whole.jsonl": []})
-    assert looked.count("looked, found nothing") == 2
-    assert looked.count("no findings file: did not run") == 1 and "<th>Review</th><td colspan" in looked
-    assert "<th>Walker</th><td class=\"n soft\">none recorded</td>" in looked
-    assert "The findings files read hold no findings." in looked
-    assert "No findings in the 2 findings files read" in top(looked) and "Review: no findings file" in top(looked)
+    assert looked.count("reviewed, found nothing") == 2
+    assert looked.count('<span class="unknown">no report found</span>') == 1 and reviewer("review") + "<td colspan" in looked
+    assert reviewer("walker") + '<td class="n soft">none in the reports read</td>' in looked
+    assert looked.count("The reviewers reported no issues in the reports this page read.") == 2  # under the title, and over the list
+    assert "No issues in the 2 reports read" in top(looked) and "Code review: no report found" in top(looked)
+    assert "This page read no re-check report, so nothing on record shows that one was made." in looked
+    rechecked = page(files={"walker-a.jsonl": [], "walker-a-recheck.jsonl": []})
+    assert "This page read no re-check report" not in rechecked and "This page read no re-check report" not in page()  # one was read; none to expect
     named_by_its_rows = page(files={"1-anything.jsonl": [finding("A", "review")]})
-    assert "<th>Review</th><td class=\"n\">1</td>" in named_by_its_rows and "<th>Walker</th><td colspan" in named_by_its_rows
+    assert reviewer("review") + '<td class="n">1</td>' in named_by_its_rows and reviewer("walker") + "<td colspan" in named_by_its_rows
     assert looked != page()
+
+
+def test_a_report_is_matched_to_its_review_by_its_file_name_or_its_rows_and_an_unmatched_empty_file_is_said():
+    assert handover.wrote("1-walker.jsonl", "walker") and handover.wrote("walker-find-trials-recheck.jsonl", "walker")
+    assert handover.wrote("2-review.jsonl", "review") and handover.wrote("early-read-whole.jsonl", "early-read")
+    assert not handover.wrote("preview-notes.jsonl", "review") and not handover.wrote("reviewer.jsonl", "review")  # a name that only contains the word
+    assert handover.absent_finders({"1-walker.jsonl": [], "notes.jsonl": [finding("A", "review")]}) == ["early-read"]
+    stray = page(files={"notes.jsonl": []})
+    assert "<code>notes.jsonl</code>: empty report: its name does not say which review wrote it" in stray
+    assert stray.count('<span class="unknown">no report found</span>') == 3  # an empty file with no review's name speaks for no review
 
 
 def test_fate_lines_that_match_no_finding_are_drawn_first_and_marked_with_or_without_findings():
     fates = {"Z1": fate("Z1"), "Z2": fate("Z2", "left", why="left on purpose")}
     alone = page(fates=fates)
-    assert "2 fate lines name a finding the page did not read." in alone
-    assert "<code>Z1</code>: fixed." in alone and "<code>Z2</code>: left. left on purpose" in alone
-    assert "nothing to list" not in alone and "hold no findings" not in alone
-    assert row(alone, "Fate lines matching no finding") == '<span class="warned">2</span>'
+    assert "The record gives outcomes for 2 issues that are in no review report this page read." in alone
+    assert "<code>Z1</code>: fixed.</li>" in alone and "<code>Z2</code>: left unfixed. Reason recorded: left on purpose</li>" in alone
+    assert "nothing to list" not in alone and "reported no issues" not in alone
+    assert row(alone, "Outcomes matching no issue") == '<span class="warned">2</span>'
     beside = page([finding("A")], fates={**fates, "A": fate("A")})
     assert beside.index('<div class="orphans">') < beside.index("<details")
-    assert row(page([finding("A")], fates={"A": fate("A")}), "Fate lines matching no finding") == "0"
+    assert row(page([finding("A")], fates={"A": fate("A")}), "Outcomes matching no issue") == "0"
 
 
 def test_every_finding_read_is_drawn_once_as_a_card_and_counted_once_in_each_count():
@@ -679,17 +817,148 @@ def test_every_finding_read_is_drawn_once_as_a_card_and_counted_once_in_each_cou
     fates = {"A": fate("A"), "B": fate("B", check=""), "C": fate("C", "left"), "D": fate("D", "not-a-defect"),
              "F": fate("F", "Fixed"), "G": fate("G", ""), "H": fate("H")}
     text = page(files={"walker-a.jsonl": findings[:4], "other.jsonl": findings[4:]}, fates=fates, missing={"H": "no commit is named"})
-    cards = text.split('<li class="finding">')[1:]
-    assert len(cards) == 8
+    drawn = cards(text)
+    assert len(drawn) == 8
     for f in findings:
-        assert sum(f'<p class="what">what {f["id"]} looks like</p>' in card for card in cards) == 1, f["id"]
-    assert sum(int(n) for n in re.findall(r'<span class="count">(\d+)</span>', text)) == 8  # the groups
+        assert sum(f'what {f["id"]} looks like</p>' in card for card in drawn) == 1, f["id"]
+        assert text.count(f'<summary>Record <code>{f["id"]}</code></summary>') == 1, f["id"]  # its id, once, on its own record
+    assert sum(int(n) for n in re.findall(r"<h3>[^<]*?(\d+) issues?\b[^<]*</h3>", text)) == 8  # the groups' headings
+    assert ("reported 8 issues in the reports this page read. The build&#x27;s record marks 3 as fixed (1 of them with no test named), 1 as left unfixed and 1 as not a defect. "
+            "It gives no usable outcome for 3.") in top(text)  # the first sentence counts every one
     table = re.search(r"<tbody>(.*?)</tbody>", text, re.S).group(1)
     assert sum(int(n) for n in re.findall(r">(\d+)</(?:td|span)>", table)) == 8  # the finders table
     assert sum(int(n) for n in re.findall(r'href="#group-\d+"><i[^>]*></i>[^<]*: (\d+)<', top(text))) == 8  # the board's labels
-    assert sum(int(n) for n in re.findall(r'style="flex-grow: (\d+)" title', top(text))) == 8 and "8 found" in top(text)  # its bar
-    assert row(text, "Findings recorded") == "8"
-    assert "<code>walker-a.jsonl</code>: 4" in text and "<code>other.jsonl</code>: 4" in text
+    assert sum(int(n) for n in re.findall(r'style="flex-grow: (\d+)" title', top(text))) == 8 and "8 reported" in top(text)  # its bar
+    assert row(text, "Issues reported") == "8"
+    assert "<code>walker-a.jsonl</code>: 4 issues" in text and "<code>other.jsonl</code>: 4 issues" in text
+
+
+# What the owner reads first, and the evidence kept under it.
+
+def test_the_first_sentence_counts_the_issues_and_their_recorded_outcomes_from_the_records():
+    said = lambda findings, fates: handover.issues_said(handover.page_data("feat", files={"walker-a.jsonl": findings}, fates=fates))  # noqa: E731
+    three = [finding("A"), finding("B"), finding("C")]
+    assert said(three, {i: fate(i) for i in "ABC"}) == "The reviewers reported 3 issues in the reports this page read. The build's record marks 3 as fixed."
+    assert said(three, {"A": fate("A"), "B": fate("B", "left"), "C": fate("C", "left")}).endswith("The build's record marks 1 as fixed and 2 as left unfixed.")
+    assert said(three, {"A": fate("A", "not-a-defect")}).endswith("The build's record marks 1 as not a defect. It gives no outcome for 2.")
+    assert said(three, {}).endswith("reported 3 issues in the reports this page read. The build's record gives no outcome for 3.")  # never "0 fixed"
+    assert said([finding("A")], {"A": fate("A", check="")}) == ("The reviewers reported 1 issue in the reports this page read. The build's record marks 1 as fixed "
+                                                                "(with no test named).")  # the part of "fixed" that matters most, where the number is
+    assert said(three, {"A": fate("A"), "B": fate("B", check=""), "C": fate("C", "Fixed")}).endswith(
+        "marks 2 as fixed (1 of them with no test named). It gives no usable outcome for 1.")  # an outcome word it does not know is not a fix
+    text = page(three, fates={"A": fate("A"), "B": fate("B", "left")}, git=GIT)
+    verdict, lead = re.findall(r'<p class="lead">(.*?)</p>', top(text), re.S)
+    assert lead.endswith("reported 3 issues in the reports this page read. The build&#x27;s record marks 1 as fixed and 1 as left unfixed. It gives no outcome for 1.")
+    assert verdict == "<strong>Nothing on record shows that the build&#x27;s last commit passes the walk-through or the automated checks.</strong>"
+    assert (text.index('class="built"') < text.index(verdict) < text.index('<p class="terms">') < text.index(lead) < text.index('class="headline') < text.index('<ol class="look">')
+            < text.index('<div class="board">') < text.index("For reference, this page covers commits"))
+
+
+def test_the_page_has_every_section_once_in_the_order_it_is_read():
+    text = page([finding("A")], fates={"A": fate("A", "left", why="A reason.")}, summary={"what": ["w"], "so_what": ["s"], "now_what": ["n"]})
+    assert re.findall(r'<section id="(\w+)">', text) == ["recording", "summary", "findings", "finders", "facts"]
+    assert text.count("<header>") == 1 and text.index("<header>") < text.index('<section id="recording">')
+    for title in ("What it gives you", "What is left for you"):
+        assert text.count(f"<h3>{title}</h3>") == 1
+    assert text.count("What was built, in the builder's words</p>") == 1 and "<h3>What was built</h3>" not in text  # at the top, not said again below
+    empty = page()  # with nothing to show, each section is still there and says so
+    assert re.findall(r'<section id="(\w+)">', empty) == ["recording", "summary", "findings", "finders", "facts"]
+
+
+def test_each_group_of_issues_says_what_the_record_shows_and_what_that_means_once_above_its_list():
+    why = "Outside what this build set out to fix."
+    findings = [finding(i) for i in "ABCDE"]
+    text = page(findings, fates={**{i: fate(i, "left", why=why) for i in "ABC"}, "D": fate("D", check=""), "E": fate("E")}, missing={})
+    body = text[text.index('<section id="findings">'):text.index('<section id="finders">')]
+    assert re.findall(r"<h3>(.*?)</h3>", body) == ["The record marks 3 issues as left unfixed", "The record names no test for 1 issue it marks as fixed",
+                                                  "The record marks 1 issue as fixed and names a test for it"]
+    for state, rows in handover.page_data("feat", files={"w.jsonl": findings}, fates={i: fate(i, "left", why=why) for i in "ABC"}).get("groups"):
+        what, so_what = handover.state_said(state, rows)
+        assert body.count(handover.e(so_what)) == (1 if state == "left" else 0)  # said once for the group, never on an issue
+    drawn = cards(body)
+    in_view = [re.sub(r'<details class="trace">.*', "", card, flags=re.S) for card in drawn]  # an issue without its folded record
+    lines = [line for card in in_view for line in re.findall(r"<p[^>]*>.*?</p>", card, re.S)]
+    assert len(lines) == len(set(lines)) == 5  # one line each, its description: no status or reason repeated down the list
+    assert all(why not in card for card in drawn) and body.count(why) == 1
+
+
+def test_a_recorded_fix_is_worded_as_the_record_s_claim_and_never_as_this_page_s_finding():
+    findings, fates = [finding("A"), finding("B"), finding("C")], {"A": fate("A"), "B": fate("B", check=""), "C": fate("C")}
+    for missing in (None, {}, {"C": "no commit is named"}):
+        text = page(findings, fates=fates, missing=missing)
+        heads = re.findall(r"<h3>(.*?)</h3>", text[text.index('<section id="findings">'):text.index('<section id="finders">')])
+        assert heads and all(head.startswith(("The record marks ", "The record names no test for ")) for head in heads), heads
+        assert "This page reproduces them and did not check them." in text
+        assert ("It did not run the tests." in text, "It did not run the test." in text) == (missing == {}, bool(missing))  # what it looked up is said, and its limit with it
+    for state in handover.STATES:  # no outcome's sentence says the page tested or confirmed a fix
+        what, so_what = handover.state_said(state, [{"fate": fate("A", why="r")}], verified=True)
+        assert not re.search(r"\b(verified|confirmed|proven|proved|works)\b", what), what
+        assert not re.search(r"\b(verified|confirmed|proven|proved)\b", so_what + handover.FOUND), so_what
+        assert "The record" in what or "The build" in what, what
+
+
+def test_a_severity_is_shown_only_where_a_reviewer_recorded_one_and_its_absence_is_said():
+    bare = [finding("A", severity=""), finding("B", severity=None), finding("C")]
+    del bare[2]["severity"]
+    text = page(bare, fates={i: fate(i, "left", why="r") for i in "ABC"})
+    assert '<span class="sev' not in text and "blocking use" not in text
+    assert top(text).count("The reviewers&#x27; reports record no severity for any of the 3, so this page cannot say how serious they are.") == 1  # in the first sentences
+    assert [record(text, i)["Severity"] for i in "ABC"] == ["not recorded in the review report"] * 3
+    assert "reports record no severity for 1 of the 2, so this page cannot say how serious it is." in page(bare[:1] + [finding("D")], fates={})
+    assert "reports record no severity for this issue, so this page cannot say how serious it is." in page(bare[:1], fates={})
+    mixed = page([finding("A", severity="blocks"), finding("B", severity="urgent"), finding("C", severity="cosmetic"), finding("D")],
+                 fates={i: fate(i, "left", why="r") for i in "ABCD"})
+    assert re.findall(r'<span class="sev( blocks)?">(.*?)</span>', mixed) == [(" blocks", "blocks use"), ("", "wrong"), ("", "cosmetic")]
+    assert "record no severity" not in mixed  # a word was recorded for each: one of them is not one the page knows
+    assert "1 issue records a severity this page does not recognise; it is shown as written in that issue's record." in mixed
+    assert record(mixed, "B")["Severity"] == "urgent"  # a word the format does not name is kept as written, in the record
+    assert mixed.count("The reviewers recorded 1 of the 4 as blocking use") == 2  # under the title, and over the list
+    every = page([finding("A", severity="blocks"), finding("B", severity="blocks")], fates={})
+    assert "The reviewers recorded all 2 as blocking use" in every
+    assert "The reviewer recorded it as blocking use" in page([finding("A", severity="blocks")], fates={})
+    assert "record no severity" not in page([finding("A")], fates={"A": fate("A")})
+    fixed = page([finding("A", severity="blocks")], fates={"A": fate("A")})
+    assert "blocking use" not in fixed  # only said of issues the record does not show as fixed with a test
+
+
+def test_the_most_serious_recorded_severity_comes_first_within_a_group():
+    order = [finding("C", severity="cosmetic"), finding("N", severity=""), finding("W", severity="wrong"), finding("B", severity="blocks"),
+             finding("W2", severity="wrong")]
+    groups = handover.group_by_state(handover.join(order, {f["id"]: fate(f["id"], "left") for f in order}))
+    assert [f["id"] for f in groups[0][1]] == ["B", "W", "W2", "C", "N"]
+
+
+def test_everything_recorded_about_an_issue_stays_on_the_page_in_its_folded_record():
+    found = finding("walker-find-trials-03", round="recheck", area="saved-search", where="webapp/static/app.js:12", check="walks/test_a.py::test_seen")
+    fixed = page([found], fates={found["id"]: fate(found["id"], commit="abc1234", check="tests/test_b.py::test_fixed", why="Fixed in ticket 08.")})
+    assert record(fixed, found["id"]) == {
+        "Reported by": "Exploratory testing, re-check after the fixes", "Area": "saved-search", "Severity": "wrong", "Where": "webapp/static/app.js:12",
+        "Reviewer&#x27;s test": "<code>walks/test_a.py::test_seen</code>", "Outcome recorded": "fixed", "Commit": "<code>abc1234</code>",
+        "Test named": "<code>tests/test_b.py::test_fixed</code>", "Note recorded": "Fixed in ticket 08."}
+    assert fixed.count("Fixed in ticket 08.") == 1 and "<b>Reason recorded:</b>" not in fixed  # a fix's note is evidence, kept folded
+    left = page([found], fates={found["id"]: fate(found["id"], "left", commit="", check="", why="Could not be made to pass.")})
+    assert "<b>Reason recorded:</b> Could not be made to pass." in left and left.count("Could not be made to pass.") == 1
+    assert record(left, found["id"])["Outcome recorded"] == "left" and "Test named" not in record(left, found["id"])
+    none = page([found])
+    assert record(none, found["id"])["Outcome recorded"] == "none"
+    no_test = page([found], fates={found["id"]: fate(found["id"], check="")})
+    assert record(no_test, found["id"])["Test named"] == "none"
+
+
+def test_a_reason_the_record_does_not_give_is_said_as_missing_not_assumed():
+    left = lambda **whys: handover.state_said("left", [{"fate": fate(i, "left", why=why)} for i, why in whys.items()])[1]  # noqa: E731
+    assert left(A="r", B="q") == ("The build's record gives a reason for leaving each one, printed with the issues below. "
+                                  "Read each reason and decide whether you accept it.")
+    assert left(A="r", B=" r ") == ("The build's record gives the same reason for leaving all 2, printed once above the issues below. "
+                                    "Read the reason and decide whether you accept it.")
+    assert left(A="r") == "The build's record gives a reason for leaving it, printed with the issue below. Read the reason and decide whether you accept it."
+    assert left(A="", B="  ") == "The build's record gives no reason for leaving them unfixed. Ask for the reason, then decide whether you accept it."
+    assert left(A="r", B="", C="") == ("The build's record gives no reason for leaving 2 of the 3 unfixed. The reason it does give is printed with "
+                                       "the issues below. Read it, ask for the rest, and decide whether you accept each reason.")
+    assert left(A="r", B="q", C="").endswith("The reasons it does give are printed with the issues below. Read them, ask for the rest, and decide "
+                                             "whether you accept each reason.")
+    judged = handover.state_said("not-a-defect", [{"fate": fate("A", "not-a-defect", why="")}])[1]
+    assert "this page did not check it" in judged and judged.endswith("The record gives no reason. Ask for the reason, then decide whether you agree.")
 
 
 RECORDING = {"walk": "walks/test_acceptance_walk.py::test_x", "at": "2026-11-16T21:00:00+00:00",
@@ -706,26 +975,38 @@ def test_the_page_names_the_commit_the_recording_was_made_on_and_shows_the_video
 
 def test_a_walk_is_drawn_as_passed_only_when_it_passed_on_the_build_s_last_commit_as_committed():
     on_tip = page(recording={**RECORDING, "commit": "abc1234", "dirty": False}, git=GIT)
-    assert 'pill green">The walk passed<' in on_tip and "not the last commit" not in on_tip
+    assert 'pill green">Passed on the build&#x27;s last commit<' in on_tip and "not the last commit" not in on_tip
+    assert tile(on_tip, "#recording") == ("green", "Passed on the build&#x27;s last commit") and "The build&#x27;s last commit passed the walk-through." in top(on_tip)
     elsewhere = page(recording={**RECORDING, "dirty": False}, git=GIT)
     assert "That is not the last commit of the build (abc1234)" in elsewhere
-    for text in (elsewhere, page(recording={**RECORDING, "commit": "abc1234"}, git=GIT)):
+    assert "It passed on commit <code>dd4ea9d</code>. It ran for 1.5 minutes." in top(elsewhere)  # under the limit, what did pass and where
+    assert "It passed on commit <code>abc1234</code>, with uncommitted changes in the folder." in top(page(recording={**RECORDING, "commit": "abc1234"}, git=GIT))
+    for text, words in ((elsewhere, "Not shown to pass on the build&#x27;s last commit"),
+                        (page(recording={**RECORDING, "commit": "abc1234"}, git=GIT), "Not shown to pass as committed")):
         assert not drawn_green(text)
-        assert text.count("The walk passed, on code that is not the build&#x27;s last commit") == 3  # the list, the tile and the section
+        assert text.count("The build&#x27;s last commit is not shown to pass the walk-through") == 1  # said in full once, in the list
+        assert text.count(words) == 2  # the tile and the section
+        assert text.count("The walk-through passed") == text.count("The walk-through passed, but ") == 1  # a pass is never said without its limit
+    longer = page(recording={**RECORDING, "commit": "abc1234def", "dirty": False}, git=GIT)  # git shortens one commit to different lengths
+    assert tile(longer, "#recording") == ("green", "Passed on the build&#x27;s last commit") and "not the last commit" not in longer
+    assert handover.same_commit("abc1234", "abc1234def") and handover.same_commit("abc1234def", "abc1234") and handover.same_commit("abc", "abc")
+    assert not handover.same_commit("abc1234", "abc9999") and not handover.same_commit("abc", "abc1234") and not handover.same_commit("", "abc1234")
 
 
-@pytest.mark.parametrize("result, words", [("failed", "The walk FAILED"), ("did not run", "The walk did not run"),
-                                           ("did not finish", "The walk did not finish"), (None, "The walk&#x27;s result is unknown")])
-def test_a_walk_that_did_not_pass_is_never_drawn_as_passed_with_or_without_a_video(result, words):
+@pytest.mark.parametrize("result, words, short", [("failed", "The walk-through failed", "Failed"), ("did not run", "The walk-through did not run", "Did not run"),
+                                                  ("did not finish", "The walk-through did not finish", "Did not finish"),
+                                                  (None, "How the walk-through ended is unknown", "Result unknown")])
+def test_a_walk_that_did_not_pass_is_never_drawn_as_passed_with_or_without_a_video(result, words, short):
     for megabytes in (11.2, None):
         text = page(recording={**RECORDING, "result": result, "megabytes": megabytes, "reason": "It was stopped after 15 minutes"})
-        assert text.count(words) == 3 and "The walk passed" not in text and not drawn_green(text)  # the list, the tile and the section
-        assert tile(text, "#recording") == ("red" if result else "amber", words)
+        assert text.count(words) == (2 if result else 1) and "passed" not in top(text).lower() and not drawn_green(text)  # a failure leads the page too
+        assert things(text)[0][2] == words and tile(text, "#recording") == ("red" if result else "amber", short)
+        assert f'pill {"red" if result else "amber"}">{short}<' in text
         assert '<a href="walk-output.txt">' in text and "It was stopped after 15 minutes." in text
         assert ("<video" in text) == (megabytes is not None)
         assert ("It left no video file." in text) == (megabytes is None)
         assert "dd4ea9d" in text and "No recording" not in text
-        assert "No screenshots: the walk left none." in text
+        assert "No screenshots: the walk-through left none." in text
 
 
 def test_a_walk_that_passed_but_left_no_video_says_so():
@@ -736,17 +1017,18 @@ def test_a_walk_that_passed_but_left_no_video_says_so():
 def test_the_walk_s_own_sentence_promises_only_what_the_walk_left():
     two, one = ["a-01-created.png", "a-02-fresh.png"], ["a-01-created.png"]
     passed = page(recording=RECORDING, shots=two)
-    assert "2 moments from the acceptance walk, the whole journey by keyboard alone. Step through them, or watch the recording of all of it." in passed
-    assert "Ran for 1.5 minutes" in top(passed)
+    assert ("2 moments from the walk-through: one whole journey through the app, from start to finish, by keyboard alone. "
+            "Step through them, or watch the recording of all of it.") in passed
+    assert "It ran for 1.5 minutes" in top(passed)
     no_film = page(recording={**RECORDING, "megabytes": None}, shots=two)
     assert "Step through them." in no_film and "watch the recording" not in no_film
     failed = page(recording={**RECORDING, "result": "failed"}, shots=two)
-    assert "2 moments from the acceptance walk, up to where it stopped. Step through them, or watch the recording." in failed
-    assert "whole journey" not in failed and "all of it" not in failed
+    assert "2 moments from the walk-through: the app used up to where the run stopped. Step through them, or watch the recording." in failed
+    assert "from start to finish" not in failed[failed.index('<section id="recording">'):] and "all of it" not in failed
     assert "Ended after 1.5 minutes" in top(failed) and "Ran for" not in top(failed)
     single = page(recording={**RECORDING, "result": "failed"}, shots=one)
-    assert "1 moment from the acceptance walk, up to where it stopped. The recording shows the rest." in single and "Step through them" not in single
-    assert "The acceptance walk, up to where it stopped." in page(recording={**RECORDING, "result": "did not run", "megabytes": None})
+    assert "1 moment from the walk-through: the app used up to where the run stopped. The recording shows the rest." in single and "Step through them" not in single
+    assert "the app used" not in page(recording={**RECORDING, "result": "did not run", "megabytes": None})  # no pictures: nothing is promised
     inside = page(recording=RECORDING, shots=[{"name": "a-01-created.png", "src": "data:image/png;base64,cG5n"}, {"name": "a-02-fresh.png", "src": "data:image/png;base64,cG5n"},
                                                {"name": "a-03-big.png", "src": "shots/a-03-big.png"}])
     assert inside.count('loading="lazy"') == 1 and '<img src="shots/a-03-big.png" alt="Step 3: big" loading="lazy">' in inside  # only a picture that is a file can wait
@@ -784,6 +1066,228 @@ def test_durations_are_written_in_minutes():
     assert handover.minutes(0.04) == "under 0.1 minutes"
     assert handover.minutes(0) == "0 minutes"  # a whole number of minutes between two commits can be none
     assert handover.minutes(None) == "unknown"
+
+
+# What the first section says, for one issue and for many, and that nothing recorded is lost on the way.
+
+GREEN_RUN = [run("feature/x", "green")]
+WALKED = {"commit": "abc1234", "dirty": False, "result": "passed", "megabytes": 1.0}
+
+
+def test_the_page_opens_on_its_own_conclusion_about_the_walk_through_and_the_checks_then_says_what_each_one_is():
+    said = lambda **more: handover.proof_said(handover.page_data("feat", git=GIT, **more))  # noqa: E731
+    green, red = handover.run_facts(GREEN_RUN, "feature/x"), handover.run_facts([run("feature/x", "red")], "feature/x")
+    assert said(runs=green, recording=WALKED) == "The build's last commit passed the walk-through and the automated checks."
+    assert said() == "Nothing on record shows that the build's last commit passes the walk-through or the automated checks."
+    assert said(runs=green) == ("Nothing on record shows that the build's last commit passes the walk-through. The build's last commit passed "
+                                "the automated checks.")
+    assert said(runs=green, recording={**WALKED, "dirty": True}).startswith("Nothing on record shows that the build's last commit passes the walk-through.")
+    assert said(runs=red, recording=WALKED) == "The automated checks failed. The build's last commit passed the walk-through."  # a failure is said first
+    assert said(runs=red, recording={**WALKED, "result": "failed"}) == "The walk-through failed. The automated checks failed."
+    assert said(runs=red) == ("The automated checks failed. Nothing on record shows that the build's last commit passes the walk-through.")
+    text = top(page(git=GIT, runs=green, recording=WALKED, files={"walker-a.jsonl": []}))
+    assert f'<p class="terms">{handover.e(handover.TERMS)}</p>' in text  # each of the two is said in a sentence, once, before it is used again
+    assert handover.TERMS.startswith("The walk-through is ") and " The automated checks are " in handover.TERMS
+    assert f'<p class="terms">{handover.e(handover.WORDS)}</p>' in text  # and the three other words the first sentences lean on
+    assert all(word in handover.WORDS for word in ("A commit is ", "The reviewers are ", "The build's record is "))
+    rule = (pathlib.Path(handover.__file__).parent / "CLAUDE.md").read_text()  # what accepting sets off is this project's rule, said as that
+    assert "**When the owner accepts a build:** push the feature branch, open a pull request and give them the link; the owner merges it" in rule
+    assert handover.ACCEPTING.startswith("In this project, when you accept a build the agent pushes the build's branch and opens a pull request")
+    assert set(handover.CHECK_GLOSS) == set(handover.CHECK_NAMES)  # every check has words for what it is
+
+
+def test_each_outcome_s_sentences_are_worded_for_one_issue_and_for_many_and_claim_only_what_the_record_says():
+    rows = lambda count, kind="left", why="r", **more: [{"fate": fate(str(n), kind, why=why), **more} for n in range(count)]  # noqa: E731
+    said = handover.state_said
+    assert said("no-fate", rows(1)) == ("The build's record gives no outcome for 1 issue", "Nothing on record says whether this issue was fixed, left unfixed or "
+                                        "judged not a defect, so treat it as open. Ask what became of it before you accept this build.")
+    assert said("no-fate", rows(3))[1] == ("Nothing on record says whether any of these issues was fixed, left unfixed or judged not a defect, so treat each one "
+                                           "as open. Ask what became of them before you accept this build.")
+    assert said("fixed-not-found", rows(1)) == (
+        "The record marks 1 issue as fixed, but the proof it gives is incomplete", "The test's file or the commit for the fix was not found, or no commit is "
+        "named, so this page could not trace the fix. The issue says which. Ask for the missing proof before you count it as fixed.")
+    assert said("fixed-not-found", rows(2))[1].endswith("could not trace each fix. Each issue says which. Ask for the missing proof before you count them as fixed.")
+    assert said("fixed-no-check", rows(1)) == (
+        "The record names no test for 1 issue it marks as fixed", "So this page can point to no test that shows this fix works, or that the fault would be "
+        "caught if it came back. A test may exist that the record does not name. Try the fix yourself, or ask for a test.")
+    assert said("fixed-no-check", rows(2))[1] == ("So this page can point to no test that shows these fixes work, or that the fault would be caught if it "
+                                                  "came back. A test may exist that the record does not name. Try the fixes that matter to you, or ask "
+                                                  "for a test for each.")
+    assert "This page could not find the commit the record names for the fix." in said("fixed-no-check", rows(1, lacks="commit abc is not in the repository"))[1]
+    assert ("This page could not find the commit the record names for 1 of the 2; each of those issues says which."
+            in said("fixed-no-check", rows(1, lacks="commit abc is not in the repository") + rows(1))[1])
+    assert said("fixed", rows(1)) == ("The record marks 1 issue as fixed and names a test for it", "The fix names the test that is meant to show it works.")
+    assert said("fixed", rows(2)) == ("The record marks 2 issues as fixed and names a test for each", "Each fix names the test that is meant to show it works.")
+    assert said("fixed", rows(2), verified=True)[1] == "Each fix names the test that is meant to show it works." + handover.FOUND
+    assert said("fixed", rows(1), verified=True)[1] == "The fix names the test that is meant to show it works." + handover.FOUND_ONE
+    whole = lambda count: [{"fate": fate(str(n), check="tests/test_b.py")} for n in range(count)]  # noqa: E731  (a file, with no test named in it)
+    assert said("fixed", whole(1))[1] == "The fix names the test that is meant to show it works. The record names a whole test file, not one test in it."
+    assert said("fixed", whole(1) + rows(2, "fixed"))[1].endswith("For 1 of the 3, the record names a whole test file, not one test in it.")
+    assert said("fixed", whole(2))[1].endswith("For all 2, the record names a whole test file, not one test in it.")
+    assert all(handover.FOUND not in said(state, rows(2), verified=True)[1] for state in handover.STATES if state != "fixed")  # it looked up those only
+    assert said("not-a-defect", rows(1)) == ("The record judges 1 issue not to be a defect", "This is the build's own judgement, and this page did not check it. "
+                                             "The record gives a reason, printed with the issue below.")
+    assert said("not-a-defect", rows(1) + rows(1, why="q"))[1].endswith("The record gives a reason for each, printed with the issues below.")
+    assert said("not-a-defect", rows(2))[1].endswith("The record gives the same reason for all 2, printed once above the issues below.")
+    assert said("not-a-defect", rows(3, why="") + rows(1))[1].endswith("this page did not check it. The record gives no reason for 3 of the 4. "
+                                                                        "Read the reasons it does give, ask for the rest, and decide whether you agree.")
+    assert said("fate: Fixed", rows(1)) == (
+        'The record gives 1 issue an outcome this page does not recognise: "Fixed"', "This page knows three outcomes: fixed, left unfixed and not a defect. "
+        "This one tells it nothing, so treat the issue as open. Ask for the record to be corrected.")
+    assert said("fate: Fixed", rows(2))[1].endswith("so treat each issue as open. Ask for the record to be corrected.")
+    blocking = "as blocking use, which means a user cannot finish a task, or loses data."
+    for state in ("no-fate", "fate: Fixed", "left", "fixed-not-found", "fixed-no-check", "not-a-defect"):  # every group but fixes that name their test
+        assert f"The reviewers recorded 1 of the 2 {blocking}" in said(state, rows(1, severity="blocks") + rows(1))[1], state
+        assert f"The reviewer recorded it {blocking}" in said(state, rows(1, severity="blocks"))[1], state
+    assert said("not-a-defect", rows(2, severity="blocks"))[1].endswith(f"The reviewers recorded all 2 {blocking} Read the reason and decide whether you agree.")
+    assert "blocking use" not in said("fixed", rows(2, severity="blocks"))[1]
+
+
+def test_the_first_sentence_counts_only_the_outcomes_of_reported_issues_and_reads_the_same_in_both_places():
+    text = page([finding("A"), finding("B")], fates={"A": fate("A"), "B": fate("B", "left"), "Z1": fate("Z1"), "Z2": fate("Z2", "left")})
+    said = "The reviewers reported 2 issues in the reports this page read. The build&#x27;s record marks 1 as fixed and 1 as left unfixed."
+    assert text.count(f'<p class="lead">{said}</p>') == 2  # under the title and over the list; the two outcomes that match no issue are not in it
+    assert chip(text, "amber", "#findings", "Outcomes matching no issue: 2")
+
+
+def test_outcomes_matching_no_issue_are_counted_and_worded_as_recorded_one_or_many():
+    three = page(fates={"Z1": fate("Z1"), "Z2": fate("Z2", "left", why="left on purpose"), "Z3": fate("Z3", "")})
+    assert things(three)[-1][2:] == ("The record gives outcomes for 3 issues that are in no review report this page read",
+                                     "So issues may have been reported somewhere this page does not look. Ask where they were reported.")
+    assert "<code>Z1</code>: fixed.</li>" in three and "<code>Z2</code>: left unfixed. Reason recorded: left on purpose</li>" in three
+    assert "<code>Z3</code>: no outcome named.</li>" in three and "<code>Z4</code>: &quot;Fixed&quot;, as written.</li>" in page(fates={"Z4": fate("Z4", "Fixed")})
+    one = page(fates={"Z1": fate("Z1")})
+    assert "<strong>The record gives an outcome for 1 issue that is in no review report this page read.</strong> The outcome below names" in one
+
+
+def test_a_commit_and_a_test_stay_in_the_record_whatever_the_outcome_and_a_name_the_format_lacks_is_kept():
+    sha = "0123456789abcdef0123456789abcdef01234567"
+    found = [finding("A", finder="auditor", round="third", area="", check="walks/test_a.py::test_seen"), finding("B"), finding("C")]
+    del found[0]["severity"]
+    text = page(found, fates={"A": fate("A", "left", commit=sha, check="tests/test_b.py::test_kept", why="A reason."), "B": fate("B", commit=sha),
+                              "C": fate("C", "not-a-defect", commit=sha, check="tests/test_c.py", why="Another.")},
+                missing={"B": "commit abc is not in the repository"})
+    a = record(text, "A")
+    assert a["Reported by"] == "A review this page does not recognise: &quot;auditor&quot;, third"  # kept as written
+    assert a["Area"] == "not recorded" and a["Severity"] == "not recorded in the review report"  # said as missing
+    assert a["Commit"] == f"<code>{sha}</code>" and a["Test named"] == "<code>tests/test_b.py::test_kept</code>" and a["Outcome recorded"] == "left"
+    assert a["Reviewer&#x27;s test"] == "<code>walks/test_a.py::test_seen</code>"
+    assert record(text, "B")["Commit"] == f"<code>{sha}</code>" and record(text, "B")["Test named"] == "<code>walks/test_x.py::test_y</code>"
+    assert record(text, "C")["Outcome recorded"] == "not-a-defect" and record(text, "C")["Test named"] == "<code>tests/test_c.py</code> (a whole test file: the record does not say which test in it)"
+    labels = {"B": ("Marked fixed, proof incomplete", "warn", True), "C": ("Not a defect", "", False)}
+    for id, (label, look, opened) in labels.items():  # each keeps its label, its look and whether it is drawn open
+        tag = group_tag(text, f"what {id} looks like")
+        assert f'class="group {look}"' in tag and ("open" in tag) == opened and label in top(text), id
+    assert text.index("what A looks like") < text.index("what B looks like") < text.index("what C looks like")  # left, then unproven, then not a defect
+
+
+def test_a_long_description_and_a_long_reason_are_on_the_page_whole_and_a_reason_is_there_once_for_every_outcome():
+    what, why = "A description. " * 40, ("A reason. " * 90).strip()
+    for kind in ("fixed", "left", "not-a-defect", "Fixed"):
+        alone = page([finding("A", what=what)], fates={"A": fate("A", kind, why=why)})
+        assert alone.count(handover.e(what)) == 1 and alone.count(handover.e(why)) == 1, kind  # nothing cut short, nothing said twice
+        shared = page([finding("A"), finding("B")], fates={i: fate(i, kind, why=why) for i in "AB"})
+        assert shared.count(handover.e(why)) == 1 and "the same for all 2:" in shared, kind
+    fixed = page([finding("A", what=what)], fates={"A": fate("A", why=why)})
+    assert record(fixed, "A")["Note recorded"] == handover.e(why)  # a fix's note is evidence: whole, in its record
+
+
+def test_a_page_with_nothing_to_look_at_still_says_what_it_did_not_check():
+    settled = {"git": GIT, "runs": handover.run_facts(GREEN_RUN, "feature/x"), "recording": WALKED}
+    every = lambda rows: {"walker-a.jsonl": rows, "review-a.jsonl": [], "early-read-whole.jsonl": []}  # noqa: E731
+    judged = top(page(files=every([finding("A"), finding("B"), finding("C")]), **settled,
+                      fates={"A": fate("A", "not-a-defect", why="By design."), "B": fate("B", "not-a-defect", why="Not in the spec."), "C": fate("C")}))
+    assert '<p class="headline green">' in judged and "This page found nothing that needs a second look before you accept this build" in judged
+    assert ("The outcomes are the build's own record: this page did not test the fixes. 2 issues are judged not a defect: that is the build's own "
+            "judgement, which this page did not check.</p>") in judged
+    assert "1 issue is judged not a defect: that" in top(page(files=every([finding("A")]), fates={"A": fate("A", "not-a-defect", why="By design.")}, **settled))
+    fixed = top(page(files=every([finding("A")]), fates={"A": fate("A")}, **settled))
+    assert "judged not a defect" not in fixed and "this page did not test the fixes.</p>" in fixed  # nothing was judged: no more to say
+
+
+def test_a_judgement_of_not_a_defect_is_for_the_owner_to_read_when_it_gives_no_reason_or_overrules_a_blocking_rating():
+    settled = {"git": GIT, "runs": handover.run_facts(GREEN_RUN, "feature/x"), "recording": WALKED}
+    every = lambda rows: {"walker-a.jsonl": rows, "review-a.jsonl": [], "early-read-whole.jsonl": []}  # noqa: E731
+    mixed = page(files=every([finding("A", severity="blocks"), finding("B")]), **settled,
+                 fates={"A": fate("A", "not-a-defect"), "B": fate("B", "not-a-defect", why="By design.")})
+    assert '<p class="headline amber">' in top(mixed) and "1 thing to look at before you accept this build" in top(mixed)
+    assert things(mixed) == [("amber", "#group-0", "The record judges 2 issues not to be a defect",
+                              "This is the build&#x27;s own judgement, and this page did not check it. The record gives no reason for 1 of the 2. "
+                              "The reviewers recorded 1 of the 2 as blocking use, which means a user cannot finish a task, or loses data. "
+                              "Read the reasons it does give, ask for the rest, and decide whether you agree.")]
+    assert 'class="group warn" open' in group_tag(mixed, "what A looks like")  # drawn open, where a plain judgement is folded
+    overruled = page(files=every([finding("A", severity="blocks")]), fates={"A": fate("A", "not-a-defect", why="By design.")}, **settled)
+    assert things(overruled)[0][3].endswith("The reviewer recorded it as blocking use, which means a user cannot finish a task, or loses data. "
+                                            "Read the reason and decide whether you agree.")
+    unreasoned = page(files=every([finding("A")]), fates={"A": fate("A", "not-a-defect")}, **settled)
+    assert things(unreasoned)[0][3].endswith("The record gives no reason. Ask for the reason, then decide whether you agree.")
+    plain = page(files=every([finding("A")]), fates={"A": fate("A", "not-a-defect", why="By design.")}, **settled)
+    assert things(plain) == [] and "open" not in group_tag(plain, "what A looks like")  # a reason, and no blocking rating: folded and quiet
+    assert handover.state_look("not-a-defect", [{"severity": "wrong", "fate": fate("A", "not-a-defect", why="r")}]) == handover.state_look("not-a-defect")
+    assert handover.state_look("fixed-no-check", [{"lacks": "commit abc is not in the repository"}])[1:] == ("warn", True)  # a fix whose commit was not found
+    assert handover.state_look("fixed-no-check", [{"lacks": ""}]) == handover.state_look("fixed-no-check")
+
+
+def test_the_builder_s_account_of_what_was_built_leads_the_page_as_its_words_and_changes_nothing_the_page_concludes():
+    settled = {"git": GIT, "runs": handover.run_facts(GREEN_RUN, "feature/x"), "recording": WALKED,
+               "files": {"walker-a.jsonl": [finding("A")], "review-a.jsonl": [], "early-read-whole.jsonl": []}, "fates": {"A": fate("A", "left", why="r")}}
+    boast = {"what": ["Everything works and every issue is fixed.", "A second line."], "so_what": ["s"], "now_what": []}
+    without, with_it = page(**settled), page(summary=boast, **settled)
+    head = top(with_it)
+    assert head.index("<h1>") < head.index("What was built, in the builder's words") < head.index("Everything works") < head.index("What this page found, from git")
+    assert ("These lines come from the build's summary file (hand-over.json), which the agent that runs a build is meant to write. "
+            "This page copied them as written and did not check them.") in html.unescape(head)
+    conclusions = lambda text: (things(text), re.findall(r'<p class="headline (\w+)">(.*?)</p>', text), re.findall(r'<p class="lead">(.*?)</p>', text, re.S),  # noqa: E731
+                                tile(text, "#recording"), tile(text, "#facts"), drawn_green(text))
+    assert conclusions(without) == conclusions(with_it)  # the builder's words move no colour, count or list item
+    empty = top(page(summary={"what": [], "so_what": ["s"], "now_what": []}, **settled))
+    assert "This page cannot say what was built: the build&#x27;s summary file (hand-over.json) has nothing under &quot;what&quot;." in empty
+    assert "This page cannot say what was built: the build has no summary file (hand-over.json is missing)." in top(without)
+
+
+def test_a_range_that_holds_no_commit_is_one_of_the_things_to_look_at():
+    listed = things(page(git={**GIT, "commits": 0}))
+    assert ("amber", "#facts", "This page covers no commits") in [(colour, link, what) for colour, link, what, _ in listed]
+    why = next(why for _, _, what, why in listed if what == "This page covers no commits")
+    assert why == ("The range it was asked for (0000000..abc1234) holds no commit, so its numbers describe no build. "
+                   "Ask for this page to be built again from the build&#x27;s first commit to its last.")
+    assert "This page covers no commits" not in page(git=GIT) and "This page covers no commits" not in page()  # one commit; and git not read at all
+
+
+def test_the_builder_s_summary_is_pointed_to_apart_from_the_page_s_own_list_and_never_quoted_in_it():
+    left = lambda lines, **more: top(page(summary={"what": [], "so_what": [], "now_what": lines}, **more))  # noqa: E731
+    several = left(["Ticket 07 was not built.", "Try it in Safari."])  # no reviews, no walk, no checks: three things listed
+    assert ("This page worked out these 3 itself, from git and from the build&#x27;s record files: they are not taken from the "
+            "builder&#x27;s summary.") in several  # two of the three come from files a tool wrote, so no author is claimed
+    links = '<p class="soft">Each one links to the part of this page that shows it.</p>'
+    assert several.index('class="headline') < several.index(links) < several.index('<ol class="look">')  # said before the list it describes
+    assert f"<p>To ask for any of this, or to accept the build, tell the agent you are working with (a new session opened in this project will do). {handover.e(handover.ACCEPTING)}</p>" in several
+    assert ("The build&#x27;s summary file (hand-over.json) also lists what is left for you: 2 lines, further down this page, under "
+            "&quot;The builder&#x27;s own summary&quot;. This page copied them as written and did not compare "
+            "them with the 3 above, so read them as well: a line there may repeat one of these, explain it or disagree with it.") in several
+    quoted = top(page(summary={"what": ["Built the thing."], "so_what": [], "now_what": ["One."]}))
+    assert "&quot;. It is from the same file as the lines quoted at the top of this page. This page copied it" in quoted
+    assert "Ticket 07" not in several and "Safari" not in several
+    one = top(page([finding("A")], fates={"A": fate("A")}, git=GIT, runs=handover.run_facts(GREEN_RUN, "feature/x"), recording=WALKED,
+                   files={"walker-a.jsonl": [finding("A")], "review-a.jsonl": []}, summary={"now_what": ["One."]}))
+    assert "1 thing to look at before you accept this build" in one and "This page worked this out itself" in one and "It links to the part of this page that shows it." in one
+    assert ("This page copied it as written and did not compare it with the item above, so read it as well: "
+            "a line there may repeat it, explain it or disagree with it.</a>") in one
+
+
+def test_the_page_says_where_its_issues_and_numbers_came_from():
+    text = page([finding("A")], fates={"A": fate("A", "left", why="r")}, git={**GIT, "commits": 3, "first": "2026-11-02T09:00:00+00:00", "last": "2026-11-02T10:30:00+00:00"},
+                base_ref="main", tip_ref="feature/x", recording=RECORDING, built={"at": "2026-11-16T21:00:00+00:00", "commit": "abc1234"})
+    assert "Issues the reviewers reported, by recorded outcome" in top(text)
+    assert "Sources: findings/*.jsonl and fates.jsonl." in text and "issues with no outcome named in fates.jsonl" in text
+    assert ("The build is 3 commits, made between 2 Nov 2026, 09:00 UTC and 2 Nov 2026, 10:30 UTC. For reference, this page covers commits "
+            "<code>0000000..abc1234</code> (asked for as main to feature/x).") in top(text)
+    assert "The test it runs: <code>walks/test_acceptance_walk.py::test_x</code>" in text
+    assert "from the folder at commit <code>abc1234</code>." in text
+    unsaved = page(built={"at": "2026-11-16T21:00:00+00:00", "commit": "abc1234", "dirty": True})  # the page's own inputs may differ from that commit
+    assert "from the folder at commit <code>abc1234</code>, with uncommitted changes in the folder." in unsaved
+    same_minute = top(page(git={**GIT, "first": "2026-11-02T09:00:00+00:00", "last": "2026-11-02T09:00:30+00:00"}))
+    assert "The build is 1 commit, made on 2 Nov 2026, 09:00 UTC." in same_minute
 
 
 # Recording the walk, with a stand-in for .venv/bin/python.
@@ -834,12 +1338,12 @@ def test_a_walk_that_passes_leaves_its_own_video_this_run_s_screenshots_and_its_
     assert not (feat / "recording-tmp").exists()
     assert (feat / "walk-output.txt").read_text() == "what the walk printed\n"
     text = (feat / "index.html").read_text()
-    assert "<video" in text and "The walk passed" in text
+    assert "<video" in text and re.search(r'pill \w*">(Passed|Not shown to pass)', text) and "The walk-through failed" not in text
     assert '<img src="data:image/png;base64,cG5n" alt="Step 2: fresh">' in text and "stale" not in text  # the picture is inside the page
     assert "handover:" not in capsys.readouterr().out
 
 
-@pytest.mark.parametrize("exit_code, result, words", [(1, "failed", "FAILED"), (4, "did not run", "did not run")])
+@pytest.mark.parametrize("exit_code, result, words", [(1, "failed", "failed"), (4, "did not run", "did not run")])
 def test_a_walk_that_fails_is_said_on_the_page_and_in_one_printed_line_and_the_page_is_still_built(repo, feat, capsys, exit_code, result, words):
     stand_in(repo, exit_code, video=False)
     assert handover.main(["feat"], root=repo) == 0
@@ -848,7 +1352,7 @@ def test_a_walk_that_fails_is_said_on_the_page_and_in_one_printed_line_and_the_p
     assert not (feat / "recording.webm").exists()  # the earlier run's video is gone, and the stray is not taken
     assert handover.read_recording(feat)["megabytes"] is None
     text = (feat / "index.html").read_text()
-    assert f"The walk {words}" in text and "The walk passed" not in text and "<video" not in text and "0ld0ld0" not in text
+    assert f"The walk-through {words}" in text and "The walk-through passed" not in text and "<video" not in text and "0ld0ld0" not in text
     printed = capsys.readouterr().out.splitlines()
     assert printed[-2] == f"handover: the acceptance walk {words}; what it printed is in {feat / 'walk-output.txt'}"
     assert printed[-1] == f"open {feat / 'index.html'}"
@@ -857,8 +1361,8 @@ def test_a_walk_that_fails_is_said_on_the_page_and_in_one_printed_line_and_the_p
 def test_a_walk_that_cannot_start_or_is_stopped_leaves_no_earlier_pass_standing(repo, feat, capsys, monkeypatch):
     assert handover.main(["feat"], root=repo) == 0  # this repository has no .venv/bin/python
     record = json.loads((feat / "recording.json").read_text())
-    assert record["result"] == "did not finish" and "could not start" in record["reason"]
-    assert "The walk did not finish" in (feat / "index.html").read_text() and not (feat / "recording.webm").exists()
+    assert record["result"] == "did not run" and record["reason"].startswith("The command that runs it could not start: ")
+    assert "The walk-through did not run" in (feat / "index.html").read_text() and not (feat / "recording.webm").exists()
     real = subprocess.run
 
     def timing_out(command, **more):
@@ -924,3 +1428,80 @@ def test_the_walk_helper_records_nothing_unless_it_is_asked_to(monkeypatch):
         monkeypatch.delenv("WALK_RECORD", raising=False) if value is None else monkeypatch.setenv("WALK_RECORD", value)
         assert helper.launch_options() == {} and helper.context_options(1440, 900) == {}
         assert helper.keep_video(object(), "a-walk") is None  # it never asks the page for a video
+
+
+def test_a_build_whose_last_commit_is_already_in_main_is_said_to_be_merged_and_is_not_asked_to_be_accepted(repo):
+    start = git(repo, "rev-parse", "main")
+    git(repo, "checkout", "-q", "main")
+    git(repo, "merge", "-q", "--no-ff", "-m", "merge", "feature/x")
+    facts = handover.git_facts(repo, start, "feature/x")
+    assert facts["merged"] is True and facts["commits"] == 3
+    git(repo, "branch", "-m", "main", "trunk")
+    assert handover.git_facts(repo, start, "feature/x")["merged"] is None  # no branch named main: unknown, not "no"
+    every = {"walker-a.jsonl": [finding("A"), finding("B")], "review-a.jsonl": [], "early-read-whole.jsonl": []}
+    fates = {"A": fate("A")}  # B has no outcome on record
+    summary = {"what": ["Built."], "so_what": [], "now_what": ["One."]}
+    open_, done = (page(files=every, fates=fates, summary=summary, git={**GIT, "merged": merged}) for merged in (False, True))
+    assert "before you accept this build" in top(open_) and handover.e(handover.MERGED) not in open_ and handover.e(handover.ACCEPTING) in top(open_)
+    assert "accept this build" not in done and "accept the build" not in done and handover.e(handover.ACCEPTING) not in done
+    assert f'</strong></p><p class="lead">{handover.e(handover.MERGED)}</p>' in top(done) and done.count(handover.e(handover.MERGED)) == 1  # the page's own finding, under its first sentence
+    assert handover.MERGED.startswith("This build is already merged: this page found its last commit in main")
+    count = len(things(done))
+    assert f"{count} things to look at in this build, which is already merged</p>" in top(done)
+    assert "<p>To ask for any of this, tell the agent you are working with (a new session opened in this project will do).</p>" in top(done)
+    assert [(tone, href, what) for tone, href, what, _ in things(done)] == [(tone, href, what) for tone, href, what, _ in things(open_)]  # the same list
+    assert any(why.endswith("treat it as open. Ask what became of it before you accept this build.") for *_, why in things(open_))
+    assert any(why.endswith("treat it as open. Ask what became of it.") for *_, why in things(done))
+    assert handover.headline_said(0, True) == "This page found nothing that needs a second look in this build, which is already merged"
+    settled = {"git": {**GIT, "merged": True}, "runs": handover.run_facts(GREEN_RUN, "feature/x"), "recording": WALKED,
+               "files": every, "fates": {"A": fate("A"), "B": fate("B")}}
+    green = top(page(summary={"what": [], "so_what": [], "now_what": ["One."]}, **settled))
+    assert '<p class="headline green">' in green and "To accept the build" not in green and "judge it: read it.</a>" in green
+
+
+def test_the_list_says_how_far_the_walk_through_s_commit_is_from_the_build_s_last_commit(repo):
+    first, second, tip = (git(repo, "rev-parse", "--short", ref) for ref in ("feature/x~2", "feature/x~1", "feature/x"))
+    assert handover.commit_gap(repo, tip, "feature/x") == (0, 0) and handover.commit_gap(repo, first, "feature/x") == (0, 2)
+    git(repo, "checkout", "-q", "-b", "later", "feature/x")
+    (repo / "more.py").write_text("x\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "later")
+    later = git(repo, "rev-parse", "--short", "later")
+    assert handover.commit_gap(repo, later, "feature/x") == (1, 0)
+    assert handover.commit_gap(repo, "0123456789", "feature/x") is None and handover.commit_gap(repo, None, "feature/x") is None  # git does not know it
+    walk = lambda commit, gap: things(page(recording={**RECORDING, "commit": commit, "dirty": False}, git=GIT, walk_gap=gap))[0][3]  # noqa: E731
+    assert walk(later, (1, 0)) == (f"The walk-through passed, but on commit {later}, not the build&#x27;s last commit (abc1234). Commit {later} holds the whole build and 1 commit "
+                                   "made after it, which is not part of the build, so the app the walk-through used may differ from the finished build. "
+                                   "Ask for it to be run again on the build&#x27;s last commit.")
+    assert f"Commit {first} is 2 commits before the build&#x27;s last commit, so the walk-through did not use the last 2 commits of the build." in walk(first, (0, 2))
+    assert "so the walk-through did not use that last commit of the build." in walk(second, (0, 1))
+    assert f"Commit {first} is on another line of work: it has 3 commits the build does not have, and lacks the build&#x27;s last 2 commits." in walk(first, (3, 2))
+    assert "holds the whole build and 13 commits made after it, which are not part of the build, so" in walk(later, (13, 0))
+    assert " is on another line" not in walk(first, None) and " before the build" not in walk(first, None)  # unknown: nothing is said of the distance
+    assert "Commit abc1234 is" not in page(recording={**RECORDING, "commit": "abc1234", "dirty": False}, git=GIT, walk_gap=(0, 0))
+
+
+def test_merged_is_judged_against_main_as_last_fetched_when_the_folder_has_one(repo):
+    start = git(repo, "rev-parse", "main")
+    git(repo, "checkout", "-q", "main")
+    git(repo, "merge", "-q", "--no-ff", "-m", "merge", "feature/x")
+    assert handover.git_facts(repo, start, "feature/x")["merged"] is True  # no remote: the local branch is asked
+    git(repo, "update-ref", "refs/remotes/origin/main", start)  # the remote's main, as last fetched, has not got the build
+    assert handover.git_facts(repo, start, "feature/x")["merged"] is False  # a merge made only in this folder does not count
+    git(repo, "update-ref", "refs/remotes/origin/main", "main")
+    assert handover.git_facts(repo, start, "feature/x")["merged"] is True
+
+
+def test_main_carries_the_merge_and_the_walk_through_s_distance_from_git_onto_the_page(repo, capsys):
+    start, before = git(repo, "rev-parse", "main"), git(repo, "rev-parse", "--short", "feature/x~1")
+    git(repo, "checkout", "-q", "main")
+    git(repo, "merge", "-q", "--no-ff", "-m", "merge", "feature/x")
+    out = repo / ".scratch" / "feat" / "hand-over"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "recording.json").write_text(json.dumps({**RECORDING, "commit": before, "dirty": False}))
+    assert handover.main(["feat", "--base", start, "--tip", "feature/x", "--branch", "feature/x", "--no-walk", "--no-open"], root=repo) == 0
+    said = [line for line in capsys.readouterr().out.splitlines() if line.startswith("The page's headline: ")][0]
+    built = (out / "index.html").read_text()
+    assert said.endswith("in this build, which is already merged") and handover.e(said.removeprefix("The page's headline: ")) in built
+    assert handover.e(handover.MERGED) in built and "accept this build" not in built
+    assert f"Commit {before} is 1 commit before the build&#x27;s last commit, so the walk-through did not use that last commit of the build." in built

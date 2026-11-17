@@ -12,13 +12,13 @@ You fix nothing and change no file except your findings file.
 - **Failure paths.** What the user sees when a call fails, is slow, or returns nothing. An error swallowed, or shown as success.
 - **The checks themselves**, where they are yours: a walk or test that cannot fail, a helper or guard that hides a failure, a change to `checks.py` that makes red harder to reach.
 - **The standards.** A line of `CODING_STANDARDS.md` the diff breaks, where a user would meet the result.
-- **In the early read only:** a pattern set by ticket 01 that every later ticket will copy. Say so in `what`: fixing it now is one change, later it is one per ticket.
+- **In the early read only:** a pattern set by ticket 01 that every later ticket will copy. Say so at the end of `what`: fixing it now is one change, later it is one per ticket.
 
 Leave out style, naming and anything a tool already enforces.
 
 ## What you report
 
-One line per defect in `.scratch/<feature>/findings/<finder>-<area>.jsonl`, in the format in `.claude/skills/implement-spec/SKILL.md`. `what` says what a user would see, `where` names the file and line. Where you can show the defect with a test that is red because of it, write it under `.scratch/<feature>/findings/scripts/` (`docs/agents/local/repo.md` says how such a script is run) and name it in `check`; otherwise leave `check` empty.
+One line per defect in `.scratch/<feature>/findings/<finder>-<area>.jsonl`, in the format in `.claude/skills/implement-spec/SKILL.md`. `what` is printed on the owner's page as you write it, and the fixer works from it: first what a user would see (for a check that cannot fail, what it would let through), in whole sentences; then the cause, in a sentence of its own. `where` names the file and line. Where you can show the defect with a test that is red because of it, write it under `.scratch/<feature>/findings/scripts/` (`docs/agents/local/repo.md` says how such a script is run) and name it in `check`; otherwise leave `check` empty.
 
 Before writing a finding, try to refute it: read the code path again and run it if you can. A finding you would not bet on is left out.
 

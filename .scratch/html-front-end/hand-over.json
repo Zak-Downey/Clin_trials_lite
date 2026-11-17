@@ -1,29 +1,34 @@
 {
  "what": [
   "The Streamlit front end was replaced by a plain HTML page, served by a small Python server on your own machine.",
-  "The page follows design.pdf: each watchlist opens on its Needs review queue, and a trial page shows previous and new values side by side.",
-  "All trials, New matches and Summary are tabs of one watchlist. Find trials has its own screen. Renaming, deleting and adding are small dialogs.",
-  "Streamlit, the in-browser runtime and the GitHub Pages site were deleted.",
-  "It was built as the feature's tickets, then a whole-branch review and a round of fix tickets. All of it is on main, in pull request #1."
+  "The page follows your design (design.pdf): each watchlist opens on its Needs review queue, and a trial page shows previous and new values side by side.",
+  "All trials, New matches and Summary are tabs of one watchlist. Find trials has its own screen. Renaming or deleting a watchlist, and creating a new one, are small dialogs.",
+  "Streamlit, the in-browser runtime and the GitHub Pages site were deleted. It was built in two stages: the feature itself, then a review of the whole change and a round of fixes.",
+  "All of it is already merged (pull request #1). You clicked through the app yourself and signed it off on 11 November 2026. This page was made later, as a sample; the build and its issues are real."
  ],
  "so_what": [
   "The analyst sees what changed before opening anything, and can review it without losing their place.",
-  "A trial that could not be checked, a saved search that failed and a registry that could not be reached are each said in words. Nothing that failed is shown as current.",
-  "One failure is not in words: with the local server stopped, an action shows the browser's own \"Failed to fetch\". It is among the findings left as they are.",
+  "When a trial cannot be checked, a saved search fails or the registry cannot be reached, the page says so in a sentence. It does not show a failed result as current.",
+  "One failure has no message of its own: with the local server stopped, an action shows the browser's own \"Failed to fetch\". The build left this issue unfixed.",
   "It runs on your machine only, on a desktop: designed at 1440 pixels wide, working down to 1024. Phones were ruled out in the brief.",
-  "The tickets alone did not catch everything: walkers and the review found defects after the tickets were done, and the re-check found more."
+  "The planned work alone did not catch everything: exploratory testing and the code review found issues after it was done, and a re-check after the fixes found more."
  ],
  "now_what": [
-  "Nothing waits on a decision about the build. It is merged, and you signed off its run-through on 11 November 2026.",
-  "This page was made afterwards, so that you can judge the page itself.",
-  "The recording was made on today's code, not on the commit the build ended at. The page says which commit.",
-  "The checks run log did not exist during this build, so the page cannot say how many check runs were red.",
-  "The findings here are not every finding: 37 come from the old defect log and nine from the spec's list of walker findings not fixed.",
-  "The review recorded 62. Its 17 blocking ones are here; the other 45 are accounted for in .scratch/pr-1-review/ranked.md. Seven more from its second read are not here.",
-  "No severity was recorded for any finding. One walker row can stand for several things the walkers reported, because the old log merged them.",
-  "Many findings read \"fixed, no check named\": the old log names the walk that shows the fix for the re-check findings only.",
-  "The review's 17 fates rest on its second read, which says each fix landed (.scratch/pr-1-review/findings/round-1.md). It names a test or walk for six of them.",
-  "One of the 17 landed with a gap: a check still checked a trial removed while it ran. Fix ticket 18 closed it.",
-  "The fix round left an Open list of 22 items, accepted at sign-off because no objection was raised. Only item 6 is on this page; the rest are in .scratch/pr-1-review/spec.md."
+  "You signed this build off on 11 November 2026, after clicking through the app yourself, and it is merged. Nothing here asks you to accept it again.",
+  "This hand-over page and these lists were made on 16 and 17 November 2026, as a sample of the page a future build will give you. The build itself ended on 9 November.",
+  "The walk-through was recorded on 16 November 2026, on the code as it stood then, not on the commit the build ended at. The page says which commit.",
+  "The log of automated check runs did not exist during this build, so the page cannot say how many runs failed.",
+  "The issues listed here are not every issue the build found: 37 come from the old defect log and nine from the build plan's list of follow-ups from exploratory testing.",
+  "The code review recorded 62 issues. The 17 it ranked as blocking are here; the other 45 are in its ranked list (.scratch/pr-1-review/ranked.md).",
+  "Seven more issues from the review's two later reads have no row here: six from its second read, and one from its re-check of fix ticket 18 (.scratch/pr-1-review/findings/round-1-check.md).",
+  "\"Blocking\" there is the code review's own ranking. No report recorded a severity in the form this page reads, so the page cannot say how serious any issue is.",
+  "One exploratory-testing issue can stand for several things the testers reported: the old log cites several reports under one row.",
+  "Many issues read \"Marked fixed, no test named\": the old log names the test that shows a fix only for the issues found at the re-check.",
+  "The 17 code-review issues are marked as fixed because each has a finished fix ticket. The review's second read names a test for six of them (.scratch/pr-1-review/findings/round-1.md).",
+  "One of those 17 fixes landed with a gap and a new fault: a check still checked a trial removed during that trial's own fetch, and a finished check counted in its total a trial it had skipped.",
+  "A later fix (fix ticket 18) closed the wrong count, and closed the gap when the fetch succeeds. When the fetch fails the gap is still open: the fix round deferred it, as item 22 of its choices.",
+  "The fix round left a list of 22 choices, each with a recommendation, accepted at sign-off because no objection was raised. The list is in .scratch/pr-1-review/spec.md.",
+  "Eleven of the 22 are behind fixes listed on this page (items 1 to 6 and 16 to 20). Of the other eleven, ten were deferred and one was left as it is; item 22 is the gap described above.",
+  "The early code review was made before this page's report format existed, so the page found no report from it. Its report is .scratch/html-front-end/reviews/01-foundation.md."
  ]
 }
