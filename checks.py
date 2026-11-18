@@ -2,9 +2,11 @@
 
     python3 checks.py              run them all, cheapest first, stopping at the first red
     python3 checks.py unit walks   run the named ones
+    python3 checks.py --quick      the same with the walks at the first window size only (WALK_QUICK=1);
+                                   it combines with naming checks, and the run's line in the log says quick
 
 Each check's output goes to .checks/<name>.txt. One line is printed per check and one line is
-appended to .checks/runs.jsonl per run. Exit 1 when a check is red. Red is a non-zero exit code
+appended to .checks/runs.jsonl per run, with "quick" true or false. Exit 1 when a check is red. Red is a non-zero exit code
 or a timeout: nothing here reads a suite's output to decide.
 
 The checks: `patterns` (no file matches a forbidden pattern, PATTERNS below), `escapes` (the
