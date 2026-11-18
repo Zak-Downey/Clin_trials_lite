@@ -11,10 +11,10 @@
     "Try first: open this build's pull request and watch the checks run on GitHub; it is the first run the new workflow makes.",
     "A green result with a wobble in it is now shown to you on this page instead of passing quietly.",
     "A hung or much slower check now turns red instead of passing.",
-    "From the next build, the runs in the middle of a build take about a minute less each, once you apply the skill edits."
+    "From the next build, the runs in the middle of a build are quick runs and take about a minute less each."
   ],
   "now_what": [
-    "The skill file was not edited: the session was refused the edit. Both changes are written out in skill-edits.md in this build's folder; apply them by hand.",
+    "The skill file is now edited as ticket 10 asked: you allowed it after the build, when the session had been refused the edit. skill-edits.md records the changes.",
     "First run on GitHub, step 1: accept the build and open the pull request.",
     "Step 2: watch the checks run on the pull request and note how long it takes; then tighten its 20-minute limit to fit.",
     "Step 3: on GitHub, protect main: require the checks status check, apply it to administrators, allow no direct push.",

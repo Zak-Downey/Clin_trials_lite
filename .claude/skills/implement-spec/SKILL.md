@@ -15,7 +15,7 @@ The tickets are a **task graph** with blocking relationships. Build them **one a
 
 Start every subagent with a fresh context window, of the `general-purpose` type. Communicate through **context pointers**: to the spec, the ticket, the brief file, earlier commits. Don't duplicate what a pointer already gives.
 
-`python3 checks.py` is the only judge of whether the code works, and you run it yourself; a subagent's word is not a run. It takes about four minutes: give it a ten-minute timeout or run it in the background.
+`python3 checks.py` is the only judge of whether the code works, and you run it yourself; a subagent's word is not a run. It takes about four minutes and ends within thirteen, longer than the ten minutes the command tool waits: run it in the background and wait for it to end.
 
 **When it is red, at any step:** send the path of the red check's output file to the subagent whose work turned it red (a fresh implementer if there is none) and run the command again when it reports. After two such goes, use one fresh subagent that calls the Skill tool with `mattpocock-skills:diagnosing-bugs`; tell it the owner is away, so where that skill says to ask the user it reports what it tried instead. If the checks are still red after that:
 
@@ -36,17 +36,17 @@ Start every subagent with a fresh context window, of the `general-purpose` type.
    - takes a `walk.shot("<step>")` at each moment worth seeing in a walk it adds. The walks this build adds or changes are the owner's walk-through: `handover.py` records the ones `hand-over.json` lists under `walk_through`, as one recording in parts, and shows the owner nothing else of the app;
    - ticks the ticket's boxes it has met, sets `Status: done`, and commits on the feature branch with the ticket number in the message.
 
-4. When the implementer reports, run `python3 checks.py`. Start the next ticket only on green.
+4. When the implementer reports, run `python3 checks.py --quick`. Start the next ticket only on green.
 
 5. **The early read.** After ticket 01 is green and before ticket 02 starts, use one fresh subagent with the brief `.claude/skills/implement-spec/reviewer.md`, finder `early-read`, area `whole`, on the diff so far. A wrong turn is cheapest to fix here. Have its findings fixed, by step 7's rules, before ticket 02 starts.
 
-6. **Break it.** Once every ticket is done and the checks are green (with a ticket not done, go to step 9), in parallel:
+6. **Break it.** Once every ticket is done and a full run of `python3 checks.py` is green (with a ticket not done, go to step 9), in parallel:
    - one **walker subagent** per area the feature touched (the areas are listed in `docs/agents/local/repo.md`; at most three browsers at once), each with the brief `.claude/skills/implement-spec/walker.md`;
    - one **reviewer subagent** per area, each with the brief `.claude/skills/implement-spec/reviewer.md`, finder `review`. Before starting them, split the output of `git diff --name-only main...HEAD` among them so that every changed file is in exactly one reviewer's list: a page's reviewer takes the API and domain code behind that page and the tests and walks for it. Whatever is left (walk tooling, `checks.py`, modules behind no one page) goes to one more reviewer, area `server-and-checks`.
 
    A feature that touches no page gets no walker and the `server-and-checks` reviewer alone.
 
-7. **Fix on the same branch.** Use one fresh implementer subagent per area, one after another, each given that area's findings files together and pointed at "The files the page is built from" below. Within an area: `blocks` first, then `wrong`, then `cosmetic`. For each finding, in one commit of its own, in this order: a check that is red because of it goes into the suite (the walker's script made into a walk, or a unit test); then the fix; then one line in `.scratch/<feature>/fates.jsonl`. A finding that is not a defect, or is left unfixed, still gets its line, with the reason in `why`. Run `python3 checks.py` after each implementer reports. Then compare the ids in `findings/` with the ids in `fates.jsonl`: any id without a fate line goes to a fresh implementer, named by id.
+7. **Fix on the same branch.** Use one fresh implementer subagent per area, one after another, each given that area's findings files together and pointed at "The files the page is built from" below. Within an area: `blocks` first, then `wrong`, then `cosmetic`. For each finding, in one commit of its own, in this order: a check that is red because of it goes into the suite (the walker's script made into a walk, or a unit test); then the fix; then one line in `.scratch/<feature>/fates.jsonl`. A finding that is not a defect, or is left unfixed, still gets its line, with the reason in `why`. Run `python3 checks.py --quick` after each implementer reports, and a full `python3 checks.py` after the last. Then compare the ids in `findings/` with the ids in `fates.jsonl`: any id without a fate line goes to a fresh implementer, named by id.
 
 8. **Re-check once.** Skip this step when step 7 changed no code. Otherwise, in parallel:
    - walkers again to the areas the fixes touched, with `pass` set to `recheck`;
@@ -57,7 +57,7 @@ Start every subagent with a fresh context window, of the `general-purpose` type.
 9. **Hand over.** This step runs however the build ended.
    - Write `.scratch/<feature>/hand-over.json`.
    - Commit until `git status --porcelain` prints nothing: delete temporary files you or your subagents made, commit the rest.
-   - Run `python3 checks.py` on that commit. If it is red and the build did not stop at step 4, apply the rule for red, add what changed to `now_what`, and do this step again, once. If the build stopped at step 4, red is the true state and `now_what` already says so.
+   - Run the full `python3 checks.py` on that commit. If it is red and the build did not stop at step 4, apply the rule for red, add what changed to `now_what`, and do this step again, once. If the build stopped at step 4, red is the true state and `now_what` already says so.
    - Run `python3 handover.py <feature>`. It builds the page, opens it in the owner's browser and prints the page's headline. If it refuses (two findings sharing an id, a line that is not JSON, a summary line too long, a build that changed walks and lists none under `walk_through`, a part's title or legend that is too long or holds a name from the code), correct the file it names, and `fates.jsonl` where an id changed, commit, and run it again. It records the walks `walk_through` lists, or the acceptance walk when the build added or changed no walk. If it says the walk-through or the acceptance walk failed, did not run or did not finish, hand over as it is: the page says so.
 
    Your last message to the owner is one sentence saying how the build ended, then the headline `handover.py` printed (the page's own count of what to look at, so your message and the page agree), then the `open` command it printed. The page carries the rest. Do not push, merge or open a pull request: the owner decides from the page (`CLAUDE.md`, "When the owner accepts a build").

@@ -14,3 +14,5 @@
 ## Comments
 
 The session was not allowed to edit `.claude/skills/implement-spec/SKILL.md` (the edit was refused), so both changes are written out in full in `.scratch/kit-phase-1/skill-edits.md` for the owner to apply. SKILL.md, `reviewer.md` and `walker.md` are unchanged. The unit suite passed on this commit (657 tests); the full `python3 checks.py` is left to the build session.
+
+Applied to `.claude/skills/implement-spec/SKILL.md` after the build, once the owner allowed the edit; the five replacements are those in `skill-edits.md`.
