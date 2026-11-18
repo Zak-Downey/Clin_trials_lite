@@ -186,7 +186,7 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     page.get_by_role("heading", level=1, name="Find trials").wait_for()
     keys.type(page.get_by_label("Condition"), "many", submit=True)
     page.get_by_role("heading", name="134 matches").wait_for()
-    box = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731
+    box = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731 (a one-line helper local to this function)
     for nct in ("NCT10000001", "NCT10000002"):
         keys.press(box(nct), "Space")
     page.get_by_text("2 trials selected").wait_for()
@@ -272,7 +272,7 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     # 8. New matches: add the new one; dismiss one and restore it.
     keys.press(page.get_by_role("tab", name=re.compile("^New matches")))
     page.get_by_role("heading", level=2, name="3 new matches").wait_for()
-    match = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731
+    match = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731 (a one-line helper local to this function)
     bar = page.get_by_role("region", name="New matches actions")
     keys.press(match("NCT00000099"), "Space")
     bar.get_by_text("1 selected").wait_for()

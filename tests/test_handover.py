@@ -365,7 +365,7 @@ def test_a_run_line_with_no_quick_field_is_a_full_run():
 
 
 def test_a_green_run_is_drawn_green_only_on_the_build_s_last_commit_as_committed():
-    green = lambda **more: page(runs=handover.run_facts([run("feature/x", "green", **more)], "feature/x"), git=GIT)  # noqa: E731
+    green = lambda **more: page(runs=handover.run_facts([run("feature/x", "green", **more)], "feature/x"), git=GIT)  # noqa: E731 (a one-line helper local to this function)
     assert 'pill green">passed<' in row(green(), "Last full run of the checks") and tile(green(), "#facts") == ("green", "Passed on the build&#x27;s last commit")
     assert top(green()).count('<span class="chk green">') == 5  # each check of that run, on the tile
     for text, words in ((green(tip="fff9999"), "Not shown to pass on the build&#x27;s last commit"),
@@ -381,7 +381,7 @@ def test_a_green_run_is_drawn_green_only_on_the_build_s_last_commit_as_committed
 def test_a_later_run_of_one_check_that_was_not_green_is_on_the_board_not_only_in_the_folded_list():
     walked = {"git": GIT, "recording": {"commit": "abc1234", "dirty": False, "result": "passed", "megabytes": 1.0},
               "files": {"walker-a.jsonl": [], "review-a.jsonl": [], "early-read-whole.jsonl": []}}
-    then = lambda result: handover.run_facts([run("feature/x", "green", "2026-11-16T10:00:00Z"),  # noqa: E731
+    then = lambda result: handover.run_facts([run("feature/x", "green", "2026-11-16T10:00:00Z"),  # noqa: E731 (a one-line helper local to this function)
                                               run("feature/x", result, "2026-11-16T10:20:00Z", names=("unit",))], "feature/x")
     red = page(runs=then("red"), **walked)
     assert tile(red, "#facts") == ("red", "Passed, then a later partial run failed")
@@ -420,7 +420,7 @@ def test_a_check_that_failed_when_run_again_stays_failed_until_that_same_check_p
 
 
 def test_why_a_green_run_is_not_counted_is_said_on_the_tile_itself():
-    green = lambda **more: top(page(runs=handover.run_facts([run("feature/x", "green", **more)], "feature/x"), git=GIT))  # noqa: E731
+    green = lambda **more: top(page(runs=handover.run_facts([run("feature/x", "green", **more)], "feature/x"), git=GIT))  # noqa: E731 (a one-line helper local to this function)
     assert "This run was on commit fff9999, not the build&#x27;s last commit (abc1234)." in green(tip="fff9999")
     assert "This run was with uncommitted changes in the folder." in green(dirty=True)
     assert "This run was" not in green()
@@ -654,7 +654,7 @@ def test_the_board_under_the_title_says_what_needs_the_owner_before_anything_els
     assert chip(clean, "", "#group-0", "Marked fixed, test named: 1") and "1 reported" in top(clean)
     assert "The outcomes are the build's own record: this page did not test the fixes." in top(clean)  # green, and still the record's claim
     assert '<a href="#summary">This build has no summary file (hand-over.json).</a>' in top(clean)
-    left = lambda lines: top(page(files=every, summary={"what": [], "so_what": [], "now_what": lines}, **settled))  # noqa: E731
+    left = lambda lines: top(page(files=every, summary={"what": [], "so_what": [], "now_what": lines}, **settled))  # noqa: E731 (a one-line helper local to this function)
     two = left(["Ticket 07 was not built.", "Try it in Safari."])
     assert ('<a href="#summary">The build&#x27;s summary file also lists what is left for you: 2 lines, further down this page. '
             "This page did not judge them: read them before you accept this build.</a>") in two  # nothing listed above, so the builder's lines are the owner's to read
@@ -896,7 +896,7 @@ def test_every_finding_read_is_drawn_once_as_a_card_and_counted_once_in_each_cou
 # What the owner reads first, and the evidence kept under it.
 
 def test_the_issues_sentence_counts_the_issues_and_their_recorded_outcomes_from_the_records():
-    said = lambda findings, fates: handover.issues_said(handover.page_data("feat", files={"walker-a.jsonl": findings}, fates=fates))  # noqa: E731
+    said = lambda findings, fates: handover.issues_said(handover.page_data("feat", files={"walker-a.jsonl": findings}, fates=fates))  # noqa: E731 (a one-line helper local to this function)
     three = [finding("A"), finding("B"), finding("C")]
     assert said(three, {i: fate(i) for i in "ABC"}) == "The reviewers reported 3 issues in the reports this page read. The build's record marks 3 as fixed."
     assert said(three, {"A": fate("A"), "B": fate("B", "left"), "C": fate("C", "left")}).endswith("The build's record marks 1 as fixed and 2 as left unfixed.")
@@ -933,7 +933,7 @@ def test_the_top_of_the_page_is_drawn_before_it_is_explained():
         assert (handover.e(handover.MERGED_HOW) in reading) == merged
         listed = handover.to_look_at(data)
         assert len(listed) >= 4 and all(so and do for _, _, so, do, _ in listed)
-        said = lambda words: handover.e(handover.undecided(words, data))  # noqa: E731
+        said = lambda words: handover.e(handover.undecided(words, data))  # noqa: E731 (a one-line helper local to this function)
         assert [(shown, folded) for _, _, _, shown, folded in looks(text)] == [(said(do), said(so)) for _, _, so, do, _ in listed]  # what to do in view; why under it
         between = head[head.index("</ol>"):head.index('<details class="reading">')]
         assert between.count("<p") == 2  # after the list: whom to tell, and where the builder's own list is
@@ -1031,7 +1031,7 @@ def test_everything_recorded_about_an_issue_stays_on_the_page_in_its_folded_reco
 
 
 def test_a_reason_the_record_does_not_give_is_said_as_missing_not_assumed():
-    left = lambda **whys: handover.state_said("left", [{"fate": fate(i, "left", why=why)} for i, why in whys.items()])[1]  # noqa: E731
+    left = lambda **whys: handover.state_said("left", [{"fate": fate(i, "left", why=why)} for i, why in whys.items()])[1]  # noqa: E731 (a one-line helper local to this function)
     assert left(A="r", B="q") == ("The build's record gives a reason for leaving each one, printed with the issues below. "
                                   "Read each reason and decide whether you accept it.")
     assert left(A="r", B=" r ") == ("The build's record gives the same reason for leaving all 2, printed once above the issues below. "
@@ -1160,7 +1160,7 @@ WALKED = {"commit": "abc1234", "dirty": False, "result": "passed", "megabytes": 
 
 
 def test_the_page_opens_on_its_own_conclusion_about_the_walk_through_and_the_checks_then_says_what_each_one_is():
-    said = lambda **more: handover.proof_said(handover.page_data("feat", git=GIT, **more))  # noqa: E731
+    said = lambda **more: handover.proof_said(handover.page_data("feat", git=GIT, **more))  # noqa: E731 (a one-line helper local to this function)
     green, red = handover.run_facts(GREEN_RUN, "feature/x"), handover.run_facts([run("feature/x", "red")], "feature/x")
     assert said(runs=green, recording=WALKED) == "The build's last commit passed the walk-through and the automated checks."
     assert said() == "Nothing on record shows that the build's last commit passes the walk-through or the automated checks."
@@ -1182,7 +1182,7 @@ def test_the_page_opens_on_its_own_conclusion_about_the_walk_through_and_the_che
 
 
 def test_each_outcome_s_sentences_are_worded_for_one_issue_and_for_many_and_claim_only_what_the_record_says():
-    rows = lambda count, kind="left", why="r", **more: [{"fate": fate(str(n), kind, why=why), **more} for n in range(count)]  # noqa: E731
+    rows = lambda count, kind="left", why="r", **more: [{"fate": fate(str(n), kind, why=why), **more} for n in range(count)]  # noqa: E731 (a one-line helper local to this function)
     said = handover.state_said
     assert said("no-fate", rows(1)) == ("The build's record gives no outcome for 1 issue", "Nothing on record says whether this issue was fixed, left unfixed or "
                                         "judged not a defect, so treat it as open. Ask what became of it before you accept this build.")
@@ -1205,7 +1205,7 @@ def test_each_outcome_s_sentences_are_worded_for_one_issue_and_for_many_and_clai
     assert said("fixed", rows(2)) == ("The record marks 2 issues as fixed and names a test for each", "Each fix names the test that is meant to show it works.")
     assert said("fixed", rows(2), verified=True)[1] == "Each fix names the test that is meant to show it works." + handover.FOUND
     assert said("fixed", rows(1), verified=True)[1] == "The fix names the test that is meant to show it works." + handover.FOUND_ONE
-    whole = lambda count: [{"fate": fate(str(n), check="tests/test_b.py")} for n in range(count)]  # noqa: E731  (a file, with no test named in it)
+    whole = lambda count: [{"fate": fate(str(n), check="tests/test_b.py")} for n in range(count)]  # noqa: E731 (a one-line helper local to this test; its check is a file, with no test named in it)
     assert said("fixed", whole(1))[1] == "The fix names the test that is meant to show it works. The record names a whole test file, not one test in it."
     assert said("fixed", whole(1) + rows(2, "fixed"))[1].endswith("For 1 of the 3, the record names a whole test file, not one test in it.")
     assert said("fixed", whole(2))[1].endswith("For all 2, the record names a whole test file, not one test in it.")
@@ -1280,7 +1280,7 @@ def test_a_long_description_and_a_long_reason_are_on_the_page_whole_and_a_reason
 
 def test_a_page_with_nothing_to_look_at_still_says_what_it_did_not_check():
     settled = {"git": GIT, "runs": handover.run_facts(GREEN_RUN, "feature/x"), "recording": WALKED}
-    every = lambda rows: {"walker-a.jsonl": rows, "review-a.jsonl": [], "early-read-whole.jsonl": []}  # noqa: E731
+    every = lambda rows: {"walker-a.jsonl": rows, "review-a.jsonl": [], "early-read-whole.jsonl": []}  # noqa: E731 (a one-line helper local to this function)
     judged = top(page(files=every([finding("A"), finding("B"), finding("C")]), **settled,
                       fates={"A": fate("A", "not-a-defect", why="By design."), "B": fate("B", "not-a-defect", why="Not in the spec."), "C": fate("C")}))
     assert '<p class="headline green">' in judged and "This page found nothing that needs a second look before you accept this build" in judged
@@ -1296,7 +1296,7 @@ def test_a_page_with_nothing_to_look_at_still_says_what_it_did_not_check():
 
 def test_a_judgement_of_not_a_defect_is_for_the_owner_to_read_when_it_gives_no_reason_or_overrules_a_blocking_rating():
     settled = {"git": GIT, "runs": handover.run_facts(GREEN_RUN, "feature/x"), "recording": WALKED}
-    every = lambda rows: {"walker-a.jsonl": rows, "review-a.jsonl": [], "early-read-whole.jsonl": []}  # noqa: E731
+    every = lambda rows: {"walker-a.jsonl": rows, "review-a.jsonl": [], "early-read-whole.jsonl": []}  # noqa: E731 (a one-line helper local to this function)
     mixed = page(files=every([finding("A", severity="blocks"), finding("B")]), **settled,
                  fates={"A": fate("A", "not-a-defect"), "B": fate("B", "not-a-defect", why="By design.")})
     assert '<p class="headline amber">' in top(mixed) and "1 thing to look at before you accept this build" in top(mixed)
@@ -1326,7 +1326,7 @@ def test_the_builder_s_account_of_what_was_built_leads_the_page_as_its_words_and
     assert head.index("<h1>") < head.index("What was built, in the builder's words") < head.index("Everything works") < head.index("What this page found, from git")
     assert ("These lines come from the build's summary file (hand-over.json), which the agent that runs a build is meant to write. "
             "This page copied them as written and did not check them.") in html.unescape(head)
-    conclusions = lambda text: (things(text), re.findall(r'<p class="headline (\w+)">(.*?)</p>', text), re.findall(r'<p class="lead">(.*?)</p>', text, re.S),  # noqa: E731
+    conclusions = lambda text: (things(text), re.findall(r'<p class="headline (\w+)">(.*?)</p>', text), re.findall(r'<p class="lead">(.*?)</p>', text, re.S),  # noqa: E731 (a one-line helper local to this function)
                                 tile(text, "#recording"), tile(text, "#facts"), drawn_green(text))
     assert conclusions(without) == conclusions(with_it)  # the builder's words move no colour, count or list item
     empty = top(page(summary={"what": [], "so_what": ["s"], "now_what": []}, **settled))
@@ -1344,7 +1344,7 @@ def test_a_range_that_holds_no_commit_is_one_of_the_things_to_look_at():
 
 
 def test_the_builder_s_summary_is_pointed_to_apart_from_the_page_s_own_list_and_never_quoted_in_it():
-    left = lambda lines, **more: top(page(summary={"what": [], "so_what": [], "now_what": lines}, **more))  # noqa: E731
+    left = lambda lines, **more: top(page(summary={"what": [], "so_what": [], "now_what": lines}, **more))  # noqa: E731 (a one-line helper local to this function)
     several = left(["Ticket 07 was not built.", "Try it in Safari."])  # no reviews, no walk, no checks: three things listed
     own = ('<p class="terms">This page worked out these 3 itself, from git and from the build&#x27;s record files: they are not taken from the '
            "builder&#x27;s summary. Each one links to the part of this page that shows it.</p>")  # two of the three come from files a tool wrote, so no author is claimed
@@ -1568,7 +1568,7 @@ def test_the_list_says_how_far_the_walk_through_s_commit_is_from_the_build_s_las
     later = git(repo, "rev-parse", "--short", "later")
     assert handover.commit_gap(repo, later, "feature/x") == (1, 0)
     assert handover.commit_gap(repo, "0123456789", "feature/x") is None and handover.commit_gap(repo, None, "feature/x") is None  # git does not know it
-    walk = lambda commit, gap: things(page(recording={**RECORDING, "commit": commit, "dirty": False}, git=GIT, walk_gap=gap))[0][3]  # noqa: E731
+    walk = lambda commit, gap: things(page(recording={**RECORDING, "commit": commit, "dirty": False}, git=GIT, walk_gap=gap))[0][3]  # noqa: E731 (a one-line helper local to this function)
     assert walk(later, (1, 0)) == (f"The walk-through passed, but on commit {later}, not the build&#x27;s last commit (abc1234). Commit {later} holds the whole build and 1 commit "
                                    "made after it, which is not part of the build, so the app the walk-through used may differ from the finished build. "
                                    "Ask for it to be run again on the build&#x27;s last commit.")

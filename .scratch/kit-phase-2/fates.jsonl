@@ -1,1 +1,2 @@
 {"id": "early-read-whole-01", "fate": "fixed", "commit": "5de062d", "check": "tests/test_lint.py::test_each_way_of_exempting_code_turns_a_rule_test_red", "why": ""}
+{"id": "review-server-and-checks-01", "fate": "fixed", "commit": "f4b89b2", "check": "tests/test_prove_runs.py::test_a_check_past_its_time_limit_does_not_outlive_the_proof", "why": ""}

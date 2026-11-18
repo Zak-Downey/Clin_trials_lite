@@ -69,6 +69,26 @@ def test_no_python_file_silences_the_linter_for_the_whole_file():
     assert silenced == []
 
 
+# A line-level marker as the spec allows it: the word noqa, a colon, one rule and the reason, all on one line.
+NOQA = re.compile(r"#\s*noqa\b", re.I)
+ALLOWED_NOQA = re.compile(r"#\s*noqa:\s*[A-Z]+[0-9]+\s+(?![A-Z]+[0-9]+\b)\S.*\w", re.I)
+
+
+def test_every_noqa_names_one_rule_and_gives_its_reason_on_the_same_line():
+    tracked = subprocess.run(["git", "ls-files", "*.py"], cwd=ROOT, capture_output=True, text=True,
+                             check=True).stdout.split()
+    wrong = []
+    for p in tracked:
+        if p.startswith(".scratch/"):
+            continue
+        for number, line in enumerate((ROOT / p).read_text(encoding="utf-8").splitlines(), start=1):
+            for marker in NOQA.finditer(line):
+                found = ALLOWED_NOQA.match(line, marker.start())
+                if not found or "," in found.group(0).split(":", 1)[1].split()[0]:
+                    wrong.append(f"{p}:{number}: {line.strip()}")
+    assert wrong == []
+
+
 def test_ruff_reads_every_tracked_python_file_outside_scratch_and_nothing_under_scratch_or_venv():
     tracked = subprocess.run(["git", "ls-files", "*.py"], cwd=ROOT, capture_output=True, text=True,
                              check=True).stdout.split()
@@ -86,6 +106,8 @@ EXEMPTIONS = {
     "allowed-unused-imports": ({"ruff.toml": '\n[lint.pyflakes]\nallowed-unused-imports = ["os"]\n'}, ""),
     "nested-config": ({"pkg/ruff.toml": "[lint]\nselect = []\n"}, ""),
     "file-level-noqa": ({}, "# ruff: noqa\n"),
+    "bare-line-noqa": ({}, "import sys  # " "noqa\n"),
+    "line-noqa-without-reason": ({}, "import sys  # " "noqa: F401\n"),
 }
 
 
