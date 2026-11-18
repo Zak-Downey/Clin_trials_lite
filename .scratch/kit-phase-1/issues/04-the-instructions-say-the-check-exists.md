@@ -4,11 +4,11 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `CLAUDE.md` tells the agent to give the pull request link and say the check is running, and not to call the build safe to merge
-- [ ] `repo.md`'s CI section describes the workflow and no longer says nothing runs on a pull request
-- [ ] The Stand-ins table has a row for GitHub's machine, with its fidelity check or "None" and why
-- [ ] A unit test holds that `repo.md` names the workflow file that exists, so the two cannot drift apart
+- [x] `CLAUDE.md` tells the agent to give the pull request link and say the check is running, and not to call the build safe to merge
+- [x] `repo.md`'s CI section describes the workflow and no longer says nothing runs on a pull request
+- [x] The Stand-ins table has a row for GitHub's machine, with its fidelity check or "None" and why
+- [x] A unit test holds that `repo.md` names the workflow file that exists, so the two cannot drift apart
 
 ## Comments

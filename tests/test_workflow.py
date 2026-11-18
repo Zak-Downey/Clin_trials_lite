@@ -79,3 +79,14 @@ def test_a_step_names_the_four_files_that_judge_a_pull_request():
 
 def test_the_notice_step_can_never_fail_the_run():
     assert re.search(r"^        continue-on-error: true\s*$", notice_step(), re.M)
+
+
+REPO_MD = WORKFLOW.parent.parent.parent / "docs" / "agents" / "local" / "repo.md"
+
+
+def test_repo_md_names_every_workflow_file_that_exists_and_no_other():
+    ci = REPO_MD.read_text().split("## CI", 1)[1]
+    named = set(re.findall(r"`\.github/workflows/([\w.-]+\.ya?ml)`", ci))
+    present = {p.name for p in WORKFLOW.parent.iterdir() if p.suffix in (".yml", ".yaml")}
+    assert present, "no workflow file"
+    assert named == present
