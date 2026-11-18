@@ -1,2 +1,3 @@
 {"id": "early-read-whole-01", "fate": "fixed", "commit": "b4a0f6c", "check": "walks/test_run_walks.py::test_a_mass_failure_stops_the_first_run_early_and_still_names_each_red_walk_it_saw", "why": ""}
 {"id": "review-server-and-checks-01", "fate": "fixed", "commit": "9a945cb", "check": "tests/test_handover.py::test_a_quick_run_and_the_full_run_straight_after_it_on_the_same_commit_each_get_only_their_own_record_line", "why": ""}
+{"id": "review-server-and-checks-02", "fate": "fixed", "commit": "8ea56fc", "check": "tests/test_judge_notice.py::test_renaming_a_judging_file_away_is_named_and_renaming_a_test_file_out_of_collection_counts_its_tests_removed", "why": ""}
