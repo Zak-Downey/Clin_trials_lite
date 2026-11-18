@@ -1,0 +1,18 @@
+[
+  {
+    "id": "summary-one-day-range-refused",
+    "file": "webapp/api_summary.py",
+    "find": "        if start > end:\n",
+    "replace": "        if start >= end:\n",
+    "why": "An off-by-one in the custom period's check refuses a range of a single day, which the Summary tab must accept.",
+    "test": "tests/test_api_summary.py::test_a_custom_range_is_inclusive_and_validated"
+  },
+  {
+    "id": "summary-import-left-unused",
+    "file": "webapp/api_summary.py",
+    "find": "import briefing\n",
+    "replace": "import briefing\nimport json\n",
+    "why": "An import left behind after the code that used it was removed is a mistake only the linter reads for.",
+    "check": "lint"
+  }
+]
