@@ -178,7 +178,7 @@ def test_walk_zero_matches_keep_the_summary_and_offer_edit_search_and_clear_opti
     assert page.get_by_text("Recruiting").first.is_visible()
     walk.shot("zero")
     page.get_by_role("button", name="Clear optional filters").click()
-    page.wait_for_function("() => !document.querySelector('.summary').innerText.includes('Recruiting')")
+    page.wait_for_function("() => { const s = document.querySelector('.summary'); return s && !s.innerText.includes('Recruiting'); }")
     page.get_by_text("No trials match this search").wait_for()
     page.get_by_role("button", name="Edit search").first.click()
     assert page.get_by_label("Condition").input_value() == "nothing"
