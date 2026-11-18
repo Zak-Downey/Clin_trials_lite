@@ -4,11 +4,13 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `.claude/settings.json` refuses `gh pr merge` and is otherwise unchanged and still valid JSON, or `settings-edit.md` holds the edit in full
-- [ ] `repo.md` says merging is the owner's, in a sentence that is true whichever form the ticket took
-- [ ] No other file under `.claude/` changed
-- [ ] `python3 checks.py` ends green on this ticket's commit
+- [x] `.claude/settings.json` refuses `gh pr merge` and is otherwise unchanged and still valid JSON, or `settings-edit.md` holds the edit in full
+- [x] `repo.md` says merging is the owner's, in a sentence that is true whichever form the ticket took
+- [x] No other file under `.claude/` changed
+- [x] `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
+
+The ticket took the first form: the edit to `.claude/settings.json` was made directly and was not refused, so no `settings-edit.md` was written. The deny list gains one line, `"Bash(gh pr merge*)",`, right after `"Bash(git push*--mirror*)",`; nothing else in the file changed and `python3 -m json.tool` reads it. `repo.md`'s "CI" section gains a "Merging" line: merging is the owner's, the settings refuse `gh pr merge`, and that refusal stops that command only. A new unit test, `tests/test_settings.py::test_the_settings_refuse_gh_pr_merge_after_the_push_refusals`, was seen red before the edit and green after. No other file under `.claude/` changed. `python3 checks.py` ran on the working tree that became this commit and ended green: lint, patterns, escapes, unit and walks all green, 3.7 min.
