@@ -1,6 +1,7 @@
 """The walk runner's reading of a pytest run. No browser. Lacks: a real browser walk;
 the re-run is shown on two tiny pytest files, not on the app."""
 
+import json
 import pathlib
 import re
 
@@ -136,3 +137,89 @@ def test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re
     alone = (tmp_path / "out" / "alone-test_wanted-test-wanted.txt").read_text()
     assert "1 failed" in alone
     assert "def test_wanted" not in alone  # the short traceback reached the re-run (the default one prints the source)
+
+
+def test_a_mass_failure_stops_the_first_run_early_and_still_names_each_red_walk_it_saw(tmp_path, capsys):
+    """test_a_mass_failure_stops_the_first_run_early_and_still_names_each_red_walk_it_saw"""
+    for n in range(80):
+        (tmp_path / f"test_m{n:02}.py").write_text(
+            "import time\n"
+            f"def test_m{n:02}():\n"
+            "    with open('ran.log', 'a') as f:\n"
+            f"        f.write('test_m{n:02}\\n')\n"
+            "    time.sleep(0.2)\n"
+            "    assert False\n")
+    code, out = run_in(tmp_path, capsys)
+    ran = (tmp_path / "ran.log").read_text().split()
+    first_run = len(ran) - run_walks.ALONE_CAP  # each re-run alone logs once more
+    assert first_run < 80, "the first run went on through a mass failure"
+    got = read_results(out)
+    named = {t for _, t, _, _ in got}
+    assert len(named) >= run_walks.MASS_FAILURE and named <= set(ran)
+    assert len(list((tmp_path / "out").glob("alone-*.txt"))) == run_walks.ALONE_CAP
+    assert "ended early" in out.split("## Result")[1]
+    assert code == 1
+
+
+def last_record(tmp_path) -> dict:
+    """The last line of the flaky-walk record a run in `tmp_path` appended."""
+    lines = (tmp_path / "out" / run_walks.FLAKY_RECORD).read_text().splitlines()
+    return json.loads(lines[-1])
+
+
+ONCE = (
+    "import pathlib\n"
+    "def test_once():\n"
+    "    m = pathlib.Path(__file__).with_name('seen')\n"
+    "    first = not m.exists()\n"
+    "    m.write_text('x')\n"
+    "    assert not first\n")
+
+
+def test_a_walk_red_with_the_others_and_green_alone_is_recorded_by_name_for_its_run(tmp_path, capsys):
+    """test_a_walk_red_with_the_others_and_green_alone_is_recorded_by_name_for_its_run"""
+    (tmp_path / "test_once.py").write_text(ONCE)
+    (tmp_path / "test_fine.py").write_text("def test_fine():\n    assert True\n")
+    run_in(tmp_path, capsys, targets=("test_once.py", "test_fine.py"))
+    record = last_record(tmp_path)
+    assert record["flaky"] == ["test_once.py::test_once"]
+    assert record["tip"] == run_walks.tip() and record["at"].endswith("Z")
+
+
+def test_a_run_where_every_walk_passed_first_time_records_that_none_was_flaky(tmp_path, capsys):
+    """test_a_run_where_every_walk_passed_first_time_records_that_none_was_flaky"""
+    (tmp_path / "test_fine.py").write_text("def test_fine():\n    assert True\n")
+    code, _ = run_in(tmp_path, capsys)
+    assert code == 0
+    assert last_record(tmp_path)["flaky"] == []
+
+
+def test_a_walk_red_alone_is_not_recorded_as_flaky(tmp_path, capsys):
+    """test_a_walk_red_alone_is_not_recorded_as_flaky"""
+    (tmp_path / "test_always.py").write_text("def test_always():\n    assert False\n")
+    (tmp_path / "test_once.py").write_text(ONCE)
+    code, _ = run_in(tmp_path, capsys, targets=("test_always.py", "test_once.py"))
+    assert code == 1
+    assert last_record(tmp_path)["flaky"] == ["test_once.py::test_once"]
+
+
+def test_each_run_adds_its_own_line_to_the_record(tmp_path, capsys):
+    """test_each_run_adds_its_own_line_to_the_record"""
+    (tmp_path / "test_once.py").write_text(ONCE)
+    run_in(tmp_path, capsys, targets=("test_once.py",))
+    run_in(tmp_path, capsys, targets=("test_once.py",))
+    lines = (tmp_path / "out" / run_walks.FLAKY_RECORD).read_text().splitlines()
+    assert [json.loads(line)["flaky"] for line in lines] == [["test_once.py::test_once"], []]
+
+
+def test_a_run_whose_only_failures_were_flaky_exits_0_with_the_switch_off_and_1_with_it_on(tmp_path, capsys, monkeypatch):
+    """test_a_run_whose_only_failures_were_flaky_exits_0_with_the_switch_off_and_1_with_it_on"""
+    assert run_walks.FLAKY_IS_RED is False  # off by default: a flaky walk is shown, not red
+    (tmp_path / "test_once.py").write_text(ONCE)
+    code, _ = run_in(tmp_path, capsys, targets=("test_once.py",))
+    assert code == 0
+    (tmp_path / "seen").unlink()
+    monkeypatch.setattr(run_walks, "FLAKY_IS_RED", True)
+    code, _ = run_in(tmp_path, capsys, targets=("test_once.py",))
+    assert last_record(tmp_path)["flaky"] == ["test_once.py::test_once"]
+    assert code == 1

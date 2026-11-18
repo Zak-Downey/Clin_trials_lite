@@ -8,6 +8,7 @@ Every run here is a real run of real commands in a temporary folder. Nothing run
 from __future__ import annotations
 
 import json
+import re
 import os
 import subprocess
 import sys
@@ -26,9 +27,9 @@ def failing(name="bad"):
     return (name, [PY, "-c", "import sys; sys.stderr.write('noise\\n' * 30 + 'the reason it failed\\n'); sys.exit(3)"], 1)
 
 
-def run(tmp_path, check_list, names=()):
+def run(tmp_path, check_list, names=(), **options):
     printed = []
-    code = checks.run(names, checks=check_list, root=tmp_path, out=printed.append)
+    code = checks.run(names, checks=check_list, root=tmp_path, out=printed.append, **options)
     lines = (tmp_path / ".checks" / "runs.jsonl").read_text().splitlines() if (tmp_path / ".checks" / "runs.jsonl").is_file() else []
     return code, printed, [json.loads(line) for line in lines]
 
@@ -150,6 +151,32 @@ def test_a_check_is_told_the_feature_folder_unless_the_caller_already_named_one(
     assert (tmp_path / ".checks" / "says.txt").read_text() == "other\n"
 
 
+def test_a_quick_run_tells_the_walks_to_use_one_window_size_and_a_plain_run_does_not(tmp_path, monkeypatch):
+    says = ("says", [PY, "-c", "import os; print(os.environ.get('WALK_QUICK'))"], 1)
+    monkeypatch.setenv("WALK_QUICK", "1")  # left over in the caller's shell: a plain run is still a full run
+    run(tmp_path, [says])
+    assert (tmp_path / ".checks" / "says.txt").read_text() == "None\n"
+    monkeypatch.delenv("WALK_QUICK")
+    run(tmp_path, [says], quick=True)
+    assert (tmp_path / ".checks" / "says.txt").read_text() == "1\n"
+
+
+def test_a_quick_runs_line_says_it_was_quick_and_a_plain_runs_line_says_it_was_not(tmp_path):
+    run(tmp_path, [passing()])
+    _, printed, runs = run(tmp_path, [passing()], quick=True)
+    assert [r["quick"] for r in runs] == [False, True]
+    assert printed[-1].startswith("checks: green") and "quick" in printed[-1]
+
+
+def test_quick_is_an_option_that_can_be_given_with_the_names_of_checks(monkeypatch):
+    calls = []
+    monkeypatch.setattr(checks, "run", lambda names=(), quick=False: calls.append((list(names), quick)) or 0)
+    checks.main(["--quick", "unit"])
+    checks.main(["unit", "walks"])
+    checks.main(["--quick"])
+    assert calls == [(["unit"], True), (["unit", "walks"], False), ([], True)]
+
+
 SELF = "assert (a, ident) == " + "(b, ident)\n"  # in two halves, so this file does not match the pattern itself
 
 SELF_COMPARE = [{"rule": "R-005", "why": "compares a value with itself", "globs": ["tests/**/*.py"],
@@ -226,4 +253,22 @@ def test_the_escapes_check_is_red_on_a_problem_and_prints_it(tmp_path, monkeypat
 def test_every_check_this_repo_lists_has_a_name_a_command_and_a_time_limit():
     names = [name for name, _, _ in checks.CHECKS]
     assert names == ["patterns", "escapes", "unit", "walks"]
-    assert all(command and minutes > 0 for _, command, minutes in checks.CHECKS)
+    assert all(command for _, command, _ in checks.CHECKS)
+    # About three times a normal run; a change to one is deliberate and changes this line.
+    limits = {name: minutes for name, _, minutes in checks.CHECKS}
+    assert limits == {"patterns": 1, "escapes": 1, "unit": 3, "walks": 8}
+
+
+WAITED_ON = 10  # minutes: the longest an agent's command tool waits on a command it runs in the foreground
+NUMBERS = {"five": 5, "ten": 10, "twelve": 12, "thirteen": 13, "fifteen": 15, "twenty": 20, "thirty": 30}
+
+
+def test_the_repo_notes_say_to_run_a_whole_run_in_the_background_when_it_can_outlast_a_waited_on_command():
+    # review-server-and-checks-03: the notes said to give a whole run a fifteen-minute timeout, which the tool refuses.
+    notes = (checks.ROOT / "docs" / "agents" / "local" / "repo.md").read_text()
+    every = next(line for line in notes.splitlines() if line.startswith("- **Every check.**"))
+    if sum(minutes for _, _, minutes in checks.CHECKS) > WAITED_ON:
+        assert "in the background" in every
+    stated = [int(n) if n.isdigit() else NUMBERS.get(n.lower(), 999)
+              for n in re.findall(r"(\w+)[- ]minute timeout", notes)]
+    assert all(minutes <= WAITED_ON for minutes in stated), stated

@@ -4,7 +4,8 @@ Data: an empty database against the stand-in registry. The only step not taken t
 page is the registry's own revise and register switch. Every focus move is a Tab (or
 Shift+Tab) key press and every action an Enter, Space, arrow or typed key: no click, no
 fill, no select_option, no check. The first page load (goto) is the only navigation not made
-by a key. WebKit reaches links and buttons with Option+Tab, as Safari does by default. Runs at 1440 x 900 and 1024 x 768 in Chromium and at 1440 x 900 in WebKit.
+by a key. WebKit reaches links and buttons with Option+Tab, as Safari does by default. Runs at 1440 x 900 and 1024 x 768 in Chromium and at 1440 x 900 in WebKit; a quick run
+(WALK_QUICK) drops 1024 x 768 only.
 Lacks: Firefox, a real screen reader, a touch device, and the Simulated-label walk (separate).
 """
 
@@ -25,7 +26,10 @@ ENGINES = {
 }
 
 
-@pytest.fixture(params=list(ENGINES))
+SIZES = [helper.VIEWPORTS[name] for name in helper.window_sizes()]  # a quick run keeps WebKit: it is at the first size
+
+
+@pytest.fixture(params=[name for name, (_, size) in ENGINES.items() if size in SIZES])
 def engine(request):
     return request.param
 

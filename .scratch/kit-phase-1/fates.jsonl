@@ -1,0 +1,6 @@
+{"id": "early-read-whole-01", "fate": "fixed", "commit": "b4a0f6c", "check": "walks/test_run_walks.py::test_a_mass_failure_stops_the_first_run_early_and_still_names_each_red_walk_it_saw", "why": ""}
+{"id": "review-server-and-checks-01", "fate": "fixed", "commit": "9a945cb", "check": "tests/test_handover.py::test_a_quick_run_and_the_full_run_straight_after_it_on_the_same_commit_each_get_only_their_own_record_line", "why": ""}
+{"id": "review-server-and-checks-02", "fate": "fixed", "commit": "8ea56fc", "check": "tests/test_judge_notice.py::test_renaming_a_judging_file_away_is_named_and_renaming_a_test_file_out_of_collection_counts_its_tests_removed", "why": ""}
+{"id": "review-server-and-checks-03", "fate": "fixed", "commit": "4bc9170", "check": "tests/test_checks.py::test_the_repo_notes_say_to_run_a_whole_run_in_the_background_when_it_can_outlast_a_waited_on_command", "why": ""}
+{"id": "review-server-and-checks-04", "fate": "fixed", "commit": "9520401", "check": "tests/test_handover.py::test_the_example_in_walk_saids_docstring_names_nothing_of_this_product", "why": ""}
+{"id": "review-whole-recheck-01", "fate": "fixed", "commit": "a2f0709", "check": "tests/test_handover.py::test_nothing_in_handover_py_names_this_product", "why": ""}

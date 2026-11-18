@@ -38,7 +38,7 @@ def make_app(tmp_path, registry):
         app.close()
 
 
-@pytest.fixture(params=list(helper.VIEWPORTS))
+@pytest.fixture(params=helper.window_sizes())
 def viewport(request):
     return request.param
 

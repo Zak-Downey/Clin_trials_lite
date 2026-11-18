@@ -2,9 +2,11 @@
 
     python3 checks.py              run them all, cheapest first, stopping at the first red
     python3 checks.py unit walks   run the named ones
+    python3 checks.py --quick      the same with the walks at the first window size only (WALK_QUICK=1);
+                                   it combines with naming checks, and the run's line in the log says quick
 
 Each check's output goes to .checks/<name>.txt. One line is printed per check and one line is
-appended to .checks/runs.jsonl per run. Exit 1 when a check is red. Red is a non-zero exit code
+appended to .checks/runs.jsonl per run, with "quick" true or false. Exit 1 when a check is red. Red is a non-zero exit code
 or a timeout: nothing here reads a suite's output to decide.
 
 The checks: `patterns` (no file matches a forbidden pattern, PATTERNS below), `escapes` (the
@@ -32,8 +34,8 @@ PYTHON = str(ROOT / ".venv" / "bin" / "python")
 CHECKS = [
     ("patterns", [sys.executable, str(ROOT / "checks.py"), "--patterns"], 1),
     ("escapes", [sys.executable, str(ROOT / "checks.py"), "--escapes"], 1),
-    ("unit", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider"], 10),
-    ("walks", [PYTHON, "walks/run_walks.py"], 20),
+    ("unit", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider"], 3),
+    ("walks", [PYTHON, "walks/run_walks.py"], 8),
 ]
 
 # A pattern no file may match. Each is a line of CODING_STANDARDS.md that a pattern can see.
@@ -132,7 +134,10 @@ def run_one(command, minutes, output, root=ROOT, env=None) -> tuple[str, float]:
     return ("green" if code == 0 else "red"), round((time.monotonic() - started) / 60, 2)
 
 
-def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=True)) -> int:
+QUICK = "WALK_QUICK"  # set to 1 for a quick run: the walk fixtures then use the first window size only
+
+
+def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=True), quick=False) -> int:
     checks = CHECKS if checks is None else checks
     known = [name for name, _, _ in checks]
     unknown = [name for name in names if name not in known]
@@ -144,6 +149,9 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
     folder.mkdir(exist_ok=True)
     branch = git("rev-parse", "--abbrev-ref", "HEAD", root=root)
     env = dict(os.environ)
+    env.pop(QUICK, None)  # only --quick makes a run quick, so its line in the log is true
+    if quick:
+        env[QUICK] = "1"
     if "WALK_FEATURE" not in env and walk_feature(branch, root):
         env["WALK_FEATURE"] = walk_feature(branch, root)
     started, results, red = time.monotonic(), [], None
@@ -171,11 +179,12 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
         "dirty": bool(git("status", "--porcelain", root=root)),
         "result": "red" if red else "green",
         "minutes": total,
+        "quick": quick,
         "checks": results,
     }
     with open(folder / "runs.jsonl", "a") as log:
         log.write(json.dumps(line) + "\n")
-    out(f"checks: {'red (' + red + ')' if red else 'green'} in {total:.1f} min")
+    out(f"checks: {'red (' + red + ')' if red else 'green'} in {total:.1f} min{' (quick: walks at one window size)' if quick else ''}")
     return 1 if red else 0
 
 
@@ -188,7 +197,8 @@ def main(argv) -> int:
         problems = escape_problems()
         print("\n".join(problems) if problems else f"{ESCAPES}: every line reads and names its check where it must")
         return 1 if problems else 0
-    return run(argv)
+    quick = "--quick" in argv
+    return run([name for name in argv if name != "--quick"], quick=quick)
 
 
 if __name__ == "__main__":

@@ -25,6 +25,12 @@ SHOTS = ROOT / ".scratch" / FEATURE / "walks"
 VIEWPORTS = {"1440x900": (1440, 900), "1024x768": (1024, 768)}
 
 
+def window_sizes() -> list[str]:
+    """The window sizes the walks run at: every one, or the first only when WALK_QUICK is set (`checks.py --quick`)."""
+    sizes = list(VIEWPORTS)
+    return sizes[:1] if os.environ.get("WALK_QUICK") else sizes
+
+
 def record_dir() -> pathlib.Path | None:
     """Where to record each walk's page as a video: the directory WALK_RECORD names, or None (no recording)."""
     return pathlib.Path(os.environ["WALK_RECORD"]).resolve() if os.environ.get("WALK_RECORD") else None
