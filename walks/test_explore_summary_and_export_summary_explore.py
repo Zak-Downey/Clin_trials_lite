@@ -10,7 +10,6 @@ import io
 import json
 import zoneinfo
 
-from walks import helper
 from walks.test_summary_walk import seed_summary, open_summary
 
 NY = zoneinfo.ZoneInfo("America/New_York")

@@ -20,7 +20,7 @@ def seed(db, registry):
 
     find_seed(db, registry)
     conn = storage.connect(db)
-    mine = next(w["id"] for w in storage.list_lists(conn) if w["name"] == "Myeloma")
+    assert any(w["name"] == "Myeloma" for w in storage.list_lists(conn))  # the find seed made it
     storage.add_change(conn, "NCT10000002", {"field": "enrollment", "previous": 1, "current": 2}, STAMP)
     prior = monitor.create_list(conn, "Prior", when=STAMP)
     monitor.remember_search(conn, prior, monitor.as_query(cond="lymphoma", statuses=["RECRUITING"]))

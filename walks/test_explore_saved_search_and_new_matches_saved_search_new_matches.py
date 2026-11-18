@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 
 from walks.test_new_matches_walk import open_tab, box
-from walks.test_saved_search_walk import dialog, results, seed as saved_seed
+from walks.test_saved_search_walk import seed as saved_seed
 
 
 def focus(page):

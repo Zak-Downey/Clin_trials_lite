@@ -1696,7 +1696,10 @@ def test_the_standing_walk_is_said_to_be_a_stand_in_only_when_the_build_had_no_w
 def test_the_parts_of_the_walk_through_are_the_changed_walks_the_summary_lists_in_its_order(tmp_path):
     changed = [("walks/test_a_walk.py", "test_walk_one"), ("walks/test_a_walk.py", "test_walk_two"), ("walks/test_b_walk.py", "test_walk_one")]
     path = tmp_path / "hand-over.json"
-    entry = lambda test, title="Two.", legend="It should say two.": {"test": test, "title": title, "legend": legend}
+
+    def entry(test, title="Two.", legend="It should say two."):
+        return {"test": test, "title": title, "legend": legend}
+
     parts, left = handover.walk_parts({"walk_through": [entry("test_walk_two"), entry("walks/test_b_walk.py::test_walk_one", " One ")]}, changed, path)
     assert parts == [{"test": ("walks/test_a_walk.py", "test_walk_two"), "title": "Two.", "legend": "It should say two."},
                      {"test": ("walks/test_b_walk.py", "test_walk_one"), "title": "One", "legend": "It should say two."}]

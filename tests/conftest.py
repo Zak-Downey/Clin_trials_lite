@@ -11,7 +11,7 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-import storage  # noqa: E402
+import storage
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 

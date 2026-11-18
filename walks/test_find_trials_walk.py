@@ -8,7 +8,6 @@ results (ticket 08).
 
 from __future__ import annotations
 
-from walks import helper
 
 
 def open_find(make_app, make_walk):

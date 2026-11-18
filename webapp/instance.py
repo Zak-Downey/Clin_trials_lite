@@ -8,7 +8,6 @@ address there. A second start finds the lock held and reads the address instead.
 from __future__ import annotations
 
 import fcntl
-import os
 import time
 
 

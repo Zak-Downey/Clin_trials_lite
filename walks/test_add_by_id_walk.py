@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import re
 
-from walks import helper
 from walks.test_find_select_walk import box, results, seed
 
 

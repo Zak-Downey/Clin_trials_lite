@@ -15,7 +15,7 @@ import pytest
 import ctgov
 import monitor
 import storage
-from walks import helper, standin_registry
+from walks import standin_registry
 
 
 def _get(registry, path):

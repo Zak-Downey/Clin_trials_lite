@@ -4,7 +4,6 @@ Data: helper.seed_queue. The slow answer is held by Playwright (read from the se
 Lacks: the same race on the header's own re-read (check.js onChange).
 Run: .venv/bin/python -m pytest walks/test_explore_wr_an_older_sidebar_answer_overwrites_a_newer_one.py -q
 """
-import pytest
 
 
 from walks import helper

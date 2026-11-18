@@ -6,7 +6,6 @@ F9 made Add by NCT ID and trial details show a failed add as an error beside the
 still shows "0 added; 1 could not be added (NCT...)" in role=status, with a link inviting the analyst to
 open a watchlist that gained nothing, no reason, and no Add button until Dismiss.
 """
-import pytest
 
 from walks.test_find_select_walk import box, results
 
