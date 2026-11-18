@@ -1,0 +1,40 @@
+{
+  "what": [
+    "Every pull request now runs all the automated checks on GitHub, in a job named checks, at both window sizes; drafts too.",
+    "The pull request's run summary says when the pull request changes a file that judges it, or removes tests. It never fails the run.",
+    "The hand-over page counts and names each browser test that failed when run with the others and passed when run alone.",
+    "The unit tests now go red after 3 minutes and the browser tests after 8, about three times a normal run.",
+    "A quick run, python3 checks.py --quick, tests the pages at one window size; the page never counts it as a full run."
+  ],
+  "so_what": [
+    "You can merge on a result from a machine the building agent cannot touch, once you require the checks job on main.",
+    "Try first: open this build's pull request and watch the checks run on GitHub; it is the first run the new workflow makes.",
+    "A green result with a wobble in it is now shown to you on this page instead of passing quietly.",
+    "A hung or much slower check now turns red instead of passing.",
+    "From the next build, the runs in the middle of a build take about a minute less each, once you apply the skill edits."
+  ],
+  "now_what": [
+    "The skill file was not edited: the session was refused the edit. Both changes are written out in skill-edits.md in this build's folder; apply them by hand.",
+    "First run on GitHub, step 1: accept the build and open the pull request.",
+    "Step 2: watch the checks run on the pull request and note how long it takes; then tighten its 20-minute limit to fit.",
+    "Step 3: on GitHub, protect main: require the checks status check, apply it to administrators, allow no direct push.",
+    "Step 4: merge. Later, a rehearsal with a test broken on purpose confirms that a red pull request is refused.",
+    "Nothing here shows the workflow works on GitHub: GitHub cannot be run from this machine. The automated checks only read the workflow's text.",
+    "A pull request runs its own branch's copy of the workflow, not main's (GitHub's 'Events that trigger workflows', pull_request). Ticket 03's comments link it.",
+    "So a pull request can change or silence the notice in the same run that should report it: the notice is for you to read, not a guard.",
+    "I ran both on the last code: a full run took 3.7 minutes (unit 1.1, browser tests 2.5) and a quick run 2.5 (unit 1.1, browser tests 1.4).",
+    "The recording has nothing to show: no app page changed. The page counts tests of the browser-test runner as browser tests, because they sit in the same folder.",
+    "Defaults used, none confirmed by you: GitHub limit 20 minutes; a flaky browser test is shown, not red; limits 3 and 8 minutes; ubuntu-latest; Python 3.13; --quick.",
+    "The brief was wrong in one place: the GitHub job installs the WebKit browser as well as Chromium, because the acceptance test runs in WebKit and is part of the checks.",
+    "The brief's 'give it a fifteen-minute timeout' does not fit: the agent's command tool waits ten minutes at most. The notes now say to run a whole run in the background.",
+    "The first browser-test run now stops at 20 failures, so a mass failure names its tests inside the 8-minute limit. The re-runs are unchanged.",
+    "A flaky browser test does not turn the run red; to change that, set FLAKY_IS_RED to True in the browser-test runner, one line."
+  ],
+  "walk_through": [
+    {
+      "test": "test_a_walk_red_with_the_others_and_green_alone_is_recorded_by_name_for_its_run",
+      "title": "No app page changed, so this recording has nothing to show",
+      "legend": "This test checks the browser-test runner itself, with stand-in runs; it opens no browser. Expect an empty or missing recording. What the build changed is judged from the automated checks and the review on this page."
+    }
+  ]
+}
