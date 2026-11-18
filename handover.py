@@ -358,16 +358,33 @@ def read_flaky(feature_dir: pathlib.Path) -> list[dict]:
     return read_jsonl(path) if path.exists() else []
 
 
-def of_run(line: dict, run: dict) -> bool:
-    """Whether a line of the walk runner's record was written by this checks run: the same commit, and written while the
-    run ran. The run's line is logged when it ends and the browser tests run last, so the record's line comes at most
-    the run's length (and a minute of slack) before it."""
+def line_of(run: dict, before: list[dict], lines: list[dict]) -> dict | None:
+    """The line of the walk runner's record written by this checks run, or None: of the lines on the same commit written
+    while the run ran, the latest. The run's line is logged when it ends and the browser tests run last, so the record's
+    line comes at or just before the run's end, at most the run's length (and a minute of slack) before it, and after the
+    end of any run logged before it on the same commit (`before`, the branch's runs logged earlier), whose line it would
+    otherwise be: a quick run followed at once by a full run on the same commit gets only its own line."""
     try:
-        written, ended_at = moment(line.get("at")), moment(run.get("at"))
+        ended_at = moment(run.get("at"))
     except (TypeError, ValueError):
-        return False
+        return None
     took = datetime.timedelta(minutes=(run.get("minutes") if isinstance(run.get("minutes"), (int, float)) else 0) + 1)
-    return same_commit(line.get("tip"), run.get("tip")) and ended_at - took <= written <= ended_at + datetime.timedelta(minutes=1)
+    after = ended_at - took
+    for earlier in before:
+        try:
+            if same_commit(earlier.get("tip"), run.get("tip")) and moment(earlier.get("at")) < ended_at:
+                after = max(after, moment(earlier.get("at")))
+        except (TypeError, ValueError):
+            continue
+    found = []
+    for line in lines:
+        try:
+            written = moment(line.get("at"))
+        except (TypeError, ValueError):
+            continue
+        if same_commit(line.get("tip"), run.get("tip")) and after < written <= ended_at:
+            found.append((written, line))
+    return max(found, key=lambda pair: pair[0])[1] if found else None
 
 
 def flaky_facts(runs: dict, lines: list[dict] | None) -> dict | None:
@@ -376,16 +393,18 @@ def flaky_facts(runs: dict, lines: list[dict] | None) -> dict | None:
     the build's last run of the browser tests has no line in it. Earlier runs without a line are not called missing,
     since a build may have started before the runner kept the record. None when nobody read the record, or the build
     has no logged run of the browser tests."""
-    walk_runs = [run for run in runs.get("history") or [] if run.get("walks")]
+    history = runs.get("history") or []
+    walk_runs = [index for index, run in enumerate(history) if run.get("walks")]
     if lines is None or not walk_runs:
         return None
     walks: dict[str, list] = {}
-    for run in walk_runs:
-        for line in (line for line in lines if of_run(line, run)):
-            for nodeid in line.get("flaky") or []:
-                if run["at"] not in walks.setdefault(str(nodeid), []):
-                    walks[str(nodeid)].append(run["at"])
-    return {"walks": walks, "missing": not any(of_run(line, walk_runs[-1]) for line in lines)}
+    own = {index: line_of(history[index], history[:index], lines) for index in walk_runs}
+    for index in walk_runs:
+        run = history[index]
+        for nodeid in (own[index] or {}).get("flaky") or []:
+            if run["at"] not in walks.setdefault(str(nodeid), []):
+                walks[str(nodeid)].append(run["at"])
+    return {"walks": walks, "missing": own[walk_runs[-1]] is None}
 
 
 def since_result(runs: dict) -> str:

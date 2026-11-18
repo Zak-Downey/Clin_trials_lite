@@ -2066,3 +2066,13 @@ def test_a_quick_run_is_a_run_of_the_browser_tests_so_its_record_is_looked_for_a
     assert handover.flaky_facts(runs, [flaky_line(at="2026-11-16T10:00:00Z")])["missing"]  # the quick run is the last run of them
     seen = handover.flaky_facts(runs, [flaky_line(at="2026-11-16T10:00:00Z"), flaky_line(WOBBLY, at="2026-11-16T11:00:00Z")])
     assert seen == {"walks": {WOBBLY: ["2026-11-16T11:00:00Z"]}, "missing": False}
+
+
+def test_a_quick_run_and_the_full_run_straight_after_it_on_the_same_commit_each_get_only_their_own_record_line():
+    # review-server-and-checks-01: after the last ticket a quick run ends at 10:00:00 and the full run starts seconds later.
+    quick = run("feature/x", "green", "2026-11-16T10:00:00Z", quick=True, minutes=2.6)
+    full = run("feature/x", "green", "2026-11-16T10:04:02Z", minutes=3.7)
+    runs = handover.run_facts([quick, full], "feature/x")
+    seen = handover.flaky_facts(runs, [flaky_line(WOBBLY, at="2026-11-16T09:59:58Z"), flaky_line(at="2026-11-16T10:04:00Z")])
+    assert seen == {"walks": {WOBBLY: ["2026-11-16T10:00:00Z"]}, "missing": False}  # not blamed on the full run too
+    assert handover.flaky_facts(runs, [flaky_line(at="2026-11-16T09:59:58Z")])["missing"]  # the full run has no line of its own
