@@ -36,7 +36,7 @@ CHECKS = [
     ("lint", [PYTHON, "-m", "ruff", "check", "--no-cache", "."], 1),
     ("patterns", [sys.executable, str(ROOT / "checks.py"), "--patterns"], 1),
     ("escapes", [sys.executable, str(ROOT / "checks.py"), "--escapes"], 1),
-    ("unit", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider"], 3),
+    ("unit", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-n", "auto"], 3),  # -n auto: one worker per processor (pytest-xdist)
     ("walks", [PYTHON, "walks/run_walks.py"], 8),
 ]
 

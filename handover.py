@@ -237,7 +237,8 @@ def listeners(root: pathlib.Path) -> list[dict] | None:
     if not ports:
         return []
     pids = ",".join(str(pid) for pid in sorted(ports))
-    folders, programs = ask("lsof", "-a", "-d", "cwd", "-p", pids, "-Fpn"), ask("ps", "-o", "pid=,lstart=,command=", "-p", pids)
+    # -ww: whole command lines (Linux's ps otherwise cuts them to the terminal's width, 80 columns when piped)
+    folders, programs = ask("lsof", "-a", "-d", "cwd", "-p", pids, "-Fpn"), ask("ps", "-ww", "-o", "pid=,lstart=,command=", "-p", pids)
     if folders is None or programs is None:
         return None
     folder, pid = {}, None

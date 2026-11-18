@@ -259,6 +259,12 @@ def test_every_check_this_repo_lists_has_a_name_a_command_and_a_time_limit():
     assert limits == {"lint": 1, "patterns": 1, "escapes": 1, "unit": 3, "walks": 8}
 
 
+def test_the_unit_check_runs_the_suite_across_the_processors_the_machine_has():
+    unit = next(command for name, command, _ in checks.CHECKS if name == "unit")
+    assert unit[unit.index("-m") + 1] == "pytest"
+    assert unit[unit.index("-n") + 1] == "auto"  # pytest-xdist: one worker per processor
+
+
 WAITED_ON = 10  # minutes: the longest an agent's command tool waits on a command it runs in the foreground
 NUMBERS = {"five": 5, "ten": 10, "twelve": 12, "thirteen": 13, "fifteen": 15, "twenty": 20, "thirty": 30}
 

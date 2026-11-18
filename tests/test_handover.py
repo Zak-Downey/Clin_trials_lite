@@ -1928,8 +1928,11 @@ def listening(folder: pathlib.Path, *command: str) -> tuple[subprocess.Popen, in
     return process, int(process.stdout.readline())
 
 
-def test_this_project_s_programs_still_listening_are_found_on_this_computer_with_their_ports_and_start_times(tmp_path):
-    project, elsewhere = tmp_path / "project", tmp_path / "elsewhere"
+def test_this_project_s_programs_still_listening_are_found_on_this_computer_with_their_ports_and_start_times(tmp_path, monkeypatch):
+    # A project folder with a long path, as a real one can have (and as a parallel test run's temporary folders do),
+    # read where the terminal is 80 columns wide: Linux's ps cuts each command line to that width unless told not to.
+    monkeypatch.setenv("COLUMNS", "80")
+    project, elsewhere = tmp_path / ("a-project-whose-folder-has-a-long-name-" * 3), tmp_path / "elsewhere"
     (project / "walks").mkdir(parents=True)
     elsewhere.mkdir()
     for script in (project / "run.py", project / "walks" / "serve.py", elsewhere / "run.py"):
