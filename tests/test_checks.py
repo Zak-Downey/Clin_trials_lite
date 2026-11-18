@@ -26,9 +26,9 @@ def failing(name="bad"):
     return (name, [PY, "-c", "import sys; sys.stderr.write('noise\\n' * 30 + 'the reason it failed\\n'); sys.exit(3)"], 1)
 
 
-def run(tmp_path, check_list, names=()):
+def run(tmp_path, check_list, names=(), **options):
     printed = []
-    code = checks.run(names, checks=check_list, root=tmp_path, out=printed.append)
+    code = checks.run(names, checks=check_list, root=tmp_path, out=printed.append, **options)
     lines = (tmp_path / ".checks" / "runs.jsonl").read_text().splitlines() if (tmp_path / ".checks" / "runs.jsonl").is_file() else []
     return code, printed, [json.loads(line) for line in lines]
 
@@ -148,6 +148,32 @@ def test_a_check_is_told_the_feature_folder_unless_the_caller_already_named_one(
     monkeypatch.setenv("WALK_FEATURE", "other")
     run(tmp_path, [says])
     assert (tmp_path / ".checks" / "says.txt").read_text() == "other\n"
+
+
+def test_a_quick_run_tells_the_walks_to_use_one_window_size_and_a_plain_run_does_not(tmp_path, monkeypatch):
+    says = ("says", [PY, "-c", "import os; print(os.environ.get('WALK_QUICK'))"], 1)
+    monkeypatch.setenv("WALK_QUICK", "1")  # left over in the caller's shell: a plain run is still a full run
+    run(tmp_path, [says])
+    assert (tmp_path / ".checks" / "says.txt").read_text() == "None\n"
+    monkeypatch.delenv("WALK_QUICK")
+    run(tmp_path, [says], quick=True)
+    assert (tmp_path / ".checks" / "says.txt").read_text() == "1\n"
+
+
+def test_a_quick_runs_line_says_it_was_quick_and_a_plain_runs_line_says_it_was_not(tmp_path):
+    run(tmp_path, [passing()])
+    _, printed, runs = run(tmp_path, [passing()], quick=True)
+    assert [r["quick"] for r in runs] == [False, True]
+    assert printed[-1].startswith("checks: green") and "quick" in printed[-1]
+
+
+def test_quick_is_an_option_that_can_be_given_with_the_names_of_checks(monkeypatch):
+    calls = []
+    monkeypatch.setattr(checks, "run", lambda names=(), quick=False: calls.append((list(names), quick)) or 0)
+    checks.main(["--quick", "unit"])
+    checks.main(["unit", "walks"])
+    checks.main(["--quick"])
+    assert calls == [(["unit"], True), (["unit", "walks"], False), ([], True)]
 
 
 SELF = "assert (a, ident) == " + "(b, ident)\n"  # in two halves, so this file does not match the pattern itself

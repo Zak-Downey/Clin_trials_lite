@@ -132,7 +132,10 @@ def run_one(command, minutes, output, root=ROOT, env=None) -> tuple[str, float]:
     return ("green" if code == 0 else "red"), round((time.monotonic() - started) / 60, 2)
 
 
-def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=True)) -> int:
+QUICK = "WALK_QUICK"  # set to 1 for a quick run: the walk fixtures then use the first window size only
+
+
+def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=True), quick=False) -> int:
     checks = CHECKS if checks is None else checks
     known = [name for name, _, _ in checks]
     unknown = [name for name in names if name not in known]
@@ -144,6 +147,9 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
     folder.mkdir(exist_ok=True)
     branch = git("rev-parse", "--abbrev-ref", "HEAD", root=root)
     env = dict(os.environ)
+    env.pop(QUICK, None)  # only --quick makes a run quick, so its line in the log is true
+    if quick:
+        env[QUICK] = "1"
     if "WALK_FEATURE" not in env and walk_feature(branch, root):
         env["WALK_FEATURE"] = walk_feature(branch, root)
     started, results, red = time.monotonic(), [], None
@@ -171,11 +177,12 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
         "dirty": bool(git("status", "--porcelain", root=root)),
         "result": "red" if red else "green",
         "minutes": total,
+        "quick": quick,
         "checks": results,
     }
     with open(folder / "runs.jsonl", "a") as log:
         log.write(json.dumps(line) + "\n")
-    out(f"checks: {'red (' + red + ')' if red else 'green'} in {total:.1f} min")
+    out(f"checks: {'red (' + red + ')' if red else 'green'} in {total:.1f} min{' (quick: walks at one window size)' if quick else ''}")
     return 1 if red else 0
 
 
@@ -188,7 +195,8 @@ def main(argv) -> int:
         problems = escape_problems()
         print("\n".join(problems) if problems else f"{ESCAPES}: every line reads and names its check where it must")
         return 1 if problems else 0
-    return run(argv)
+    quick = "--quick" in argv
+    return run([name for name in argv if name != "--quick"], quick=quick)
 
 
 if __name__ == "__main__":
