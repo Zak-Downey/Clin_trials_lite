@@ -117,7 +117,9 @@ def copy_of(root, into) -> pathlib.Path:
 
 def run_in(command, copy, minutes, output) -> int | None:
     """Run one command in the copy into its output file: its exit code, or None when it passed its
-    time limit. As in checks.py, the command's whole process group never outlives this. Nothing it
+    time limit. As in checks.py, the command's whole process group never outlives this, nor does a
+    check that checks.py started in a session of its own: the group is asked to stop and given ten
+    seconds to stop what it started, then killed. Nothing it
     runs writes bytecode: a change of the same length within the same second would otherwise run
     the module cached before it."""
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
@@ -128,9 +130,17 @@ def run_in(command, copy, minutes, output) -> int | None:
             return process.wait(timeout=minutes * 60)
         except subprocess.TimeoutExpired:
             return None
-        finally:
+        finally:  # SIGTERM first: checks.py then stops its check, which runs in a session of its own
             if process.poll() is None:
-                os.killpg(process.pid, signal.SIGKILL)
+                os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    pass
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
                 process.wait()
 
 

@@ -10,7 +10,9 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -159,3 +161,55 @@ def test_a_break_proved_by_a_check_is_caught_when_that_check_goes_red_in_the_cop
     assert printed[1].split()[:4] == ["label-wrong-unit", "unit", "stayed", "green"]
     assert code == 1
     assert [b["outcome"] for b in line["breaks"]] == ["caught", "stayed green"]
+
+
+def test_a_check_past_its_time_limit_does_not_outlive_the_proof(tmp_path):
+    # checks.py starts each check in a session of its own, so stopping the proof's run must let
+    # checks.py stop its check, or the check (here its pytest) keeps running after the proof ends.
+    pid_file = tmp_path / "check.pid"
+    slow = TESTS + ("\n\ndef test_slow():\n    import os, time\n"
+                    f"    open({str(pid_file)!r}, 'w').write(str(os.getpid()))\n    time.sleep(60)\n")
+    code, printed, line = prove_in(small_repo(tmp_path, [entry(test=None, check="unit")], tests=slow), minutes=0.05)
+    assert code == 1
+    assert line["breaks"] == [{"id": "adds-wrong", "outcome": "could not run"}]
+    pid = int(pid_file.read_text())
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        os.kill(pid, 9)
+        raise AssertionError("the check's pytest outlived the proof that started it")
+
+
+def test_ctrl_c_during_a_check_leaves_nothing_running(tmp_path):
+    pid_file = tmp_path / "check.pid"
+    slow = TESTS + ("\n\ndef test_slow():\n    import os, time\n"
+                    f"    open({str(pid_file)!r}, 'w').write(str(os.getpid()))\n    time.sleep(60)\n")
+    root = small_repo(tmp_path, [entry(test=None, check="unit")], tests=slow)
+    shutil.copy(ROOT / "prove.py", root / "prove.py")
+    proof = subprocess.Popen([sys.executable, "prove.py"], cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        deadline = time.monotonic() + 30
+        while not pid_file.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        pid = int(pid_file.read_text())
+        proof.send_signal(signal.SIGINT)
+        proof.wait(timeout=20)
+    finally:
+        if proof.poll() is None:
+            proof.kill()
+            proof.wait()
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        os.kill(pid, 9)
+        raise AssertionError("the check's pytest outlived the proof stopped by Ctrl+C")
