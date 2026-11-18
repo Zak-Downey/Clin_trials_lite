@@ -303,3 +303,14 @@ def test_the_every_check_line_of_repo_md_names_the_checks_in_CHECKS_in_order():
     names = [name for name, _, _ in checks.CHECKS]
     assert re.findall(r"`(\w+)`", listed) == names
     assert said == numbers[len(names)]
+
+
+def test_the_checks_line_of_claude_md_lists_one_phrase_for_each_check_in_CHECKS_in_order():
+    # CLAUDE.md names the checks in plain words, not by name: one phrase each, cheapest first.
+    words = {"lint": "common mistakes", "patterns": "pattern", "escapes": "defect log", "unit": "unit", "walks": "walks"}
+    text = (checks.ROOT / "CLAUDE.md").read_text()
+    line = next(line for line in text.splitlines() if line.startswith("- **Checks.**"))
+    listed = re.search(r"runs every check \(([^)]*)\)", line).group(1).split(", ")
+    names = [name for name, _, _ in checks.CHECKS]
+    assert len(listed) == len(names)
+    assert [words[name] in phrase for name, phrase in zip(names, listed)] == [True] * len(names)

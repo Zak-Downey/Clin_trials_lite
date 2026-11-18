@@ -16,7 +16,7 @@ Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/d
 
 ## Building
 
-- **Checks.** `python3 checks.py` runs every check (the pattern rules, the defect log, the unit suite, the browser walks), prints one line per check and exits non-zero when any is red. `python3 checks.py unit` runs one by name. Nothing is called working until this is green. Never delete, skip or weaken a check to get it green; a check changes only when the spec changed the behaviour it checks, and the commit message says so.
+- **Checks.** `python3 checks.py` runs every check (the read of the code for common mistakes, the pattern rules, the defect log, the unit suite, the browser walks), prints one line per check and exits non-zero when any is red. `python3 checks.py unit` runs one by name. Nothing is called working until this is green. Never delete, skip or weaken a check to get it green; a check changes only when the spec changed the behaviour it checks, and the commit message says so.
 - **Seams are settled; a spec does not ask the owner.** Pages are tested through the walks (`walks/`), the API and domain through the `api` fixture (`tests/`). A ticket that changes what a page shows adds or changes a walk for it, red first.
 - **Standards.** `CODING_STANDARDS.md`: each line came from a defect that got past the checks.
 - **A build** is `/implement-spec` (`.claude/skills/implement-spec/SKILL.md`): one ticket at a time, on the feature branch.
