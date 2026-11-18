@@ -15,6 +15,7 @@ import os
 import pathlib
 import re
 import subprocess
+import sys
 import time
 
 import pytest
@@ -1241,10 +1242,13 @@ def test_a_page_with_nothing_to_look_at_still_says_what_it_did_not_check():
                       fates={"A": fate("A", "not-a-defect", why="By design."), "B": fate("B", "not-a-defect", why="Not in the spec."), "C": fate("C")}))
     assert '<p class="headline green">' in judged and "This page found nothing that needs a second look before you accept this build" in judged
     assert ("The outcomes are the build's own record: this page did not test the fixes. 2 issues are judged not a defect: that is the build's own "
-            "judgement, which this page did not check.</p>") in judged
+            "judgement, which this page did not check. This page read no re-check report, so nothing on record shows that a review "
+            "read the fix.</p>") in judged  # the one fix: no review after it is on record
     assert "1 issue is judged not a defect: that" in top(page(files=every([finding("A")]), fates={"A": fate("A", "not-a-defect", why="By design.")}, **settled))
     fixed = top(page(files=every([finding("A")]), fates={"A": fate("A")}, **settled))
-    assert "judged not a defect" not in fixed and "this page did not test the fixes.</p>" in fixed  # nothing was judged: no more to say
+    assert "judged not a defect" not in fixed and "this page did not test the fixes. This page read no re-check report" in fixed  # nothing was judged
+    rechecked = top(page(files={**every([finding("A")]), "walker-a-recheck.jsonl": []}, fates={"A": fate("A")}, **settled))
+    assert "this page did not test the fixes.</p>" in rechecked  # a re-check was read and found nothing: no more to say
 
 
 def test_a_judgement_of_not_a_defect_is_for_the_owner_to_read_when_it_gives_no_reason_or_overrules_a_blocking_rating():
@@ -1784,3 +1788,150 @@ def test_a_build_with_walks_of_its_own_gets_those_recorded_and_not_the_whole_app
     printed = capsys.readouterr().out.splitlines()
     assert "Recording the walk-through, 2 parts:" in printed
     assert printed[-2] == f"handover: the walk-through failed; what it printed is in {feat / 'walk-output.txt'}"
+
+
+# Fixes no review read, and programs a build left running.
+
+SETTLED = {"git": GIT, "runs": handover.run_facts(GREEN_RUN, "feature/x"), "recording": WALKED}
+LATE = "Fixed after the last review"
+
+
+def reviews(first, recheck=None) -> dict:
+    """The report files of a build whose three reviews were all made; `recheck` None is a build with no re-check report."""
+    files = {"walker-a.jsonl": list(first), "review-a.jsonl": [], "early-read-whole.jsonl": []}
+    return files if recheck is None else {**files, "walker-a-recheck.jsonl": list(recheck)}
+
+
+def test_a_fix_for_an_issue_the_re_check_found_is_counted_as_made_after_the_last_review_and_is_not_a_thing_to_look_at():
+    files = reviews([finding("A"), finding("B")], [finding("C", round="recheck"), finding("D", round="recheck")])
+    late = page(files=files, fates={**{i: fate(i) for i in "ABC"}, "D": fate("D", "left", why="Rare.")}, **SETTLED)
+    said = "1 of the 3 fixes is for an issue the re-check found. The re-check is the last review a build gets, so no review read this fix."
+    assert chip(late, "", "#finders", f"{LATE}: 1")  # on the board, beside the outcomes
+    assert said in late[late.index('<section id="finders">'):]  # and where the reviews are counted
+    assert [what for _, _, what, _ in things(late)] == ["The record marks 1 issue as left unfixed"]  # the count is said, never listed
+    all_fixed = top(page(files=reviews([finding("A")], [finding("B", round="recheck"), finding("C", round="recheck")]),
+                         fates={i: fate(i) for i in "ABC"}, **SETTLED))
+    assert '<p class="headline green">' in all_fixed
+    assert ("2 of the 3 fixes are for issues the re-check found. The re-check is the last review a build gets, so no review read these 2 fixes."
+            in all_fixed)  # a page with nothing to look at says it under its headline
+
+
+def test_fixes_made_before_a_re_check_that_was_read_are_not_counted_as_made_after_the_last_review():
+    early = page(files=reviews([finding("A"), finding("B")], []), fates={i: fate(i) for i in "AB"}, **SETTLED)
+    assert LATE not in early and "no review read" not in early
+    assert LATE not in page(files=reviews([finding("A")], [finding("B", round="recheck")]),
+                            fates={"A": fate("A"), "B": fate("B", "not-a-defect", why="By design.")}, **SETTLED)  # nothing fixed late
+
+
+def test_with_no_re_check_report_every_fix_is_counted_as_made_after_the_last_review():
+    unread = page(files=reviews([finding("A"), finding("B"), finding("C")]),
+                  fates={"A": fate("A"), "B": fate("B", check=""), "C": fate("C", "left", why="Rare.")}, **SETTLED)
+    assert chip(unread, "", "#finders", f"{LATE}: 2")  # a fix that names no test is still a fix nobody read
+    assert ("This page read no re-check report, so nothing on record shows that one was made. "
+            "Without one, nothing on record shows that a review read the 2 fixes.") in unread
+    assert "a review read the fix." in page(files=reviews([finding("A")]), fates={"A": fate("A")}, **SETTLED)
+    assert LATE not in page(files=reviews([finding("A")]), fates={"A": fate("A", "left", why="Rare.")}, **SETTLED)  # nothing was fixed
+
+
+DURING = {**GIT, "first": "2026-11-17T22:03:23Z", "last": "2026-11-17T23:40:00Z"}
+STRAY = {"pid": 11143, "started": "2026-11-17T22:03:50+00:00", "ports": [51234]}
+OWNERS = {"pid": 60675, "started": "2026-11-17T09:00:00+00:00", "ports": [8765]}
+RUNNING = "Programs of this project still running"
+
+
+def test_a_program_of_this_project_started_during_the_build_and_still_listening_is_a_thing_to_look_at():
+    settled = {**SETTLED, "git": DURING}
+    left = page(files=reviews([]), copies=[OWNERS, STRAY], **settled)
+    assert things(left) == [("amber", "#facts", "A program the build may have started is still running",
+                             "It is running this project&#x27;s code, was started at 17 Nov 2026, 22:03 UTC, after the build&#x27;s first commit, and is "
+                             "still listening on port 51234 (process 11143). The build&#x27;s tests start copies of the app and should stop each "
+                             "one. This page cannot tell whether the build started this one or you did. "
+                             "If you did not start it, stop it: type kill 11143 in a terminal.")]
+    assert "1 thing to look at before you accept this build" in top(left)
+    assert "1 started during the build (process 11143, port 51234); 1 started before the build" in row(left, RUNNING)
+    two = things(page(files=reviews([]), copies=[STRAY, {"pid": 11150, "started": "2026-11-17T22:30:00+00:00", "ports": [8765, 9000]}], **settled))
+    assert two[0][2] == "2 programs the build may have started are still running"
+    assert "process 11143, started 17 Nov 2026, 22:03 UTC, port 51234; process 11150, started 17 Nov 2026, 22:30 UTC, ports 8765 and 9000" in two[0][3]
+    assert two[0][3].endswith("If you did not start them, stop them: type kill 11143 11150 in a terminal.")
+
+
+def test_a_program_running_since_before_the_build_is_not_a_thing_to_look_at_and_what_was_not_looked_for_is_unknown():
+    settled = {**SETTLED, "git": DURING}
+    before = page(files=reviews([]), copies=[OWNERS], **settled)
+    assert things(before) == [] and "1 started before the build" in row(before, RUNNING)  # the owner's own copy is not the build's
+    assert things(page(files=reviews([]), copies=[], **settled)) == []
+    assert row(page(files=reviews([]), copies=[], **settled), RUNNING) == "none"
+    unasked = page(files=reviews([]), copies=None, **settled)
+    assert things(unasked) == [] and row(unasked, RUNNING) == '<span class="unknown">unknown</span>'  # never "none" when nobody looked
+    merged = {**settled, "git": {**DURING, "merged": True, "merged_at": "2026-11-18T08:00:00Z"}}
+    later = {"pid": 70000, "started": "2026-11-18T12:25:43+00:00", "ports": [8765]}  # the owner's app, started after the merge
+    after = page(files=reviews([]), copies=[later, STRAY], **merged)
+    assert [what for _, _, what, _ in things(after)] == ["A program the build may have started is still running"]  # the stray alone
+    assert row(after, RUNNING) == "1 started during the build (process 11143, port 51234); 1 started after the build was merged"
+    assert things(page(files=reviews([]), copies=[later], **merged)) == []
+    undated = page(files=reviews([]), copies=[STRAY], **SETTLED)  # git gave no first commit: the page cannot place the start
+    assert things(undated) == [] and "1 running; this page cannot tell whether before or during the build" in row(undated, RUNNING)
+
+
+SERVE = "import socket, time; s = socket.socket(); s.bind(('127.0.0.1', 0)); s.listen(); print(s.getsockname()[1], flush=True); time.sleep(120)"
+
+
+def listening(folder: pathlib.Path, *command: str) -> tuple[subprocess.Popen, int]:
+    """A program started in `folder` that listens on a free port of this computer: (the process, the port)."""
+    process = subprocess.Popen([sys.executable, *command], cwd=folder, stdout=subprocess.PIPE, text=True)
+    return process, int(process.stdout.readline())
+
+
+def test_this_project_s_programs_still_listening_are_found_on_this_computer_with_their_ports_and_start_times(tmp_path):
+    project, elsewhere = tmp_path / "project", tmp_path / "elsewhere"
+    (project / "walks").mkdir(parents=True)
+    elsewhere.mkdir()
+    for script in (project / "run.py", project / "walks" / "serve.py", elsewhere / "run.py"):
+        script.write_text(SERVE, encoding="utf-8")
+    app = listening(project, "run.py")  # as the owner starts the app
+    stray = listening(elsewhere, str(project / "walks" / "serve.py"))  # as a test starts its copy: by the file's full path
+    other = listening(elsewhere, "run.py")  # another project's app
+    lodger = listening(project, "-c", SERVE)  # a program that only sits in this folder, as an agent's own helper does
+    try:
+        found = handover.listeners(project)
+        assert [(copy["pid"], copy["ports"]) for copy in found] == [(app[0].pid, [app[1]]), (stray[0].pid, [stray[1]])]  # oldest first
+        age = time.time() - handover.moment(found[0]["started"]).timestamp()
+        assert -2 < age < 120  # its start, as this computer's clock gives it
+    finally:
+        for process, _ in (app, stray, other, lodger):
+            process.terminate()
+            process.wait()
+    assert handover.listeners(project) == []
+
+
+def test_a_computer_that_cannot_be_asked_gives_unknown_not_none(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", str(tmp_path))  # no lsof and no ps here
+    assert handover.listeners(tmp_path) is None
+
+
+def test_the_script_run_for_real_puts_a_program_started_during_the_build_in_its_headline_count(repo, capsys, monkeypatch):
+    write_lines(repo / ".scratch" / "feat" / "findings" / "walker-a.jsonl", [])
+    asked = []
+    monkeypatch.setattr(handover, "listeners", lambda root: asked.append(root) or [{"pid": 7, "started": "2026-11-02T09:30:00+00:00", "ports": [8765]}])
+    assert handover.main(["feat", "--base", "main", "--tip", "feature/x", "--branch", "feature/x", "--no-walk"], root=repo) == 0
+    text = (repo / ".scratch" / "feat" / "hand-over" / "index.html").read_text(encoding="utf-8")
+    assert asked == [repo] and "A program the build may have started is still running" in top(text)
+    assert "type kill 7 in a terminal" in top(text)
+
+
+def test_git_gives_the_time_a_build_was_merged_and_none_for_a_build_that_is_not(repo):
+    start = git(repo, "rev-parse", "main")
+    assert handover.git_facts(repo, start, "feature/x")["merged_at"] is None
+    git(repo, "checkout", "-q", "main")
+    git(repo, "merge", "-q", "--no-ff", "-m", "merge", "feature/x", when="2026-11-03T08:00:00+00:00")
+    (repo / "later.txt").write_text("later\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "later work on main", when="2026-11-04T08:00:00+00:00")
+    assert handover.when(handover.git_facts(repo, start, "feature/x")["merged_at"]) == "3 Nov 2026, 08:00 UTC"  # the merge, not what followed
+
+
+def test_a_build_main_was_moved_forward_to_was_merged_when_its_last_commit_was_made(repo):
+    start = git(repo, "rev-parse", "main")
+    git(repo, "checkout", "-q", "main")
+    git(repo, "merge", "-q", "--ff-only", "feature/x")
+    assert handover.when(handover.git_facts(repo, start, "feature/x")["merged_at"]) == "2 Nov 2026, 10:30 UTC"
