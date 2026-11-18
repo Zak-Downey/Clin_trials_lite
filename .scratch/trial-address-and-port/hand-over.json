@@ -1,0 +1,54 @@
+{
+  "what": [
+    "The app now always starts at http://127.0.0.1:8765/, so saved links and each watchlist's remembered tab survive a restart.",
+    "If another program holds port 8765, the app stops with a plain message telling you to choose another with --port.",
+    "A trial opened from a watchlist carries that watchlist and tab in its address, so Back to and Next trial survive a reload, a new tab and a saved link.",
+    "A link naming a watchlist that no longer holds the trial opens the trial with its first watchlist and corrects the address.",
+    "After adding a trial on its registry details page, Open the trial names the watchlist you added it to."
+  ],
+  "so_what": [
+    "You can bookmark a trial you are working through from one watchlist and come back to it after a restart with Back to and Next trial still on that watchlist.",
+    "Try first: open a trial held in two watchlists from the second one, reload, and check that Back to and Next trial stay on that watchlist.",
+    "Then stop the app, start it again with python run.py, and open the bookmark."
+  ],
+  "now_what": [
+    "Your copy of the app that was running during the build was started on the old code with a random port; stop it and start it again to get port 8765.",
+    "The build decided one case the spec did not cover: a trial in no watchlist, opened from a link that names one, has the watchlist removed from its address.",
+    "Back to Summary keeps the period you chose only until you reload; after a reload it shows This week, as the spec allows.",
+    "Nothing here checked a real restart on port 8765 with a real bookmark, because the checks may not use that port; the steps under so what are that check.",
+    "Not tried by the exploratory testing: Safari itself, a screen reader, and the app stopping in the middle of an action.",
+    "One new browser test waits half a second for Next trial to be ready, because the page shows no sign of it; if that test turns flaky, that wait is why."
+  ],
+  "walk_through": [
+    {
+      "test": "test_walk_a_trial_opened_from_its_second_watchlist_keeps_back_and_next_trial_after_a_reload",
+      "title": "Back to and Next trial survive a reload",
+      "legend": "A trial held in Myeloma and Elsewhere is opened from Elsewhere, and the page is reloaded. Back to should still read Elsewhere, and Next trial should open the next trial in Elsewhere's queue."
+    },
+    {
+      "test": "test_walk_a_saved_trial_address_naming_a_watchlist_and_all_trials_goes_back_to_that_tab",
+      "title": "A saved link returns to the watchlist and tab it came from",
+      "legend": "A fresh page opens a saved trial address that names Elsewhere and its All trials tab. Back to should read Elsewhere and, when pressed, open Elsewhere's All trials tab."
+    },
+    {
+      "test": "test_walk_an_address_naming_a_watchlist_that_does_not_hold_the_trial_falls_back_to_its_first",
+      "title": "A link to a watchlist without the trial falls back quietly",
+      "legend": "A trial address names Elsewhere, which does not hold the trial. The page should open with Back to Myeloma, the trial's own watchlist, and the address should change to name Myeloma."
+    },
+    {
+      "test": "test_walk_switching_the_trial_tab_after_removing_it_from_the_list_keeps_that_list",
+      "title": "After Remove from this list, the trial's tabs keep the watchlist",
+      "legend": "A trial opened from Elsewhere is removed from it, then History and Trial details are opened. Back to and Undo should stay on Elsewhere, and Next trial should go on to Elsewhere's next trial."
+    },
+    {
+      "test": "test_walk_back_to_summary_keeps_the_period_chosen_within_the_visit",
+      "title": "Back to Summary keeps the period you chose",
+      "legend": "Summary is set to This month and a trial is opened from it. Pressing Back to Myeloma should return to Summary still showing This month."
+    },
+    {
+      "test": "test_walk_open_the_trial_after_adding_from_registry_details_goes_back_to_that_watchlist",
+      "title": "Open the trial after an add names the watchlist added to",
+      "legend": "On a trial's registry details page, the trial is added to Elsewhere and Open the trial is pressed. The trial page should read Back to Elsewhere."
+    }
+  ]
+}

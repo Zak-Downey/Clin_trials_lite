@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 
+from walks import helper
 from walks import test_find_select_walk as find_seed
 from walks import test_new_matches_walk as matches_seed
 
@@ -88,3 +89,25 @@ def test_walk_a_registry_failure_on_add_from_trial_details_is_an_error_with_no_l
     assert page.locator('a[href^="#/trials/"]').count() == 0
     assert page.locator(".banner:visible").count() == 0
     walk.shot("details-add-failed")
+
+
+def test_walk_a_long_watchlist_name_in_add_to_leaves_the_trial_title_readable(make_app, make_walk):
+    """test_walk_a_long_watchlist_name_in_add_to_leaves_the_trial_title_readable"""
+    app = make_app(seed=helper.seed_queue)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(app.url + "#/registry/NCT00000002")
+    page.get_by_role("button", name="Add to watchlist").wait_for()
+    page.get_by_label("Add to").select_option(index=0)
+    walk.shot("long-name-picked")
+    width = page.evaluate("document.documentElement.clientWidth")
+    title = page.get_by_role("heading", level=1).bounding_box()
+    assert title["width"] >= 240, f"the title is {title['width']:.0f}px wide"
+    controls = {
+        "Open ClinicalTrials.gov": page.get_by_role("link", name="Open ClinicalTrials.gov"),
+        "Add to": page.get_by_label("Add to"),
+        "Add to watchlist": page.get_by_role("button", name="Add to watchlist"),
+    }
+    for name, control in controls.items():
+        box = control.bounding_box()
+        assert box["x"] + box["width"] <= width, f"{name!r} ends at {box['x'] + box['width']:.0f}px in a {width}px window"

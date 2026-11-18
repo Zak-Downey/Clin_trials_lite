@@ -1,5 +1,6 @@
 import { get, when } from "/static/api.js";
 import { tabs as tabBar } from "/static/views/tabs.js";
+import { trialHref } from "/static/views/trial_address.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -37,7 +38,7 @@ export async function render(root, listId, watchlist, alive = () => true) {
   }
   const list = el("ul", { class: "queue" });
   for (const t of trials) {
-    const address = `#/trials/${t.nct_id}`;
+    const address = trialHref(t.nct_id, "changes", { list: listId });
     const identity = [t.nct_id, t.phase, t.sponsor, t.status].filter(Boolean).join(" · ");
     const body = el("div", { class: "card-body" },
       el("h3", {}, el("a", { href: address }, t.heading || t.nct_id)),

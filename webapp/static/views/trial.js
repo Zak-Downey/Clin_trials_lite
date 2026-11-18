@@ -1,5 +1,6 @@
 import { get, post, when } from "/static/api.js";
 import { menuKeys } from "/static/views/menu_keys.js";
+import { trialHref } from "/static/views/trial_address.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -9,17 +10,40 @@ const el = (tag, attrs = {}, ...kids) => {
 };
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
+// A removal made on this trial page, while the analyst stays on the trial: { nct, home, undo, last, order }.
+// Its own tabs are redrawn from the server, which no longer lists the watchlist; this keeps the
+// address, "Back to", Next trial (order: the queue as it stood before the removal) and the Undo on it. Only a reload, or leaving the trial, forgets it.
+let removed = null;
+window.addEventListener("hashchange", () => {
+  if (removed && !new RegExp(`^#/trials/${removed.nct}(/|\\?|$)`, "i").test(location.hash)) removed = null;
+});
+
 // The trial page: header, tabs, and the Changes tab with its review action bar.
+// place: the watchlist and tab the address names ({ list, from }, and back: that tab's address as the
+// analyst left it in this page load), or null when it names none.
 // alive(): is this still the page the address names? A slow answer for a page the analyst left is dropped.
-export async function render(root, nct, tab, origin, alive = () => true) {
+export async function render(root, nct, tab, place, alive = () => true) {
   const trial = await get(`/api/trials/${nct}`);
   if (!alive()) return;
-  // The list the analyst came from, else the first watchlist holding the trial.
-  const home = trial.watchlists.find((w) => origin && w.id === origin.listId) || trial.watchlists[0];
+  // The list the address names, else the first watchlist holding the trial.
+  const kept = place && removed && removed.nct === nct && removed.home.id === place.list ? removed : null;
+  const named = place && (trial.watchlists.find((w) => w.id === place.list) || (kept && kept.home));
+  const home = named || trial.watchlists[0];
+  // The trial's own tabs and Next trial carry the address's watchlist and tab forward.
+  // An address that names no watchlist carries none, as before.
+  const carry = !place ? null : named ? place : home ? { list: home.id, from: "needs-review" } : null;
+  // An address naming a watchlist that does not hold the trial (removed, deleted, a wrong number)
+  // is rewritten in place to name the one shown, with no extra step for the browser's Back.
+  if (place && !named) history.replaceState(history.state, "", trialHref(nct, tab, carry));
   const others = trial.watchlists.filter((w) => !home || w.id !== home.id);
   const state = { reviewed: false, event: null };
+  // The watchlist's Needs review queue as it stood when the page opened: Next trial goes to the one after this.
+  let order = kept ? kept.order : null;
+  const queueOf = async (id) => {
+    try { return (await get(`/api/watchlists/${id}/needs-review`)).trials.map((t) => t.nct_id); } catch { return []; }
+  };
 
-  const back = el("a", { class: "back", "data-back": "", href: home ? `#/watchlists/${home.id}/${origin && origin.listId === home.id && origin.tab || "needs-review"}` : "#/watchlists" },
+  const back = el("a", { class: "back", "data-back": "", href: !home ? "#/watchlists" : named && place.back || `#/watchlists/${home.id}/${named ? place.from : "needs-review"}` },
     `‹ Back to ${home ? home.name : "watchlists"}`);
   const meta = el("p", { class: "meta" }, [nct, trial.last_checked ? `Last checked ${when(trial.last_checked)}` : "Not yet checked"].join(" · "));
   if (trial.check_failed) {
@@ -36,10 +60,10 @@ export async function render(root, nct, tab, origin, alive = () => true) {
       menuWrap));
   const banner = el("div", { class: "banner", role: "status", hidden: "" });
   const count = el("span", { class: "tab-count" });
-  const changesTab = el("a", { role: "tab", "aria-selected": String(tab === "changes"), href: `#/trials/${nct}` }, "Changes ", count);
+  const changesTab = el("a", { role: "tab", "aria-selected": String(tab === "changes"), href: trialHref(nct, "changes", carry) }, "Changes ", count);
   const tabs = el("nav", { class: "tabs", role: "tablist", "aria-label": "Trial" }, changesTab,
-    el("a", { role: "tab", "aria-selected": String(tab === "details"), href: `#/trials/${nct}/details` }, "Trial details"),
-    el("a", { role: "tab", "aria-selected": String(tab === "history"), href: `#/trials/${nct}/history` }, "History"));
+    el("a", { role: "tab", "aria-selected": String(tab === "details"), href: trialHref(nct, "details", carry) }, "Trial details"),
+    el("a", { role: "tab", "aria-selected": String(tab === "history"), href: trialHref(nct, "history", carry) }, "History"));
   const body = el("div", { class: "trial-body" });
   root.replaceChildren(back, title, banner, tabs, body);
 
@@ -67,25 +91,33 @@ export async function render(root, nct, tab, origin, alive = () => true) {
       remove.addEventListener("click", async () => {
         closeMenu();
         try {
+          if (!order) order = await queueOf(home.id); // the queue after the removal no longer holds this trial
           const done = await post(`/api/watchlists/${home.id}/trials/${nct}/remove`);
           trial.watchlists = done.watchlists;
+          removed = { nct, home: { id: home.id, name: home.name }, undo: done.undo, last: !done.watchlists.length, order };
           drawMenu();
-          const undo = el("button", { type: "button", class: "link" }, "Undo");
-          undo.addEventListener("click", async () => {
-            try {
-              const back = await post("/api/removals/undo", { token: done.undo });
-              trial.watchlists = back.watchlists;
-              drawMenu();
-              banner.hidden = true;
-              window.dispatchEvent(new Event("reviewchange"));
-            } catch (err) { fail(err); }
-          });
-          tell(`Removed from ${home.name}.${done.watchlists.length ? "" : " Its history is kept."}`, undo);
+          tellRemoved();
           window.dispatchEvent(new Event("reviewchange"));
         } catch (err) { fail(err); }
       });
       menu.append(remove);
     }
+  };
+  // The removal's line and its Undo, drawn again on each of the trial's tabs while it stands.
+  const tellRemoved = () => {
+    const made = removed;
+    const undo = el("button", { type: "button", class: "link" }, "Undo");
+    undo.addEventListener("click", async () => {
+      try {
+        const back = await post("/api/removals/undo", { token: made.undo });
+        if (removed === made) removed = null;
+        trial.watchlists = back.watchlists;
+        drawMenu();
+        banner.hidden = true;
+        window.dispatchEvent(new Event("reviewchange"));
+      } catch (err) { fail(err); }
+    });
+    tell(`Removed from ${made.home.name}.${made.last ? " Its history is kept." : ""}`, undo);
   };
   const closeMenu = () => { menu.hidden = true; menuButton.setAttribute("aria-expanded", "false"); };
   menuButton.addEventListener("click", (event) => {
@@ -96,6 +128,7 @@ export async function render(root, nct, tab, origin, alive = () => true) {
   document.addEventListener("click", (event) => { if (!menu.contains(event.target)) closeMenu(); });
   menuKeys(menuWrap, menuButton, closeMenu);
   drawMenu();
+  if (kept) tellRemoved();
 
   if (tab === "details") { await drawDetails(body, nct); return; }
   if (tab === "history") { await drawHistory(body, nct); return; }
@@ -174,14 +207,10 @@ export async function render(root, nct, tab, origin, alive = () => true) {
     } catch (err) { fail(err); } finally { marking = false; }
   });
 
-  // The queue as it stood when the page opened: Next trial goes to the one after this.
-  let order = [];
-  if (home) {
-    try { order = (await get(`/api/watchlists/${home.id}/needs-review`)).trials.map((t) => t.nct_id); } catch { order = []; }
-  }
+  if (!order) order = home ? await queueOf(home.id) : [];
   const at = order.indexOf(nct);
   const following = at >= 0 ? order[at + 1] : order.find((n) => n !== nct);
-  if (following) next.addEventListener("click", () => { location.hash = `#/trials/${following}`; });
+  if (following) next.addEventListener("click", () => { location.hash = trialHref(following, "changes", carry); });
   else { next.disabled = true; next.title = "No other trial needs review"; }
   draw();
 }

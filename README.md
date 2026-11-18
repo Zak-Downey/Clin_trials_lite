@@ -37,7 +37,12 @@ python run.py
 
 This starts the app on your own computer and opens it in your browser. Leave the
 terminal window open while you use it; press Ctrl+C there to stop it. `python run.py
---no-browser` starts it without opening a page, and `--port N` picks the port.
+--no-browser` starts it without opening a page.
+
+The app is always at `http://127.0.0.1:8765/`, so a link you save and the tab each
+watchlist reopens on last across restarts. `python run.py --port N` starts it on port N
+instead, for when 8765 is unavailable. If another program holds 8765, the app stops and
+says so; it never moves to another port on its own.
 
 **Find trials** searches ClinicalTrials.gov by condition, intervention, sponsor and
 phase, and can narrow by sponsor type, status and start date. The trials you tick are

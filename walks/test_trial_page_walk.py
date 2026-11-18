@@ -204,7 +204,7 @@ def test_walk_next_trial_opens_the_next_in_needs_review_and_marks_nothing(make_a
     _, walk = open_trial(make_app, make_walk)
     page = walk.page
     page.get_by_role("button", name="Next trial").click()
-    page.wait_for_url(re.compile(r"#/trials/NCT00000002$"))
+    page.wait_for_url(re.compile(r"#/trials/NCT00000002\?list=1$"))
     page.get_by_role("button", name="Mark reviewed").wait_for()
     assert to_review(page, "Myeloma") == "16 to review"
     page.get_by_role("link", name="‹ Back to Myeloma").click()

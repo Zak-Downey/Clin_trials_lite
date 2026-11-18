@@ -2,6 +2,9 @@
 
     python run.py [--port N] [--no-browser]
 
+It listens at http://127.0.0.1:8765/ unless --port names another port, so saved
+links and each watchlist's remembered tab last across restarts.
+
 The database is MONITOR_DB if set, else monitor.db in the folder you start from.
 Copy that file to back it up. The server listens on 127.0.0.1 only.
 """
@@ -16,6 +19,8 @@ import webbrowser
 from webapp import instance
 from webapp.server import make_server
 
+DEFAULT_PORT = 8765
+
 
 def database_path(environ=None, cwd=None) -> str:
     environ = os.environ if environ is None else environ
@@ -24,7 +29,7 @@ def database_path(environ=None, cwd=None) -> str:
 
 def main(argv=None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--port", type=int, default=0, help="port to listen on (default: a free one)")
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"port to listen on (default: {DEFAULT_PORT})")
     parser.add_argument("--no-browser", action="store_true", help="do not open the browser")
     args = parser.parse_args(argv)
 
@@ -43,7 +48,7 @@ def main(argv=None) -> None:
     try:
         server = make_server(db, port=args.port)
     except OSError as err:
-        sys.exit(f"Cannot listen on port {args.port}: {err.strerror}. Choose another with --port, or leave it out.")
+        sys.exit(f"Cannot listen on port {args.port}: {err.strerror}. Choose another with --port.")
     address = f"http://127.0.0.1:{server.server_address[1]}/"
     claimed.publish(address)
     print(f"Trial Change Monitor is running at {address}", flush=True)

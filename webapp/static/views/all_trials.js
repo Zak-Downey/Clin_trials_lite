@@ -1,5 +1,6 @@
 import { get, when } from "/static/api.js";
 import { tabs as tabBar } from "/static/views/tabs.js";
+import { trialHref } from "/static/views/trial_address.js";
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -42,7 +43,7 @@ export async function render(root, listId, watchlist, alive = () => true) {
       .filter((t) => !needle || [t.heading, t.nct_id, t.sponsor || ""].some((s) => s.toLowerCase().includes(needle)))
       .sort(SORTS[sort.value][1]);
     tbody.replaceChildren(...shown.map((t) => {
-      const title = el("td", {}, el("a", { href: `#/trials/${t.nct_id}/details` }, t.heading),
+      const title = el("td", {}, el("a", { href: trialHref(t.nct_id, "details", { list: listId, from: "all-trials" }) }, t.heading),
         el("div", { class: "identity" }, [t.nct_id, t.phase, t.sponsor].filter(Boolean).join(" · ")));
       const checked = el("td", {}, t.last_checked ? when(t.last_checked) : "Not checked yet");
       if (t.check_failed) {
