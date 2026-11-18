@@ -20,8 +20,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-import ctgov  # noqa: E402
-from walks import helper, standin_registry  # noqa: E402
+import ctgov  # noqa: E402 (imported once the repo root is on sys.path, above)
+from walks import helper, standin_registry  # noqa: E402 (imported once the repo root is on sys.path, above)
 
 
 def shape(value, prefix="") -> dict[str, str]:

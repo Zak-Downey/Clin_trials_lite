@@ -138,7 +138,7 @@ class Keys:
         self.moved()
 
     def type(self, target, text, submit=False):
-        field = self.focus(target)
+        self.focus(target)
         self.page.keyboard.type(text)
         if submit:
             self.page.keyboard.press("Enter")
@@ -169,7 +169,6 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     """test_walk_the_whole_journey_by_keyboard_alone"""
     app, walk, keys = open_empty(make_app, make_walk, engine)
     page = walk.page
-    pending = []
 
     # 1. Create a watchlist from the sidebar.
     keys.press(page.get_by_role("button", name="+ New watchlist"))
@@ -187,7 +186,7 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     page.get_by_role("heading", level=1, name="Find trials").wait_for()
     keys.type(page.get_by_label("Condition"), "many", submit=True)
     page.get_by_role("heading", name="134 matches").wait_for()
-    box = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731
+    box = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731 (a one-line helper local to this function)
     for nct in ("NCT10000001", "NCT10000002"):
         keys.press(box(nct), "Space")
     page.get_by_text("2 trials selected").wait_for()
@@ -257,7 +256,7 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     labels = page.locator(".reviewed-label:visible")
     assert labels.count() == changes.count()
     assert all(text.strip() for text in labels.all_inner_texts())  # said in words, not by colour
-    page.locator(f'.badge[title="0 to review"]').first.wait_for(state="attached")
+    page.locator('.badge[title="0 to review"]').first.wait_for(state="attached")
     keys.press(page.get_by_role("button", name="Undo"))
     page.get_by_role("button", name="Undo").wait_for(state="detached")
     assert page.evaluate("document.activeElement.textContent") == "Mark reviewed"
@@ -273,7 +272,7 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     # 8. New matches: add the new one; dismiss one and restore it.
     keys.press(page.get_by_role("tab", name=re.compile("^New matches")))
     page.get_by_role("heading", level=2, name="3 new matches").wait_for()
-    match = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731
+    match = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731 (a one-line helper local to this function)
     bar = page.get_by_role("region", name="New matches actions")
     keys.press(match("NCT00000099"), "Space")
     bar.get_by_text("1 selected").wait_for()
@@ -387,7 +386,6 @@ def test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_r
     assert tabs.nth(0).get_attribute("aria-selected") == "true"
     assert differs_beyond_colour(tabs.nth(0), tabs.nth(1))
     assert tabs.nth(0).get_attribute("aria-selected") != tabs.nth(1).get_attribute("aria-selected")
-    links = page.get_by_label("Watchlists").get_by_role("link")
     current = page.get_by_label("Watchlists").locator("a.active")
     other = page.get_by_label("Watchlists").locator("a:not(.active)")
     assert differs_beyond_colour(current.first, other.first)

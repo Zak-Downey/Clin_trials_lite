@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import ssl
 import urllib.parse
 import urllib.request
 
@@ -19,8 +20,6 @@ BASE = "https://clinicaltrials.gov/api/v2"
 # certificate store, which Python ignores by default. `truststore` points SSL at
 # the OS store so verification still happens properly. Falls back to the stdlib
 # default anywhere that isn't needed.
-import ssl
-
 try:
     import truststore
 

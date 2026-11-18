@@ -12,8 +12,8 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-import ctgov  # noqa: E402
-from webapp.server import make_server  # noqa: E402
+import ctgov
+from webapp.server import make_server
 
 if __name__ == "__main__":
     db, registry = sys.argv[1], sys.argv[2]

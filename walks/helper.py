@@ -18,7 +18,7 @@ import urllib.request
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from walks import standin_registry  # noqa: E402
+from walks import standin_registry  # noqa: E402 (imported once the repo root is on sys.path, above)
 
 FEATURE = os.environ.get("WALK_FEATURE", "html-front-end")
 SHOTS = ROOT / ".scratch" / FEATURE / "walks"

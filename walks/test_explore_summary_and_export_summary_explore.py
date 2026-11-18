@@ -10,7 +10,6 @@ import io
 import json
 import zoneinfo
 
-from walks import helper
 from walks.test_summary_walk import seed_summary, open_summary
 
 NY = zoneinfo.ZoneInfo("America/New_York")
@@ -50,7 +49,7 @@ def seed_boundary(db, registry):
     monitor.add(conn, "NCT03412565", first, fetch=registry.fetch, when="2026-01-01T08:00:00+00:00")
     today = datetime.datetime.now(NY).date()
     monday = today - datetime.timedelta(days=today.weekday())
-    at = lambda d, h, m, s: datetime.datetime(d.year, d.month, d.day, h, m, s, tzinfo=NY).astimezone(datetime.timezone.utc).isoformat(timespec="seconds")  # noqa: E731
+    at = lambda d, h, m, s: datetime.datetime(d.year, d.month, d.day, h, m, s, tzinfo=NY).astimezone(datetime.timezone.utc).isoformat(timespec="seconds")  # noqa: E731 (a one-line helper local to this function)
     sunday = monday + datetime.timedelta(days=6)
     for value, stamp in ((1001, at(monday - datetime.timedelta(days=1), 23, 59, 50)),
                          (1002, at(monday, 0, 0, 10)),

@@ -430,7 +430,7 @@ def missing_proof(repo: pathlib.Path, tip: str, fates: dict[str, dict]) -> dict[
     """{finding id: what could not be found} for each fate recorded as fixed: a commit it names must be in the
     repository, and where it names a check, the check's file (the part before ::) must be in the tip commit and a
     commit must be named."""
-    found = lambda name: subprocess.run(["git", "cat-file", "-e", name], cwd=repo, capture_output=True).returncode == 0  # noqa: E731
+    found = lambda name: subprocess.run(["git", "cat-file", "-e", name], cwd=repo, capture_output=True).returncode == 0  # noqa: E731 (a one-line helper local to this function)
     missing = {}
     for ident, fate in fates.items():
         check, commit = str(fate.get("check") or "").strip(), str(fate.get("commit") or "").strip()
@@ -470,7 +470,7 @@ def group_by_state(joined: list[dict]) -> list[tuple[str, list[dict]]]:
     """The joined findings in groups: no fate first, then any fate the format does not name, then STATES' order.
     Within a group the most serious recorded severity comes first; findings of one severity keep the order they were read in."""
     named, ranks = list(STATES), list(SEVERITIES)
-    rank = lambda f: ranks.index(f.get("severity")) if f.get("severity") in ranks else len(ranks)  # noqa: E731
+    rank = lambda f: ranks.index(f.get("severity")) if f.get("severity") in ranks else len(ranks)  # noqa: E731 (a one-line helper local to this function)
     order = named[:1] + sorted({f["state"] for f in joined} - set(STATES)) + named[1:]
     groups = [(state, sorted((f for f in joined if f["state"] == state), key=rank)) for state in order]
     return [(state, rows) for state, rows in groups if rows]
@@ -768,7 +768,8 @@ NOT_LAST = "so it does not show that the build's last commit passes"
 NO_FULL_RUN = "No run of every check is logged for this build's branch."
 NO_REPORT = ("This page looks for review reports in one place (findings/*.jsonl). Where it finds none from a review, either "
              "the review was not made or its report is somewhere else: this page cannot tell which.")
-CHECK_GLOSS = {"patterns": "the scan for forbidden code patterns", "escapes": "the check of the defect log",
+CHECK_GLOSS = {"lint": "the check of the code for common mistakes",
+               "patterns": "the scan for forbidden code patterns", "escapes": "the check of the defect log",
                "unit": "the unit tests", "walks": "the browser tests"}  # checks.py's docstring
 DECISION = "before you accept this build"  # the owner's decision (CLAUDE.md, "When the owner accepts a build")
 # For a build whose last commit is already part of main: the page's own finding, from git, said under its first sentence.
@@ -824,7 +825,7 @@ def gap_said(data: dict) -> str:
     if not gap or not any(gap):
         return ""
     ahead, behind = gap
-    commits = lambda count: f"{count:,} commit{'' if count == 1 else 's'}"  # noqa: E731
+    commits = lambda count: f"{count:,} commit{'' if count == 1 else 's'}"  # noqa: E731 (a one-line helper local to this function)
     commit = recording.get("commit")
     if not behind:
         return (f" Commit {commit} holds the whole build and {commits(ahead)} made after it, which {'is' if ahead == 1 else 'are'} "
@@ -1828,7 +1829,7 @@ def render_summary(data: dict) -> str:
     cards = []
     for key, kicker, title in (("so_what", "So what", "What it gives you"), ("now_what", "Now what", "What is left for you")):
         lines = summary.get(key) or []
-        listed = lambda some: "".join(f"<li>{e(line)}</li>" for line in some)  # noqa: E731
+        listed = lambda some: "".join(f"<li>{e(line)}</li>" for line in some)  # noqa: E731 (a one-line helper local to this function)
         first, rest = lines[:SUMMARY_LINES], lines[SUMMARY_LINES:]  # the agent writes the weightiest first; the tail is folded, and counted
         more = f"<details><summary>{len(rest)} more</summary><ul>{listed(rest)}</ul></details>" if rest else ""
         body = listed(first) if lines else f"<li>{unknown('nothing written')}</li>"
@@ -1871,7 +1872,7 @@ def stat(label: str, value_html: str, note_html: str = "", wide: bool = False) -
 def render_stats(data: dict) -> str:
     """The build's numbers as tiles: time, commits, files, lines by kind, tests, and every checks run as a square."""
     facts, runs = data["git"] or {}, data["runs"]
-    value = lambda key: e(number(facts.get(key))) if facts else unknown()  # noqa: E731
+    value = lambda key: e(number(facts.get(key))) if facts else unknown()  # noqa: E731 (a one-line helper local to this function)
     tiles = [stat("Build time", e(minutes(facts["minutes"])) if facts.get("minutes") is not None else unknown(), "first commit to last, on the clock"),
              stat("Commits", value("commits")), stat("Files changed", value("files"))]
     kinds = [(kind, count) for kind, count in (facts.get("added_by") or {}).items() if count]
@@ -1903,8 +1904,8 @@ def render_stats(data: dict) -> str:
 def render_facts(data: dict) -> str:
     facts, runs, files = data["git"] or {}, data["runs"], data["files"]
     span = f"git, {data['git']['base']}..{data['git']['tip']}" if data["git"] else "git: no range was given"
-    value = lambda key: e(number(facts.get(key))) if facts else unknown()  # noqa: E731
-    flagged = lambda count, look: f'<span class="{look}">{e(number(count))}</span>' if count else e(number(count))  # noqa: E731
+    value = lambda key: e(number(facts.get(key))) if facts else unknown()  # noqa: E731 (a one-line helper local to this function)
+    flagged = lambda count, look: f'<span class="{look}">{e(number(count))}</span>' if count else e(number(count))  # noqa: E731 (a one-line helper local to this function)
     every = ", ".join(runs["names"])
     log = runs["why_unknown"] or f".checks/runs.jsonl, the lines for branch {runs['branch']}"
     last = log if runs["full"] or runs["why_unknown"] else f"{log}: none of them is a full run, one of every check ({every})"
@@ -1973,7 +1974,7 @@ def render_finders(data: dict) -> str:
         does = f'<small>{e(FINDER_NOTES[finder])}</small>' if finder in FINDER_NOTES else ""
         rows.append(f"<tr><th>{e(finder_said(finder))}{does}</th>{cells}</tr>")
     extra = '<th class="n">Round not recognised</th>' if other else ""
-    empty = lambda name: ("reviewed, found nothing" if any(wrote(name, finder) for finder in FINDERS)  # noqa: E731
+    empty = lambda name: ("reviewed, found nothing" if any(wrote(name, finder) for finder in FINDERS)  # noqa: E731 (a one-line helper local to this function)
                           else "empty report: its name does not say which review wrote it")
     read = "".join(f"<li><code>{e(name)}</code>: {e(issues(len(found))) if found else empty(name)}</li>"
                    for name, found in files.items())
@@ -2011,7 +2012,7 @@ def render_finding(finding: dict, shared: str = "", same_as: str = "") -> str:
                      else f'<p class="why"><b>Reason recorded:</b> {e(why)}</p>')
     if finding["lacks"]:
         lines.append(f'<p><span class="warned">Missing: {e(finding["lacks"])}.</span></p>')
-    code = lambda text: f"<code>{e(text)}</code>"  # noqa: E731
+    code = lambda text: f"<code>{e(text)}</code>"  # noqa: E731 (a one-line helper local to this function)
     by = ", ".join(part for part in (finder_said(finder) if finder else "", PASSES.get(which, which).lower()) if part)
     rows = [trace("Reported by", e(by or "not recorded")), trace("Area", e(finding.get("area") or "not recorded")),
             trace("Severity", e(SEVERITIES.get(severity, severity or "not recorded in the review report")))]

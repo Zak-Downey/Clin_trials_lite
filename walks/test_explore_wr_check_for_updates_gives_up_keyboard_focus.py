@@ -3,7 +3,6 @@
 Data: helper.seed_queue. Lacks: a screen reader (which may announce the busy state differently).
 Run: .venv/bin/python -m pytest walks/test_explore_wr_check_for_updates_gives_up_keyboard_focus.py -q
 """
-import pytest
 
 
 from walks import helper

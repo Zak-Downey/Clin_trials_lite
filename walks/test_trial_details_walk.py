@@ -10,6 +10,7 @@ registry link, a section too long to need scrolling inside, more than two lists.
 from __future__ import annotations
 
 import re
+import time
 
 from walks import helper
 from walks.test_trial_page_walk import seed_trial_page
@@ -49,18 +50,27 @@ def seed(db: str, registry: helper.Registry) -> None:
     conn.close()
 
 
-def open_page(make_app, make_walk, nct, tab="", from_queue=False):
+def open_page(make_app, make_walk, nct, tab="", from_queue=False, slow_trial=0.0):
     app = make_app(seed=seed)
     walk = make_walk(app)
     page = walk.page
+    if slow_trial:  # the trial's answer arrives late, as on a slower machine
+        page.route(f"**/api/trials/{nct}", lambda r: (time.sleep(slow_trial), r.continue_()))
     page.goto(app.url)
     page.locator('li.card[data-nct="NCT03412565"]').wait_for()
     if from_queue:
         page.locator('li.card[data-nct="NCT03412565"] h3 a').click()
     else:
         page.evaluate(f"location.hash = '#/trials/{nct}{tab}'")
-    page.get_by_role("heading", level=1).wait_for()
+    page.locator(".trial-head h1").wait_for()  # the trial's own heading, not the queue's still on screen
     return app, walk
+
+
+def test_walk_the_trial_page_is_read_only_once_it_is_drawn_even_when_its_answer_is_slow(make_app, make_walk):
+    """test_walk_the_trial_page_is_read_only_once_it_is_drawn_even_when_its_answer_is_slow"""
+    _, walk = open_page(make_app, make_walk, ACRONYM, "/details", slow_trial=1.5)
+    assert walk.page.get_by_role("heading", level=1).inner_text() == "ISA-MM"
+    walk.shot("drawn")
 
 
 def test_walk_the_heading_is_the_acronym_else_the_brief_title_and_identity_is_untruncated(make_app, make_walk):

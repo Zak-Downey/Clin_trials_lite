@@ -35,7 +35,7 @@ def seed_summary(db: str, registry: helper.Registry) -> None:
     for nct in ("NCT03412565", "NCT00000002"):
         monitor.add(conn, nct, first, fetch=registry.fetch, when=stamp)
     now = datetime.datetime.now(datetime.timezone.utc)
-    iso = lambda delta: (now - delta).isoformat(timespec="seconds")  # noqa: E731
+    iso = lambda delta: (now - delta).isoformat(timespec="seconds")  # noqa: E731 (a one-line helper local to this function)
     # The earlier in-period change sits halfway between the later of This week's and This
     # month's start (Monday / the 1st, 00:00 in the server's zone) and now, so it is inside
     # both periods at any hour of the run, including just after midnight on a Monday or the 1st.

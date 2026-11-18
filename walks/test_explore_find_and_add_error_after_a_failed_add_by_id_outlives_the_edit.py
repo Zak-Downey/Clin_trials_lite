@@ -3,7 +3,6 @@
 Run: .venv/bin/python -m pytest walks/test_explore_find_and_add_error_after_a_failed_add_by_id_outlives_the_edit.py -q
 Data: a fresh database and the stand-in's NCT00000002. Cosmetic.
 """
-import pytest
 
 
 

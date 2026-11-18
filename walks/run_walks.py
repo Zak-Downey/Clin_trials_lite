@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
 import pathlib
 import re
 import subprocess
@@ -25,7 +24,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from walks import helper  # noqa: E402
+from walks import helper  # noqa: E402 (imported once the repo root is on sys.path, above)
 
 
 def tip() -> str:

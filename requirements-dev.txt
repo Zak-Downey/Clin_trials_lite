@@ -2,3 +2,5 @@
 # After installing, once: python -m playwright install chromium webkit
 playwright
 pytest-xdist
+# The linter (the `lint` check); one exact version, so the same commit gets the same result.
+ruff==0.17.5

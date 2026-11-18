@@ -7,7 +7,6 @@ of 100 is exercised) and a registry failure while adding.
 
 from __future__ import annotations
 
-import time
 
 import monitor
 import storage

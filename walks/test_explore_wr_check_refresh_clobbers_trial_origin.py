@@ -4,7 +4,6 @@ Data: walks/test_new_matches_walk.py's seed ("Myeloma" with a saved search, "Qui
 Lacks: more than one slow answer; the late answer here is held by Playwright route.
 Run: .venv/bin/python -m pytest walks/test_explore_wr_check_refresh_clobbers_trial_origin.py -q
 """
-import pytest
 
 
 import re

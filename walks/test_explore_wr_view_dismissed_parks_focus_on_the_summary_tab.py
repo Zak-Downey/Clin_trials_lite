@@ -3,7 +3,6 @@
 Data: walks/test_new_matches_walk.py's seed (twelve offered matches, one saved search). Lacks: a screen reader.
 Run: .venv/bin/python -m pytest walks/test_explore_wr_view_dismissed_parks_focus_on_the_summary_tab.py -q
 """
-import pytest
 
 
 from walks import test_new_matches_walk as nm
