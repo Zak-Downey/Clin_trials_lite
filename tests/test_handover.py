@@ -2076,3 +2076,8 @@ def test_a_quick_run_and_the_full_run_straight_after_it_on_the_same_commit_each_
     seen = handover.flaky_facts(runs, [flaky_line(WOBBLY, at="2026-11-16T09:59:58Z"), flaky_line(at="2026-11-16T10:04:00Z")])
     assert seen == {"walks": {WOBBLY: ["2026-11-16T10:00:00Z"]}, "missing": False}  # not blamed on the full run too
     assert handover.flaky_facts(runs, [flaky_line(at="2026-11-16T09:59:58Z")])["missing"]  # the full run has no line of its own
+
+
+def test_the_example_in_walk_saids_docstring_names_nothing_of_this_product():
+    # review-server-and-checks-04: handover.py is copied into the starter kit, so its examples stay product-neutral.
+    assert not re.search(r"trial|registry|watchlist|clinical|filter", handover.walk_said.__doc__, re.I), handover.walk_said.__doc__

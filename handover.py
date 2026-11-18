@@ -1479,8 +1479,8 @@ def to_look_at(data: dict) -> list[tuple[str, str, str, str, str]]:
 
 
 def walk_said(nodeid: str) -> str:
-    """A browser test's name in words, from its test function's name and its window size: "A filter reaches the
-    registry, at 1440 by 900 pixels" for walks/test_x.py::test_a_filter_reaches_the_registry[1440x900]."""
+    """A browser test's name in words, from its test function's name and its window size: "A saved form keeps its
+    values, at 1440 by 900 pixels" for walks/test_x.py::test_a_saved_form_keeps_its_values[1440x900]."""
     name, _, params = nodeid.split("::")[-1].partition("[")
     words = sentence(name.removeprefix("test_").replace("_", " ").strip()) or nodeid
     sizes = [re.sub(r"^(\d+)x(\d+)$", r"at \1 by \2 pixels", piece) if re.fullmatch(r"\d+x\d+", piece) else f"in {piece}"
