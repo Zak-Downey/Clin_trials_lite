@@ -1,0 +1,1 @@
+{"id": "early-read-whole-01", "fate": "fixed", "commit": "5de062d", "check": "tests/test_lint.py::test_each_way_of_exempting_code_turns_a_rule_test_red", "why": ""}
