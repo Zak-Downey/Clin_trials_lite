@@ -18,7 +18,7 @@ What is particular to this repo. Every line below is a fact of this repo; a line
 - **Shared client plumbing.** `webapp/static/app.js`, `webapp/static/focus.js`, `webapp/static/api.js`, `webapp/static/style.css`, `walks/helper.py`, `walks/conftest.py`, `walks/standin_registry.py`, `walks/serve.py`. A change to one runs the whole walk suite.
 - **Areas.** The shell and sidebar; Needs review; All trials; New matches; Summary; the trial page; Find trials.
 - **Viewports.** 1440 x 900 and 1024 x 768 (every walk runs at both); the acceptance walk (`walks/test_acceptance_walk.py`) runs at both in Chromium and at 1440 x 900 in Playwright's WebKit (`.venv/bin/playwright install webkit` once; it is part of the walks check). The browser runs in Asia/Tokyo and the server in America/New_York, so a time shifted into the browser's zone shows.
-- **Agents running browsers at once.** 3 (a suite run uses four workers; the runner re-runs a failure alone, so load-only flakes show as such).
+- **Agents running browsers at once.** 3 (a suite run uses four workers; the runner re-runs a failure alone, so load-only flakes show as such: each run appends the walks that were red under load and green alone to `.scratch/<feature>/walks/flaky.jsonl`, and the hand-over page lists each one for the owner and says when that record is missing for the build's last run of the walks).
 - **Not checkable by a walk here.** Wording and legibility, Safari, real hardware, the live registry (`walks/fidelity_check.py` is by hand).
 
 ## Running a walk

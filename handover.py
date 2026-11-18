@@ -25,6 +25,9 @@ Reads (all optional; what is missing is shown as missing, never as zero):
   .scratch/<feature>/findings/*.jsonl   one line per finding; an empty file is a look that found nothing
   .scratch/<feature>/fates.jsonl        one line per finding id: what became of it
   .scratch/<feature>/hand-over.json     {"what": [...], "so_what": [...], "now_what": [...], "walk_through": [...]}
+  .scratch/<feature>/walks/flaky.jsonl  one line per run of the browser tests: the ones red with the others and green
+                                        alone. Each is listed for the owner; where the build's last run of them has no
+                                        line, the page says the record is missing (earlier runs may predate it)
   this computer (lsof, ps)              the project's programs still listening on a port: one started during the build
                                         is listed for the owner, since a test may have left it running
 
@@ -101,6 +104,8 @@ RUN_ENDS = {"green": "passed", "red": "failed"}  # the run log's words for a res
 SUMMARY_LINES, LINE_LENGTH = 5, 200  # what and so_what: at most this many lines; any line of hand-over.json: at most this long
 TITLE_LENGTH, LEGEND_LENGTH = 80, 300  # a part of the walk-through: its title and its legend, at most this long
 CODE_NAME = re.compile(r"[\w.:/]*(?:\w_\w|::)[\w.:/]*")  # a name from the code (test_walk_x, file::name): never in a title or a legend
+WALKS_CHECK = "walks"  # checks.py's name for the browser tests: a run that lists it ran them
+FLAKY_RECORD = "flaky.jsonl"  # walks/run_walks.py's FLAKY_RECORD, beside its output in .scratch/<feature>/walks/
 PICTURE_BYTES = 1_500_000  # a screenshot up to this size is put inside the page; a larger one stays a file beside it
 
 
@@ -335,9 +340,52 @@ def run_facts(runs: list[dict] | None, branch: str, names=None) -> dict:
         listed_ = [check for check in run.get("checks") or [] if check.get("result") != "not run"]
         for check in listed_ or [{"name": "a run that names no check", "result": run.get("result")}]:
             since[str(check.get("name", "?"))] = {"result": str(check.get("result")), "at": run.get("at")}
-    history = [{"at": run.get("at"), "result": str(run.get("result")), "full": not missed(run, facts["names"])} for run in own]
+    history = [{"at": run.get("at"), "result": str(run.get("result")), "full": not missed(run, facts["names"]),
+                "tip": run.get("tip"), "minutes": run.get("minutes"), "walks": ran_walks(run)} for run in own]
     return {**facts, "runs": len(own), "red": sum(run.get("result") == "red" for run in own), "history": history,
             "full": own[full[-1]] if full else None, "since": since}
+
+
+def ran_walks(run: dict) -> bool:
+    """Whether a run's line lists the browser tests as run (the `walks` check, with a result other than not run)."""
+    return any(str(check.get("name")) == WALKS_CHECK and check.get("result") != "not run" for check in run.get("checks") or [])
+
+
+def read_flaky(feature_dir: pathlib.Path) -> list[dict]:
+    """The walk runner's record of browser tests red with the others and green alone, one line per run; [] when the
+    file does not exist, which the page then says is missing for the build's runs of the browser tests."""
+    path = feature_dir / "walks" / FLAKY_RECORD
+    return read_jsonl(path) if path.exists() else []
+
+
+def of_run(line: dict, run: dict) -> bool:
+    """Whether a line of the walk runner's record was written by this checks run: the same commit, and written while the
+    run ran. The run's line is logged when it ends and the browser tests run last, so the record's line comes at most
+    the run's length (and a minute of slack) before it."""
+    try:
+        written, ended_at = moment(line.get("at")), moment(run.get("at"))
+    except (TypeError, ValueError):
+        return False
+    took = datetime.timedelta(minutes=(run.get("minutes") if isinstance(run.get("minutes"), (int, float)) else 0) + 1)
+    return same_commit(line.get("tip"), run.get("tip")) and ended_at - took <= written <= ended_at + datetime.timedelta(minutes=1)
+
+
+def flaky_facts(runs: dict, lines: list[dict] | None) -> dict | None:
+    """The browser tests that were red with the others and green alone in the build's runs of them, each with the runs
+    it happened in ({node id: [the run's time]}, in the order first seen), and whether the record is missing: true when
+    the build's last run of the browser tests has no line in it. Earlier runs without a line are not called missing,
+    since a build may have started before the runner kept the record. None when nobody read the record, or the build
+    has no logged run of the browser tests."""
+    walk_runs = [run for run in runs.get("history") or [] if run.get("walks")]
+    if lines is None or not walk_runs:
+        return None
+    walks: dict[str, list] = {}
+    for run in walk_runs:
+        for line in (line for line in lines if of_run(line, run)):
+            for nodeid in line.get("flaky") or []:
+                if run["at"] not in walks.setdefault(str(nodeid), []):
+                    walks[str(nodeid)].append(run["at"])
+    return {"walks": walks, "missing": not any(of_run(line, walk_runs[-1]) for line in lines)}
 
 
 def since_result(runs: dict) -> str:
@@ -568,16 +616,18 @@ def absent_finders(files: dict[str, list[dict]]) -> list[str]:
 def page_data(feature: str, *, base_ref: str = "", tip_ref: str = "", git: dict | None = None, runs: dict | None = None,
               files: dict[str, list[dict]] | None = None, fates: dict | None = None, missing: dict[str, str] | None = None,
               summary: dict | None = None, recording: dict | None = None, shots=(), built: dict | None = None,
-              walk_gap: tuple[int, int] | None = None, copies: list[dict] | None = None) -> dict:
+              walk_gap: tuple[int, int] | None = None, copies: list[dict] | None = None, flaky: list[dict] | None = None) -> dict:
     """Everything the page shows, in one dictionary. `files` is read_findings' answer; `missing` is
     missing_proof's, or None when nobody looked for the checks and commits the fates name; `copies` is listeners'
-    answer, or None when nobody looked for programs still running."""
+    answer, or None when nobody looked for programs still running; `flaky` is read_flaky's, or None when nobody read the
+    walk runner's record."""
     files, fates = files or {}, fates or {}
     findings = [row for rows in files.values() for row in rows]
     joined = join(findings, fates, missing)
+    runs = runs or run_facts(None, "")
     return {
         "feature": feature, "base_ref": base_ref, "tip_ref": tip_ref, "git": git,
-        "runs": runs or run_facts(None, ""), "summary": summary, "recording": recording, "shots": list(shots),
+        "runs": runs, "flaky": flaky_facts(runs, flaky), "summary": summary, "recording": recording, "shots": list(shots),
         "files": files, "findings": joined, "groups": group_by_state(joined), "verified": missing is not None,
         "by_finder": count_by_finder(findings), "absent": absent_finders(files),
         "orphans": orphan_fates(findings, fates), "built": built or {}, "walk_gap": walk_gap, "copies": copies,
@@ -684,6 +734,8 @@ def passed_but(off: str) -> str:
     return "Not shown to pass as committed" if off.startswith("with") else "Not shown to pass on the build's last commit"
 
 
+FLAKY_MISSING = ("The record of which browser tests failed with the others and passed alone is missing for the last run of "
+                 "the browser tests, so this page cannot say whether any did.")
 NOT_LAST = "so it does not show that the build's last commit passes"
 NO_FULL_RUN = "No run of every check is logged for this build's branch."
 NO_REPORT = ("This page looks for review reports in one place (findings/*.jsonl). Where it finds none from a review, either "
@@ -1355,6 +1407,8 @@ def to_look_at(data: dict) -> list[tuple[str, str, str, str, str]]:
     the page prints it, so the two cannot disagree."""
     things = [(TONES.get(walk_verdict(data)[0], ""), walk_verdict(data)[1], *walk_why(data), "#recording"),
               (TONES.get(checks_verdict(data)[0], ""), checks_verdict(data)[1], *checks_why(data), "#facts")]
+    if flaky_parts(data):
+        things.append(("amber", *flaky_parts(data), "#facts"))
     facts = data["git"]
     if facts and not facts["commits"]:
         things.append(("amber", "This page covers no commits",
@@ -1394,6 +1448,34 @@ def to_look_at(data: dict) -> list[tuple[str, str, str, str, str]]:
                        "in the review table.", "Ask for the record to be corrected.", "#finders"))
     flagged = [thing for thing in things if thing[0] in ("amber", "red")]
     return sorted(flagged, key=lambda thing: thing[0] != "red")  # a sort that keeps the order within each look
+
+
+def walk_said(nodeid: str) -> str:
+    """A browser test's name in words, from its test function's name and its window size: "A filter reaches the
+    registry, at 1440 by 900 pixels" for walks/test_x.py::test_a_filter_reaches_the_registry[1440x900]."""
+    name, _, params = nodeid.split("::")[-1].partition("[")
+    words = sentence(name.removeprefix("test_").replace("_", " ").strip()) or nodeid
+    sizes = [re.sub(r"^(\d+)x(\d+)$", r"at \1 by \2 pixels", piece) if re.fullmatch(r"\d+x\d+", piece) else f"in {piece}"
+             for piece in params.rstrip("]").split("-") if piece]
+    return ", ".join([words, *sizes])
+
+
+def flaky_parts(data: dict) -> tuple[str, str, str] | None:
+    """(what, why it matters, what the owner can do) for the browser tests that were red with the others and green
+    alone in the build's runs: None when the record names none. Each test is named in words under the fold, with its
+    name in the code after it."""
+    walks = (data.get("flaky") or {}).get("walks")
+    if not walks:
+        return None
+    one = len(walks) == 1
+    named = "; ".join(f"{walk_said(nodeid)} ({nodeid}), in the run{'' if len(ats) == 1 else 's'} of {listed([when(at) for at in ats])}"
+                      for nodeid, ats in walks.items())
+    return (f"{tests_said(len(walks))} failed when run with the others and passed when run alone",
+            f"{'The test' if one else 'The tests'}: {named}. Run alone, {'it' if one else 'each'} passed, so the automated checks "
+            f"counted {'it' if one else 'them'} as passed. A test that fails only when others run at the same time may point to a "
+            "fault in the app that shows when it is busy, or to a fault in the test itself: this page cannot tell which. These "
+            f"come from the browser tests' own record of each run ({data['feature']}/walks/{FLAKY_RECORD} under .scratch/).",
+            f"Ask for {'it' if one else 'each'} to be looked into {DECISION}.")
 
 
 def odd_passes(data: dict) -> int:
@@ -1447,6 +1529,8 @@ def render_checks_tile(data: dict) -> str:
         sub += f'<span class="sub">This run was {e(off)}.</span>' if off else ""
     if later and (full is None or since_result(runs) != "green"):  # said on the tile, not only in the folded list
         sub += f'<span class="sub">{e(later)}</span>'
+    if (data.get("flaky") or {}).get("missing"):  # said, not counted: a build may predate the record
+        sub += f'<span class="sub">{e(FLAKY_MISSING)}</span>'
     return tile(look, "Automated checks", short, sub, "#facts")
 
 
@@ -2208,7 +2292,7 @@ def main(argv=None, root: pathlib.Path = ROOT, show=None) -> int:
         args.feature, base_ref=args.base, tip_ref=args.tip, git=facts, runs=runs, files=files, fates=fates,
         missing=missing_proof(root, facts["tip"], fates), summary=summary, recording=recording,
         shots=shots_of(out), built=tree_state(root), walk_gap=commit_gap(root, (recording or {}).get("commit"), args.tip),
-        copies=listeners(root),
+        copies=listeners(root), flaky=read_flaky(feature_dir),
     )
     page = out / "index.html"
     page.write_text(render(data), encoding="utf-8")

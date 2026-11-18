@@ -1935,3 +1935,83 @@ def test_a_build_main_was_moved_forward_to_was_merged_when_its_last_commit_was_m
     git(repo, "checkout", "-q", "main")
     git(repo, "merge", "-q", "--ff-only", "feature/x")
     assert handover.when(handover.git_facts(repo, start, "feature/x")["merged_at"]) == "2 Nov 2026, 10:30 UTC"
+
+
+# Browser tests that failed with the others and passed alone, read from the walk runner's own record.
+
+STEADY = {"git": GIT, "runs": handover.run_facts(GREEN_RUN, "feature/x"), "recording": WALKED,
+           "files": {"walker-a.jsonl": [], "review-a.jsonl": [], "early-read-whole.jsonl": []}}
+WOBBLY = "walks/test_find_trials_walk.py::test_a_filter_reaches_the_registry[1440x900]"
+
+
+def flaky_line(*nodeids, at="2026-11-16T10:00:00Z", tip="abc1234"):
+    """One line of the walk runner's record, as walks/run_walks.py writes it at the end of a run of the browser tests."""
+    return {"at": at, "tip": tip, "flaky": list(nodeids)}
+
+
+def test_a_browser_test_that_failed_with_the_others_and_passed_alone_is_counted_among_the_things_to_look_at():
+    text = page(**STEADY, flaky=[flaky_line(WOBBLY)])
+    assert '<p class="headline amber">' in top(text) and "1 thing to look at before you accept this build" in top(text)
+    assert [thing[:3] for thing in things(text)] == [
+        ("amber", "#facts", "1 browser test failed when run with the others and passed when run alone")]
+
+
+def test_each_flaky_browser_test_is_named_in_words_under_the_fold_and_no_name_from_the_code_is_in_view():
+    other = "walks/test_trial_page_walk.py::test_notes_survive_a_reload[1024x768]"
+    runs = handover.run_facts([run("feature/x", "green", "2026-11-16T10:00:00Z"), run("feature/x", "green", "2026-11-16T11:00:00Z")], "feature/x")
+    text = page(**{**STEADY, "runs": runs}, flaky=[flaky_line(WOBBLY, at="2026-11-16T09:59:58Z"),
+                                                    flaky_line(WOBBLY, other, at="2026-11-16T11:00:00Z")])
+    (tone, href, what, shown, folded), = looks(text)
+    assert what == "2 browser tests failed when run with the others and passed when run alone"
+    assert shown == "Ask for each to be looked into before you accept this build."
+    assert folded.startswith(
+        f"The tests: A filter reaches the registry, at 1440 by 900 pixels ({WOBBLY}), in the runs of 16 Nov 2026, 10:00 UTC and "
+        f"16 Nov 2026, 11:00 UTC; Notes survive a reload, at 1024 by 768 pixels ({other}), in the run of 16 Nov 2026, 11:00 UTC. "
+        "Run alone, each passed, so the automated checks counted them as passed.")
+    assert "feat/walks/flaky.jsonl" in folded  # where it came from, last
+    in_view = re.sub(r"<details>.*?</details>", "", top(text), flags=re.S)
+    assert not handover.CODE_NAME.search(re.sub(r"<[^>]*>", " ", in_view.split('<ol class="look">')[1]).split("</ol>")[0])
+    assert handover.walk_said("walks/test_acceptance_walk.py::test_walk_alone[chromium-1440x900]") == "Walk alone, in chromium, at 1440 by 900 pixels"
+
+
+def test_with_no_flaky_browser_test_recorded_the_page_is_the_page_built_without_the_record():
+    unread = page(**STEADY)  # the page as it was before the record existed: nobody read it
+    assert page(**STEADY, flaky=[flaky_line()]) == unread
+    assert page(**STEADY, flaky=[flaky_line(), flaky_line(WOBBLY, tip="fff9999")]) == unread  # another commit's run is not the build's
+    assert page(**STEADY, flaky=[flaky_line(), flaky_line(WOBBLY, at="2026-11-16T11:00:00Z")]) == unread  # nor a run outside the build's
+    no_walks = handover.run_facts([run("feature/x", "green", names=("unit",))], "feature/x")
+    assert page(**{**STEADY, "runs": no_walks}, flaky=[]) == page(**{**STEADY, "runs": no_walks})  # no run of the browser tests: nothing to miss
+
+
+MISSING = ("The record of which browser tests failed with the others and passed alone is missing for the last run of the "
+           "browser tests, so this page cannot say whether any did.")
+
+
+def test_the_record_is_called_missing_only_when_the_builds_last_run_of_the_browser_tests_has_no_line_in_it():
+    assert MISSING in top(page(**STEADY, flaky=[]))  # no record at all
+    assert MISSING in top(page(**STEADY, flaky=[flaky_line(at="2026-11-15T10:00:00Z")]))  # only an older run's line
+    assert "0 browser tests" not in page(**STEADY, flaky=[])  # never a zero
+    assert things(page(**STEADY, flaky=[])) == []  # said, not counted: a build older than the record is not flagged
+    earlier = handover.run_facts([run("feature/x", "green", "2026-11-15T10:00:00Z"), run("feature/x", "green")], "feature/x")
+    assert MISSING not in page(**{**STEADY, "runs": earlier}, flaky=[flaky_line()])  # a run before the record began is not missing
+
+
+def test_the_page_reads_the_walk_runners_record_from_the_features_walks_folder(tmp_path):
+    import walks.run_walks as run_walks
+    assert handover.FLAKY_RECORD == run_walks.FLAKY_RECORD
+    assert handover.read_flaky(tmp_path) == []
+    write_lines(tmp_path / "walks" / handover.FLAKY_RECORD, [flaky_line(WOBBLY)])
+    assert handover.read_flaky(tmp_path) == [flaky_line(WOBBLY)]
+
+
+def test_the_script_puts_a_flaky_browser_test_from_the_features_record_on_the_page(repo):
+    feature = repo / ".scratch" / "feat"
+    write_lines(feature / "findings" / "review-a.jsonl", [])
+    write_lines(repo / ".checks" / "runs.jsonl", [run("feature/x", "green")])
+    handover.main(["feat", "--base", "main", "--tip", "feature/x", "--branch", "feature/x", "--no-walk"], root=repo)
+    text = (feature / "hand-over" / "index.html").read_text(encoding="utf-8")
+    assert MISSING in text and "failed when run with the others" not in text
+    write_lines(feature / "walks" / handover.FLAKY_RECORD, [flaky_line(WOBBLY)])
+    handover.main(["feat", "--base", "main", "--tip", "feature/x", "--branch", "feature/x", "--no-walk"], root=repo)
+    text = (feature / "hand-over" / "index.html").read_text(encoding="utf-8")
+    assert MISSING not in text and "1 browser test failed when run with the others and passed when run alone" in text

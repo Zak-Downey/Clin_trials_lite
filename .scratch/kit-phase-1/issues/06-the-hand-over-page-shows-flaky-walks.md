@@ -4,12 +4,12 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first: a page test with a hand-made record shows a flaky walk counted among the things to look at
-- [ ] Each flaky walk is named under a fold, without a name from the code in the headline
-- [ ] With no flaky walk recorded, the page's text is the same as before this ticket
-- [ ] With no record at all, the page says the record is missing
-- [ ] `repo.md` says where a flaky walk now shows
+- [x] Red first: a page test with a hand-made record shows a flaky walk counted among the things to look at
+- [x] Each flaky walk is named under a fold, without a name from the code in the headline
+- [x] With no flaky walk recorded, the page's text is the same as before this ticket
+- [x] With no record at all, the page says the record is missing
+- [x] `repo.md` says where a flaky walk now shows
 
 ## Comments
