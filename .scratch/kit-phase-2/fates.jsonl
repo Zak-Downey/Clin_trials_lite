@@ -1,3 +1,4 @@
 {"id": "early-read-whole-01", "fate": "fixed", "commit": "5de062d", "check": "tests/test_lint.py::test_each_way_of_exempting_code_turns_a_rule_test_red", "why": ""}
 {"id": "review-server-and-checks-01", "fate": "fixed", "commit": "f4b89b2", "check": "tests/test_prove_runs.py::test_a_check_past_its_time_limit_does_not_outlive_the_proof", "why": ""}
 {"id": "review-server-and-checks-02", "fate": "fixed", "commit": "7e92d12", "check": "tests/test_lint.py::test_every_noqa_names_one_rule_and_gives_its_reason_on_the_same_line", "why": ""}
+{"id": "review-server-and-checks-03", "fate": "fixed", "commit": "c8027f3", "check": "tests/test_checks.py::test_the_checks_line_of_claude_md_lists_one_phrase_for_each_check_in_CHECKS_in_order", "why": ""}
