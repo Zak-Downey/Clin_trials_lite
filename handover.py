@@ -25,6 +25,8 @@ Reads (all optional; what is missing is shown as missing, never as zero):
   .scratch/<feature>/findings/*.jsonl   one line per finding; an empty file is a look that found nothing
   .scratch/<feature>/fates.jsonl        one line per finding id: what became of it
   .scratch/<feature>/hand-over.json     {"what": [...], "so_what": [...], "now_what": [...], "walk_through": [...]}
+  this computer (lsof, ps)              the project's programs still listening on a port: one started during the build
+                                        is listed for the owner, since a test may have left it running
 
 Writes, beside index.html: the walk-through. It is one recording in parts: a part is a walk this build added or changed
 (a test function in walks/test_*.py with an added or changed line of its own) that hand-over.json lists under
@@ -202,6 +204,65 @@ def git_ok(repo: pathlib.Path, *args: str) -> bool:
 
 # Computing.
 
+def ask(*command: str) -> str | None:
+    """What a program of this computer printed, or None when it could not be run. Its exit code is not read: lsof
+    exits 1 when it has nothing to list."""
+    try:
+        return subprocess.run(command, capture_output=True, text=True, timeout=30, env={**os.environ, "LC_ALL": "C"}).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def listeners(root: pathlib.Path) -> list[dict] | None:
+    """Each program now listening on a network port that was started with a file of this project (run.py, a test's
+    server, a test file): its process number, when it started and its ports, oldest first. The app is such a program,
+    and so is a copy of it a test started and never stopped; a program that only has this folder as its working
+    folder is not. None when this computer could not be asked (it has no lsof or no ps, or ps gave a time this could
+    not read)."""
+    listening = ask("lsof", "-a", "-iTCP", "-sTCP:LISTEN", "-P", "-n", "-Fpn")
+    if listening is None:
+        return None
+    ports: dict[int, set[int]] = {}
+    pid = None
+    for line in listening.splitlines():
+        if line[:1] == "p" and line[1:].isdigit():
+            pid = int(line[1:])
+        elif line[:1] == "n" and pid is not None and line.rsplit(":", 1)[-1].isdigit():
+            ports.setdefault(pid, set()).add(int(line.rsplit(":", 1)[-1]))
+    if not ports:
+        return []
+    pids = ",".join(str(pid) for pid in sorted(ports))
+    folders, programs = ask("lsof", "-a", "-d", "cwd", "-p", pids, "-Fpn"), ask("ps", "-o", "pid=,lstart=,command=", "-p", pids)
+    if folders is None or programs is None:
+        return None
+    folder, pid = {}, None
+    for line in folders.splitlines():
+        if line[:1] == "p" and line[1:].isdigit():
+            pid = int(line[1:])
+        elif line[:1] == "n" and pid is not None:
+            folder[pid] = pathlib.Path(line[1:])
+    found = []
+    for line in programs.splitlines():
+        number, *words = line.split()
+        if not number.isdigit() or not any(of_project(root, folder.get(int(number)), word) for word in words[5:]):
+            continue
+        try:  # ps gives this computer's own time: "Tue Nov 17 22:03:50 2026"
+            started = datetime.datetime.strptime(" ".join(words[:5]), "%a %b %d %H:%M:%S %Y").astimezone(datetime.timezone.utc)
+        except ValueError:
+            return None
+        found.append({"pid": int(number), "started": started.isoformat(timespec="seconds"), "ports": sorted(ports[int(number)])})
+    return sorted(found, key=lambda copy: moment(copy["started"]))
+
+
+def of_project(root: pathlib.Path, folder: pathlib.Path | None, word: str) -> bool:
+    """Whether one word of a program's command names a file of this project: as it is, or from the program's working folder."""
+    try:
+        named = ((folder or root) / word.split("::")[0]).resolve()
+        return named.is_file() and named.is_relative_to(root.resolve())
+    except (OSError, ValueError):
+        return False
+
+
 def moment(stamp: str) -> datetime.datetime:
     """An ISO-8601 time as a datetime with a zone (git and the run log write UTC as Z; a time with no zone is read as UTC)."""
     read = datetime.datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
@@ -234,8 +295,11 @@ def git_facts(repo: pathlib.Path, base: str, tip: str) -> dict:
     main = next((ref for ref in (f"refs/remotes/origin/{MAIN}", f"refs/heads/{MAIN}")
                  if git_ok(repo, "rev-parse", "--verify", "--quiet", ref)), None)
     merged = (bool(times) and git_ok(repo, "merge-base", "--is-ancestor", tip, main)) if main else None
+    # When it was merged: the time of the oldest commit on main's own line that holds the build's last commit (the
+    # merge commit; for a build main was moved forward to, the commit that followed it, or its own last commit).
+    after = git(repo, "log", "--first-parent", "--ancestry-path", "--format=%cI", f"{tip}..{main}").split() if merged else []
     return {
-        "merged": merged,
+        "merged": merged, "merged_at": (after[-1] if after else last) if merged else None,
         "base": git(repo, "rev-parse", "--short", base), "tip": git(repo, "rev-parse", "--short", tip),
         "commits": len(times), "first": first, "last": last,
         "minutes": round(span.total_seconds() / 60) if span is not None else None,
@@ -504,9 +568,10 @@ def absent_finders(files: dict[str, list[dict]]) -> list[str]:
 def page_data(feature: str, *, base_ref: str = "", tip_ref: str = "", git: dict | None = None, runs: dict | None = None,
               files: dict[str, list[dict]] | None = None, fates: dict | None = None, missing: dict[str, str] | None = None,
               summary: dict | None = None, recording: dict | None = None, shots=(), built: dict | None = None,
-              walk_gap: tuple[int, int] | None = None) -> dict:
+              walk_gap: tuple[int, int] | None = None, copies: list[dict] | None = None) -> dict:
     """Everything the page shows, in one dictionary. `files` is read_findings' answer; `missing` is
-    missing_proof's, or None when nobody looked for the checks and commits the fates name."""
+    missing_proof's, or None when nobody looked for the checks and commits the fates name; `copies` is listeners'
+    answer, or None when nobody looked for programs still running."""
     files, fates = files or {}, fates or {}
     findings = [row for rows in files.values() for row in rows]
     joined = join(findings, fates, missing)
@@ -515,8 +580,86 @@ def page_data(feature: str, *, base_ref: str = "", tip_ref: str = "", git: dict 
         "runs": runs or run_facts(None, ""), "summary": summary, "recording": recording, "shots": list(shots),
         "files": files, "findings": joined, "groups": group_by_state(joined), "verified": missing is not None,
         "by_finder": count_by_finder(findings), "absent": absent_finders(files),
-        "orphans": orphan_fates(findings, fates), "built": built or {}, "walk_gap": walk_gap,
+        "orphans": orphan_fates(findings, fates), "built": built or {}, "walk_gap": walk_gap, "copies": copies,
     }
+
+
+def rechecked(data: dict) -> bool:
+    """Whether a re-check report was read: an issue names that round, or a report file's name does."""
+    return any(str(row.get("pass", "")) == "recheck" for row in data["findings"]) or any("recheck" in name for name in data["files"])
+
+
+def late_fixes(data: dict) -> tuple[int, int]:
+    """(the fixes no review read, every fix). The re-check is the last review a build gets (the build's steps make no
+    third round), so a fix for an issue the re-check found was read by no review; with no re-check report, no fix was."""
+    fixed = [row for row in data["findings"] if str((row["fate"] or {}).get("fate") or "") == "fixed"]
+    late = [row for row in fixed if str(row.get("pass", "")) == "recheck"] if rechecked(data) else fixed
+    return len(late), len(fixed)
+
+
+def late_said(data: dict, after_intro: bool = False) -> str:
+    """How many fixes no review read, as a sentence or two: empty when there is none. `after_intro` is for the section
+    that has just said no re-check report was read."""
+    late, fixed = late_fixes(data)
+    if not late:
+        return ""
+    one, fixes = late == 1, "the fix" if fixed == 1 else f"the {fixed:,} fixes"
+    if not rechecked(data):
+        lead = "Without one" if after_intro else "This page read no re-check report, so"
+        return f"{lead}{',' if after_intro else ''} nothing on record shows that a review read {fixes}."
+    which = (f"{fixes.capitalize()} {'is' if one else 'are'}" if late == fixed else f"{late:,} of {fixes} {'is' if one else 'are'}")
+    return (f"{which} for {'an issue' if one else 'issues'} the re-check found. The re-check is the last review a build gets, "
+            f"so no review read {'this fix' if one else f'these {late:,} fixes'}.")
+
+
+def left_running(data: dict) -> list[dict]:
+    """This project's programs still listening that started after the build's first commit. A build's first commit is
+    made before any of its tests runs, so a copy of the app a test started and never stopped is one of these; so is
+    the app, if the owner started it during the build. A program started after the build was merged is not the
+    build's. Nothing when git gave no first commit to compare with."""
+    first, end = (data["git"] or {}).get("first"), (data["git"] or {}).get("merged_at")
+    return [copy for copy in data["copies"] or []
+            if first and moment(first) <= moment(copy["started"]) and not (end and moment(copy["started"]) > moment(end))]
+
+
+def ports_said(ports: list[int]) -> str:
+    return f"port{'' if len(ports) == 1 else 's'} {listed([str(port) for port in ports])}"
+
+
+def running_parts(data: dict) -> tuple[str, str, str] | None:
+    """(what, why it matters, what the owner can do) for the programs left_running names, or None when there is none."""
+    left = left_running(data)
+    if not left:
+        return None
+    pids = " ".join(str(copy["pid"]) for copy in left)
+    tests = "The build's tests start copies of the app and should stop each one. This page cannot tell whether the build started"
+    if len(left) == 1:
+        copy = left[0]
+        return ("A program the build may have started is still running",
+                f"It is running this project's code, was started at {when(copy['started'])}, after the build's first commit, and is still "
+                f"listening on {ports_said(copy['ports'])} (process {copy['pid']}). {tests} this one or you did.",
+                f"If you did not start it, stop it: type kill {pids} in a terminal.")
+    each = "; ".join(f"process {copy['pid']}, started {when(copy['started'])}, {ports_said(copy['ports'])}" for copy in left)
+    return (f"{len(left)} programs the build may have started are still running",
+            f"They are running this project's code, were started after the build's first commit and are still listening: {each}. "
+            f"{tests} them or you did.", f"If you did not start them, stop them: type kill {pids} in a terminal.")
+
+
+def running_said(data: dict) -> str | None:
+    """This project's programs still listening, counted for the list of numbers: None when nobody looked."""
+    copies = data["copies"]
+    if copies is None:
+        return None
+    if not copies:
+        return "none"
+    if not (data["git"] or {}).get("first"):
+        return f"{len(copies)} running; this page cannot tell whether before or during the build"
+    left, first = left_running(data), moment(data["git"]["first"])
+    named = "; ".join(f"process {copy['pid']}, {ports_said(copy['ports'])}" for copy in left)
+    before = sum(1 for copy in copies if moment(copy["started"]) < first)
+    counts = ((len(left), f"started during the build ({named})"), (before, "started before the build"),
+              (len(copies) - len(left) - before, "started after the build was merged"))
+    return "; ".join(f"{count} {words}" for count, words in counts if count)
 
 
 def same_commit(one, other) -> bool:
@@ -730,6 +873,7 @@ WORDS = ("A commit is one saved step of the work, and the build's last commit is
          "agents that test the running app or read the code; this page reads the issues from their report files. The build's record "
          "is the file (fates.jsonl) that says what became of each issue: fixed, left unfixed, or not a defect.")
 SUMMARY_TITLE = "The builder's own summary"
+RUNNING = "Programs of this project still running"
 NO_REVIEW = "This page found no review report for this build."
 
 
@@ -1216,6 +1360,8 @@ def to_look_at(data: dict) -> list[tuple[str, str, str, str, str]]:
         things.append(("amber", "This page covers no commits",
                        f"The range it was asked for ({facts['base']}..{facts['tip']}) holds no commit, so its numbers describe no "
                        "build.", "Ask for this page to be built again from the build's first commit to its last.", "#facts"))
+    if running_parts(data):
+        things.append(("amber", *running_parts(data), "#facts"))
     for index, (state, rows) in enumerate(data["groups"]):
         things.append((TONES.get(state_look(state, rows)[1], ""), *state_parts(state, rows, top=True), f"#group-{index}"))
     if not data["files"]:
@@ -1322,6 +1468,8 @@ def render_findings_tile(data: dict) -> str:
         said = "None reported" if count else "No review report found"
         items.append(pill(f"No issues in the {count} report{'' if count == 1 else 's'} read" if count
                           else "No review report found", "" if count else "amber", "#finders"))
+    if late_fixes(data)[0]:  # said beside the outcomes, and not a colour: it is a count, not a verdict
+        items.append(pill(f"Fixed after the last review: {late_fixes(data)[0]}", "", "#finders"))
     items += [pill(f"{FINDERS[finder]}: no report found", "amber", "#finders") for finder in data["absent"]]
     if data["orphans"]:
         items.append(pill(f"Outcomes matching no issue: {len(data['orphans'])}", "amber", "#findings"))
@@ -1376,7 +1524,7 @@ def render_standing(data: dict) -> str:
                             "build's own judgement, which this page did not check")
         headline = (f'<p class="headline green">{mark("green")}{e(headline_said(0, done))}</p>'
                     "<p class=\"soft\">This page checked: the walk-through and the automated checks passed on the build's last commit, "
-                    f"and {settled}.</p>" + ("" if done else f"<p>To accept the build, {ASK}.{accept}</p>"))
+                    f"and {settled}.{' ' + e(late_said(data)) if late_said(data) else ''}</p>" + ("" if done else f"<p>To accept the build, {ASK}.{accept}</p>"))
     headline += f'<p class="soft"><a href="#summary">{e(undecided(left_said(data, count)[0], data))}</a></p>'
     return f'<div class="board">{render_walk_tile(data)}{render_checks_tile(data)}{render_findings_tile(data)}</div>{headline}'
 
@@ -1660,6 +1808,9 @@ def render_facts(data: dict) -> str:
              f"findings/*.jsonl: {number(len(files))} file{'' if len(files) == 1 else 's'} read"),
         fact("Issues with no outcome recorded", flagged(no_fate, "badly") if files else none_read, "issues with no outcome named in fates.jsonl"),
         fact("Outcomes matching no issue", flagged(len(data["orphans"]), "warned"), "lines of fates.jsonl whose id is no reported issue's"),
+        fact(RUNNING, unknown() if running_said(data) is None else e(running_said(data)),
+             "this computer's list of running programs (lsof and ps), read when this page was built: each program that is listening on a "
+             "network port and was started with a file of this project; the app is one, a copy of it started by a test is another"),
         fact("Commits", value("commits"), span),
         fact("First commit", e(when(facts.get("first"))) if facts.get("first") else unknown(), span),
         fact("Last commit", e(when(facts.get("last"))) if facts.get("last") else unknown(), span),
@@ -1717,9 +1868,9 @@ def render_finders(data: dict) -> str:
     read = (f'<details class="record"><summary>The {number(len(files))} report{"" if len(files) == 1 else "s"} read</summary>'
             f'<ul class="files">{read}</ul></details>' if files
             else f"<p>{unknown('This page found no review report, so nothing on this page shows that anyone tested or read the build.')}</p>")
-    rechecked = any(str(row.get("pass", "")) == "recheck" for row in data["findings"]) or any("recheck" in name for name in files)
     intro = ("The numbers are issues reported. A re-check is a second review, made after the fixes, of what the fixes touched."
-             + (" This page read no re-check report, so nothing on record shows that one was made." if files and not rechecked else ""))
+             + (" This page read no re-check report, so nothing on record shows that one was made." if files and not rechecked(data) else "")
+             + (f" {late_said(data, after_intro=True)}" if late_said(data) else ""))
     return ('<section id="finders"><h2>Who reviewed the build</h2>'
             f'<p>{intro}</p>'
             f'<div class="scroll"><table><thead><tr><th>Review</th><th class="n">{PASSES["first"]}</th><th class="n">{PASSES["recheck"]}</th>{extra}</tr></thead>'
@@ -2057,6 +2208,7 @@ def main(argv=None, root: pathlib.Path = ROOT, show=None) -> int:
         args.feature, base_ref=args.base, tip_ref=args.tip, git=facts, runs=runs, files=files, fates=fates,
         missing=missing_proof(root, facts["tip"], fates), summary=summary, recording=recording,
         shots=shots_of(out), built=tree_state(root), walk_gap=commit_gap(root, (recording or {}).get("commit"), args.tip),
+        copies=listeners(root),
     )
     page = out / "index.html"
     page.write_text(render(data), encoding="utf-8")
