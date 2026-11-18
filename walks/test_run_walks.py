@@ -136,3 +136,25 @@ def test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re
     alone = (tmp_path / "out" / "alone-test_wanted-test-wanted.txt").read_text()
     assert "1 failed" in alone
     assert "def test_wanted" not in alone  # the short traceback reached the re-run (the default one prints the source)
+
+
+def test_a_mass_failure_stops_the_first_run_early_and_still_names_each_red_walk_it_saw(tmp_path, capsys):
+    """test_a_mass_failure_stops_the_first_run_early_and_still_names_each_red_walk_it_saw"""
+    for n in range(80):
+        (tmp_path / f"test_m{n:02}.py").write_text(
+            "import time\n"
+            f"def test_m{n:02}():\n"
+            "    with open('ran.log', 'a') as f:\n"
+            f"        f.write('test_m{n:02}\\n')\n"
+            "    time.sleep(0.2)\n"
+            "    assert False\n")
+    code, out = run_in(tmp_path, capsys)
+    ran = (tmp_path / "ran.log").read_text().split()
+    first_run = len(ran) - run_walks.ALONE_CAP  # each re-run alone logs once more
+    assert first_run < 80, "the first run went on through a mass failure"
+    got = read_results(out)
+    named = {t for _, t, _, _ in got}
+    assert len(named) >= run_walks.MASS_FAILURE and named <= set(ran)
+    assert len(list((tmp_path / "out").glob("alone-*.txt"))) == run_walks.ALONE_CAP
+    assert "ended early" in out.split("## Result")[1]
+    assert code == 1

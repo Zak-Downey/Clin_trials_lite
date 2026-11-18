@@ -6,7 +6,8 @@ Runs `pytest walks` across four workers (one browser each) into a file under
 .scratch/<WALK_FEATURE>/walks/, prints the failures, re-runs each failed walk
 alone once, and ends with a `## Result` section: one line per walk that failed or erred,
 `red alone` or `red under load, green alone`, also appended to the output file. At most ALONE_CAP walks are re-run; the rest are
-listed as red, not re-run. Exit 1 when any walk failed alone.
+listed as red, not re-run. The first run ends early once MASS_FAILURE walks are red, and the section says so.
+Exit 1 when any walk failed alone.
 """
 
 from __future__ import annotations
@@ -46,6 +47,8 @@ def red_walks(text: str) -> list[str]:
 
 
 ALONE_CAP = 10  # red walks re-run alone; the rest are listed red, so a mass failure still names every walk inside the timeout
+MASS_FAILURE = 20  # the first run stops once this many walks are red: a mass failure, where each walk left would only
+# wait out its timeouts and push the run past its time limit before any walk is named
 
 
 def split_args(argv):
@@ -74,7 +77,7 @@ def main(argv, targets=None, cwd=ROOT, shots=None) -> int:
     given, options = split_args(argv)
     targets = given or targets or ("walks",)
     print(f"# tip {tip()}")
-    code = pytest(["-n", "4", *options], output, targets, cwd)
+    code = pytest(["-n", "4", f"--maxfail={MASS_FAILURE}", *options], output, targets, cwd)
     text = output.read_text()
     print(f"Walk output written to {output} (exit {code})")
     failed = red_walks(text)
@@ -90,6 +93,8 @@ def main(argv, targets=None, cwd=ROOT, shots=None) -> int:
             result.append(result_line(nodeid, "red under load, green alone", alone))
         else:
             result.append(result_line(nodeid, "red alone", alone))
+    if len(failed) >= MASS_FAILURE:
+        result.append(f"The first run ended early, at {MASS_FAILURE} red walks; the walks after them were not run.")
     section = "\n## Result\n" + "".join(f"{line}\n" for line in result)
     with open(output, "a") as handle:
         handle.write(section)
