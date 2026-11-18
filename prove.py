@@ -3,12 +3,32 @@
 The list is docs/agents/local/breaks.json: entries with an `id`, the `file` to change, the text to
 `find` (exactly once in that file), the text to `replace` it with, a `why` in one sentence, and what
 proves it: `test` (one pytest test, by its id) or `check` (the name of a check in CHECKS), never both.
+
+    python3 prove.py    prove every break; by hand only, never one of the checks
+
+A list with a fault stops it before anything runs. Each break is made in a fresh copy of the files
+git tracks, as they are on disk, in a temporary folder whose `.venv` is a link to this one's; the
+working folder is never touched. Its test or check runs unbroken (it must be green) and broken (it
+must be red: pytest's exit code 1, a test that ran and failed, or `checks.py <name>` ending 1).
+Each break is caught, stayed green, red before the change, or could not run (stopped at its time
+limit, or ended some other way). Each run has a limit of two minutes and nothing it starts outlives
+it. Exit 0 only when every break was caught and the list is not empty. One line per run is appended
+to .checks/proof.jsonl.
 """
 
 from __future__ import annotations
 
 import ast
+import datetime
+import functools
+import json
+import os
 import pathlib
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
 
 import checks
 
@@ -78,3 +98,116 @@ def named_test_problems(test, root) -> list[str]:
     if not any(isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function for node in body):
         return [f"{file} has no test {name.split('[')[0]}"]
     return []
+
+
+def copy_of(root, into) -> pathlib.Path:
+    """The files git tracks in `root`, as they are on disk, copied into `into`, with `.venv` a link to root's."""
+    root, copy = pathlib.Path(root), pathlib.Path(into) / "copy"
+    listed = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, text=True, check=True)
+    for name in filter(None, listed.stdout.split("\0")):
+        source = root / name
+        if source.is_file() or source.is_symlink():
+            (copy / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, copy / name, follow_symlinks=False)
+    copy.mkdir(exist_ok=True)
+    if (root / ".venv").exists():
+        (copy / ".venv").symlink_to((root / ".venv").resolve())
+    return copy
+
+
+def run_in(command, copy, minutes, output) -> int | None:
+    """Run one command in the copy into its output file: its exit code, or None when it passed its
+    time limit. As in checks.py, the command's whole process group never outlives this. Nothing it
+    runs writes bytecode: a change of the same length within the same second would otherwise run
+    the module cached before it."""
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+    with open(output, "w") as out:
+        process = subprocess.Popen(command, cwd=copy, stdout=out, stderr=subprocess.STDOUT, env=env,
+                                   start_new_session=True)
+        try:
+            return process.wait(timeout=minutes * 60)
+        except subprocess.TimeoutExpired:
+            return None
+        finally:
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+
+
+def prove_one(item, root, minutes) -> tuple[str, str, list[str]]:
+    """Make one break in a fresh copy of root: (outcome, why, the end of the run's output). The
+    outcome is caught, stayed green, red before the change or could not run."""
+    with tempfile.TemporaryDirectory(prefix="prove-") as scratch:
+        copy = copy_of(root, scratch)
+        if "test" in item:
+            runner = "pytest"
+            command = [str(copy / ".venv" / "bin" / "python"), "-m", "pytest", "-q", "-p", "no:cacheprovider", item["test"]]
+        else:
+            runner = "checks.py"
+            command = [sys.executable, "checks.py", item["check"]]
+        before = pathlib.Path(scratch) / "before.txt"
+        code = run_in(command, copy, minutes, before)
+        if code != 0:
+            return ("could not run", f"stopped after {minutes} minutes, before the change", tail(before)) if code is None \
+                else ("red before the change", f"{runner} ended {code}", tail(before))
+        path = copy / item["file"]
+        path.write_text(path.read_text(encoding="utf-8").replace(item["find"], item["replace"]), encoding="utf-8")
+        after = pathlib.Path(scratch) / "after.txt"
+        code = run_in(command, copy, minutes, after)
+        if code == 1:
+            return "caught", "", []
+        if code == 0:
+            return "stayed green", "", tail(after)
+        why = f"stopped after {minutes} minutes" if code is None else f"{runner} ended {code}: it did not run and fail"
+        return "could not run", why, tail(after)
+
+
+def tail(output, lines=20) -> list[str]:
+    return output.read_text(errors="replace").splitlines()[-lines:]
+
+
+def prove(root=checks.ROOT, minutes=2, out=functools.partial(print, flush=True)) -> int:
+    """Prove every break in root's list; 0 only when each one was caught."""
+    root = pathlib.Path(root)
+    try:
+        breaks = json.loads((root / BREAKS).read_text(encoding="utf-8"))
+        problems = list_problems(breaks, root)
+    except (OSError, ValueError, AttributeError, TypeError) as error:
+        breaks, problems = [], [f"{BREAKS} does not read as a list of entries: {error}"]
+    if problems or not breaks:
+        for problem in problems:
+            out(problem)
+        count = f"{len(problems)} fault{'s' if len(problems) != 1 else ''}"
+        log(root, [], "red")
+        out(f"proof: the list of breaks has {count}; nothing was run" if problems
+            else "proof: the list of breaks is empty, so nothing is proved")
+        return 1
+    outcomes = []
+    for item in breaks:
+        outcome, why, output = prove_one(item, root, minutes)
+        outcomes.append({"id": item["id"], "outcome": outcome})
+        out(f"{item['id']}  {item.get('test') or item.get('check')}  {outcome}{f' ({why})' if why else ''}")
+        for text in output:
+            out(f"    {text}")
+    caught = sum(o["outcome"] == "caught" for o in outcomes)
+    green = bool(outcomes) and caught == len(outcomes)
+    log(root, outcomes, "green" if green else "red")
+    out(f"proof: {caught} of {len(outcomes)} breaks caught")
+    return 0 if green else 1
+
+
+def log(root, outcomes, result) -> None:
+    """One line for this run in .checks/proof.jsonl: when, which commit, the result, each break's outcome."""
+    (root / ".checks").mkdir(exist_ok=True)
+    line = {"at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "commit": checks.git("rev-parse", "--short", "HEAD", root=root),
+            "dirty": bool(checks.git("status", "--porcelain", root=root)),
+            "result": result, "breaks": outcomes}
+    with open(root / ".checks" / "proof.jsonl", "a") as file:
+        file.write(json.dumps(line) + "\n")
+
+
+if __name__ == "__main__":
+    for stop in (signal.SIGTERM, signal.SIGHUP):  # stopped from outside: leave through the finally blocks
+        signal.signal(stop, lambda *_: sys.exit(143))
+    sys.exit(prove())
