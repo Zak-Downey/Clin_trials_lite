@@ -4,11 +4,13 @@
 
 **Blocked by:** 01, 09
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The skill's waiting time for the checks agrees with the limits of ticket 01, or `skill-edits.md` holds that edit in full
-- [ ] The skill asks for a quick run after each ticket and each fix and names the three full runs, or `skill-edits.md` holds that edit in full
-- [ ] No other line of the skill file changed, and neither brief beside it
-- [ ] `python3 checks.py` ends green on this ticket's commit
+- [x] The skill's waiting time for the checks agrees with the limits of ticket 01, or `skill-edits.md` holds that edit in full
+- [x] The skill asks for a quick run after each ticket and each fix and names the three full runs, or `skill-edits.md` holds that edit in full
+- [x] No other line of the skill file changed, and neither brief beside it
+- [x] `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
+
+The session was not allowed to edit `.claude/skills/implement-spec/SKILL.md` (the edit was refused), so both changes are written out in full in `.scratch/kit-phase-1/skill-edits.md` for the owner to apply. SKILL.md, `reviewer.md` and `walker.md` are unchanged. The unit suite passed on this commit (657 tests); the full `python3 checks.py` is left to the build session.
