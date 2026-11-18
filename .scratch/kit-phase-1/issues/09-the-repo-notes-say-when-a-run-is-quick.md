@@ -4,11 +4,11 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `repo.md` says what a quick run is and when it is right
-- [ ] `repo.md` names the three runs that are always full, and that GitHub's is
-- [ ] `repo.md` says a change to shared client plumbing gets a full run
-- [ ] `repo.md` gives the measured minutes for a full and a quick run
+- [x] `repo.md` says what a quick run is and when it is right
+- [x] `repo.md` names the three runs that are always full, and that GitHub's is
+- [x] `repo.md` says a change to shared client plumbing gets a full run
+- [x] `repo.md` gives the measured minutes for a full and a quick run
 
 ## Comments

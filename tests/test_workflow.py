@@ -90,3 +90,10 @@ def test_repo_md_names_every_workflow_file_that_exists_and_no_other():
     present = {p.name for p in WORKFLOW.parent.iterdir() if p.suffix in (".yml", ".yaml")}
     assert present, "no workflow file"
     assert named == present
+
+
+def test_repo_md_describes_the_quick_run_checks_py_has_and_github_never_uses():
+    every_check = next(line for line in REPO_MD.read_text().splitlines() if line.startswith("- **Every check.**"))
+    assert "`python3 checks.py --quick`" in every_check
+    assert '"--quick"' in (WORKFLOW.parent.parent.parent / "checks.py").read_text()
+    assert "--quick" not in text()
