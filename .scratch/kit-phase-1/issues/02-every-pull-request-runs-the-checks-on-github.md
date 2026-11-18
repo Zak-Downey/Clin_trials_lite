@@ -4,15 +4,15 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first: a unit test reads `.github/workflows/checks.yml` and fails until it has one job named `checks`
-- [ ] The test holds the triggers: pull request (opened, pushed to, reopened, marked ready) and by hand, and no push trigger
-- [ ] The test holds that there is no path filter and no condition that skips a draft
-- [ ] The test holds that `python3 checks.py` is run with no check named
-- [ ] The test holds the block that cancels an older run on the same branch
-- [ ] The file sets a 20-minute limit, caches on the two requirements files, and uploads `.checks/` when the run is red
-- [ ] A comment at the top of the file says why it is shaped as it is and leaves a place for the first measured run time
-- [ ] Nothing in the file or the test names this product
+- [x] Red first: a unit test reads `.github/workflows/checks.yml` and fails until it has one job named `checks`
+- [x] The test holds the triggers: pull request (opened, pushed to, reopened, marked ready) and by hand, and no push trigger
+- [x] The test holds that there is no path filter and no condition that skips a draft
+- [x] The test holds that `python3 checks.py` is run with no check named
+- [x] The test holds the block that cancels an older run on the same branch
+- [x] The file sets a 20-minute limit, caches on the two requirements files, and uploads `.checks/` when the run is red
+- [x] A comment at the top of the file says why it is shaped as it is and leaves a place for the first measured run time
+- [x] Nothing in the file or the test names this product
 
 ## Comments

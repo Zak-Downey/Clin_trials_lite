@@ -1,0 +1,61 @@
+"""The pull-request workflow, read as text: GitHub cannot be run from here.
+
+Nothing here claims the workflow works on GitHub. It holds what the file says: one job named `checks`,
+when it runs, that nothing lets it be skipped, and that it runs every check.
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+WORKFLOW = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "checks.yml"
+
+
+def text():
+    return WORKFLOW.read_text()
+
+
+def block(name, indent=0):
+    """The lines under the key `name` at the given indent, up to the next key at that indent or less."""
+    lines = text().splitlines()
+    start = next(i for i, line in enumerate(lines) if line == " " * indent + f"{name}:")
+    out = []
+    for line in lines[start + 1:]:
+        if line.strip() and not line.lstrip().startswith("#") and len(line) - len(line.lstrip()) <= indent:
+            break
+        out.append(line)
+    return "\n".join(out)
+
+
+def test_the_workflow_has_one_job_and_it_is_named_checks():
+    jobs = block("jobs")
+    job_keys = re.findall(r"^  ([\w-]+):\s*$", jobs, re.M)
+    assert job_keys == ["checks"]
+    assert re.search(r"^    name: checks\s*$", jobs, re.M)
+
+
+def test_it_runs_on_a_pull_request_opened_pushed_to_reopened_or_marked_ready_and_by_hand_never_on_a_push():
+    triggers = block("on")
+    assert re.findall(r"^  ([\w-]+):", triggers, re.M) == ["pull_request", "workflow_dispatch"]
+    types = re.search(r"types:\s*\[([^\]]*)\]", triggers).group(1)
+    assert sorted(t.strip() for t in types.split(",")) == ["opened", "ready_for_review", "reopened", "synchronize"]
+    assert not re.search(r"^\s*push\s*:", text(), re.M)
+
+
+def test_nothing_filters_by_path_and_nothing_skips_a_draft():
+    assert not re.search(r"^\s*(paths|paths-ignore|branches-ignore)\s*:", text(), re.M)
+    assert "draft" not in "\n".join(line for line in text().splitlines() if not line.lstrip().startswith("#"))
+    assert not re.search(r"^    if\s*:", block("jobs"), re.M)
+
+
+def test_every_check_is_run_with_no_check_named():
+    runs = re.findall(r"^\s*(?:- )?run:\s*(.*\S)\s*$", block("jobs"), re.M)
+    assert "python3 checks.py" in runs
+    assert not any(re.search(r"checks\.py\s+\S", r) for r in runs)
+
+
+def test_a_newer_run_on_the_same_branch_cancels_the_older_one():
+    concurrency = block("concurrency")
+    assert re.search(r"^  group: .*github\.workflow.*github\.ref", concurrency, re.M)
+    assert re.search(r"^  cancel-in-progress: true\s*$", concurrency, re.M)

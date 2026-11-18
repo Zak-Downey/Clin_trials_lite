@@ -1,0 +1,56 @@
+# Why this file is shaped as it is:
+# - One job, named `checks`: that name is the status check the owner requires on `main`.
+# - It runs when a pull request is opened, pushed to, reopened or marked ready, and by hand. No push trigger:
+#   `main` changes only through a pull request.
+# - A draft is checked like any other: nothing lets the job be skipped and still report green.
+#   There is no path filter of any kind, so a pull request that only changes docs or records is checked too.
+# - It runs `python3 checks.py` with no check named: every check, the walks at both window sizes, as on the
+#   owner's machine. No check is trimmed to fit.
+# - A newer run on the same branch cancels the one before it.
+# - The limit is 20 minutes, to be tightened once a real run has been timed. A slower run is red.
+# - On red, the files under `.checks/` are uploaded with the run, so the reason can be read from the pull request.
+# - The Python version is the one the repo's own `.venv` uses.
+# Measured on GitHub's own machine: not yet (first run: date, run id, minutes whole).
+name: checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Cache the Python packages and the test browsers
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-py3.13-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+      - name: Make the repo's own .venv and install both requirements files
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
+      - name: Install the test browsers with their system packages
+        run: .venv/bin/python -m playwright install --with-deps chromium webkit
+      - name: Run every check
+        run: python3 checks.py
+      - name: Upload the checks' output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checks-output
+          path: .checks/
+          include-hidden-files: true
