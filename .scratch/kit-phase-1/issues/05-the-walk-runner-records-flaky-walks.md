@@ -4,13 +4,13 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first: a unit test with a fake run shows a walk that failed with the others and passed alone is recorded by name
-- [ ] A run where every walk passed first time records that none was flaky
-- [ ] A walk that is red alone is not recorded as flaky
-- [ ] With the constant off, a run whose only failures were flaky still exits 0, as today
-- [ ] With the constant on, the same run exits 1
-- [ ] `checks.py` reads no suite's output: a test or the diff shows it is unchanged in that respect
+- [x] Red first: a unit test with a fake run shows a walk that failed with the others and passed alone is recorded by name
+- [x] A run where every walk passed first time records that none was flaky
+- [x] A walk that is red alone is not recorded as flaky
+- [x] With the constant off, a run whose only failures were flaky still exits 0, as today
+- [x] With the constant on, the same run exits 1
+- [x] `checks.py` reads no suite's output: a test or the diff shows it is unchanged in that respect
 
 ## Comments
