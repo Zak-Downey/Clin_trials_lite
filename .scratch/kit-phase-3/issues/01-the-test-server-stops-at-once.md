@@ -4,11 +4,14 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first: the new test fails while the server is started as it is today, and passes after
-- [ ] The comments give the unit suite's time before and after, from two runs of `python3 checks.py unit` on this machine
-- [ ] No other line of the fixture and no assertion of any test changed
-- [ ] `python3 checks.py` ends green on this ticket's commit
+- [x] Red first: the new test fails while the server is started as it is today, and passes after
+- [x] The comments give the unit suite's time before and after, from two runs of `python3 checks.py unit` on this machine
+- [x] No other line of the fixture and no assertion of any test changed
+- [x] `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
+
+- Unit suite time, from `python3 checks.py unit` on this machine (2026-11-18), two runs each: before the fix 78.7 s and 79.9 s (1.31 and 1.33 min); after it 34.7 s and 33.5 s (0.6 min both).
+- Red first: `tests/test_api_fixture.py` failed three runs of three with the server started as today (stopping took about half a second), and passed after `serve_in_background` in `tests/conftest.py` gave `serve_forever` a poll interval of 0.01 s. The fixture's two lines that started the thread became one call to that helper, and its now-unused `import threading` went (Ruff flags it); no other fixture line and no assertion changed.
