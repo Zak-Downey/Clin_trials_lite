@@ -14,5 +14,69 @@
     "replace": "import briefing\nimport json\n",
     "why": "An import left behind after the code that used it was removed is a mistake only the linter reads for.",
     "check": "lint"
+  },
+  {
+    "id": "foreign-origin-write-accepted",
+    "file": "webapp/server.py",
+    "find": "        if method != \"GET\" and origin is not None and origin.removeprefix(\"http://\") not in allowed:\n            raise ApiError(403, \"forbidden_origin\", \"This server only accepts writes from its own page.\")\n",
+    "replace": "",
+    "why": "The refusal of a write sent from another site's page is removed, so any page the analyst visits could change the watchlists.",
+    "test": "tests/test_api_review_queue.py::test_a_write_from_a_foreign_origin_or_without_json_is_refused"
+  },
+  {
+    "id": "second-undo-wrong-status",
+    "file": "webapp/api_trials.py",
+    "find": "raise ApiError(409, \"already_undone\"",
+    "replace": "raise ApiError(404, \"already_undone\"",
+    "why": "Undoing a review twice answers 404 (not found) instead of 409 (conflict), a wrong status the page would read as the review having vanished.",
+    "test": "tests/test_api_review.py::test_a_review_applies_in_every_watchlist_records_its_time_and_ids_and_undo_returns_exactly_those"
+  },
+  {
+    "id": "walk-compares-a-value-with-itself",
+    "file": "walks/test_summary_walk.py",
+    "find": "assert str(monday.year) in heading and (trials, changes) == (2, EXPECTED_CHANGES)",
+    "replace": "assert str(monday.year) in heading and (trials, changes) == (2, changes)",
+    "why": "A walk's assertion compares the change count with itself, so it checks nothing: the defect E-026 that rule R-005 forbids.",
+    "check": "patterns"
+  },
+  {
+    "id": "defect-log-line-names-a-missing-check",
+    "file": "docs/agents/local/escapes.jsonl",
+    "find": "\"check\": \"walks/test_all_trials_walk.py::test_walk_a_long_title_wraps_onto_a_taller_row_in_the_font_a_linux_machine_draws\"",
+    "replace": "\"check\": \"walks/test_all_trials_wrap_walk.py::test_walk_a_long_title_wraps_onto_a_taller_row_in_the_font_a_linux_machine_draws\"",
+    "why": "A line in the defect log names a check file that does not exist, so the defect it records has nothing catching it.",
+    "check": "escapes"
+  },
+  {
+    "id": "double-click-marks-twice",
+    "file": "webapp/static/views/trial.js",
+    "find": "    if (marking || state.reviewed) return;\n",
+    "replace": "    if (state.reviewed) return;\n",
+    "why": "The guard against a second press while Mark reviewed is in flight is dropped, so a double click sends two reviews and leaves an Undo that fails (E-033).",
+    "test": "walks/test_explore_wr_double_click_mark_reviewed_leaves_an_undo_that_fails.py::test_walk_undo_after_a_double_click_on_mark_reviewed_still_undoes_the_review"
+  },
+  {
+    "id": "add-error-outlives-the-edit",
+    "file": "webapp/static/views/add_by_id.js",
+    "find": "    input.addEventListener(\"input\", () => { error.textContent = \"\"; if (found)",
+    "replace": "    input.addEventListener(\"input\", () => { if (found)",
+    "why": "Editing the NCT ID no longer clears the failure sentence of the last add, so it stays beside a different ID (E-035).",
+    "test": "walks/test_explore_find_and_add_error_after_a_failed_add_by_id_outlives_the_edit.py::test_explore_the_add_error_is_cleared_when_the_id_is_edited"
+  },
+  {
+    "id": "refused-page-read-as-registry-error",
+    "file": "webapp/static/views/find.js",
+    "find": "if (err.kind === \"nothing_asked\" || err.kind === \"bad_page\")",
+    "replace": "if (err.kind === \"nothing_asked\")",
+    "why": "A refused page number is shown as a registry failure, with a Retry that cannot succeed and an empty form (E-036).",
+    "test": "walks/test_explore_find_and_add_page_out_of_range_is_not_a_registry_error.py::test_explore_page_11_is_a_refusal_with_no_retry_and_keeps_the_query_in_the_form"
+  },
+  {
+    "id": "sidebar-not-redrawn-after-a-review",
+    "file": "webapp/static/app.js",
+    "find": "window.addEventListener(\"reviewchange\", () => drawSidebar(undefined).catch(() => {}));\n",
+    "replace": "",
+    "why": "The sidebar is no longer redrawn after a review changes, so its Needs review badges stay stale after Mark reviewed and Undo.",
+    "test": "walks/test_explore_wr_an_older_sidebar_answer_overwrites_a_newer_one.py::test_walk_a_late_older_sidebar_answer_does_not_overwrite_the_newer_badges"
   }
 ]

@@ -109,3 +109,12 @@ def test_this_repos_list_of_breaks_is_current():
     breaks = json.loads((ROOT / prove.BREAKS).read_text(encoding="utf-8"))
     assert breaks, "the list of breaks is empty"
     assert prove.list_problems(breaks, ROOT) == []
+
+
+def test_every_check_in_checks_py_has_a_break_in_this_repos_list():
+    breaks = json.loads((ROOT / prove.BREAKS).read_text(encoding="utf-8"))
+    proved = {item["check"] for item in breaks if "check" in item}
+    proved |= {"unit" for item in breaks if item.get("test", "").startswith("tests/")}
+    proved |= {"walks" for item in breaks if item.get("test", "").startswith("walks/")}
+    missing = [name for name, *_ in prove.checks.CHECKS if name not in proved]
+    assert missing == [], f"no break proves these checks can fail: {', '.join(missing)}"
