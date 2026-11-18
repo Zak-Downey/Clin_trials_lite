@@ -937,14 +937,14 @@ def listed(parts: list[str]) -> str:
 # The page's two tests of the whole build, said once, under its first sentence, before either name is used again.
 # The checks are listed from checks.py's own list, so a check added there is named here.
 TERMS_OWN = ("The walk-through is a recording of the app being used in a real browser (Chromium, 1440 by 900 pixels), "
-             "against a stand-in for the trials registry. It shows what this build changed, not the whole app. Each part is one "
+             "against a stand-in for the outside services the app calls. It shows what this build changed, not the whole app. Each part is one "
              "browser test that this build added or changed and that the builder chose to show; the title and the note on a "
              "part are the builder's words. A change the build wrote no browser test for is not in it. The automated checks "
              f"are the {len(CHECK_NAMES)} checks this project runs with one command: {listed([check_said(name) for name in CHECK_NAMES])}. "
              "Those tests are among the browser tests the checks run; this page judges the walk-through only from its own "
              "recorded run of them, not from a run of the checks.")
 TERMS = ("The walk-through is an automated run of one whole journey through the app, by keyboard alone, in a real browser "
-         "(Chromium, 1440 by 900 pixels), against a stand-in for the trials registry. The automated checks are the "
+         "(Chromium, 1440 by 900 pixels), against a stand-in for the outside services the app calls. The automated checks are the "
          f"{len(CHECK_NAMES)} checks this project runs with one command: {listed([check_said(name) for name in CHECK_NAMES])}. "
          "The walk-through is one of those browser tests; this page judges it only from a recorded run of it on its own, not "
          "from a run of the checks.")

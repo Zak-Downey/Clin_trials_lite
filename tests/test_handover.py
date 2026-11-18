@@ -2081,3 +2081,11 @@ def test_a_quick_run_and_the_full_run_straight_after_it_on_the_same_commit_each_
 def test_the_example_in_walk_saids_docstring_names_nothing_of_this_product():
     # review-server-and-checks-04: handover.py is copied into the starter kit, so its examples stay product-neutral.
     assert not re.search(r"trial|registry|watchlist|clinical|filter", handover.walk_said.__doc__, re.I), handover.walk_said.__doc__
+
+
+def test_nothing_in_handover_py_names_this_product():
+    # review-whole-recheck-01: handover.py is copied into the starter kit, so every word it prints or holds stays
+    # product-neutral, the page's explanations of the walk-through (TERMS_OWN, TERMS) among them.
+    text = pathlib.Path(handover.__file__).read_text()
+    named = [line for line in text.splitlines() if re.search(r"trial|registry|watchlist|clinical|filter", line, re.I)]
+    assert not named, named
