@@ -5,7 +5,9 @@
 BASE is the commit the pull request is compared against; each PATH is a file that judges the pull request, or a
 folder (ending in /) whose every file does. The notice lists the judging files changed since BASE and the number
 of tests removed: lines that define a test (`def test_...`) taken out of files named test_*.py, less those put
-in, never below nought. A deleted test file counts every test it had; a renamed test counts as neither.
+in, never below nought. A deleted test file counts every test it had; a renamed test counts as neither. A renamed
+file counts as its old path removed and its new path added (git's rename detection is off), so a judging file renamed
+away is listed under its old name, and a test file renamed to a name not collected counts its tests removed.
 
 It is a notice, never a failure: it always exits 0. It writes nothing when nothing judging changed and no test was
 removed, and nothing when BASE is empty (a run started by hand has no pull request to compare against).
@@ -31,13 +33,13 @@ def judges(path, judging):
 
 
 def changed_files(base):
-    return [line for line in git("diff", "--name-only", f"{base}...HEAD").splitlines() if line]
+    return [line for line in git("diff", "--no-renames", "--name-only", f"{base}...HEAD").splitlines() if line]
 
 
 def tests_removed(base):
     removed = added = 0
     current = None
-    for line in git("diff", "--no-color", "--unified=0", f"{base}...HEAD").splitlines():
+    for line in git("diff", "--no-renames", "--no-color", "--unified=0", f"{base}...HEAD").splitlines():
         if line.startswith("diff --git "):
             current = line.split(" b/", 1)[-1]
             continue

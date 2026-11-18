@@ -112,3 +112,18 @@ def test_a_notice_that_cannot_be_worked_out_still_does_not_fail_the_run(repo, tm
     commit(repo, BASE_FILES, "base")
     code, summary = notice(repo, "no-such-commit", tmp_path)
     assert (code, summary) == (0, "")
+
+
+def test_renaming_a_judging_file_away_is_named_and_renaming_a_test_file_out_of_collection_counts_its_tests_removed(
+    repo, tmp_path
+):
+    # review-server-and-checks-02: git's rename detection reported only the new name, with no removed lines.
+    base = commit(repo, BASE_FILES, "base")
+    for old, new in [("pytest.ini", "pytest.ini.off"), ("checks.py", "checks_old.py"),
+                     ("tests/test_app.py", "tests/app_checks_off.py")]:
+        git(repo, "mv", old, new)
+    commit(repo, {}, "move the judges and a test file aside")
+    code, summary = notice(repo, base, tmp_path)
+    assert code == 0
+    assert "`pytest.ini`" in summary and "`checks.py`" in summary
+    assert "Tests removed: 2" in summary  # test_one and test_two are no longer in a test_*.py file
