@@ -9,7 +9,8 @@ Each check's output goes to .checks/<name>.txt. One line is printed per check an
 appended to .checks/runs.jsonl per run, with "quick" true or false. Exit 1 when a check is red. Red is a non-zero exit code
 or a timeout: nothing here reads a suite's output to decide.
 
-The checks: `patterns` (no file matches a forbidden pattern, PATTERNS below), `escapes` (the
+The checks: `lint` (Ruff over the repo, with the version pinned in requirements-dev.txt and the
+rules written in ruff.toml; it writes no cache), `patterns` (no file matches a forbidden pattern, PATTERNS below), `escapes` (the
 defect log reads, and each new line names the check that now catches its defect), `unit`
 (pytest over tests/) and `walks` (the browser walks).
 """
@@ -32,6 +33,7 @@ PYTHON = str(ROOT / ".venv" / "bin" / "python")
 
 # name, command, minutes before it is stopped and called red. Cheapest first.
 CHECKS = [
+    ("lint", [PYTHON, "-m", "ruff", "check", "--no-cache", "."], 1),
     ("patterns", [sys.executable, str(ROOT / "checks.py"), "--patterns"], 1),
     ("escapes", [sys.executable, str(ROOT / "checks.py"), "--escapes"], 1),
     ("unit", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider"], 3),

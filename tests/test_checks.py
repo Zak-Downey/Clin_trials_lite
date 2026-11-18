@@ -252,11 +252,11 @@ def test_the_escapes_check_is_red_on_a_problem_and_prints_it(tmp_path, monkeypat
 
 def test_every_check_this_repo_lists_has_a_name_a_command_and_a_time_limit():
     names = [name for name, _, _ in checks.CHECKS]
-    assert names == ["patterns", "escapes", "unit", "walks"]
+    assert names == ["lint", "patterns", "escapes", "unit", "walks"]
     assert all(command for _, command, _ in checks.CHECKS)
     # About three times a normal run; a change to one is deliberate and changes this line.
     limits = {name: minutes for name, _, minutes in checks.CHECKS}
-    assert limits == {"patterns": 1, "escapes": 1, "unit": 3, "walks": 8}
+    assert limits == {"lint": 1, "patterns": 1, "escapes": 1, "unit": 3, "walks": 8}
 
 
 WAITED_ON = 10  # minutes: the longest an agent's command tool waits on a command it runs in the foreground
@@ -272,3 +272,24 @@ def test_the_repo_notes_say_to_run_a_whole_run_in_the_background_when_it_can_out
     stated = [int(n) if n.isdigit() else NUMBERS.get(n.lower(), 999)
               for n in re.findall(r"(\w+)[- ]minute timeout", notes)]
     assert all(minutes <= WAITED_ON for minutes in stated), stated
+
+
+def lint_copy(tmp_path, code):
+    (tmp_path / "ruff.toml").write_text((checks.ROOT / "ruff.toml").read_text())
+    (tmp_path / "app.py").write_text(code)
+    lint = next(check for check in checks.CHECKS if check[0] == "lint")
+    return run(tmp_path, [lint, passing("later")])
+
+
+def test_the_lint_check_is_red_on_an_unused_import_and_the_run_stops_there(tmp_path):
+    code, printed, runs = lint_copy(tmp_path, "import os\n")
+    assert code == 1
+    assert [(c["name"], c["result"]) for c in runs[-1]["checks"]] == [("lint", "red"), ("later", "not run")]
+    assert "F401" in (tmp_path / ".checks" / "lint.txt").read_text()
+
+
+def test_the_lint_check_is_green_on_clean_code_and_leaves_no_file_behind(tmp_path):
+    code, _, runs = lint_copy(tmp_path, "import os\n\nprint(os.sep)\n")
+    assert code == 0
+    assert [(c["name"], c["result"]) for c in runs[-1]["checks"]] == [("lint", "green"), ("later", "green")]
+    assert sorted(p.name for p in tmp_path.iterdir()) == [".checks", "app.py", "ruff.toml"]
