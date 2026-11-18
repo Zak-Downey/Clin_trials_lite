@@ -59,3 +59,23 @@ def test_a_newer_run_on_the_same_branch_cancels_the_older_one():
     concurrency = block("concurrency")
     assert re.search(r"^  group: .*github\.workflow.*github\.ref", concurrency, re.M)
     assert re.search(r"^  cancel-in-progress: true\s*$", concurrency, re.M)
+
+
+JUDGING = [".github/workflows/", "checks.py", ".claude/settings.json", "pytest.ini"]
+
+
+def notice_step():
+    """The step that runs the notice: the one whose run line calls judge_notice.py."""
+    steps = re.split(r"^      - ", block("jobs"), flags=re.M)
+    return next((s for s in steps if "judge_notice.py" in s), "")
+
+
+def test_a_step_names_the_four_files_that_judge_a_pull_request():
+    run = re.search(r"run:\s*(.*\S)", notice_step())
+    assert run, "no step runs judge_notice.py"
+    for path in JUDGING:
+        assert path in run.group(1).split()
+
+
+def test_the_notice_step_can_never_fail_the_run():
+    assert re.search(r"^        continue-on-error: true\s*$", notice_step(), re.M)
