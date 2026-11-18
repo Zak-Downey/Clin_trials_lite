@@ -8,6 +8,7 @@ Every run here is a real run of real commands in a temporary folder. Nothing run
 from __future__ import annotations
 
 import json
+import re
 import os
 import subprocess
 import sys
@@ -256,3 +257,18 @@ def test_every_check_this_repo_lists_has_a_name_a_command_and_a_time_limit():
     # About three times a normal run; a change to one is deliberate and changes this line.
     limits = {name: minutes for name, _, minutes in checks.CHECKS}
     assert limits == {"patterns": 1, "escapes": 1, "unit": 3, "walks": 8}
+
+
+WAITED_ON = 10  # minutes: the longest an agent's command tool waits on a command it runs in the foreground
+NUMBERS = {"five": 5, "ten": 10, "twelve": 12, "thirteen": 13, "fifteen": 15, "twenty": 20, "thirty": 30}
+
+
+def test_the_repo_notes_say_to_run_a_whole_run_in_the_background_when_it_can_outlast_a_waited_on_command():
+    # review-server-and-checks-03: the notes said to give a whole run a fifteen-minute timeout, which the tool refuses.
+    notes = (checks.ROOT / "docs" / "agents" / "local" / "repo.md").read_text()
+    every = next(line for line in notes.splitlines() if line.startswith("- **Every check.**"))
+    if sum(minutes for _, _, minutes in checks.CHECKS) > WAITED_ON:
+        assert "in the background" in every
+    stated = [int(n) if n.isdigit() else NUMBERS.get(n.lower(), 999)
+              for n in re.findall(r"(\w+)[- ]minute timeout", notes)]
+    assert all(minutes <= WAITED_ON for minutes in stated), stated

@@ -4,7 +4,7 @@ The build was not allowed to edit this file, so the two changes are written out 
 
 ## 1. How long to wait for the checks (line 18)
 
-Agrees with ticket 01's limits: patterns and escapes 1 minute, unit 3, walks 8, so a whole run ends within 13 minutes (`docs/agents/local/repo.md`, "Every check").
+Agrees with ticket 01's limits: patterns and escapes 1 minute, unit 3, walks 8, so a whole run ends within 13 minutes (`docs/agents/local/repo.md`, "Every check"). The command tool waits at most ten minutes for a command, so only the background fits a run that long.
 
 Old:
 
@@ -12,7 +12,7 @@ Old:
 
 New:
 
-> It takes about four minutes and ends within thirteen: give it a fifteen-minute timeout or run it in the background.
+> It takes about four minutes and ends within thirteen, longer than the ten minutes the command tool waits: run it in the background and wait for it to end.
 
 ## 2. Quick runs after each ticket and each fix; three full runs named
 
