@@ -32,8 +32,8 @@ PYTHON = str(ROOT / ".venv" / "bin" / "python")
 CHECKS = [
     ("patterns", [sys.executable, str(ROOT / "checks.py"), "--patterns"], 1),
     ("escapes", [sys.executable, str(ROOT / "checks.py"), "--escapes"], 1),
-    ("unit", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider"], 10),
-    ("walks", [PYTHON, "walks/run_walks.py"], 20),
+    ("unit", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider"], 3),
+    ("walks", [PYTHON, "walks/run_walks.py"], 8),
 ]
 
 # A pattern no file may match. Each is a line of CODING_STANDARDS.md that a pattern can see.

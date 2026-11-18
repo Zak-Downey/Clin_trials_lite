@@ -4,11 +4,11 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first: the test that pins the checks fails until `unit` has 3 minutes and `walks` has 8, with `patterns` and `escapes` at 1
-- [ ] `python3 checks.py` still ends green in this repo under the new limits
-- [ ] `repo.md` states the new limits, the time to allow for a whole run, and that a product sets its own at about three times a normal run
-- [ ] No sentence outside `.claude/` still gives the old limits or the old waiting time
+- [x] Red first: the test that pins the checks fails until `unit` has 3 minutes and `walks` has 8, with `patterns` and `escapes` at 1
+- [x] `python3 checks.py` still ends green in this repo under the new limits
+- [x] `repo.md` states the new limits, the time to allow for a whole run, and that a product sets its own at about three times a normal run
+- [x] No sentence outside `.claude/` still gives the old limits or the old waiting time
 
 ## Comments

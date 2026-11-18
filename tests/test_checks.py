@@ -226,4 +226,7 @@ def test_the_escapes_check_is_red_on_a_problem_and_prints_it(tmp_path, monkeypat
 def test_every_check_this_repo_lists_has_a_name_a_command_and_a_time_limit():
     names = [name for name, _, _ in checks.CHECKS]
     assert names == ["patterns", "escapes", "unit", "walks"]
-    assert all(command and minutes > 0 for _, command, minutes in checks.CHECKS)
+    assert all(command for _, command, _ in checks.CHECKS)
+    # About three times a normal run; a change to one is deliberate and changes this line.
+    limits = {name: minutes for name, _, minutes in checks.CHECKS}
+    assert limits == {"patterns": 1, "escapes": 1, "unit": 3, "walks": 8}
