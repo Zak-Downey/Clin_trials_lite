@@ -21,7 +21,7 @@ The field names themselves are unchanged.
 
 Reads (all optional; what is missing is shown as missing, never as zero):
   git                                   the commits of <base>..<tip>
-  .checks/runs.jsonl                    one line per checks run
+  .checks/runs.jsonl                    one line per checks run; a quick one (checks.py --quick) is never the full run
   .scratch/<feature>/findings/*.jsonl   one line per finding; an empty file is a look that found nothing
   .scratch/<feature>/fates.jsonl        one line per finding id: what became of it
   .scratch/<feature>/hand-over.json     {"what": [...], "so_what": [...], "now_what": [...], "walk_through": [...]}
@@ -324,7 +324,7 @@ def commit_gap(repo: pathlib.Path, commit, tip: str) -> tuple[int, int] | None:
 
 def run_facts(runs: list[dict] | None, branch: str, names=None) -> dict:
     """The checks runs of one branch: how many, how many red, each run's result in order (`history`), the last
-    run of every check (`full`) and, for each check run again after it in a run of only some checks, that check's
+    run of every check that was not a quick run (`full`) and, for each check run again after it in a run of only some checks, that check's
     most recent result and when (`since`; with no full run, every logged run counts). A later pass of one check
     therefore never hides an earlier failure of another. None, with why, where the log does not say."""
     facts = {"runs": None, "red": None, "full": None, "since": {}, "history": [], "branch": branch,
@@ -334,13 +334,13 @@ def run_facts(runs: list[dict] | None, branch: str, names=None) -> dict:
     own = [run for run in runs if run.get("branch") == branch]
     if not own:
         return {**facts, "why_unknown": f"The log of check runs (.checks/runs.jsonl) has no entry for this build's branch, {branch}."}
-    full = [index for index, run in enumerate(own) if not missed(run, facts["names"])]
+    full = [index for index, run in enumerate(own) if is_full(run, facts["names"])]
     since = {}
     for run in own[full[-1] + 1:] if full else own:  # oldest first, so a check's later result replaces its earlier one
         listed_ = [check for check in run.get("checks") or [] if check.get("result") != "not run"]
         for check in listed_ or [{"name": "a run that names no check", "result": run.get("result")}]:
             since[str(check.get("name", "?"))] = {"result": str(check.get("result")), "at": run.get("at")}
-    history = [{"at": run.get("at"), "result": str(run.get("result")), "full": not missed(run, facts["names"]),
+    history = [{"at": run.get("at"), "result": str(run.get("result")), "full": is_full(run, facts["names"]), "quick": run.get("quick") is True,
                 "tip": run.get("tip"), "minutes": run.get("minutes"), "walks": ran_walks(run)} for run in own]
     return {**facts, "runs": len(own), "red": sum(run.get("result") == "red" for run in own), "history": history,
             "full": own[full[-1]] if full else None, "since": since}
@@ -392,6 +392,13 @@ def since_result(runs: dict) -> str:
     """green, red or other for the checks run again after the last full run, taken together; green when none was."""
     results = {last["result"] for last in runs["since"].values()}
     return "red" if "red" in results else "green" if results <= {"green"} else "other"
+
+
+def is_full(run: dict, names: list[str]) -> bool:
+    """Whether a run's line is a full run: it lists every configured check and is not a quick run (checks.py --quick,
+    which runs the browser tests at one window size), whatever checks a quick run lists. A line with no `quick` field
+    was written before quick runs existed, and is read as a full run."""
+    return not missed(run, names) and run.get("quick") is not True
 
 
 def missed(run: dict, names: list[str]) -> list[str]:
@@ -736,6 +743,8 @@ def passed_but(off: str) -> str:
 
 FLAKY_MISSING = ("The record of which browser tests failed with the others and passed alone is missing for the last run of "
                  "the browser tests, so this page cannot say whether any did.")
+QUICK_RUN = ", a quick run, with the browser tests at one window size"  # checks.py --quick: never a full run
+QUICK_SQUARE = " or was a quick run, with the browser tests at one window size"
 NOT_LAST = "so it does not show that the build's last commit passes"
 NO_FULL_RUN = "No run of every check is logged for this build's branch."
 NO_REPORT = ("This page looks for review reports in one place (findings/*.jsonl). Where it finds none from a review, either "
@@ -1864,11 +1873,11 @@ def render_stats(data: dict) -> str:
         history, shown = runs.get("history") or [], (runs.get("history") or [])[-80:]
         squares = "".join(
             f'<span class="{"r-" + run["result"] if run["result"] in ("green", "red") else ""}{"" if run["full"] else " part"}" '
-            f'title="{e(when(run["at"]))}: {e(ended(run["result"]))}{"" if run["full"] else ", some checks only"}"></span>' for run in shown)
+            f'title="{e(when(run["at"]))}: {e(ended(run["result"]))}{QUICK_RUN if run.get("quick") else "" if run["full"] else ", some checks only"}"></span>' for run in shown)
         more = f"The last {len(shown)} are drawn. " if len(history) > len(shown) else ""
         tiles.append(stat("Runs of the checks", f'{e(number(runs["runs"]))}', f'<span class="runs">{squares}</span>'
                           f'{e(number(runs["red"]))} failed. {more}Oldest first. A blue square is a run that passed, a red one a run that failed; '
-                          'a hollow square ran only some checks.', wide=True))
+                          f'a hollow square ran only some checks{QUICK_SQUARE if any(run.get("quick") for run in history) else ""}.', wide=True))
     return f'<div class="stats">{"".join(tiles)}</div>'
 
 

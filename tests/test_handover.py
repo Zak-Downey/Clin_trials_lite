@@ -321,6 +321,49 @@ def test_with_no_run_of_every_check_the_last_checks_run_is_unknown_and_says_why(
     assert not drawn_green(text) and tile(text, "#facts") == ("amber", "No result on record")
 
 
+def test_a_quick_run_after_a_full_one_never_replaces_it_as_the_last_full_run():
+    full = run("feature/x", "green", "2026-11-16T10:00:00Z", quick=False)
+    quick = run("feature/x", "green", "2026-11-16T10:20:00Z", quick=True)  # it lists every check, and is still not a full run
+    runs = handover.run_facts([full, quick], "feature/x")
+    assert runs["full"]["at"] == "2026-11-16T10:00:00Z" and runs["runs"] == 2
+    assert [(r["result"], r["full"]) for r in runs["history"]] == [("green", True), ("green", False)]  # it is still in the history
+    text = page(runs=runs, git=GIT)
+    assert "16 Nov 2026, 10:00 UTC" in row(text, "Last full run of the checks") and tile(text, "#facts") == ("green", "Passed on the build&#x27;s last commit")
+    assert re.findall(r'<span class="(r-\w+)( part)?" title', text) == [("r-green", ""), ("r-green", " part")]
+    assert "16 Nov 2026, 10:20 UTC: passed, a quick run, with the browser tests at one window size" in text
+
+
+def test_a_red_quick_run_after_a_green_full_run_shows_as_a_later_failure():
+    walked = {"git": GIT, "recording": {"commit": "abc1234", "dirty": False, "result": "passed", "megabytes": 1.0},
+              "files": {"walker-a.jsonl": [], "review-a.jsonl": [], "early-read-whole.jsonl": []}}
+    runs = handover.run_facts([run("feature/x", "green", "2026-11-16T10:00:00Z"),
+                               run("feature/x", "red", "2026-11-16T10:20:00Z", quick=True)], "feature/x")
+    assert runs["full"]["at"] == "2026-11-16T10:00:00Z" and handover.since_result(runs) == "red"
+    text = page(runs=runs, **walked)
+    assert tile(text, "#facts") == ("red", "Passed, then a later partial run failed") and '<p class="headline red">' in top(text)
+    assert "After the last run of every check, some checks were run again: most recently, the scan for forbidden code patterns (patterns) failed" in top(text)
+
+
+def test_a_branch_with_only_quick_runs_has_no_full_run_and_the_page_says_so():
+    runs = handover.run_facts([run("feature/x", "green", "2026-11-16T10:00:00Z", quick=True),
+                               run("feature/x", "green", "2026-11-16T10:20:00Z", quick=True)], "feature/x")
+    assert runs["full"] is None and [r["full"] for r in runs["history"]] == [False, False]
+    text = page(runs=runs, git=GIT)
+    assert row(text, "Last full run of the checks").startswith('<span class="unknown">unknown</span>')
+    assert "none of them is a full run, one of every check (patterns, escapes, unit, walks)" in text
+    assert not drawn_green(text) and tile(text, "#facts") == ("amber", "No result on record")
+    red = page(runs=handover.run_facts([run("feature/x", "red", quick=True)], "feature/x"), git=GIT)
+    assert tile(red, "#facts") == ("red", "Failed in their last run")
+
+
+def test_a_run_line_with_no_quick_field_is_a_full_run():
+    old = run("feature/x", "green", "2026-11-16T10:00:00Z")
+    assert "quick" not in old
+    runs = handover.run_facts([old, run("feature/x", "green", "2026-11-16T10:20:00Z", quick=True)], "feature/x")
+    assert runs["full"] is old and [r["full"] for r in runs["history"]] == [True, False]
+    assert "a quick run" not in re.findall(r'title="([^"]*)"></span>', page(runs=runs, git=GIT))[0]
+
+
 def test_a_green_run_is_drawn_green_only_on_the_build_s_last_commit_as_committed():
     green = lambda **more: page(runs=handover.run_facts([run("feature/x", "green", **more)], "feature/x"), git=GIT)  # noqa: E731
     assert 'pill green">passed<' in row(green(), "Last full run of the checks") and tile(green(), "#facts") == ("green", "Passed on the build&#x27;s last commit")
@@ -2015,3 +2058,11 @@ def test_the_script_puts_a_flaky_browser_test_from_the_features_record_on_the_pa
     handover.main(["feat", "--base", "main", "--tip", "feature/x", "--branch", "feature/x", "--no-walk"], root=repo)
     text = (feature / "hand-over" / "index.html").read_text(encoding="utf-8")
     assert MISSING not in text and "1 browser test failed when run with the others and passed when run alone" in text
+
+
+def test_a_quick_run_is_a_run_of_the_browser_tests_so_its_record_is_looked_for_and_read():
+    runs = handover.run_facts([run("feature/x", "green", "2026-11-16T10:00:00Z"),
+                               run("feature/x", "green", "2026-11-16T11:00:00Z", quick=True)], "feature/x")
+    assert handover.flaky_facts(runs, [flaky_line(at="2026-11-16T10:00:00Z")])["missing"]  # the quick run is the last run of them
+    seen = handover.flaky_facts(runs, [flaky_line(at="2026-11-16T10:00:00Z"), flaky_line(WOBBLY, at="2026-11-16T11:00:00Z")])
+    assert seen == {"walks": {WOBBLY: ["2026-11-16T11:00:00Z"]}, "missing": False}

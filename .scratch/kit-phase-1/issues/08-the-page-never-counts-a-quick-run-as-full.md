@@ -4,11 +4,11 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first: a page test with a full run followed by a quick run still reports the full run as the last full one
-- [ ] A red quick run after a green full run shows as a later failure, as a run of some checks does today
-- [ ] A branch with only quick runs has no full run, and the page says so
-- [ ] A run line written before this build, with no quick field, is read as a full run
+- [x] Red first: a page test with a full run followed by a quick run still reports the full run as the last full one
+- [x] A red quick run after a green full run shows as a later failure, as a run of some checks does today
+- [x] A branch with only quick runs has no full run, and the page says so
+- [x] A run line written before this build, with no quick field, is read as a full run
 
 ## Comments
