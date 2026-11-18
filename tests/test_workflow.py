@@ -61,7 +61,7 @@ def test_a_newer_run_on_the_same_branch_cancels_the_older_one():
     assert re.search(r"^  cancel-in-progress: true\s*$", concurrency, re.M)
 
 
-JUDGING = [".github/workflows/", "checks.py", ".claude/settings.json", "pytest.ini"]
+JUDGING = [".github/workflows/", "checks.py", ".claude/settings.json", "pytest.ini", "ruff.toml"]
 
 
 def notice_step():
@@ -70,11 +70,29 @@ def notice_step():
     return next((s for s in steps if "judge_notice.py" in s), "")
 
 
-def test_a_step_names_the_four_files_that_judge_a_pull_request():
+def notice_paths():
+    """The judging paths the notice step passes after the base."""
     run = re.search(r"run:\s*(.*\S)", notice_step())
     assert run, "no step runs judge_notice.py"
-    for path in JUDGING:
-        assert path in run.group(1).split()
+    return run.group(1).split()[3:]
+
+
+def test_a_step_names_the_five_files_that_judge_a_pull_request_and_no_other():
+    assert sorted(notice_paths()) == sorted(JUDGING)
+
+
+def test_the_comment_at_the_top_names_the_same_judging_files_as_the_notice_step():
+    header = "\n".join(line for line in text().splitlines() if line.startswith("#"))
+    listed = re.search(r"\(this folder, ([^)]*)\)", header.replace("\n#  ", " "))
+    assert listed, "the comment does not list the judging files"
+    assert sorted([".github/workflows/", *(p.strip() for p in listed.group(1).split(","))]) == sorted(notice_paths())
+
+
+def test_repo_md_names_the_same_judging_files_as_the_notice_step():
+    workflows = next(line for line in REPO_MD.read_text().splitlines() if line.startswith("- **Workflows.**"))
+    listed = re.search(r"that judge it \(([^)]*)\)", workflows)
+    assert listed, "the Workflows line does not list the judging files"
+    assert sorted(re.findall(r"`([^`]+)`", listed.group(1))) == sorted(notice_paths())
 
 
 def test_the_notice_step_can_never_fail_the_run():

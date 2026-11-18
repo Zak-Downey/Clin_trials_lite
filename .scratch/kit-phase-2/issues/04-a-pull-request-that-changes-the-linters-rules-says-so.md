@@ -4,11 +4,19 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first: the test that holds the list of judging files fails until `ruff.toml` is among them, in the workflow and in the notice's own tests
-- [ ] The notice names `ruff.toml` when a pull request changes it, and still never fails the run
-- [ ] The trigger, the job name, the steps that install and run the checks, and the time limit are unchanged
-- [ ] `repo.md` names the same judging files as the workflow, and `python3 checks.py` ends green
+- [x] Red first: the test that holds the list of judging files fails until `ruff.toml` is among them, in the workflow and in the notice's own tests
+- [x] The notice names `ruff.toml` when a pull request changes it, and still never fails the run
+- [x] The trigger, the job name, the steps that install and run the checks, and the time limit are unchanged
+- [x] `repo.md` names the same judging files as the workflow, and `python3 checks.py` ends green
 
 ## Comments
+
+- The notice step of `.github/workflows/checks.yml` now passes `ruff.toml` among the judging files, and the comment at the top and the "Workflows" line of `repo.md` name it too (repo.md adds "the linter's rules"). Nothing else in the workflow changed: trigger, job name, install and run steps and time limit are as they were.
+- `ruff.toml` goes before `checks.py` in the step's arguments. Put after it, the existing test `test_every_check_is_run_with_no_check_named` read `checks.py ruff.toml` as a check named and went red; the order means nothing to the notice, so the order changed and the test did not.
+- Tests, each seen red first:
+  - `tests/test_workflow.py::test_a_step_names_the_five_files_that_judge_a_pull_request_and_no_other` (was "the four files", and only checked inclusion; now the exact list): red until the step named `ruff.toml`.
+  - `tests/test_workflow.py::test_the_comment_at_the_top_names_the_same_judging_files_as_the_notice_step` and `::test_repo_md_names_the_same_judging_files_as_the_notice_step` (new): red once the step named `ruff.toml` and the comment and repo.md did not.
+  - `tests/test_judge_notice.py::test_a_pull_request_that_changes_the_linters_rules_is_told_so_by_name` (new; `ruff.toml` added to that file's judging list and stand-in repo): the notice script takes its judging files as arguments and needed no change, so this test passed when written; it was seen red with `ruff.toml` taken out of the list it passes, then restored. It also holds that the notice exits 0.
+- Checks run on the working tree before commit: `lint`, `patterns`, `escapes` and `unit` green. `walks` not run here (no page changed).
