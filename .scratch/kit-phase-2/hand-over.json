@@ -1,0 +1,26 @@
+{
+  "what": [
+    "The automated checks now start with a read of the code for common mistakes (Ruff 0.17.5, its rules written in ruff.toml); the code was cleaned to pass it.",
+    "A new command, python3 prove.py, breaks the code on purpose in ten ways, in a copy, and confirms a check goes red each time.",
+    "Every place that lists the checks (CLAUDE.md, repo.md, the hand-over page) now names five, and a test keeps repo.md and CLAUDE.md in step.",
+    "A pull request that changes ruff.toml is named in the notice on GitHub, beside the other files that judge the code.",
+    "The building agent's settings now refuse gh pr merge; merging stays yours."
+  ],
+  "so_what": [
+    "Try python3 prove.py first: it took 26 seconds here and should end with 10 of 10 breaks caught, leaving your folder unchanged.",
+    "An unused import, an unused variable or a misspelt name now turns the checks red before any test runs.",
+    "A # noqa marker must now name one rule and give its reason on the same line, so silencing the linter is never quiet."
+  ],
+  "now_what": [
+    "No plausible break stayed green: all 10 breaks in docs/agents/local/breaks.json were caught (ticket 07's comments).",
+    "The cleanup fixed 25 findings: 15 unused imports, 4 unused variables, 3 # noqa markers that silenced nothing (removed), 1 empty f-string, 1 named lambda, 1 late import.",
+    "The review then found 32 existing # noqa markers (28 E731, 4 E402) with no reason; the build added a reason to each, in comments only. No # noqa was added.",
+    "Minutes measured: a full check run took 3.7 before the linter and 3.8 to 3.9 after; the linter alone took under 0.01; one python3 prove.py run took 0.43.",
+    "The settings file was edited directly (the one gh pr merge line); settings-edit.md was not needed. It stops that spelling of the command only.",
+    "The spec was wrong on one point: no forbidden pattern looks at app code, so the break that proves the pattern check edits a walk file, not the app.",
+    "Each run inside the proof has a two-minute limit, shorter than the whole browser check (2.6 min), so the walk breaks each name a single walk.",
+    "prove.py is 223 lines against the spec's guide of about 150; new code outside tests is about 340 lines, under the 400 the spec flags.",
+    "Defaults used as the spec named them: Ruff 0.17.5, rules E4 E7 E9 F RUF100, the check named lint, ruff.toml, prove.py, breaks.json, two minutes a run, proof by hand only.",
+    "A review fix also changed CLAUDE.md's checks sentence, which the spec's every-list rule covers; nothing else in CLAUDE.md changed."
+  ]
+}
