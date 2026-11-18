@@ -302,7 +302,7 @@ def test_a_run_of_one_named_check_is_never_the_last_checks_run_and_never_turns_t
     last = row(text, "Last full run of the checks")
     assert 'pill red">failed<' in last and not drawn_green(text)
     assert ("After the last run of every check, some checks were run again: most recently, the unit tests (unit) passed (16 Nov 2026, 10:20 UTC). "
-            "The read of the code for common mistakes (lint), the scan for forbidden code patterns (patterns), the check of the defect log (escapes) and the browser tests (walks) were not run again.") in last
+            "The check of the code for common mistakes (lint), the scan for forbidden code patterns (patterns), the check of the defect log (escapes) and the browser tests (walks) were not run again.") in last
     assert tile(text, "#facts") == ("red", "Failed")
     assert re.findall(r'<span class="(r-\w+)( part)?" title', text) == [("r-red", ""), ("r-green", " part")]  # every run, oldest first
     assert "1 of 2 runs" in row(text, "Failed runs of the checks") and "a run of one named check too" in text
@@ -316,7 +316,7 @@ def test_with_no_run_of_every_check_the_last_checks_run_is_unknown_and_says_why(
     assert row(text, "Last full run of the checks").startswith('<span class="unknown">unknown</span>')
     assert ("The log holds runs of only some checks: most recently, the scan for forbidden code patterns (patterns) passed (16 Nov 2026, 10:00 UTC) "
             "and the check of the defect log (escapes) passed (16 Nov 2026, 10:00 UTC).") in text
-    assert "The read of the code for common mistakes (lint), the unit tests (unit) and the browser tests (walks) were not run in them." in text
+    assert "The check of the code for common mistakes (lint), the unit tests (unit) and the browser tests (walks) were not run in them." in text
     assert "none of them is a full run, one of every check (lint, patterns, escapes, unit, walks)" in text
     assert not drawn_green(text) and tile(text, "#facts") == ("amber", "No result on record")
 
@@ -341,7 +341,7 @@ def test_a_red_quick_run_after_a_green_full_run_shows_as_a_later_failure():
     assert runs["full"]["at"] == "2026-11-16T10:00:00Z" and handover.since_result(runs) == "red"
     text = page(runs=runs, **walked)
     assert tile(text, "#facts") == ("red", "Passed, then a later partial run failed") and '<p class="headline red">' in top(text)
-    assert "After the last run of every check, some checks were run again: most recently, the read of the code for common mistakes (lint) failed" in top(text)
+    assert "After the last run of every check, some checks were run again: most recently, the check of the code for common mistakes (lint) failed" in top(text)
 
 
 def test_a_branch_with_only_quick_runs_has_no_full_run_and_the_page_says_so():
@@ -387,7 +387,7 @@ def test_a_later_run_of_one_check_that_was_not_green_is_on_the_board_not_only_in
     assert tile(red, "#facts") == ("red", "Passed, then a later partial run failed")
     assert things(red)[0][2] == "A later run of only some of the automated checks failed"
     assert '<p class="headline red">' in top(red) and "1 thing to look at" in top(red) and "Nothing on record" not in red
-    assert "some checks were run again: most recently, the unit tests (unit) failed (16 Nov 2026, 10:20 UTC). The read of the code for common mistakes (lint), the scan for forbidden code patterns (patterns)," in top(red)
+    assert "some checks were run again: most recently, the unit tests (unit) failed (16 Nov 2026, 10:20 UTC). The check of the code for common mistakes (lint), the scan for forbidden code patterns (patterns)," in top(red)
     assert '<span class="chk green">' not in red and top(red).count('<span class="chk ">') == 5  # the earlier green run is not drawn as passed
     odd = page(runs=then("stopped"), **walked)
     assert tile(odd, "#facts") == ("amber", "Passed, then a later partial run did not pass") and '<p class="headline amber">' in top(odd)
@@ -408,7 +408,7 @@ def test_a_check_that_failed_when_run_again_stays_failed_until_that_same_check_p
     text = page(runs=hidden, **walked)
     assert tile(text, "#facts") == ("red", "Passed, then a later partial run failed") and '<p class="headline red">' in top(text)
     assert ("most recently, the unit tests (unit) failed (16 Nov 2026, 10:20 UTC) and the scan for forbidden code patterns (patterns) passed "
-            "(16 Nov 2026, 10:30 UTC). The read of the code for common mistakes (lint), the check of the defect log (escapes) and the browser tests (walks) were not run again.") in top(text)
+            "(16 Nov 2026, 10:30 UTC). The check of the code for common mistakes (lint), the check of the defect log (escapes) and the browser tests (walks) were not run again.") in top(text)
     mended = handover.run_facts(start + [run("feature/x", "green", "2026-11-16T10:30:00Z", names=("unit",))], "feature/x")
     assert handover.since_result(mended) == "green" and tile(page(runs=mended, **walked), "#facts") == ("green", "Passed on the build&#x27;s last commit")
     skipped = run("feature/x", "red", "2026-11-16T10:40:00Z", names=("unit", "walks"))
@@ -761,7 +761,7 @@ def test_the_headline_s_count_is_a_list_that_names_each_thing_says_why_and_links
          "start to finish. What the run printed is in walk-output.txt, beside this page. It was started on commit dd4ea9d, not the build&#x27;s last "
          "commit (abc1234) and with uncommitted changes in the folder, so it does not show whether the build&#x27;s last commit fails either. "
          "Ask for it to be run again on the build&#x27;s last commit, with nothing uncommitted in the folder."),
-        ("red", "#facts", "The automated checks failed", "The last run of every check failed at the read of the code for common mistakes (lint), the scan for forbidden code patterns (patterns), "
+        ("red", "#facts", "The automated checks failed", "The last run of every check failed at the check of the code for common mistakes (lint), the scan for forbidden code patterns (patterns), "
          "the check of the defect log (escapes), the unit tests (unit) and the browser tests (walks). Ask for the failure to be fixed before you "
          "accept this build.")]
     on_tip = page(git=GIT, recording={**RECORDING, "commit": "abc1234", "dirty": False, "result": "failed", "reason": "It was stopped after 15 minutes"})
@@ -2092,3 +2092,15 @@ def test_nothing_in_handover_py_names_this_product():
     text = pathlib.Path(handover.__file__).read_text()
     named = [line for line in text.splitlines() if re.search(r"trial|registry|watchlist|clinical|filter", line, re.I)]
     assert not named, named
+
+
+
+def test_a_page_from_a_run_that_lists_lint_names_it_in_the_owner_s_words_never_bare():
+    line = run("feature/x", "red")  # stopped at the first check, as a real run is
+    for check in line["checks"][1:]:
+        check.update(result="not run", minutes=0.0)
+    text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", re.sub(r"(?s)<(style|script)\b.*?</\1>", "", page(runs=handover.run_facts([line], "feature/x"), git=GIT))))
+    assert "check of the code for common mistakes (lint)" in text
+    named = [m.start() for m in re.finditer(r"\blint\b", text) if not text[m.end():].startswith(".txt")]  # its output file keeps its name
+    bare = [i for i in named if not text[:i].endswith("check of the code for common mistakes (")]
+    assert named and bare == [], [text[max(i - 60, 0):i + 20] for i in bare]

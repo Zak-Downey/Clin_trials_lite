@@ -768,7 +768,7 @@ NOT_LAST = "so it does not show that the build's last commit passes"
 NO_FULL_RUN = "No run of every check is logged for this build's branch."
 NO_REPORT = ("This page looks for review reports in one place (findings/*.jsonl). Where it finds none from a review, either "
              "the review was not made or its report is somewhere else: this page cannot tell which.")
-CHECK_GLOSS = {"lint": "the read of the code for common mistakes",
+CHECK_GLOSS = {"lint": "the check of the code for common mistakes",
                "patterns": "the scan for forbidden code patterns", "escapes": "the check of the defect log",
                "unit": "the unit tests", "walks": "the browser tests"}  # checks.py's docstring
 DECISION = "before you accept this build"  # the owner's decision (CLAUDE.md, "When the owner accepts a build")

@@ -293,3 +293,13 @@ def test_the_lint_check_is_green_on_clean_code_and_leaves_no_file_behind(tmp_pat
     assert code == 0
     assert [(c["name"], c["result"]) for c in runs[-1]["checks"]] == [("lint", "green"), ("later", "green")]
     assert sorted(p.name for p in tmp_path.iterdir()) == [".checks", "app.py", "ruff.toml"]
+
+
+def test_the_every_check_line_of_repo_md_names_the_checks_in_CHECKS_in_order():
+    numbers = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight"}
+    text = (checks.ROOT / "docs" / "agents" / "local" / "repo.md").read_text()
+    line = next(line for line in text.splitlines() if line.startswith("- **Every check.**"))
+    said, listed = re.search(r"runs (\w+) checks, cheapest first, stopping at the first red: (.*?); the list is", line).groups()
+    names = [name for name, _, _ in checks.CHECKS]
+    assert re.findall(r"`(\w+)`", listed) == names
+    assert said == numbers[len(names)]
