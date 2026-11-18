@@ -24,6 +24,29 @@ What is particular to this repo. Every line below is a fact of this repo; a line
 - **Agents running browsers at once.** 3 (a suite run uses four workers; the runner re-runs a failure alone, so load-only flakes show as such: each run appends the walks that were red under load and green alone to `.scratch/<feature>/walks/flaky.jsonl`, and the hand-over page lists each one for the owner and says when that record is missing for the build's last run of the walks).
 - **Not checkable by a walk here.** Wording and legibility, Safari, real hardware, the live registry (`walks/fidelity_check.py` is by hand).
 
+## Where the walks' time goes
+
+Measured 2026-11-18 (ticket 03 of `kit-phase-3`, commit 7ae2bbb, the owner's 10-processor Mac): one full run of `walks/run_walks.py`, 412 walk runs in 151.7 s on four workers, 598 worker-seconds in all. The figures for every file are in that ticket's comments.
+
+| Split | Seconds | Share |
+|---|---|---|
+| Set-up | 106.2 | 18% (102.3 of it the walk-guard tests' run of `walks/broken/`, 25.5 s, once in each of the four workers) |
+| The walks | 374.6 | 63% (an app's start-up counts here: walks start their app inside the walk) |
+| Tear-down | 116.6 | 20% (0.29 s a walk, almost all the stand-in registry's shutdown waiting out its half-second poll) |
+
+| Ten slowest walk files | Tests | Seconds |
+|---|---|---|
+| `test_walk_guards.py` | 11 | 103.3 |
+| `test_check_walk.py` | 20 | 57.8 |
+| `test_acceptance_walk.py` | 15 | 49.4 |
+| `test_new_matches_walk.py` | 18 | 36.9 |
+| `test_explore_find_trials_stale_response_overwrites_view.py` | 6 | 28.4 |
+| `test_all_trials_walk.py` | 16 | 28.3 |
+| `test_trial_address_walk.py` | 36 | 24.2 |
+| `test_explore_watchlists_and_review_focus_and_state_kept.py` | 6 | 20.9 |
+| `test_summary_walk.py` | 14 | 19.3 |
+| `test_late_answer_walk.py` | 20 | 18.6 |
+
 ## Running a walk
 
 Write `walk = make_walk(make_app(seed=helper.seed_queue))`, `walk.page.goto(app.url)`, act by role and name, assert on what is drawn, `walk.shot("step")`. The stand-in registry's switches are `registry.set("revise")` and so on (its control endpoint, never the app). A new guard or helper change runs `walks/test_walk_guards.py`, which runs deliberately broken pages in `walks/broken/`. A walk that proves an error response declares it first with `walk.expect(status, path)`; the guards then treat that response as expected, and fail the walk if it never comes.
