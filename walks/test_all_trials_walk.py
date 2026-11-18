@@ -72,6 +72,15 @@ def open_all_trials(make_app, make_walk):
     return app, walk
 
 
+def assert_the_long_title_wraps_onto_a_taller_row(page):
+    """The long title takes at least two lines of an ordinary one-line title, and its row is the taller. Measured on the
+    titles, not the rows, because a row's other lines change height with the font and the title's line count does not."""
+    long_row, short_row = page.locator('tr[data-nct="NCT00000005"]'), page.locator('tr[data-nct="NCT00000004"]')
+    long_title, short_title = (row.locator("td a").first.bounding_box()["height"] for row in (long_row, short_row))
+    assert long_title >= 2 * short_title * 0.9, (long_title, short_title)
+    assert long_row.bounding_box()["height"] > short_row.bounding_box()["height"]
+
+
 def titles(page):
     return page.locator("table.trials tbody tr td:first-child a").all_inner_texts()
 
@@ -94,9 +103,8 @@ def test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_title
     assert page.get_by_text("19 trials").first.is_visible()
     walk.shot("table")
     # A long title wraps onto a taller row and nothing runs sideways.
-    long_row = page.locator('tr[data-nct="NCT00000005"]')
-    assert long_row.locator("td a").first.inner_text() == LONG_TITLE
-    assert long_row.bounding_box()["height"] > 2 * page.locator('tr[data-nct="NCT00000004"]').bounding_box()["height"] * 0.9
+    assert page.locator('tr[data-nct="NCT00000005"] td a').first.inner_text() == LONG_TITLE
+    assert_the_long_title_wraps_onto_a_taller_row(page)
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
     # Headers stay visible while the page scrolls.
     head = page.locator("table.trials thead th").first
@@ -211,3 +219,13 @@ def test_walk_a_watchlist_opens_on_needs_review_and_remembers_all_trials(make_ap
         "(b) => document.querySelector('tr[data-nct=\"NCT03412565\"] td:nth-child(3)').innerText !== b", arg=before, timeout=30000)
     assert page.get_by_role("tab", name="All trials").get_attribute("aria-selected") == "true"
     walk.shot("after-check")
+
+
+def test_walk_a_long_title_wraps_onto_a_taller_row_in_the_font_a_linux_machine_draws(make_app, make_walk):
+    """The check on GitHub draws text in DejaVu Sans, where an ordinary row is taller than on a Mac: the long title
+    still wraps onto a taller row (escape E-038)."""
+    _, walk = open_all_trials(make_app, make_walk)
+    page = walk.page
+    page.add_style_tag(content="table.trials td { font-family: 'DejaVu Sans', Verdana, sans-serif; }")
+    assert_the_long_title_wraps_onto_a_taller_row(page)
+    walk.shot("linux-font")
