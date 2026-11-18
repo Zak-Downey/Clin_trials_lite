@@ -21,6 +21,14 @@
     "Each run inside the proof has a two-minute limit, shorter than the whole browser check (2.6 min), so the walk breaks each name a single walk.",
     "prove.py is 223 lines against the spec's guide of about 150; new code outside tests is about 340 lines, under the 400 the spec flags.",
     "Defaults used as the spec named them: Ruff 0.17.5, rules E4 E7 E9 F RUF100, the check named lint, ruff.toml, prove.py, breaks.json, two minutes a run, proof by hand only.",
-    "A review fix also changed CLAUDE.md's checks sentence, which the spec's every-list rule covers; nothing else in CLAUDE.md changed."
+    "A review fix also changed CLAUDE.md's checks sentence, which the spec's every-list rule covers; nothing else in CLAUDE.md changed.",
+    "The cleanup touched two browser tests of the whole journey only to remove unused names; the recording shows one of them, and the page lists the other under a fold."
+  ],
+  "walk_through": [
+    {
+      "test": "test_walk_the_whole_journey_by_keyboard_alone",
+      "title": "The app works as before after the code cleanup, by keyboard alone",
+      "legend": "Nothing a user sees was meant to change. By keyboard only, a watchlist is made, trials are found and selected across two pages and added. Each step should behave exactly as it did before this build."
+    }
   ]
 }
