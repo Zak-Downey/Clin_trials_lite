@@ -1,0 +1,1 @@
+{"id": "early-read-whole-01", "fate": "fixed", "commit": "b4a0f6c", "check": "walks/test_run_walks.py::test_a_mass_failure_stops_the_first_run_early_and_still_names_each_red_walk_it_saw", "why": ""}
