@@ -337,10 +337,6 @@ def render_history(moves: list[dict]) -> str:
 
 CHANGE_CAP = 3
 
-DATE_FORMAT = "DD MMMM YYYY"
-
-INPUT_DATE_FORMAT = "DD/MM/YYYY"
-
 PHASE_NAMES = {"NA": "N/A", "EARLY_PHASE1": "Early Phase 1"}
 
 
@@ -546,13 +542,3 @@ def study_line(row: dict) -> dict:
         "Interventions": show(row["interventions"]),
         "Trial status": status_label(row["status"]),
     }
-
-
-COLUMN_WIDTHS = {
-    "NCT ID": "small",
-    "Official title": "large",
-    "Phase": "small",
-    "Conditions": "small",
-    "Interventions": "small",
-    "Trial status": "small",
-}

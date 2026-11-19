@@ -8,3 +8,4 @@ Each line came from a defect that got past the checks; the ids in brackets are i
 - **R-004. A failure is stated as a failure.** A view's catch states it in an error element (never `.banner`) and branches on `err.kind` where the server gives one. (E-008, E-017, E-020, E-022)
 - **R-005. No check compares a value with itself.** Enforced by `checks.py` over `walks/` and `tests/`. (E-026)
 - **R-006. Every means every.** A check of something the spec says of every, any or each instance looks at each instance (every step, every stop, every field), not at a sample. (E-012, E-027, E-028)
+- **R-007. A reason the code depends on is held by a test.** A constraint that no name states (why a value must keep its form, why a step stores nothing, why an order breaks a tie) has a test that fails when the constraint is broken; a comment is not where it lives. (E-044, E-045, E-046, E-047)

@@ -8,8 +8,8 @@ alone once, and ends with a `## Result` section: one line per walk that failed o
 `red alone` or `red under load, green alone`, also appended to the output file. At most ALONE_CAP walks are re-run; the rest are
 listed as red, not re-run. The first run ends early once MASS_FAILURE walks are red, and the section says so.
 Each run appends one line to FLAKY_RECORD beside the output file: the time, the commit and the walks that were red
-under load and green alone (an empty list when none was). Exit 1 when any walk failed alone, or, with FLAKY_IS_RED
-on, when any walk was flaky.
+under load and green alone (an empty list when none was), and the section has one line per such walk saying it
+wobbled. Exit 1 when any walk failed alone, or, with FLAKY_IS_RED on (it is), when any walk wobbled.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ ALONE_CAP = 10
 MASS_FAILURE = 20
 
 
-FLAKY_IS_RED = False
+FLAKY_IS_RED = True
 FLAKY_RECORD = "flaky.jsonl"
 
 
@@ -109,6 +109,7 @@ def main(argv, targets=None, cwd=ROOT, shots=None) -> int:
             flaky.append(nodeid)
         else:
             result.append(result_line(nodeid, "red alone", alone))
+    result.extend(f"{nodeid} wobbled: failed beside the others, passed alone" for nodeid in flaky)
     if len(failed) >= MASS_FAILURE:
         result.append(f"The first run ended early, at {MASS_FAILURE} red walks; the walks after them were not run.")
     section = "\n## Result\n" + "".join(f"{line}\n" for line in result)

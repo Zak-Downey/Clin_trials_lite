@@ -231,11 +231,6 @@ def test_a_record_the_registry_gives_no_revision_date_for_renders_empty(line):
     assert display.registry_updated(line(fields=["enrollment"], registry_updated=None)) is None
 
 
-def test_the_date_column_spells_the_month_out(line):
-    assert "MMMM" in display.DATE_FORMAT.split()
-    assert not {"M", "MM"} & set(display.DATE_FORMAT.split())
-
-
 
 
 @pytest.mark.parametrize(

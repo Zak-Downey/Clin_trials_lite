@@ -29,6 +29,9 @@ Reads (all optional; what is missing is shown as missing, never as zero):
   .scratch/<feature>/walks/flaky.jsonl  one line per run of the browser tests: the ones red with the others and green
                                         alone. Each is listed for the owner; where the build's last run of them has no
                                         line, the page says the record is missing (earlier runs may predate it)
+  GitHub, through the gh command        the runs of the checks workflow for the build's last commit (only that commit's: the
+                                        newest decides) and the branch's pull request. Each question waits a few seconds at
+                                        most; when GitHub cannot be asked, the page says why and is still built
   this computer (lsof, ps)              the project's programs still listening on a port: one started during the build
                                         is listed for the owner, since a test may have left it running
 
@@ -101,6 +104,10 @@ CODE_NAME = re.compile(r"[\w.:/]*(?:\w_\w|::)[\w.:/]*")
 WALKS_CHECK = "walks"
 FLAKY_RECORD = "flaky.jsonl"
 PICTURE_BYTES = 1_500_000
+GH, GITHUB_WORKFLOW, GITHUB_SECONDS = "gh", "checks.yml", 5
+GITHUB_FIX = {"missing": "Install the gh command and ask for this page to be built again, or look at the run on GitHub yourself.",
+              "signed-out": "Sign in: type gh auth login in a terminal, then ask for this page to be built again.",
+              "error": "Ask for this page to be built again in a few minutes, or look at the run on GitHub yourself."}
 
 
 
@@ -208,6 +215,49 @@ def ask(*command: str) -> str | None:
         return subprocess.run(command, capture_output=True, text=True, timeout=30, env={**os.environ, "LC_ALL": "C"}).stdout
     except (OSError, subprocess.TimeoutExpired):
         return None
+
+
+def gh_said(root: pathlib.Path, *args: str) -> tuple[str, object]:
+    """("ok", what `gh` printed, read as JSON), or (missing | signed-out | error, why GitHub could not be asked). It waits
+    GITHUB_SECONDS at most and never raises."""
+    try:
+        done = subprocess.run([GH, *args], cwd=root, capture_output=True, text=True, timeout=GITHUB_SECONDS,
+                              env={**os.environ, "GH_PROMPT_DISABLED": "1", "NO_COLOR": "1"})
+    except FileNotFoundError:
+        return "missing", "the gh command, through which this page asks GitHub, is not installed on this computer"
+    except (OSError, subprocess.TimeoutExpired) as error:
+        late = isinstance(error, subprocess.TimeoutExpired)
+        return "error", f"GitHub did not answer within {GITHUB_SECONDS} seconds" if late else f"the gh command could not be run ({error})"
+    quoted = (done.stderr.strip() or done.stdout.strip() or f"it ended {done.returncode}").splitlines()[0][:LINE_LENGTH]
+    if done.returncode == 4 or "gh auth login" in done.stderr:
+        return "signed-out", "the gh command is not signed in to GitHub"
+    if done.returncode:
+        return "error", f"the gh command ended with an error: \u201c{quoted}\u201d"
+    try:
+        return "ok", json.loads(done.stdout)
+    except ValueError:
+        return "error", f"the gh command gave an answer this page could not read: \u201c{quoted}\u201d"
+
+
+def ask_github(root: pathlib.Path, branch: str, tip: str) -> dict:
+    """What GitHub says of the runs of the checks workflow on commit `tip` (in full) of `branch`, and of the branch's pull
+    request: `said` is passed, failed, running, none or unasked. The newest run of the commit decides; a run of another
+    commit of the branch is never this commit's, it only makes `earlier` true."""
+    how, runs = gh_said(root, "run", "list", "--workflow", GITHUB_WORKFLOW, "--branch", branch, "--limit", "50", "--json",
+                        "databaseId,number,status,conclusion,url,headSha,createdAt,startedAt,updatedAt")
+    if how != "ok" or not isinstance(runs, list):
+        return {"said": "unasked", "kind": "error" if how == "ok" else how, "why": runs if how != "ok" else "GitHub's answer was not a list of runs"}
+    own = sorted((run for run in runs if isinstance(run, dict) and run.get("headSha") == tip), key=lambda run: str(run.get("createdAt")))
+    run = own[-1] if own else {}
+    said = "none" if not own else "running" if run.get("status") != "completed" else "passed" if run.get("conclusion") == "success" else "failed"
+    answer = {"said": said, "run": run, "earlier": bool(runs) and not own, "tip": tip[:7], "branch": branch, "step": None}
+    if said == "failed":
+        how, view = gh_said(root, "run", "view", str(run.get("databaseId")), "--json", "jobs")
+        jobs = (view.get("jobs") or []) if how == "ok" and isinstance(view, dict) else []
+        answer["step"] = next((step.get("name") for job in jobs for step in job.get("steps") or [] if step.get("conclusion") == "failure"), None)
+    how, pr = gh_said(root, "pr", "view", branch, "--json", "url,isDraft,state")
+    answer["pr"] = pr if how == "ok" and isinstance(pr, dict) else None
+    return answer
 
 
 def listeners(root: pathlib.Path) -> list[dict] | None:
@@ -631,11 +681,12 @@ def absent_finders(files: dict[str, list[dict]]) -> list[str]:
 def page_data(feature: str, *, base_ref: str = "", tip_ref: str = "", git: dict | None = None, runs: dict | None = None,
               files: dict[str, list[dict]] | None = None, fates: dict | None = None, missing: dict[str, str] | None = None,
               summary: dict | None = None, recording: dict | None = None, shots=(), built: dict | None = None,
-              walk_gap: tuple[int, int] | None = None, copies: list[dict] | None = None, flaky: list[dict] | None = None) -> dict:
+              walk_gap: tuple[int, int] | None = None, copies: list[dict] | None = None, flaky: list[dict] | None = None,
+              github: dict | None = None) -> dict:
     """Everything the page shows, in one dictionary. `files` is read_findings' answer; `missing` is
     missing_proof's, or None when nobody looked for the checks and commits the fates name; `copies` is listeners'
     answer, or None when nobody looked for programs still running; `flaky` is read_flaky's, or None when nobody read the
-    walk runner's record."""
+    walk runner's record; `github` is ask_github's, or None when nobody asked GitHub."""
     files, fates = files or {}, fates or {}
     findings = [row for rows in files.values() for row in rows]
     joined = join(findings, fates, missing)
@@ -646,6 +697,7 @@ def page_data(feature: str, *, base_ref: str = "", tip_ref: str = "", git: dict 
         "files": files, "findings": joined, "groups": group_by_state(joined), "verified": missing is not None,
         "by_finder": count_by_finder(findings), "absent": absent_finders(files),
         "orphans": orphan_fates(findings, fates), "built": built or {}, "walk_gap": walk_gap, "copies": copies,
+        "github": github,
     }
 
 
@@ -710,6 +762,39 @@ def running_parts(data: dict) -> tuple[str, str, str] | None:
             f"{tests} them or you did.", f"If you did not start them, stop them: type kill {pids} in a terminal.")
 
 
+def github_parts(data: dict) -> tuple[str, str, str, str] | None:
+    """(amber, or "" for a pass; what; why it matters; what the owner can do) for GitHub's run of the automated checks on
+    the build's last commit, with the branch's pull request. None when GitHub was not asked."""
+    hub = data.get("github")
+    if not hub:
+        return None
+    run, pr = hub.get("run") or {}, hub.get("pr")
+    why = ("GitHub runs every automated check again on its own computer, which runs Linux: a check can pass on this computer "
+           "and fail there.")
+    if pr:
+        state = {"MERGED": "already merged.", "CLOSED": "closed without being merged."}.get(str(pr.get("state")), "marked ready to merge.")
+        why += f" The pull request is at {pr.get('url')}. It is " + ("still a draft: not yet accepted, so it cannot be merged." if pr.get("isDraft") else state)
+    which = f"Run {run.get('number')} ({run.get('url')})"
+    if hub["said"] == "passed":
+        took = (moment(run["updatedAt"]) - moment(run["startedAt"])).total_seconds() / 60 if run.get("startedAt") and run.get("updatedAt") else None
+        return "", f"GitHub's run of the automated checks passed on the build's last commit: run {run.get('number')}, which took {minutes(took)}.", why, ""
+    if hub["said"] == "failed":
+        step = f" at the step \u201c{hub['step']}\u201d" if hub.get("step") else ""
+        return ("amber", "GitHub's run of the automated checks failed on the build's last commit", f"{which} failed{step}. {why}",
+                f"Ask for the failure to be fixed {DECISION}.")
+    if hub["said"] == "running":
+        return ("amber", "GitHub's run of the automated checks had not finished when this page was built",
+                f"{which} was still running, so this page cannot say whether it passes. {why}",
+                "Wait for it to end, then ask for this page to be built again.")
+    if hub["said"] == "none":
+        earlier = " GitHub has a run of an earlier commit of the branch; it says nothing of this one." if hub.get("earlier") else ""
+        return ("amber", "GitHub has not run the automated checks on the build's last commit",
+                f"No run was made for commit {hub['tip']} of branch {hub['branch']}.{earlier} {why}",
+                "Ask for the run to be started: pushing the branch to GitHub with a pull request open for it starts one.")
+    return ("amber", "This page could not ask GitHub how its run of the automated checks went",
+            f"{sentence(hub['why'])}. So nothing on this page says whether the checks pass on GitHub's computer. {why}", GITHUB_FIX[hub["kind"]])
+
+
 def running_said(data: dict) -> str | None:
     """This project's programs still listening, counted for the list of numbers: None when nobody looked."""
     copies = data["copies"]
@@ -766,7 +851,7 @@ MERGED = "Nothing is left to accept: what this page lists is for you to know abo
 MERGED_HOW = "This build is already merged: this page found its last commit in main, the project's main line of work."
 AGAIN = "on the build's last commit"
 ASK = "tell the agent you are working with (a new session opened in this project will do)"
-ACCEPTING = ("In this project, when you accept a build the agent pushes the build's branch and opens a pull request, "
+ACCEPTING = ("In this project, when you accept a build the agent marks its draft pull request ready to merge, "
              "and you merge it yourself.")
 
 
@@ -1426,6 +1511,8 @@ def to_look_at(data: dict) -> list[tuple[str, str, str, str, str]]:
                        "build.", "Ask for this page to be built again from the build's first commit to its last.", "#facts"))
     if running_parts(data):
         things.append(("amber", *running_parts(data), "#facts"))
+    if github_parts(data) and github_parts(data)[0]:
+        things.append((*github_parts(data), "#facts"))
     for index, (state, rows) in enumerate(data["groups"]):
         things.append((TONES.get(state_look(state, rows)[1], ""), *state_parts(state, rows, top=True), f"#group-{index}"))
     if not data["files"]:
@@ -1619,6 +1706,9 @@ def render_standing(data: dict) -> str:
         headline = (f'<p class="headline green">{mark("green")}{e(headline_said(0, done))}</p>'
                     "<p class=\"soft\">This page checked: the walk-through and the automated checks passed on the build's last commit, "
                     f"and {settled}.{' ' + e(late_said(data)) if late_said(data) else ''}</p>" + ("" if done else f"<p>To accept the build, {ASK}.{accept}</p>"))
+    passed = github_parts(data)
+    if passed and not passed[0]:
+        headline += f'<p class="soft">{e(passed[1])} {e(passed[2])}</p>'
     headline += f'<p class="soft"><a href="#summary">{e(undecided(left_said(data, count)[0], data))}</a></p>'
     return f'<div class="board">{render_walk_tile(data)}{render_checks_tile(data)}{render_findings_tile(data)}</div>{headline}'
 
@@ -1915,6 +2005,8 @@ def render_facts(data: dict) -> str:
         fact(RUNNING, unknown() if running_said(data) is None else e(running_said(data)),
              "this computer's list of running programs (lsof and ps), read when this page was built: each program that is listening on a "
              "network port and was started with a file of this project; the app is one, a copy of it started by a test is another"),
+        fact("GitHub's run of the checks", e(github_parts(data)[1]) if github_parts(data) else unknown("GitHub was not asked"),
+             f"asked of GitHub through the gh command when this page was built: the runs of {GITHUB_WORKFLOW} for the build's last commit"),
         fact("Commits", value("commits"), span),
         fact("First commit", e(when(facts.get("first"))) if facts.get("first") else unknown(), span),
         fact("Last commit", e(when(facts.get("last"))) if facts.get("last") else unknown(), span),
@@ -2328,7 +2420,8 @@ def main(argv=None, root: pathlib.Path = ROOT, show=None) -> int:
     out.mkdir(exist_ok=True)
     facts = git_facts(root, args.base, args.tip)
     files, fates, summary = read_findings(feature_dir), read_fates(feature_dir), read_summary(feature_dir)
-    runs = run_facts(read_runs(root / ".checks" / "runs.jsonl"), args.branch or git(root, "rev-parse", "--abbrev-ref", "HEAD"))
+    branch = args.branch or git(root, "rev-parse", "--abbrev-ref", "HEAD")
+    runs = run_facts(read_runs(root / ".checks" / "runs.jsonl"), branch)
     record, picked, left_out = None, [], []
     if not args.no_walk:
         parts, left_out = walk_parts(summary, changed_walks(root, args.base, args.tip), feature_dir / "hand-over.json")
@@ -2345,7 +2438,7 @@ def main(argv=None, root: pathlib.Path = ROOT, show=None) -> int:
         args.feature, base_ref=args.base, tip_ref=args.tip, git=facts, runs=runs, files=files, fates=fates,
         missing=missing_proof(root, facts["tip"], fates), summary=summary, recording=recording,
         shots=shots_of(out), built=tree_state(root), walk_gap=commit_gap(root, (recording or {}).get("commit"), args.tip),
-        copies=listeners(root), flaky=read_flaky(feature_dir),
+        copies=listeners(root), flaky=read_flaky(feature_dir), github=ask_github(root, branch, git(root, "rev-parse", args.tip)),
     )
     page = out / "index.html"
     page.write_text(render(data), encoding="utf-8")

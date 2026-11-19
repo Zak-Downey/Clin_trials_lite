@@ -143,7 +143,152 @@ def test_walk_each_check_group_shows_both_dates_and_a_field_that_moved_twice_sho
 def test_walk_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear(make_app, make_walk):
     """test_walk_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear"""
     _, walk = open_trial(make_app, make_walk)
+    assert_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear(walk.page)
+    walk.shot("action-bar")
+
+
+def test_walk_the_action_bar_states_its_scope_while_the_watchlist_s_queue_is_still_unanswered(make_app, make_walk):
+    """test_walk_the_action_bar_states_its_scope_while_the_watchlist_s_queue_is_still_unanswered"""
+    app = make_app(seed=seed_trial_page)
+    walk = make_walk(app)
     page = walk.page
+    page.goto(app.url)
+    page.locator('li.card[data-nct="NCT03412565"]').wait_for()
+    held = []
+    page.route(QUEUE_ANSWER, lambda route: held.append(route))
+    page.locator('li.card[data-nct="NCT03412565"] h3 a').click()
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    assert held, "the trial page never asked for its watchlist's queue"
+    walk.shot("queue-held")
+    assert_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear(page)
+    walk.shot("action-bar-before-the-queue")
+    with page.expect_response(QUEUE_ANSWER):
+        for route in held:
+            route.continue_()
+    page.unroute(QUEUE_ANSWER)
+    page.get_by_role("button", name="Next trial").click()
+    page.wait_for_url(re.compile(r"#/trials/NCT00000002\?list=1$"))
+    walk.shot("next-after-the-queue")
+
+
+QUEUE_ANSWER = re.compile(r"/api/watchlists/\d+/needs-review$")
+
+
+def open_trial_with_the_queue_held(make_app, make_walk, watchlist="Myeloma"):
+    app = make_app(seed=seed_trial_page)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(app.url)
+    page.locator('li.card[data-nct="NCT03412565"]').wait_for()
+    link = page.get_by_label("Watchlists").get_by_role("link", name=re.compile(f"^{watchlist}"))
+    watchlist_id = re.search(r"#/watchlists/(\d+)", link.get_attribute("href")).group(1)
+    card = page.locator(f'li.card[data-nct="NCT03412565"] h3 a[href="#/trials/NCT03412565?list={watchlist_id}"]')
+    if not card.count():
+        link.click()
+    card.wait_for()
+    held = []
+    page.route(QUEUE_ANSWER, lambda route: held.append(route))
+    card.click()
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    assert held, "the trial page never asked for its watchlist's queue"
+    return walk, held
+
+
+def release(page, held):
+    with page.expect_response(QUEUE_ANSWER):
+        for route in held:
+            route.continue_()
+    page.unroute(QUEUE_ANSWER)
+
+
+NEXT_SETTLED = "() => document.querySelector('.action-bar .buttons button.secondary').title !== 'Looking for the next trial to review'"
+
+
+def test_walk_a_reader_scrolled_down_stays_there_when_the_watchlist_s_queue_answers(make_app, make_walk):
+    """test_walk_a_reader_scrolled_down_stays_there_when_the_watchlist_s_queue_answers"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk)
+    page = walk.page
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    page.wait_for_function("() => window.scrollY > 0")
+    where = page.evaluate("window.scrollY")
+    release(page, held)
+    page.wait_for_function(NEXT_SETTLED)
+    walk.shot("scrolled-after-the-queue")
+    assert page.evaluate("window.scrollY") == where, "the page jumped to the top when the watchlist's queue answered"
+
+
+def test_walk_marking_reviewed_before_the_queue_answers_holds_the_scroll_after_it_answers(make_app, make_walk):
+    """test_walk_marking_reviewed_before_the_queue_answers_holds_the_scroll_after_it_answers"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk)
+    page = walk.page
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    page.wait_for_function("() => window.scrollY > 0")
+    page.get_by_role("button", name="Mark reviewed").click()
+    page.get_by_text("5 changes marked reviewed. This trial stays open.").wait_for()
+    where = page.evaluate("window.scrollY")
+    release(page, held)
+    page.wait_for_function(NEXT_SETTLED)
+    walk.shot("marked-after-the-queue")
+    assert page.evaluate("window.scrollY") == where, "the page jumped to the top when the watchlist's queue answered"
+
+
+def test_walk_the_last_change_stays_clear_of_the_bar_when_the_queue_answers_after_the_scroll(make_app, make_walk):
+    """test_walk_the_last_change_stays_clear_of_the_bar_when_the_queue_answers_after_the_scroll"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk)
+    page = walk.page
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    release(page, held)
+    page.wait_for_function(NEXT_SETTLED)
+    bar = page.get_by_role("region", name="Review")
+    last = page.locator("article.change").last.bounding_box()
+    walk.shot("last-change-after-the-queue")
+    assert last["y"] + last["height"] <= bar.bounding_box()["y"] + 1
+
+
+def test_walk_next_trial_is_off_until_the_queue_answers_and_then_opens_the_next_trial(make_app, make_walk):
+    """test_walk_next_trial_is_off_until_the_queue_answers_and_then_opens_the_next_trial"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk)
+    page = walk.page
+    following = page.get_by_role("region", name="Review").get_by_role("button", name="Next trial")
+    assert following.is_disabled(), "Next trial looks usable before the page knows which trial is next"
+    assert following.get_attribute("title") == "Looking for the next trial to review"
+    walk.shot("next-off-while-the-queue-is-held")
+    release(page, held)
+    page.wait_for_function("() => !document.querySelector('.action-bar .buttons button.secondary').disabled")
+    assert following.get_attribute("title") is None
+    following.click()
+    page.wait_for_url(re.compile(r"#/trials/NCT00000002\?list=1$"))
+    walk.shot("next-after-the-queue")
+
+
+def test_walk_mark_reviewed_works_while_the_queue_is_still_unanswered(make_app, make_walk):
+    """test_walk_mark_reviewed_works_while_the_queue_is_still_unanswered"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk)
+    page = walk.page
+    bar = page.get_by_role("region", name="Review")
+    mark = bar.get_by_role("button", name="Mark reviewed")
+    assert mark.is_enabled()
+    mark.click()
+    page.get_by_text("5 changes marked reviewed. This trial stays open.").wait_for()
+    assert mark.is_disabled()
+    walk.shot("marked-while-the-queue-is-held")
+    release(page, held)
+
+
+def test_walk_next_trial_on_the_last_trial_to_review_is_never_offered_before_the_queue_answers(make_app, make_walk):
+    """test_walk_next_trial_on_the_last_trial_to_review_is_never_offered_before_the_queue_answers"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk, watchlist="Elsewhere")
+    page = walk.page
+    following = page.get_by_role("region", name="Review").get_by_role("button", name="Next trial")
+    assert following.is_disabled(), "Next trial is offered on the last trial to review, then turns itself off"
+    walk.shot("last-trial-while-the-queue-is-held")
+    release(page, held)
+    page.locator('.action-bar button[title="No other trial needs review"]').wait_for()
+    assert following.is_disabled()
+    walk.shot("last-trial-after-the-queue")
+
+
+def assert_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear(page):
     bar = page.get_by_role("region", name="Review")
     assert "Review covers all 5 changes shown above." in bar.inner_text()
     assert "Also clears these changes in: Elsewhere." in bar.inner_text()
@@ -156,7 +301,6 @@ def test_walk_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_
     page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
     last = page.locator("article.change").last.bounding_box()
     assert last["y"] + last["height"] <= bar.bounding_box()["y"] + 1
-    walk.shot("action-bar")
 
 
 def test_walk_marking_reviewed_keeps_the_page_labels_each_change_drops_the_counts_and_holds_the_scroll(make_app, make_walk):
@@ -218,3 +362,90 @@ def test_walk_a_trial_with_simulated_changes_carries_the_simulated_label_on_its_
     page.goto(page.url.replace("NCT00000002", "NCT03412565"))
     page.locator("article.change").nth(4).wait_for()
     assert page.get_by_text("Simulated changes").count() == 0
+
+
+REVIEW_IN_ANOTHER_TAB = """async ([nct, count]) => {
+  const trial = await (await fetch(`/api/trials/${nct}`)).json();
+  const ids = trial.groups.flatMap((g) => g.changes).slice(0, count).flatMap((c) => c.ids);
+  await fetch(`/api/trials/${nct}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+}"""
+
+
+def review_in_another_tab(page, url, nct, count):
+    other = page.context.new_page()
+    other.goto(url)
+    other.evaluate(REVIEW_IN_ANOTHER_TAB, [nct, count])
+    other.close()
+
+
+def open_trial_reviewed_in_another_tab(make_app, make_walk, count):
+    app = make_app(seed=seed_trial_page)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(app.url + "#/trials/NCT03412565?list=1")
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    review_in_another_tab(page, app.url, "NCT03412565", count)
+    return walk
+
+
+def test_walk_the_review_bar_of_a_trial_with_one_change_says_it_in_the_singular(make_app, make_walk):
+    """test_walk_the_review_bar_of_a_trial_with_one_change_says_it_in_the_singular"""
+    app = make_app(seed=seed_trial_page)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(app.url + f"#/trials/{FILLERS[0]}?list=1")
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    bar = page.get_by_role("region", name="Review")
+    assert bar.locator("strong").inner_text() == "Review covers the 1 change shown above."
+    review_in_another_tab(page, app.url, FILLERS[0], 1)
+    page.get_by_role("button", name="Mark reviewed").click()
+    page.get_by_text("This change was already reviewed. This trial stays open.").wait_for()
+    walk.shot("one-change-already-reviewed")
+    assert bar.locator("strong").inner_text() == "This change is reviewed."
+
+
+def test_walk_mark_reviewed_on_changes_another_tab_already_reviewed_says_so_and_offers_no_undo(make_app, make_walk):
+    """test_walk_mark_reviewed_on_changes_another_tab_already_reviewed_says_so_and_offers_no_undo"""
+    walk = open_trial_reviewed_in_another_tab(make_app, make_walk, 5)
+    page = walk.page
+    page.get_by_role("button", name="Mark reviewed").click()
+    page.get_by_text("These 5 changes were already reviewed. This trial stays open.").wait_for()
+    walk.shot("already-reviewed")
+    assert page.get_by_role("button", name="Undo").count() == 0, "Undo is offered for a review this page did not make"
+    assert page.locator(".reviewed-label:visible").count() == 5
+    assert page.get_by_role("button", name="Mark reviewed").is_disabled()
+
+
+def test_walk_mark_reviewed_on_changes_another_tab_partly_reviewed_counts_only_its_own_and_undoes_them(make_app, make_walk):
+    """test_walk_mark_reviewed_on_changes_another_tab_partly_reviewed_counts_only_its_own_and_undoes_them"""
+    walk = open_trial_reviewed_in_another_tab(make_app, make_walk, 2)
+    page = walk.page
+    page.get_by_role("button", name="Mark reviewed").click()
+    page.get_by_text("3 changes marked reviewed; the other 2 were already reviewed. This trial stays open.").wait_for()
+    walk.shot("partly-reviewed")
+    page.get_by_role("button", name="Undo").click()
+    page.get_by_role("button", name="Undo").wait_for(state="detached")
+    assert page.locator(".banner.error-banner").count() == 0, "Undo of the page's own review failed"
+    wait_for_count(page, "Myeloma", "16 to review")
+
+
+def test_walk_next_trial_states_that_the_list_of_trials_to_review_failed_to_load(make_app, make_walk):
+    """test_walk_next_trial_states_that_the_list_of_trials_to_review_failed_to_load"""
+    app = make_app(seed=seed_trial_page)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(app.url)
+    page.locator('li.card[data-nct="NCT03412565"]').wait_for()
+    walk.expect(500, "/api/watchlists/1/needs-review")
+    page.route(QUEUE_ANSWER, lambda route: route.fulfill(
+        status=500, content_type="application/json",
+        body='{"error": {"message": "The server failed.", "kind": "server_error"}}'))
+    page.locator('li.card[data-nct="NCT03412565"] h3 a').click()
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    page.wait_for_function(NEXT_SETTLED)
+    bar = page.get_by_role("region", name="Review")
+    following = bar.get_by_role("button", name="Next trial")
+    walk.shot("queue-failed")
+    assert following.is_disabled()
+    assert following.get_attribute("title") == "The list of trials to review could not be loaded"
+    assert "The next trial could not be found: The server failed." in bar.inner_text()

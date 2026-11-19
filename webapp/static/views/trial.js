@@ -9,6 +9,7 @@ const el = (tag, attrs = {}, ...kids) => {
   return node;
 };
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const theseChanges = (n) => n === 1 ? "This change" : `These ${n} changes`;
 
 let removed = null;
 window.addEventListener("hashchange", () => {
@@ -26,9 +27,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
   const others = trial.watchlists.filter((w) => !home || w.id !== home.id);
   const state = { reviewed: false, event: null };
   let order = kept ? kept.order : null;
-  const queueOf = async (id) => {
-    try { return (await get(`/api/watchlists/${id}/needs-review`)).trials.map((t) => t.nct_id); } catch { return []; }
-  };
+  const queueOf = async (id) => (await get(`/api/watchlists/${id}/needs-review`)).trials.map((t) => t.nct_id);
 
   const back = el("a", { class: "back", "data-back": "", href: !home ? "#/watchlists" : named && place.back || `#/watchlists/${home.id}/${named ? place.from : "needs-review"}` },
     `‹ Back to ${home ? home.name : "watchlists"}`);
@@ -77,7 +76,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
       remove.addEventListener("click", async () => {
         closeMenu();
         try {
-          if (!order) order = await queueOf(home.id);
+          if (!order) order = await queueOf(home.id).catch(() => null);
           const done = await post(`/api/watchlists/${home.id}/trials/${nct}/remove`);
           trial.watchlists = done.watchlists;
           removed = { nct, home: { id: home.id, name: home.name }, undo: done.undo, last: !done.watchlists.length, order };
@@ -149,19 +148,21 @@ export async function render(root, nct, tab, place, alive = () => true) {
     others.length ? `Also clears these changes in: ${others.map((w) => w.name).join(", ")}.`
       : "No other watchlist holds this trial.");
   if (others.length > 3) { also.setAttribute("tabindex", "0"); also.setAttribute("role", "group"); also.setAttribute("aria-label", "Other watchlists this review also applies to"); }
-  const next = el("button", { type: "button", class: "secondary" }, "Next trial");
+  const next = el("button", { type: "button", class: "secondary", disabled: "", title: "Looking for the next trial to review" }, "Next trial");
   const mark = el("button", { type: "button", class: "primary" }, "Mark reviewed");
+  const notes = el("div", {}, scope, el("br"), also);
   const bar = el("div", { class: "action-bar", role: "region", "aria-label": "Review" },
-    el("div", {}, scope, el("br"), also), el("div", { class: "buttons" }, next, mark));
+    notes, el("div", { class: "buttons" }, next, mark));
   body.append(bar);
 
   const draw = () => {
     heading.textContent = state.reviewed ? `${plural(shown.length, "change")} reviewed` : `${plural(shown.length, "unreviewed change")}`;
-    scope.textContent = state.reviewed ? `These ${shown.length} changes are reviewed.` : `Review covers all ${shown.length} changes shown above.`;
+    scope.textContent = state.reviewed ? `${theseChanges(shown.length)} ${shown.length === 1 ? "is" : "are"} reviewed.` : `Review covers ${shown.length === 1 ? "the" : "all"} ${plural(shown.length, "change")} shown above.`;
     cards.forEach((label) => { label.hidden = !state.reviewed; });
     mark.disabled = state.reviewed;
     setCount();
   };
+  draw();
   const refresh = () => window.dispatchEvent(new Event("reviewchange"));
 
   let marking = false;
@@ -173,6 +174,10 @@ export async function render(root, nct, tab, place, alive = () => true) {
       state.reviewed = true;
       state.event = done.event;
       draw();
+      refresh();
+      const mine = shown.filter((c) => c.ids.some((i) => done.marked.includes(i))).length;
+      if (!done.event) { tell(`${theseChanges(shown.length)} ${shown.length === 1 ? "was" : "were"} already reviewed. This trial stays open.`); return; }
+      const already = shown.length - mine;
       const undo = el("button", { type: "button", class: "link" }, "Undo");
       undo.addEventListener("click", async () => {
         try {
@@ -185,18 +190,27 @@ export async function render(root, nct, tab, place, alive = () => true) {
           mark.focus({ preventScroll: true });
         } catch (err) { fail(err); }
       });
-      tell(`${plural(shown.length, "change")} marked reviewed. This trial stays open.`, undo);
+      tell(`${plural(mine, "change")} marked reviewed${already ? `; the other ${already} ${already === 1 ? "was" : "were"} already reviewed` : ""}. This trial stays open.`, undo);
       undo.focus({ preventScroll: true });
-      refresh();
     } catch (err) { fail(err); } finally { marking = false; }
   });
 
-  if (!order) order = home ? await queueOf(home.id) : [];
-  const at = order.indexOf(nct);
-  const following = at >= 0 ? order[at + 1] : order.find((n) => n !== nct);
-  if (following) next.addEventListener("click", () => { location.hash = trialHref(following, "changes", carry); });
-  else { next.disabled = true; next.title = "No other trial needs review"; }
-  draw();
+  const known = order ? Promise.resolve(order) : home ? queueOf(home.id) : Promise.resolve([]);
+  known.then((found) => {
+    if (!alive()) return;
+    order = order || found;
+    const at = order.indexOf(nct);
+    const following = at >= 0 ? order[at + 1] : order.find((n) => n !== nct);
+    if (following) {
+      next.addEventListener("click", () => { location.hash = trialHref(following, "changes", carry); });
+      next.disabled = false;
+      next.removeAttribute("title");
+    } else next.title = "No other trial needs review";
+  }, (err) => {
+    if (!alive()) return;
+    next.title = "The list of trials to review could not be loaded";
+    notes.append(el("p", { class: "field-error", role: "alert" }, `The next trial could not be found: ${err.message}`));
+  });
 }
 
 const field = (f) => {
