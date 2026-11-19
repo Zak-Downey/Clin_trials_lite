@@ -20,3 +20,15 @@ def test_the_settings_refuse_a_push_that_skips_the_hook_right_after_the_refusals
     assert "Bash(git push*--no-verify*)" in deny
     last_to_main = max(i for i, rule in enumerate(deny) if rule.startswith("Bash(git push") and "main" in rule)
     assert deny.index("Bash(git push*--no-verify*)") == last_to_main + 1
+
+
+def test_the_settings_refuse_docker_and_opening_the_docker_app_right_after_the_refusal_of_a_push_that_skips_the_hook():
+    deny = json.loads(SETTINGS.read_text())["permissions"]["deny"]
+    docker = [
+        "Bash(docker:*)",
+        "Bash(docker-compose:*)",
+        "Bash(open *Docker*)",
+        "Bash(open *docker*)",
+    ]
+    at = deny.index("Bash(git push*--no-verify*)") + 1
+    assert deny[at : at + len(docker)] == docker

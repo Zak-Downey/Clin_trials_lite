@@ -4,11 +4,11 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first: the test of the settings fails until `docker`, `docker-compose` and opening the Docker app are refused, or `settings-edit.md` holds the edit in full
-- [ ] `.claude/settings.json` is otherwise unchanged and still valid JSON, and no other file under `.claude/` changed
-- [ ] `repo.md` has the sentence, true whichever form the ticket took
+- [x] Red first: the test of the settings fails until `docker`, `docker-compose` and opening the Docker app are refused, or `settings-edit.md` holds the edit in full
+- [x] `.claude/settings.json` is otherwise unchanged and still valid JSON, and no other file under `.claude/` changed
+- [x] `repo.md` has the sentence, true whichever form the ticket took
 - [ ] `python3 checks.py` ends green on this ticket's commit, and `python3 checks.py --comments` lists nothing
 
 ## Comments
