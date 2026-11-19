@@ -51,6 +51,7 @@ import html
 import json
 import os
 import pathlib
+import plistlib
 import re
 import shlex
 import shutil
@@ -2298,9 +2299,46 @@ def shots_of(out: pathlib.Path) -> list[dict]:
     return shots
 
 
+LAUNCH_SERVICES = pathlib.Path.home() / "Library" / "Preferences" / "com.apple.LaunchServices" / "com.apple.launchservices.secure.plist"
+SAFARI = "com.apple.Safari"
+
+
+def default_browser(record: pathlib.Path = LAUNCH_SERVICES) -> str:
+    """On a Mac, the app that opens web links, by its bundle id; Safari when the record names none or cannot be read."""
+    try:
+        with open(record, "rb") as handle:
+            handlers = plistlib.load(handle).get("LSHandlers", [])
+    except Exception:  # the record is the system's own: missing, unreadable, or in a shape not known here
+        return SAFARI
+    for scheme in ("https", "http"):
+        for handler in handlers:
+            if isinstance(handler, dict) and handler.get("LSHandlerURLScheme") == scheme and handler.get("LSHandlerRoleAll"):
+                return str(handler["LSHandlerRoleAll"])
+    return SAFARI
+
+
+def open_in_browser(page: pathlib.Path, platform: str = sys.platform, run=subprocess.run, browser=default_browser,
+                    other=webbrowser.open) -> str:
+    """Open the page in the owner's browser. '' when it opened, else why it did not, in a few words.
+
+    On a Mac the page is handed to the app that opens web links, by name, through the system's `open`. A file's
+    address given to `webbrowser` goes to whichever app owns the file type, which need not be a browser."""
+    if platform == "darwin":
+        try:
+            done = run(["open", "-b", browser(), str(page)], capture_output=True, text=True, timeout=30)
+        except (OSError, subprocess.SubprocessError) as error:
+            return f"`open` could not run ({error})"
+        return "" if done.returncode == 0 else f"`open` ended {done.returncode} ({(done.stderr or '').strip() or 'it gave no reason'})"
+    try:
+        return "" if other(page.as_uri()) else "no browser was found"
+    except Exception as error:  # whatever the platform's opener raises: the page is built either way
+        return f"the browser could not be started ({error})"
+
+
 def main(argv=None, root: pathlib.Path = ROOT, show=None) -> int:
-    """Build the page. `show`, when given, is called with the page's file: address once it is written (run as a
-    script, that opens it in the browser)."""
+    """Build the page. `show`, when given, is called with the page's file once it is written and returns '' when
+    it opened the page, else why it did not (run as a script, that is `open_in_browser`). The last line printed
+    says the page is open, or is the command that opens it."""
     parser = argparse.ArgumentParser(description="Build the hand-over page of one feature.")
     parser.add_argument("feature", help="the folder name under .scratch/")
     parser.add_argument("--base", default="main", help="the commit the build started from (default main)")
@@ -2345,11 +2383,17 @@ def main(argv=None, root: pathlib.Path = ROOT, show=None) -> int:
     if record and record["result"] != "passed":
         print(f"handover: the {'walk-through' if record.get('walks') is not None else 'acceptance walk'} "
               f"{WALK_ENDS[record['result']]}; what it printed is in {out / 'walk-output.txt'}")
-    print(f"open {shlex.quote(str(page))}", flush=True)
+    why = "it was not asked to"
     if show and not args.no_open:
-        show(page.resolve().as_uri())
+        try:
+            why = show(page.resolve())
+        except Exception as error:  # the page is built: a failure to open it is said, and is not the build's
+            why = f"opening it failed ({error})"
+        if why:
+            print(f"The page could not be opened in a browser: {why}. This command opens it:")
+    print("The page is open in your browser." if not why else f"open {shlex.quote(str(page))}", flush=True)
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(show=webbrowser.open))
+    sys.exit(main(show=open_in_browser))
