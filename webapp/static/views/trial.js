@@ -192,14 +192,18 @@ export async function render(root, nct, tab, place, alive = () => true) {
     } catch (err) { fail(err); } finally { marking = false; }
   });
 
-  if (!order) order = home ? await queueOf(home.id) : [];
-  const at = order.indexOf(nct);
-  const following = at >= 0 ? order[at + 1] : order.find((n) => n !== nct);
-  if (following) {
-    next.addEventListener("click", () => { location.hash = trialHref(following, "changes", carry); });
-    next.disabled = false;
-    next.removeAttribute("title");
-  } else next.title = "No other trial needs review";
+  const known = order ? Promise.resolve(order) : home ? queueOf(home.id) : Promise.resolve([]);
+  known.then((found) => {
+    if (!alive()) return;
+    order = order || found;
+    const at = order.indexOf(nct);
+    const following = at >= 0 ? order[at + 1] : order.find((n) => n !== nct);
+    if (following) {
+      next.addEventListener("click", () => { location.hash = trialHref(following, "changes", carry); });
+      next.disabled = false;
+      next.removeAttribute("title");
+    } else next.title = "No other trial needs review";
+  });
 }
 
 const field = (f) => {

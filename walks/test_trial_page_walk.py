@@ -201,6 +201,50 @@ def release(page, held):
     page.unroute(QUEUE_ANSWER)
 
 
+NEXT_SETTLED = "() => document.querySelector('.action-bar .buttons button.secondary').title !== 'Looking for the next trial to review'"
+
+
+def test_walk_a_reader_scrolled_down_stays_there_when_the_watchlist_s_queue_answers(make_app, make_walk):
+    """test_walk_a_reader_scrolled_down_stays_there_when_the_watchlist_s_queue_answers"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk)
+    page = walk.page
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    page.wait_for_function("() => window.scrollY > 0")
+    where = page.evaluate("window.scrollY")
+    release(page, held)
+    page.wait_for_function(NEXT_SETTLED)
+    walk.shot("scrolled-after-the-queue")
+    assert page.evaluate("window.scrollY") == where, "the page jumped to the top when the watchlist's queue answered"
+
+
+def test_walk_marking_reviewed_before_the_queue_answers_holds_the_scroll_after_it_answers(make_app, make_walk):
+    """test_walk_marking_reviewed_before_the_queue_answers_holds_the_scroll_after_it_answers"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk)
+    page = walk.page
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    page.wait_for_function("() => window.scrollY > 0")
+    page.get_by_role("button", name="Mark reviewed").click()
+    page.get_by_text("5 changes marked reviewed. This trial stays open.").wait_for()
+    where = page.evaluate("window.scrollY")
+    release(page, held)
+    page.wait_for_function(NEXT_SETTLED)
+    walk.shot("marked-after-the-queue")
+    assert page.evaluate("window.scrollY") == where, "the page jumped to the top when the watchlist's queue answered"
+
+
+def test_walk_the_last_change_stays_clear_of_the_bar_when_the_queue_answers_after_the_scroll(make_app, make_walk):
+    """test_walk_the_last_change_stays_clear_of_the_bar_when_the_queue_answers_after_the_scroll"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk)
+    page = walk.page
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    release(page, held)
+    page.wait_for_function(NEXT_SETTLED)
+    bar = page.get_by_role("region", name="Review")
+    last = page.locator("article.change").last.bounding_box()
+    walk.shot("last-change-after-the-queue")
+    assert last["y"] + last["height"] <= bar.bounding_box()["y"] + 1
+
+
 def test_walk_next_trial_is_off_until_the_queue_answers_and_then_opens_the_next_trial(make_app, make_walk):
     """test_walk_next_trial_is_off_until_the_queue_answers_and_then_opens_the_next_trial"""
     walk, held = open_trial_with_the_queue_held(make_app, make_walk)
