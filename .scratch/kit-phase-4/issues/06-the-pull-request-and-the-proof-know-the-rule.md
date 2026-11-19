@@ -9,7 +9,7 @@
 - [x] Red first: the test that holds the list of judging files fails until `docs/agents/local/comments-kept.json` is among them, in the workflow and in the notice's own tests
 - [x] The trigger, the job name, the steps that install and run the checks, and the time limit of the workflow are unchanged
 - [x] `python3 prove.py` ends 0 with the new break caught by `patterns`; its printed lines are in the comments, with each break that had to be rewritten
-- [ ] `python3 checks.py` ends green on this ticket's commit
+- [x] `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
 - **Built (06).** `docs/agents/local/comments-kept.json` is now one of the files the pull-request notice names: on the notice step's run line, in the workflow's opening lines, in the "Workflows" line of `repo.md`, and in `JUDGING` of `tests/test_workflow.py` and `tests/test_judge_notice.py`. Red first: `tests/test_workflow.py::test_a_step_names_the_six_files_that_judge_a_pull_request_and_no_other` (renamed from `..._five_files_...`) failed until the workflow step named the file. Added `tests/test_judge_notice.py::test_a_pull_request_that_changes_the_comments_the_rule_keeps_is_told_so_by_name` (green at once: the notice takes its paths from the step). Nothing else in the workflow changed. The map of the pages already places the file (`docs/*`).
@@ -30,3 +30,5 @@ comment-left-in-the-app  patterns  caught
 proof: 11 of 11 breaks caught
 ```
 - **Checks (06).** `python3 checks.py lint patterns escapes unit` green (unit 0.3 min).
+
+The full `python3 checks.py` on 4da8c5f ended green, run by the build lead.
