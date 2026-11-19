@@ -215,6 +215,16 @@ def test_a_forced_check_that_finds_nothing_says_the_registry_was_untouched(watch
     assert result["detail"] == "No changes."
 
 
+def test_a_forced_check_that_finds_nothing_stores_no_second_copy_of_the_record(watched, fetcher):
+    """It re-fetched the record the baseline already holds. Storing it would grow a
+    copy per forced check and move the stored registry stamp past a change the
+    watchlist may still be reporting."""
+    monitor.check(watched, "NCT03412565", fetch=fetcher, force=True)
+    monitor.check(watched, "NCT03412565", fetch=fetcher, force=True)
+
+    assert storage.count_snapshots(watched, "NCT03412565") == 1
+
+
 def test_a_forced_run_forces_every_trial_in_it(conn, record, fetcher, make_fetcher):
     monitor.add(conn, "NCT03412565", fetch=fetcher, when="2026-01-01T00:00:00+00:00")
     monitor.add(conn, "NCT00000001", fetch=fetcher, when="2026-01-02T00:00:00+00:00")
