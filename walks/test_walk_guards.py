@@ -7,6 +7,8 @@ WebKit or Firefox, and a covered element (Playwright's own click refuses one).
 
 from __future__ import annotations
 
+import fcntl
+import os
 import pathlib
 import re
 
@@ -18,15 +20,27 @@ BROKEN = pathlib.Path(__file__).parent / "broken" / "broken_pages.py"
 ROOT = BROKEN.parent.parent.parent
 
 
-@pytest.fixture(scope="module")
-def broken_run(tmp_path_factory):
-    tmp_path = tmp_path_factory.mktemp("broken")
-    out = subprocess.run(
+def run_broken(tmp_path):
+    return subprocess.run(
         [sys.executable, "-m", "pytest", str(BROKEN), "-q", "-p", "no:cacheprovider", "-rf",
          "--basetemp", str(tmp_path / "inner")],
         cwd=ROOT, capture_output=True, text=True, timeout=300,
     ).stdout
-    return out
+
+
+@pytest.fixture(scope="module")
+def broken_run(request, tmp_path_factory):
+    """The broken pages' output, run once for the whole run: the first worker to ask runs them, the rest read its output."""
+    worker = getattr(request.config, "workerinput", None)
+    if worker is None:
+        return run_broken(tmp_path_factory.mktemp("broken"))
+    shared = tmp_path_factory.getbasetemp().parent
+    kept = shared / f"broken-{worker['testrunuid']}.txt"
+    with open(shared / f"broken-{worker['testrunuid']}.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if not kept.exists():
+            kept.write_text(run_broken(tmp_path_factory.mktemp("broken")))
+        return kept.read_text()
 
 
 def failing(output, name):
@@ -114,6 +128,44 @@ def test_walk_guard_fails_an_expected_response_that_never_came_or_came_elsewhere
     assert in_block(out, "test_broken_expected_response_that_never_comes", "expected response never came: 404 /api/watchlists"), out
     assert failing(out, "test_broken_other_status_than_the_expected_one"), out
     assert in_block(out, "test_broken_other_status_than_the_expected_one", "/api/watchlists/998/needs-review (status 404)"), out
+
+
+STAND_IN_PAGES = """import os
+
+with open(os.environ["BROKEN_RUNS"], "a") as runs:
+    runs.write("run\\n")
+
+
+def test_stand_in():
+    pass
+"""
+
+STAND_IN_PLUGIN = """import os
+import pathlib
+
+
+def pytest_collection_modifyitems(config, items):
+    kept = [item for item in items if "broken_run" in item.fixturenames]
+    config.hook.pytest_deselected(items=[item for item in items if item not in kept])
+    items[:] = kept
+    for item in kept:
+        item.module.BROKEN = pathlib.Path(os.environ["BROKEN_STAND_IN"])
+"""
+
+
+def test_walk_guard_broken_pages_run_once_on_four_workers(tmp_path):
+    """test_walk_guard_broken_pages_run_once_on_four_workers"""
+    runs = tmp_path / "runs.txt"
+    (tmp_path / "stand_in_pages.py").write_text(STAND_IN_PAGES)
+    (tmp_path / "broken_stand_in.py").write_text(STAND_IN_PLUGIN)
+    env = {**os.environ, "BROKEN_RUNS": str(runs), "BROKEN_STAND_IN": str(tmp_path / "stand_in_pages.py"),
+           "PYTHONPATH": str(tmp_path)}
+    out = subprocess.run(
+        [sys.executable, "-m", "pytest", __file__, "-n", "4", "-q", "-p", "broken_stand_in", "-p", "no:cacheprovider",
+         "--basetemp", str(tmp_path / "outer")],
+        cwd=ROOT, env=env, capture_output=True, text=True, timeout=300,
+    ).stdout
+    assert runs.read_text().count("run") == 1, out
 
 
 def test_walk_guard_does_not_take_a_longer_port_for_the_apps_own_origin():

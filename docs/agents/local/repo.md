@@ -29,6 +29,8 @@ What is particular to this repo. Every line below is a fact of this repo; a line
 
 Measured 2026-11-18 (ticket 03 of `kit-phase-3`, commit 7ae2bbb, the owner's 10-processor Mac): one full run of `walks/run_walks.py`, 412 walk runs in 151.7 s on four workers, 598 worker-seconds in all. The figures for every file are in that ticket's comments.
 
+Since ticket 09 of `kit-phase-4`, the broken pages run once in a run, not once in each worker: the first worker to need them runs them under a file lock in the run's shared temporary folder and the others read that output (`broken_run` in `walks/test_walk_guards.py`), and `walks/conftest.py` collects the tests that read them first, so one worker takes them all at the start while the others walk. A full run of the browser tests went from 123.7 s with four runs of the broken pages to 109.5 s with one (2026-11-19).
+
 | Split | Seconds | Share |
 |---|---|---|
 | Set-up | 106.2 | 18% (102.3 of it the walk-guard tests' run of `walks/broken/`, 25.5 s, once in each of the four workers) |

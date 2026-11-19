@@ -107,3 +107,8 @@ def pytest_runtest_makereport(item, call):
     if problems and not report.failed:
         report.outcome = "failed"
         report.longrepr = "walk guard tripped:\n  " + "\n  ".join(problems)
+
+
+def pytest_collection_modifyitems(items):
+    """The tests that read the broken pages' one run go first, so the worker that takes them runs it while the others walk."""
+    items.sort(key=lambda item: "broken_run" not in item.fixturenames)
