@@ -1,1 +1,3 @@
 {"id": "early-read-whole-01", "fate": "fixed", "commit": "e2148f8", "check": "walks/test_trial_page_walk.py::test_walk_next_trial_is_off_until_the_queue_answers_and_then_opens_the_next_trial", "why": ""}
+{"id": "walker-trial-page-01", "fate": "fixed", "commit": "fab81a7", "check": "walks/test_trial_page_walk.py::test_walk_a_reader_scrolled_down_stays_there_when_the_watchlist_s_queue_answers", "why": ""}
+{"id": "review-trial-page-01", "fate": "fixed", "commit": "fab81a7", "check": "walks/test_trial_page_walk.py::test_walk_a_reader_scrolled_down_stays_there_when_the_watchlist_s_queue_answers", "why": ""}
