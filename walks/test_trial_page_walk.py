@@ -364,11 +364,18 @@ def test_walk_a_trial_with_simulated_changes_carries_the_simulated_label_on_its_
     assert page.get_by_text("Simulated changes").count() == 0
 
 
-REVIEW_IN_ANOTHER_TAB = """async (count) => {
-  const trial = await (await fetch('/api/trials/NCT03412565')).json();
+REVIEW_IN_ANOTHER_TAB = """async ([nct, count]) => {
+  const trial = await (await fetch(`/api/trials/${nct}`)).json();
   const ids = trial.groups.flatMap((g) => g.changes).slice(0, count).flatMap((c) => c.ids);
-  await fetch('/api/trials/NCT03412565/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+  await fetch(`/api/trials/${nct}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
 }"""
+
+
+def review_in_another_tab(page, url, nct, count):
+    other = page.context.new_page()
+    other.goto(url)
+    other.evaluate(REVIEW_IN_ANOTHER_TAB, [nct, count])
+    other.close()
 
 
 def open_trial_reviewed_in_another_tab(make_app, make_walk, count):
@@ -377,11 +384,24 @@ def open_trial_reviewed_in_another_tab(make_app, make_walk, count):
     page = walk.page
     page.goto(app.url + "#/trials/NCT03412565?list=1")
     page.get_by_role("button", name="Mark reviewed").wait_for()
-    other = page.context.new_page()
-    other.goto(app.url)
-    other.evaluate(REVIEW_IN_ANOTHER_TAB, count)
-    other.close()
+    review_in_another_tab(page, app.url, "NCT03412565", count)
     return walk
+
+
+def test_walk_the_review_bar_of_a_trial_with_one_change_says_it_in_the_singular(make_app, make_walk):
+    """test_walk_the_review_bar_of_a_trial_with_one_change_says_it_in_the_singular"""
+    app = make_app(seed=seed_trial_page)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(app.url + f"#/trials/{FILLERS[0]}?list=1")
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    bar = page.get_by_role("region", name="Review")
+    assert bar.locator("strong").inner_text() == "Review covers the 1 change shown above."
+    review_in_another_tab(page, app.url, FILLERS[0], 1)
+    page.get_by_role("button", name="Mark reviewed").click()
+    page.get_by_text("This change was already reviewed. This trial stays open.").wait_for()
+    walk.shot("one-change-already-reviewed")
+    assert bar.locator("strong").inner_text() == "This change is reviewed."
 
 
 def test_walk_mark_reviewed_on_changes_another_tab_already_reviewed_says_so_and_offers_no_undo(make_app, make_walk):

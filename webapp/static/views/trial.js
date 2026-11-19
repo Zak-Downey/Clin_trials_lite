@@ -9,6 +9,7 @@ const el = (tag, attrs = {}, ...kids) => {
   return node;
 };
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const theseChanges = (n) => n === 1 ? "This change" : `These ${n} changes`;
 
 let removed = null;
 window.addEventListener("hashchange", () => {
@@ -156,7 +157,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
 
   const draw = () => {
     heading.textContent = state.reviewed ? `${plural(shown.length, "change")} reviewed` : `${plural(shown.length, "unreviewed change")}`;
-    scope.textContent = state.reviewed ? `These ${shown.length} changes are reviewed.` : `Review covers all ${shown.length} changes shown above.`;
+    scope.textContent = state.reviewed ? `${theseChanges(shown.length)} ${shown.length === 1 ? "is" : "are"} reviewed.` : `Review covers ${shown.length === 1 ? "the" : "all"} ${plural(shown.length, "change")} shown above.`;
     cards.forEach((label) => { label.hidden = !state.reviewed; });
     mark.disabled = state.reviewed;
     setCount();
@@ -175,7 +176,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
       draw();
       refresh();
       const mine = shown.filter((c) => c.ids.some((i) => done.marked.includes(i))).length;
-      if (!done.event) { tell(`These ${shown.length} changes were already reviewed. This trial stays open.`); return; }
+      if (!done.event) { tell(`${theseChanges(shown.length)} ${shown.length === 1 ? "was" : "were"} already reviewed. This trial stays open.`); return; }
       const already = shown.length - mine;
       const undo = el("button", { type: "button", class: "link" }, "Undo");
       undo.addEventListener("click", async () => {
