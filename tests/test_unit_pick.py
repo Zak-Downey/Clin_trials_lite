@@ -84,3 +84,19 @@ def test_without_a_map_a_picked_unit_run_cannot_tell_which_python_runs_apart_and
     (root / "app.py").write_text(FILES["app.py"].replace("a + b", "b + a"))
     code, said, pick = picked_unit(root)
     assert code == 0 and pick["ran"] == pick["of"] == 3 and "no map" in pick["why"], said
+
+
+def test_a_picked_unit_run_whose_record_selects_no_test_runs_the_tests_that_always_run_and_says_so(tmp_path):
+    root = picking_repo(tmp_path)  # nothing changed since the base: the record selects no test
+    code, said, pick = picked_unit(root)
+    assert code == 0, said
+    assert pick["ran"] == 2 and pick["of"] == 3, pick
+    assert "none was selected, so the tests that always run, `tests/test_app.py`" in pick["why"], pick
+    assert said == f"unit      picked 2 of 3 unit tests: {pick['why']}"
+
+
+def test_a_picked_unit_run_whose_record_selects_no_test_and_whose_map_names_none_that_always_run_runs_every_test(tmp_path):
+    root = picking_repo(tmp_path, the_map={**MAP, "unit_always": []})
+    code, said, pick = picked_unit(root)
+    assert code == 0 and pick["ran"] == pick["of"] == 3, said
+    assert "none was selected, and the map names no test that always runs, so every test" in pick["why"], pick

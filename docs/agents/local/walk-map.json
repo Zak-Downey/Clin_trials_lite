@@ -1,5 +1,5 @@
 {
-  "about": "This product's map of the pages, read by walk_map.py and held by tests/test_walk_map.py. A new source file goes in the area whose page it draws or serves, or in `shared` when in doubt; a new walk file goes in the `walks` of every area it opens. `run_apart` lists the Python files the unit tests run only as a separate program (a change to one runs every unit test in a picked run); tests/test_walk_map.py is red, naming the file, when a test starts a program or names a file that it does not list. Patterns are fnmatch, from the repo root (`*` crosses `/`).",
+  "about": "This product's map of the pages, read by walk_map.py and held by tests/test_walk_map.py. A new source file goes in the area whose page it draws or serves, or in `shared` when in doubt; a new walk file goes in the `walks` of every area it opens. `unit_always` names the unit tests a picked run gives when no test was selected (here the tests that start the app as a user does), so that green never means nothing ran. `run_apart` lists the Python files the unit tests run only as a separate program (a change to one runs every unit test in a picked run); tests/test_walk_map.py is red, naming the file, when a test starts a program or names a file that it does not list. Patterns are fnmatch, from the repo root (`*` crosses `/`).",
   "shared": [
     "webapp/static/index.html",
     "webapp/static/app.js",
@@ -195,5 +195,8 @@
     "run.py",
     "walk_map.py",
     "walks/*.py"
+  ],
+  "unit_always": [
+    "tests/test_run.py"
   ]
 }

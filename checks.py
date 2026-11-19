@@ -166,6 +166,17 @@ def unit_map(root) -> dict:
         return {"run_apart": None}
 
 
+def unit_always(root, why) -> tuple[list[str], str]:
+    """(the unit test files a picked run gives when its record selected none, none for every test; the reason, said
+    after `why`). They are the map's `unit_always`, so that green never means nothing ran."""
+    import walk_map
+    listed = unit_map(root).get("unit_always") or []
+    files = [name for name in walk_map.repo_files(root) if walk_map.matches(name, listed)] if listed else []
+    if not files:
+        return [], f"{why}; none was selected, and the map names no test that always runs, so every test"
+    return files, f"{why}; none was selected, so the tests that always run, {', '.join(f'`{name}`' for name in files)}"
+
+
 # What the unit check is given (pytest-testmon, which records which test ran which code, in pytest's cache folder):
 # select only the tests a change reaches, or run them all and refresh the record.
 SELECT, NOSELECT = "--testmon", "--testmon-noselect"
@@ -239,10 +250,14 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
             if pick:
                 select, unit_why = picker.unit(changed, unit_map(root).get("run_apart", []))
                 there_are = unit_there_are(command, root, env) if select else None
-            command = [*command, SELECT if select else NOSELECT]
+            given, command = command, [*command, SELECT if select else NOSELECT]
         result, took = run_one(command, minutes, output, root, env)
         if unit_why:
             ran = unit_ran(output.read_text(errors="replace"))
+            if select and result == "green" and not ran:  # a pick never ends green having run nothing
+                files, unit_why = unit_always(root, unit_why)
+                result, more = run_one([*given, *files, NOSELECT], minutes, output, root, env)
+                took, ran = round(took + more, 2), unit_ran(output.read_text(errors="replace"))
             of = there_are if select else ran
             picks.append({"check": name, "ran": ran, "of": of, "why": unit_why})
             counted = f"{'?' if ran is None else ran} of {'?' if of is None else of} unit tests"

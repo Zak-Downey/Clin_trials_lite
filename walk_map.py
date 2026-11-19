@@ -10,6 +10,8 @@ also crosses `/`):
 and, for the unit picker (picker.unit):
     run_apart    Python files the unit tests run only as a separate program, whose runs the record of which test ran
                  which code cannot see: a change to one runs every unit test
+    unit_always  unit test files a picked run gives when the record selects none, so that green never means nothing
+                 ran; with none listed, such a run runs every unit test
 Any other key (a note for the reader) is ignored.
 """
 
@@ -66,7 +68,7 @@ def problems(the_map: dict, root, walks=WALKS, files=None) -> list[str]:
 
 def listed(the_map: dict):
     """Each path or pattern the map lists, with where it is listed and whether it lists walk files."""
-    for key in ("shared", "always", "none", "run_apart"):
+    for key in ("shared", "always", "none", "run_apart", "unit_always"):
         for pattern in the_map.get(key, []):
             yield pattern, f"`{key}`", key == "always"
     for area in the_map.get("areas", []):
