@@ -1,1 +1,2 @@
 {"id": "review-server-and-checks-01", "fate": "fixed", "commit": "590916f", "check": "tests/test_unit_pick.py::test_a_break_in_python_a_test_runs_only_as_a_separate_program_turns_the_picked_unit_run_red", "why": ""}
+{"id": "review-server-and-checks-02", "fate": "fixed", "commit": "5d443e0", "check": "tests/test_unit_pick.py::test_a_picked_unit_run_whose_record_selects_no_test_runs_the_tests_that_always_run_and_says_so", "why": ""}
