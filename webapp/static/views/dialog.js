@@ -21,7 +21,9 @@ export function openDialog(opener, title, content, first) {
   });
   dialog.addEventListener("close", () => {
     dialog.remove();
+    // The opener may have been redrawn meanwhile: find its replacement by id.
     const back = opener && opener.isConnected ? opener : (openerId && document.getElementById(openerId));
+    // After the browser's own focus restore, which would otherwise win.
     if (back) setTimeout(() => back.focus({ preventScroll: true }), 0);
   });
   document.body.append(dialog);
