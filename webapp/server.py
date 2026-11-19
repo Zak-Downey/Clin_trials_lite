@@ -28,7 +28,6 @@ class Context:
     """
 
     def __init__(self, db_path: str, fetch, find, find_page=None):
-        # Used from request threads, under self.lock (taken by the dispatcher).
         self.conn = storage.connect(db_path, check_same_thread=False)
         self.lock = threading.RLock()
         self.fetch = fetch
@@ -37,7 +36,7 @@ class Context:
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *args):  # quiet
+    def log_message(self, *args):
         pass
 
     def _send(self, status: int, payload: bytes, content_type: str):
@@ -102,8 +101,6 @@ class Handler(BaseHTTPRequestHandler):
                     continue
                 if method == "POST" and not self._is_json():
                     raise ApiError(415, "unsupported_content_type", "Writes must be sent as application/json.")
-                # One lock for every handler: the connection is shared, and a handler
-                # cannot forget it. Handlers must not hold it across registry calls.
                 body = self._body() if method == "POST" else None
                 with self.server.ctx.lock:
                     result = handler(
@@ -120,7 +117,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(err.status, err.body())
         except sqlite3.Error as err:
             self._json(500, ApiError(500, "database_error", f"The database failed: {err}").body())
-        except Exception as err:  # never leak a traceback page
+        except Exception as err:
             self._json(500, ApiError(500, "server_error", f"Something went wrong: {err}").body())
 
     def do_GET(self):

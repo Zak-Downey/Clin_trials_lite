@@ -33,11 +33,8 @@ import sqlite3
 
 import diff
 
-# Overridable so tests and throwaway demos don't write to the working database.
 DB_PATH = os.environ.get("MONITOR_DB", "monitor.db")
 
-# What a database with no lists of its own gets called, both on a first run and
-# when one written before lists existed is opened.
 DEFAULT_LIST = "My watchlist"
 
 SCHEMA = """
@@ -136,25 +133,17 @@ def now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
 
 
-# Columns added to the schema after databases existed in the wild. CREATE TABLE
-# IF NOT EXISTS leaves an older table as it was, so they are added on connect.
 LATE_COLUMNS = (
     ("changes", "reviewed", "INTEGER NOT NULL DEFAULT 0"),
     ("lists", "search", "TEXT"),
-    # A failed check, kept apart from `last_checked` (the last *successful* one).
     ("trials", "check_failed_at", "TEXT"),
     ("trials", "check_error_kind", "TEXT"),
-    # When a list's most recent check for updates finished, and which trials
-    # failed in it (a JSON list of NCT IDs): what "Retry failed" re-checks.
     ("lists", "last_check_finished", "TEXT"),
     ("lists", "last_check_failed", "TEXT"),
-    # Whether the saved search's last run matched more than the cap of new matches.
     ("lists", "search_capped", "INTEGER NOT NULL DEFAULT 0"),
 )
 
 
-# Recorded in the file (PRAGMA user_version) each time it is opened, so a
-# database written by an older app is known to have been upgraded in place.
 SCHEMA_VERSION = 2
 
 
@@ -164,7 +153,6 @@ def _migrate(conn: sqlite3.Connection) -> None:
         existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
         if column not in existing:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
-    # A file written by a later app keeps its later version.
     if conn.execute("PRAGMA user_version").fetchone()[0] < SCHEMA_VERSION:
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
@@ -188,10 +176,6 @@ def _house_every_trial(conn: sqlite3.Connection) -> None:
     home = conn.execute(
         "INSERT INTO lists (name, created) VALUES (?, ?)", (DEFAULT_LIST, stamp)
     ).lastrowid
-    # Only ever the trials of a database that had no lists at all. A trial that
-    # loses its last list while the app is running is deliberately dropped, and
-    # re-homing it here would quietly undo that.
-    # Not a trial left unwatched on purpose: its removal is recorded and stays.
     conn.execute(
         "INSERT INTO list_members (list_id, nct_id, added) SELECT ?, nct_id, ? FROM trials"
         " WHERE nct_id NOT IN (SELECT nct_id FROM monitoring_events WHERE kind = 'stopped')",
@@ -210,7 +194,6 @@ def connect(path: str | None = None, check_same_thread: bool = True) -> sqlite3.
     return conn
 
 
-# --- lists
 
 
 def create_list(conn: sqlite3.Connection, name: str, when: str | None = None) -> int:
@@ -290,7 +273,6 @@ def get_list_search(conn: sqlite3.Connection, list_id: int) -> dict | None:
     return json.loads(row["search"]) if row and row["search"] else None
 
 
-# --- membership
 
 
 def add_member(
@@ -374,12 +356,6 @@ def lists_holding(conn: sqlite3.Connection, nct_id: str) -> list[sqlite3.Row]:
     ).fetchall()
 
 
-# --- found trials
-#
-# A study a list's remembered search matched and the list does not hold. It sits
-# here until the analyst adopts it -- at which point it becomes an ordinary
-# watched trial -- or dismisses it, which leaves the row behind, flagged, so the
-# same study is never offered to that list twice.
 
 
 def add_found(
@@ -482,7 +458,6 @@ def delete_found(conn: sqlite3.Connection, list_id: int, nct_id: str) -> None:
     conn.commit()
 
 
-# --- trials
 
 
 def add_trial(conn: sqlite3.Connection, nct_id: str, when: str | None = None) -> None:
@@ -504,7 +479,6 @@ def list_trials(conn: sqlite3.Connection, list_id: int | None = None) -> list[sq
     Everything monitored, or only what one named list holds.
     """
     if list_id is None:
-        # Only what some list holds: a trial in none is kept but not monitored.
         return conn.execute(
             "SELECT * FROM trials WHERE nct_id IN (SELECT nct_id FROM list_members)"
             " ORDER BY monitoring_began, nct_id"
@@ -668,7 +642,6 @@ def undo_review(conn: sqlite3.Connection, event_id: int, when: str | None = None
     return get_review_event(conn, event_id)
 
 
-# --- snapshots
 
 
 def strip_results(record: dict) -> dict:
@@ -745,7 +718,6 @@ def count_snapshots(conn: sqlite3.Connection, nct_id: str) -> int:
     ).fetchone()["n"]
 
 
-# --- changes
 
 
 def add_change(
@@ -811,7 +783,6 @@ def count_unreviewed(conn: sqlite3.Connection, nct_id: str) -> int:
     return sum(1 for c in list_changes(conn, nct_id) if not c["reviewed"])
 
 
-# --- synthetic data
 
 
 def is_synthetic(conn: sqlite3.Connection, nct_id: str) -> bool:

@@ -21,8 +21,6 @@ import storage
 
 NCT_ID = re.compile(r"^NCT\d{8}$")
 
-# Seconds to wait between trials when working through the watchlist. The
-# registry is a free public service; a burst of back-to-back requests is rude.
 PAUSE = 0.5
 
 
@@ -69,8 +67,6 @@ def _fetch_record(nct: str, fetch) -> dict:
     except urllib.error.URLError as exc:
         raise MonitorError(f"Could not reach ClinicalTrials.gov: {exc.reason}", "unreachable") from exc
     except Exception as exc:
-        # A timeout, a TLS failure, a malformed response. The analyst gets a
-        # readable message rather than a traceback.
         raise MonitorError(f"Could not fetch {nct}: {exc}", "unreachable") from exc
 
     if not record or "protocolSection" not in record:
@@ -78,11 +74,6 @@ def _fetch_record(nct: str, fetch) -> dict:
     return record
 
 
-# --- named lists
-#
-# A list is what the reader chooses between; a trial belongs to as many of them
-# as cover it. Storage owns the rows, and this layer owns the two refusals the
-# reader can actually do something about: an unnamed list, and a name taken.
 
 
 def _clean_name(name: str) -> str:
@@ -286,18 +277,12 @@ def summarise_adds(outcome: dict, list_name: str) -> dict:
     """
     added, already, failed = outcome["added"], outcome["already"], outcome["failed"]
 
-    # One trial is named, several are counted: somebody who pasted a single ID
-    # wants that ID confirmed back, and somebody who ticked twenty rows wants a
-    # number rather than twenty NCT IDs in a sentence.
     parts = []
     if added:
         which = added[0] if len(added) == 1 else f"{len(added)} trials"
         parts.append(f"Now monitoring {which} in “{list_name}”.")
     if already:
         which = f"{already[0]} was" if len(already) == 1 else f"{len(already)} were"
-        # Named when it stands alone, because a refusal has to say which list
-        # it is talking about; "there" is unambiguous once the line before it
-        # has named the list.
         where = "there" if added else f"in “{list_name}”"
         parts.append(f"{which} already {where}.")
 
@@ -329,20 +314,9 @@ def restore(conn: sqlite3.Connection, nct_id: str, list_id: int, stopped_id: int
     storage.add_member(conn, list_id, normalise(nct_id))
 
 
-# --- searching the registry
-#
-# The way onto a list for somebody who does not know the NCT numbers yet. What
-# comes back is described in exactly the columns the watchlist uses, because
-# the results table is read as the list it feeds and the two must not drift.
 
-# How many results one search shows. Enough that a real query is answered in
-# one screenful, few enough that the reader is choosing rather than wading; a
-# search matching more than this says so, so a cap never reads as a total.
 RESULT_CAP = 100
 
-# The codes a search can be narrowed by, in the order a reader expects them
-# offered. Re-stated here rather than reached for in the client, because what
-# can be searched on is part of what search() offers its caller.
 PHASES = ctgov.PHASE_CODES
 SPONSOR_CLASSES = ctgov.SPONSOR_CLASSES
 STATUSES = ctgov.STATUS_CODES
@@ -360,37 +334,20 @@ def _identity(profile: dict) -> dict:
     """
     return {
         "sponsor": profile.get("leadSponsor"),
-        # The official title names the study; the brief title is the fallback
-        # for a record that carries only one of them.
         "title": profile.get("officialTitle") or profile.get("briefTitle"),
         "phases": profile.get("phases") or [],
         "conditions": profile.get("conditions") or [],
-        # The registry repeats an intervention once per arm it appears in;
-        # dict.fromkeys dedupes while keeping the registry's order.
         "interventions": list(dict.fromkeys(profile.get("interventions") or [])),
         "status": profile.get("overallStatus"),
     }
 
 
-# What a query with nothing in it is answered with. A search naming no axis at
-# all asks for the whole registry, which is never what the reader meant.
 NOTHING_ASKED = "Fill in at least one of condition, intervention, sponsor or phase."
 
-# The axes that name what kind of study is wanted. One of these is what makes a
-# query a query, which is why the refusal above lists exactly them.
 NAMING_AXES = ("cond", "intr", "spons", "phases")
 
-# The axes that narrow what those named: which sponsors, how far along, and
-# started when. A class, a status and a date window cannot name a programme on
-# their own -- "industry, recruiting, since January" is the whole registry --
-# so they never satisfy the refusal, however many of them are set.
 NARROWING_AXES = ("sponsor_types", "statuses", "started_from", "started_to")
 
-# What each axis is when nobody set it. Spelled out per axis rather than
-# guessed from the name, because the two kinds are not interchangeable: a text
-# axis that defaults to an empty tuple is handed to the client as a tuple where
-# a string is declared, and it is only the client's own tidying that has been
-# hiding it.
 EMPTY_AXES = {
     "cond": "",
     "intr": "",
@@ -456,10 +413,6 @@ def _refuse_unanswerable(query: dict) -> None:
     """
     if _asks_nothing(query):
         raise MonitorError(NOTHING_ASKED, "nothing_asked")
-    # The registry answers an inverted range with zero studies, which is
-    # exactly what a genuine miss looks like: the analyst would be told
-    # "nothing found" about a window that could never have found anything.
-    # Which way round the dates belong is theirs to say, so both are named.
     start, end = _axis(query, "started_from"), _axis(query, "started_to")
     if start and end and start > end:
         raise MonitorError(
@@ -477,7 +430,6 @@ def _matches(query: dict, limit: int, find=None) -> tuple[list[dict], bool]:
     rather than returning an empty result an outage looks identical to.
     """
     try:
-        # One more than the cap, which is how the cap is known to have bitten.
         studies = (find or _default_find)(
             cond=_axis(query, "cond"),
             intr=_axis(query, "intr"),
@@ -594,18 +546,7 @@ def search_page(
     }
 
 
-# --- a list's remembered search
-#
-# A list named "Myeloma — Janssen" is a therapy area, not a bag of trial
-# numbers, so it can remember the search that filled it and re-run that search
-# on every check. It is the only way a competitor *registering* something is
-# noticed at all: without it the tool never looks at anything but the records
-# it already holds.
 
-# What the thing is called wherever the analyst is told about it, on either
-# page and in the run summary. Owned here for the same reason fields_moved is:
-# three screens describing one feature in three nouns is three features to
-# whoever is reading them.
 REMEMBERED_SEARCH = "remembered search"
 
 
@@ -674,8 +615,6 @@ def find_new(
     try:
         studies, capped = _matches(query, RESULT_CAP, find)
     except MonitorError as exc:
-        # Reported rather than raised: one unreachable search must not cost the
-        # analyst the rest of the run, and it must not read as "nothing new".
         return {"kind": "search", "outcome": "error", "found": [], "detail": str(exc)}
 
     storage.set_search_capped(conn, list_id, capped)
@@ -683,10 +622,6 @@ def find_new(
     found = []
     for study in studies:
         try:
-            # Normalised the way a pasted ID is, so what is stored here and
-            # what dismiss and adopt look up are the same string. A record
-            # whose ID is not shaped like one is skipped rather than offered:
-            # there is nothing the analyst could adopt.
             nct = normalise(medical_affairs.profile(study).get("nctId") or "")
         except MonitorError:
             continue
@@ -697,9 +632,6 @@ def find_new(
         storage.add_found(conn, list_id, nct, study, stamp)
         found.append(nct)
 
-    # A capped search says so, for the reason search() says it: a query
-    # matching thousands must not report itself as having seen everything, or
-    # "nothing new" is a claim the tool never actually checked.
     aside = f" The search matched more than {RESULT_CAP}; narrow it." if capped else ""
 
     if found:
@@ -884,10 +816,6 @@ def check(
     stored = snapshot["record"] if snapshot else None
     previous = _last_updated(stored)
     current = _last_updated(record)
-    # An absent stamp on either side is evidence of nothing: not that the
-    # record stood still, and not that it was revised either. So both readings
-    # of the stamp need two real dates, and a record without them is compared
-    # in full and then reported as plainly unchanged.
     stated = previous is not None and current is not None
     unmoved = stated and previous == current
     revised = stated and previous != current
@@ -895,7 +823,6 @@ def check(
         storage.mark_checked(conn, nct, stamp)
         return _unchanged(nct)
 
-    # A change found against simulated history is itself simulated.
     moved = _record_changes(
         conn,
         nct,
@@ -904,10 +831,6 @@ def check(
         stamp,
         synthetic=bool(snapshot and snapshot["synthetic"]),
     )
-    # A forced check that found nothing has re-fetched the record the baseline
-    # already holds, so there is nothing new to keep. Storing it anyway would
-    # grow a snapshot per forced check and, worse, advance the stored registry
-    # stamp past the change the watchlist is still reporting.
     if revised or moved:
         storage.add_snapshot(conn, nct, record, stamp)
     storage.mark_checked(conn, nct, stamp)
@@ -1050,8 +973,6 @@ def summarise(results: list[dict]) -> dict:
 
     checked = len(checks) - len(failed)
     noun = "trial" if checked == 1 else "trials"
-    # Said the same way wherever it appears, so the two messages that can carry
-    # it read alike.
     aside = f" {len(unmonitored)} revised, but no monitored field moved."
 
     level = "success"
@@ -1071,8 +992,6 @@ def summarise(results: list[dict]) -> dict:
         parts.append(f"Checked {checked} {noun}.{aside}")
         level = "info"
     elif found or search_failed:
-        # "No changes" is a verdict on the whole run, and the whole run is not
-        # what it is a verdict on once a search found something or fell over.
         parts.append(f"Checked {checked} {noun}, none changed.")
     elif checks:
         parts.append(f"Checked {checked} {noun} — no changes.")
@@ -1086,8 +1005,6 @@ def summarise(results: list[dict]) -> dict:
 
     return {
         "level": level,
-        # A list holding nothing and remembering nothing was still asked to
-        # check, and an empty line would read as the page having broken.
         "message": " ".join(parts) or "There was nothing to check.",
         "updated": updated,
         "unmonitored": unmonitored,
@@ -1126,7 +1043,6 @@ def feed(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:
             "at": t["monitoring_began"],
             "nct_id": t["nct_id"],
             "kind": "started monitoring",
-            # Not something there is anything to review, so never flagged as new.
             "synthetic": False,
             "reviewed": True,
         }
@@ -1138,10 +1054,7 @@ def feed(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:
             "at": offer["found_at"],
             "nct_id": offer["nct_id"],
             "kind": trials_found(1),
-            # Nothing the simulator writes; a find comes from the live registry.
             "synthetic": False,
-            # Read once it has been turned down. An offer still waiting is the
-            # thing the bell is for.
             "reviewed": offer["dismissed"],
         }
         for offer in storage.list_found(conn, list_id, dismissed=None)
@@ -1158,8 +1071,6 @@ def feed(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict]:
             {
                 "at": at,
                 "nct_id": nct,
-                # Counted as the entry names it: a date and its type moving
-                # together are one event, not two fields.
                 "kind": fields_moved(len(diff.fold_qualifiers(c["field"] for c in changes))),
                 "synthetic": any(c["synthetic"] for c in changes),
                 "reviewed": all(c["reviewed"] for c in changes),
@@ -1214,15 +1125,8 @@ def last_change(conn: sqlite3.Connection, nct_id: str) -> dict | None:
         shown = [c for c in changes if c["detected_at"] == newest]
 
     return {
-        # The newest of the moves being named, so a column of old news is not
-        # dated as though it landed today.
         "at": max(c["detected_at"] for c in shown),
-        # A field that moved twice is one entry: changes come newest first, so
-        # the first sighting of each name is its most recent move. So is a date
-        # or an enrolment figure that moved between estimated and actual: the
-        # value and its type are folded into one name.
         "fields": diff.by_signal(diff.fold_qualifiers(c["field"] for c in shown)),
-        # A detection is simulated if any part of it was.
         "synthetic": any(c["synthetic"] for c in shown),
     }
 
@@ -1251,11 +1155,8 @@ def history(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
             moves.append(
                 {
                     **folded,
-                    # Every change row the move folds, so reviewing by ID
-                    # reaches the qualifier as well as the value.
                     "ids": [row["id"] for row in rows],
                     "registry_updated": profile.get("lastUpdatePostDate"),
-                    # One check of one trial is identified by its detection time.
                     "check": when,
                     "detected_at": when,
                     "reviewed": all(row["reviewed"] for row in rows),
@@ -1288,10 +1189,6 @@ def timeline(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
     for event in storage.review_events(conn, nct_id):
         ids = set(event["change_ids"])
         touched = [m for m in moves if ids & set(m["ids"])]
-        # A review is told by the changes it covered that are still shown. One
-        # that covered none (only a change the saved-change rule now leaves
-        # out, storage.list_changes) reviewed nothing to tell, so neither it
-        # nor its undo is an entry.
         if not touched:
             continue
         base ={"count": len(touched), "from_checks": sorted({m["check"] for m in touched}),
@@ -1303,7 +1200,6 @@ def timeline(conn: sqlite3.Connection, nct_id: str) -> list[dict]:
         entries.append({"kind": event["kind"], "at": event["at"]})
     trial = storage.get_trial(conn, nct_id)
     entries.append({"kind": "start", "at": trial["monitoring_began"]})
-    # Newest first; on a tie the later-made kind (undo after review) leads.
     order = {"start": 0, "detection": 1, "review": 2, "undo": 3, "stopped": 4, "resumed": 5}
     return sorted(entries, key=lambda e: (_when(e["at"]), order[e["kind"]]), reverse=True)
 
@@ -1329,9 +1225,6 @@ def watchlist(conn: sqlite3.Connection, list_id: int | None = None) -> list[dict
             {
                 "nct_id": nct,
                 **_identity(profile),
-                # When the sponsor last revised the record, which is not when
-                # this tool noticed: a list checked weekly can meet a
-                # fortnight-old revision.
                 "registry_updated": profile.get("lastUpdatePostDate"),
                 "last_checked": trial["last_checked"],
                 "last_reviewed": trial["last_reviewed"],

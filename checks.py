@@ -43,17 +43,14 @@ import tokenize
 ROOT = pathlib.Path(__file__).resolve().parent
 PYTHON = str(ROOT / ".venv" / "bin" / "python")
 
-# name, command, minutes before it is stopped and called red. Cheapest first.
 CHECKS = [
     ("lint", [PYTHON, "-m", "ruff", "check", "--no-cache", "."], 1),
     ("patterns", [sys.executable, str(ROOT / "checks.py"), "--patterns"], 1),
     ("escapes", [sys.executable, str(ROOT / "checks.py"), "--escapes"], 1),
-    ("unit", [PYTHON, "-m", "pytest", "-q", "-n", "auto"], 3),  # -n auto: one worker per processor (pytest-xdist)
+    ("unit", [PYTHON, "-m", "pytest", "-q", "-n", "auto"], 3),
     ("walks", [PYTHON, "walks/run_walks.py"], 8),
 ]
 
-# A pattern no file may match. Each is a line of CODING_STANDARDS.md that a pattern can see.
-# A rule is added here only when the code has no match left.
 PATTERNS = [
     {
         "rule": "R-005",
@@ -64,7 +61,7 @@ PATTERNS = [
 ]
 
 ESCAPES = "docs/agents/local/escapes.jsonl"
-CHECK_REQUIRED_FROM = "2026-11-17"  # lines from this date on must name the check that now catches the defect
+CHECK_REQUIRED_FROM = "2026-11-17"
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}$")
 
 
@@ -202,7 +199,7 @@ def run_one(command, minutes, output, root=ROOT, env=None) -> tuple[str, float]:
             code = process.wait(timeout=minutes * 60)
         except subprocess.TimeoutExpired:
             code, stopped = 1, True
-        finally:  # a timeout, Ctrl+C or a closed terminal: the check and its children never outlive this
+        finally:
             if process.poll() is None:
                 os.killpg(process.pid, signal.SIGKILL)
                 process.wait()
@@ -213,7 +210,7 @@ def run_one(command, minutes, output, root=ROOT, env=None) -> tuple[str, float]:
 
 def pick_walks(root, changed) -> tuple[list[str], dict]:
     """(the walk files to give the walk check, none when it is to run them all; {"ran", "of", "why"})."""
-    import picker  # only a picked run needs the picker: checks.py runs alone without it
+    import picker
     import walk_map
     every = sorted(str(path.relative_to(root)) for path in pathlib.Path(root).glob(walk_map.WALKS))
     try:
@@ -244,8 +241,6 @@ def unit_always(root, why) -> tuple[list[str], str]:
     return files, f"{why}; none was selected, so the tests that always run, {', '.join(f'`{name}`' for name in files)}"
 
 
-# What the unit check is given (pytest-testmon, which records which test ran which code, in pytest's cache folder):
-# select only the tests a change reaches, or run them all and refresh the record.
 SELECT, NOSELECT = "--testmon", "--testmon-noselect"
 
 COUNTED = re.compile(r"(\d+) (passed|failed|errors?|skipped|xfailed|xpassed)\b")
@@ -273,7 +268,7 @@ def unit_there_are(command, root, env) -> int | None:
     return int(found.group(1)) if found else None
 
 
-QUICK = "WALK_QUICK"  # set to 1 for a quick run: the walk fixtures then use the first window size only
+QUICK = "WALK_QUICK"
 
 
 def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=True), quick=False, pick=False) -> int:
@@ -288,7 +283,7 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
     folder.mkdir(exist_ok=True)
     branch = git("rev-parse", "--abbrev-ref", "HEAD", root=root)
     env = dict(os.environ)
-    env.pop(QUICK, None)  # only --quick makes a run quick, so its line in the log is true
+    env.pop(QUICK, None)
     if quick:
         env[QUICK] = "1"
     if "WALK_FEATURE" not in env and walk_feature(branch, root):
@@ -296,7 +291,7 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
     started, results, red, picks = time.monotonic(), [], None, []
     changed = base = None
     if pick:
-        import picker  # only a picked run needs the picker: checks.py runs alone without it
+        import picker
         changed, base = picker.changed(root)
     for name, command, minutes in checks:
         if names and name not in names:
@@ -321,7 +316,7 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
         result, took = run_one(command, minutes, output, root, env)
         if unit_why:
             ran = unit_ran(output.read_text(errors="replace"))
-            if select and result == "green" and not ran:  # a pick never ends green having run nothing
+            if select and result == "green" and not ran:
                 files, unit_why = unit_always(root, unit_why)
                 result, more = run_one([*given, *files, NOSELECT], minutes, output, root, env)
                 took, ran = round(took + more, 2), unit_ran(output.read_text(errors="replace"))
@@ -344,8 +339,8 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
         "result": "red" if red else "green",
         "minutes": total,
         "quick": quick,
-        "every": set(known) <= set(names or known),  # every check was asked for: a run that can be a base (picker.py)
-        "picked": pick,  # a picked run is never a full run
+        "every": set(known) <= set(names or known),
+        "picked": pick,
         "base": base,
         "picks": picks,
         "checks": results,
@@ -376,6 +371,6 @@ def main(argv) -> int:
 
 
 if __name__ == "__main__":
-    for stop in (signal.SIGTERM, signal.SIGHUP):  # stopped from outside: leave through run_one's finally
+    for stop in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(stop, lambda *_: sys.exit(143))
     sys.exit(main(sys.argv[1:]))

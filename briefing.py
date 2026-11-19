@@ -32,9 +32,6 @@ import display
 import medical_affairs
 import storage
 
-# The ranges offered before the reader reaches for a calendar. Both end today:
-# a briefing is written about what has happened, and a range running into next
-# week would report the same thing while implying otherwise.
 THIS_WEEK = "This week"
 THIS_MONTH = "This month"
 CUSTOM = "Custom range"
@@ -71,7 +68,6 @@ def period_range(kind: str, today: datetime.date | None = None):
     return None
 
 
-# --- gathering
 
 
 def _local(stamp: str, zone: datetime.tzinfo | None) -> datetime.datetime:
@@ -124,7 +120,6 @@ def _move(folded: dict, registry_updated) -> dict:
     field = folded["field"]
     return {
         "ids": [row["id"] for row in folded["changes"]],
-        # A move is read when every row it folds is.
         "reviewed": all(row["reviewed"] for row in folded["changes"]),
         **{key: value for key, value in folded.items() if key not in ("change", "changes")},
         "label": display.label(field),
@@ -181,8 +176,6 @@ def summarise(
         if change["nct_id"] in watched and _within(change["detected_at"], start, end, zone)
     ]
 
-    # Changes arrive newest first, so grouping preserves that order and the
-    # entries below are already in the order they are read.
     detections: dict[tuple[str, str], list[dict]] = {}
     for change in changes:
         detections.setdefault((change["nct_id"], change["detected_at"]), []).append(change)
@@ -197,8 +190,6 @@ def summarise(
             "title": _title(conn, nct_id),
             "url": f"{display.STUDY_URL}/{nct_id}",
             "synthetic": any(move["synthetic"] for move in found),
-            # Stable, so within the high-signal group the newest check still
-            # comes first.
             "moves": sorted(found, key=lambda move: not move["high_signal"]),
         }
         for nct_id, found in moves.items()
@@ -214,11 +205,7 @@ def summarise(
     }
 
 
-# --- the two forms
 
-# The word marking a fabricated move in a spreadsheet, where an emoji is not
-# something a filter or a formula can be written against. The app's own word,
-# so a row of the file and a line of the page are saying the same thing.
 SYNTHETIC = "Simulated"
 
 COLUMNS = (
@@ -294,9 +281,6 @@ def as_text(summary: dict) -> str:
             mark = f" {display.SYNTHETIC}" if move["synthetic"] else ""
             lines.append(
                 f"- {move['label']}: {_value(move, 'previous')} → {_value(move, 'current')}"
-                # Dashed off rather than bracketed: a value carrying the
-                # registry's "(Actual)" would otherwise sit inside a second set
-                # of brackets and read as one parenthesis.
                 f" — registry updated {display.long_date(move['registry_updated'])}, "
                 f"detected {display.long_date(_local(move['detected'], summary.get('zone', datetime.timezone.utc)).date().isoformat())}{mark}"
             )

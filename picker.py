@@ -47,7 +47,7 @@ def walks(changed, the_map: dict, every: list[str], walk_files=WALKS) -> tuple[l
     return sorted(picked), f"only the walks that always run: {quoted(changed)} reach no walk"
 
 
-RECORDS = ".scratch/"  # the build's own records: a change there reaches no test
+RECORDS = ".scratch/"
 
 
 def unit(changed, apart=()) -> tuple[bool, str]:

@@ -66,18 +66,12 @@ import checks
 
 ROOT = pathlib.Path(__file__).resolve().parent
 
-# The walk recorded when the build added or changed none of its own: the whole journey, keyboard only, Chromium at
-# 1440 x 900. The build's own walks are recorded at VIEW, the same window size.
-MAIN = "main"  # the branch a build is merged into (CLAUDE.md, "When the owner accepts a build")
+MAIN = "main"
 WALK = "walks/test_acceptance_walk.py::test_walk_the_whole_journey_by_keyboard_alone[chromium-1440x900]"
 VIEW = "1440x900"
-# A walk the build wrote is a few steps long, so it is recorded with a longer pause after each step than a walk
-# records at by itself (walks/helper.py): at that pace its video would be over in a second or two.
 OWN_SLOW_MO = "800"
-CHECK_NAMES = [name for name, _, _ in checks.CHECKS]  # a checks run is "full" when it lists every one of these
+CHECK_NAMES = [name for name, _, _ in checks.CHECKS]
 
-# The page's own words. The record files say finding, fate, finder, pass and check; the page says issue, outcome,
-# review, round and test, because its reader has not read the record formats (.claude/rules/human-facing-writing.md).
 FINDERS = {"walker": "Exploratory testing", "review": "Code review", "early-read": "Early code review"}
 FINDER_NOTES = {
     "walker": "Agents use the running app in a real browser and try to break it.",
@@ -86,10 +80,8 @@ FINDER_NOTES = {
                   "The code review that follows reads its fixes, so it has no re-check of its own.",
 }
 PASSES = {"first": "First review", "recheck": "Re-check after the fixes"}
-SEVERITIES = {"blocks": "blocks use", "wrong": "wrong", "cosmetic": "cosmetic"}  # the three the format names, most serious first
-OUTCOMES = {"fixed": "fixed", "left": "left unfixed", "not-a-defect": "not a defect"}  # the three fates, in the page's words
-# What the record says happened to an issue, in the order the page shows the groups: heading, look, drawn open.
-# What each group means to the reader is state_said's.
+SEVERITIES = {"blocks": "blocks use", "wrong": "wrong", "cosmetic": "cosmetic"}
+OUTCOMES = {"fixed": "fixed", "left": "left unfixed", "not-a-defect": "not a defect"}
 STATES = {
     "no-fate": ("No outcome recorded", "bad", True),
     "left": ("Left unfixed", "warn", True),
@@ -102,16 +94,15 @@ FOUND = (" This page found each test's file in the build's last commit and each 
          "It did not run the tests.")
 FOUND_ONE = " This page found the test's file in the build's last commit and the commit in the repository. It did not run the test."
 WALK_ENDS = {"failed": "failed", "did not run": "did not run", "did not finish": "did not finish"}
-RUN_ENDS = {"green": "passed", "red": "failed"}  # the run log's words for a result, and the page's
-SUMMARY_LINES, LINE_LENGTH = 5, 200  # what and so_what: at most this many lines; any line of hand-over.json: at most this long
-TITLE_LENGTH, LEGEND_LENGTH = 80, 300  # a part of the walk-through: its title and its legend, at most this long
-CODE_NAME = re.compile(r"[\w.:/]*(?:\w_\w|::)[\w.:/]*")  # a name from the code (test_walk_x, file::name): never in a title or a legend
-WALKS_CHECK = "walks"  # checks.py's name for the browser tests: a run that lists it ran them
-FLAKY_RECORD = "flaky.jsonl"  # walks/run_walks.py's FLAKY_RECORD, beside its output in .scratch/<feature>/walks/
-PICTURE_BYTES = 1_500_000  # a screenshot up to this size is put inside the page; a larger one stays a file beside it
+RUN_ENDS = {"green": "passed", "red": "failed"}
+SUMMARY_LINES, LINE_LENGTH = 5, 200
+TITLE_LENGTH, LEGEND_LENGTH = 80, 300
+CODE_NAME = re.compile(r"[\w.:/]*(?:\w_\w|::)[\w.:/]*")
+WALKS_CHECK = "walks"
+FLAKY_RECORD = "flaky.jsonl"
+PICTURE_BYTES = 1_500_000
 
 
-# Reading.
 
 def read_jsonl(path: pathlib.Path) -> list[dict]:
     """The JSON objects of a .jsonl file, one per line; blank lines skipped. A broken line stops the run."""
@@ -209,7 +200,6 @@ def git_ok(repo: pathlib.Path, *args: str) -> bool:
     return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True).returncode == 0
 
 
-# Computing.
 
 def ask(*command: str) -> str | None:
     """What a program of this computer printed, or None when it could not be run. Its exit code is not read: lsof
@@ -239,7 +229,6 @@ def listeners(root: pathlib.Path) -> list[dict] | None:
     if not ports:
         return []
     pids = ",".join(str(pid) for pid in sorted(ports))
-    # -ww: whole command lines (Linux's ps otherwise cuts them to the terminal's width, 80 columns when piped)
     folders, programs = ask("lsof", "-a", "-d", "cwd", "-p", pids, "-Fpn"), ask("ps", "-ww", "-o", "pid=,lstart=,command=", "-p", pids)
     if folders is None or programs is None:
         return None
@@ -254,7 +243,7 @@ def listeners(root: pathlib.Path) -> list[dict] | None:
         number, *words = line.split()
         if not number.isdigit() or not any(of_project(root, folder.get(int(number)), word) for word in words[5:]):
             continue
-        try:  # ps gives this computer's own time: "Tue Nov 17 22:03:50 2026"
+        try:
             started = datetime.datetime.strptime(" ".join(words[:5]), "%a %b %d %H:%M:%S %Y").astimezone(datetime.timezone.utc)
         except ValueError:
             return None
@@ -291,20 +280,15 @@ def git_facts(repo: pathlib.Path, base: str, tip: str) -> dict:
     added = {"product": 0, "tests and browser tests": 0, "build records and agent instructions (.scratch/, .claude/)": 0}
     for line in git(repo, "diff", "--numstat", f"{base}...{tip}").splitlines():
         plus, minus, path = line.split("\t", 2)
-        path = re.sub(r"\{[^{}]* => ([^{}]*)\}", r"\1", path).split(" => ")[-1].replace("//", "/")  # a renamed file: its new path
+        path = re.sub(r"\{[^{}]* => ([^{}]*)\}", r"\1", path).split(" => ")[-1].replace("//", "/")
         kind = list(added)[2 if path.startswith((".scratch/", ".claude/")) else 1 if path.startswith(("tests/", "walks/")) else 0]
         files += 1
-        added[kind] += int(plus) if plus.isdigit() else 0  # a binary file has "-" for both
+        added[kind] += int(plus) if plus.isdigit() else 0
         removed += int(minus) if minus.isdigit() else 0
     tests = git(repo, "diff", f"{base}...{tip}", "--", "tests", "walks")
-    # Already merged: the range holds commits and its last one is part of main. Main as last fetched from the remote is
-    # asked first, so a merge made only in this folder, which the owner never saw, does not count; the local branch is
-    # asked only when the folder has no remote main. None when it has neither.
     main = next((ref for ref in (f"refs/remotes/origin/{MAIN}", f"refs/heads/{MAIN}")
                  if git_ok(repo, "rev-parse", "--verify", "--quiet", ref)), None)
     merged = (bool(times) and git_ok(repo, "merge-base", "--is-ancestor", tip, main)) if main else None
-    # When it was merged: the time of the oldest commit on main's own line that holds the build's last commit (the
-    # merge commit; for a build main was moved forward to, the commit that followed it, or its own last commit).
     after = git(repo, "log", "--first-parent", "--ancestry-path", "--format=%cI", f"{tip}..{main}").split() if merged else []
     return {
         "merged": merged, "merged_at": (after[-1] if after else last) if merged else None,
@@ -339,7 +323,7 @@ def run_facts(runs: list[dict] | None, branch: str, names=None) -> dict:
         return {**facts, "why_unknown": f"The log of check runs (.checks/runs.jsonl) has no entry for this build's branch, {branch}."}
     full = [index for index, run in enumerate(own) if is_full(run, facts["names"])]
     since = {}
-    for run in own[full[-1] + 1:] if full else own:  # oldest first, so a check's later result replaces its earlier one
+    for run in own[full[-1] + 1:] if full else own:
         listed_ = [check for check in run.get("checks") or [] if check.get("result") != "not run"]
         for check in listed_ or [{"name": "a run that names no check", "result": run.get("result")}]:
             since[str(check.get("name", "?"))] = {"result": str(check.get("result")), "at": run.get("at")}
@@ -566,7 +550,7 @@ def state_parts(state: str, rows: list[dict], verified: bool = False, top: bool 
         what = f"The record marks {count} as fixed and names a test for {'it' if one else 'each'}"
         so = f"{'The fix' if one else 'Each fix'} names the test that is meant to show it works."
         whole = sum(1 for row in rows if "::" not in str((row.get("fate") or {}).get("check") or ""))
-        if whole:  # a file of tests is weaker proof than one test: the record does not say which test in it shows the fix
+        if whole:
             so += (" The record names a whole test file, not one test in it." if one else
                    f" For {of_the(whole, total)}, the record names a whole test file, not one test in it.")
         so += (FOUND_ONE if one else FOUND) if verified else ""
@@ -587,7 +571,7 @@ def state_parts(state: str, rows: list[dict], verified: bool = False, top: bool 
         so = (f"This page knows three outcomes: fixed, left unfixed and not a defect. This one tells it nothing, so treat "
               f"{'the issue' if one else 'each issue'} as open.")
         do = "Ask for the record to be corrected."
-    if blocking and state != "fixed":  # the one severity that changes what the owner does next
+    if blocking and state != "fixed":
         whom = ("it" if one else f"all {total}") if blocking == total else f"{blocking} of the {total}"
         so += f" The reviewer{'' if one else 's'} recorded {whom} as blocking use, which means a user cannot finish a task, or loses data."
     return what, so, do
@@ -767,23 +751,21 @@ def passed_but(off: str) -> str:
 
 FLAKY_MISSING = ("The record of which browser tests failed with the others and passed alone is missing for the last run of "
                  "the browser tests, so this page cannot say whether any did.")
-QUICK_RUN = ", a quick run, with the browser tests at one window size"  # checks.py --quick: never a full run
+QUICK_RUN = ", a quick run, with the browser tests at one window size"
 QUICK_SQUARE = " or was a quick run, with the browser tests at one window size"
-PICKED_RUN = "a run of only the tests the change could reach"  # checks.py --pick: never a full run, whatever it ran
+PICKED_RUN = "a run of only the tests the change could reach"
 NOT_LAST = "so it does not show that the build's last commit passes"
 NO_FULL_RUN = "No run of every check is logged for this build's branch."
 NO_REPORT = ("This page looks for review reports in one place (findings/*.jsonl). Where it finds none from a review, either "
              "the review was not made or its report is somewhere else: this page cannot tell which.")
 CHECK_GLOSS = {"lint": "the check of the code for common mistakes",
                "patterns": "the scan for forbidden code patterns", "escapes": "the check of the defect log",
-               "unit": "the unit tests", "walks": "the browser tests"}  # checks.py's docstring
-DECISION = "before you accept this build"  # the owner's decision (CLAUDE.md, "When the owner accepts a build")
-# For a build whose last commit is already part of main: the page's own finding, from git, said under its first sentence.
+               "unit": "the unit tests", "walks": "the browser tests"}
+DECISION = "before you accept this build"
 MERGED = "Nothing is left to accept: what this page lists is for you to know about and, if you choose, ask for."
 MERGED_HOW = "This build is already merged: this page found its last commit in main, the project's main line of work."
 AGAIN = "on the build's last commit"
 ASK = "tell the agent you are working with (a new session opened in this project will do)"
-# What accepting sets off: this project's rule (CLAUDE.md, "When the owner accepts a build"), not a fact about one build.
 ACCEPTING = ("In this project, when you accept a build the agent pushes the build's branch and opens a pull request, "
              "and you merge it yourself.")
 
@@ -863,7 +845,7 @@ def walk_verdict(data: dict) -> tuple[str, str, str]:
 def checks_verdict(data: dict) -> tuple[str, str, str]:
     """(look, the verdict as a sentence, the verdict as a tile's few words) for the last full run, the last that ran
     every check. Green only for a pass on the build's last commit, as committed."""
-    full, after = data["runs"]["full"], since_result(data["runs"])  # after: the checks run again since, in runs of only some
+    full, after = data["runs"]["full"], since_result(data["runs"])
     if full is None or full.get("result") not in ("green", "red"):
         return (("red", "The automated checks failed in their last run", "Failed in their last run") if after == "red" else
                 ("amber", "Nothing on record shows whether the build passes the automated checks", "No result on record"))
@@ -941,8 +923,6 @@ def listed(parts: list[str]) -> str:
     return " and ".join([", ".join(parts[:-1])] * (len(parts) > 1) + parts[-1:])
 
 
-# The page's two tests of the whole build, said once, under its first sentence, before either name is used again.
-# The checks are listed from checks.py's own list, so a check added there is named here.
 TERMS_OWN = ("The walk-through is a recording of the app being used in a real browser (Chromium, 1440 by 900 pixels), "
              "against a stand-in for the outside services the app calls. It shows what this build changed, not the whole app. Each part is one "
              "browser test that this build added or changed and that the builder chose to show; the title and the note on a "
@@ -955,7 +935,6 @@ TERMS = ("The walk-through is an automated run of one whole journey through the 
          f"{len(CHECK_NAMES)} checks this project runs with one command: {listed([check_said(name) for name in CHECK_NAMES])}. "
          "The walk-through is one of those browser tests; this page judges it only from a recorded run of it on its own, not "
          "from a run of the checks.")
-# The three other words the page's first sentences lean on, each said once, under TERMS.
 WORDS = ("A commit is one saved step of the work, and the build's last commit is the finished build. The reviewers are "
          "agents that test the running app or read the code; this page reads the issues from their report files. The build's record "
          "is the file (fates.jsonl) that says what became of each issue: fixed, left unfixed, or not a defect.")
@@ -980,13 +959,13 @@ def issues_said(data: dict) -> str:
     kinds = [str((f["fate"] or {}).get("fate") or "") for f in found]
     untested = sum(1 for f in found if f["state"] == "fixed-no-check")
     marks = [f"{kinds.count(kind):,} as {words}" for kind, words in OUTCOMES.items() if kinds.count(kind)]
-    if untested:  # the part of "fixed" the owner most needs to know, said where the number first appears
+    if untested:
         marks[0] += f" ({'' if untested == kinds.count('fixed') else f'{untested:,} of them '}with no test named)"
     other = sum(1 for kind in kinds if kind not in OUTCOMES)
     said = f"The reviewers reported {issues(len(found))} in the reports this page read."
     if marks:
         said += f" The build's record marks {listed(marks)}."
-    if other:  # "usable" only when the record does name an outcome and the page cannot read it
+    if other:
         usable = " usable" if any(kind and kind not in OUTCOMES for kind in kinds) else ""
         said += f" {'It' if marks else 'The build' + chr(39) + 's record'} gives no{usable} outcome for {other:,}."
     return f"{said} {severity_said(found)}".strip()
@@ -1047,8 +1026,6 @@ def when(stamp) -> str:
     return f"{utc.day} {utc:%b %Y, %H:%M} UTC"
 
 
-# Colours. Green, amber and red are kept for what passed, what needs a look and what failed. The findings bar, the
-# lines bar and the squares of the run history use other hues, so a count or an old run is never mistaken for a verdict.
 LIGHT = """--bg: #f4f5f7; --card: #ffffff; --ink: #1b2330; --soft: #5a6472; --line: #d9dde3; --accent: #1f5fbf;
   --ok: #0b7a3b; --ok-bg: #e3f4ea; --warn: #8a5a00; --warn-bg: #fdf1d0; --warn-line: #e6c15c; --warn-fill: #f0b323;
   --bad: #a3261a; --bad-bg: #fde7e3; --bad-line: #e2a093; --bad-fill: #d03b3b;
@@ -1247,8 +1224,6 @@ footer { color: var(--soft); font-size: .85rem; margin-top: 1.5rem; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
 """
 
-# The picture story's controls. The page is whole without it: with no script every picture is drawn in a grid and
-# the recording under them. It loads nothing and sends nothing.
 SCRIPT = """
 (function () {
   [].forEach.call(document.querySelectorAll('a[href^="#group-"]'), function (a) {
@@ -1482,7 +1457,7 @@ def to_look_at(data: dict) -> list[tuple[str, str, str, str, str]]:
                        f"neither, so {'it is' if one else 'they are'} counted apart, in a column of {'its' if one else 'their'} own "
                        "in the review table.", "Ask for the record to be corrected.", "#finders"))
     flagged = [thing for thing in things if thing[0] in ("amber", "red")]
-    return sorted(flagged, key=lambda thing: thing[0] != "red")  # a sort that keeps the order within each look
+    return sorted(flagged, key=lambda thing: thing[0] != "red")
 
 
 def walk_said(nodeid: str) -> str:
@@ -1527,7 +1502,7 @@ def tile(look: str, label: str, words: str, sub_html: str, href: str) -> str:
 
 def render_walk_tile(data: dict) -> str:
     recording = data["recording"] or {}
-    stopped = recording.get("result") in WALK_ENDS  # an attempt that failed, did not start or was stopped did not "run for" a time
+    stopped = recording.get("result") in WALK_ENDS
     took = (f'{"Ended after" if stopped else "Ran for"} {e(minutes(recording["minutes"]))}, on' if recording.get("minutes") is not None
             else f'How long it ran was not recorded. It {"was started" if stopped else "ran"} on')
     own = own_walks(recording)
@@ -1557,14 +1532,14 @@ def render_checks_tile(data: dict) -> str:
         sub += f'<span class="sub">{e(runs["why_unknown"] or NO_FULL_RUN)}</span>'
     else:
         off = stale(full.get("tip", "unknown"), full.get("dirty"), tip)
-        looks = {"green": "green" if look == "green" else "", "red": "red"}  # a check is drawn green only when the verdict is
+        looks = {"green": "green" if look == "green" else "", "red": "red"}
         each = "".join(f'<span class="chk {looks.get(str(check.get("result")), "")}">{e(chip(check.get("name", "?")))}: '
                        f'{e(RUN_ENDS.get(str(check.get("result")), check.get("result", "unknown")))}</span>' for check in full.get("checks") or [])
         sub += f'<span class="sub">{each}</span><span class="sub">The last full run took {e(minutes(full.get("minutes")))}</span>'
         sub += f'<span class="sub">This run was {e(off)}.</span>' if off else ""
-    if later and (full is None or since_result(runs) != "green"):  # said on the tile, not only in the folded list
+    if later and (full is None or since_result(runs) != "green"):
         sub += f'<span class="sub">{e(later)}</span>'
-    if (data.get("flaky") or {}).get("missing"):  # said, not counted: a build may predate the record
+    if (data.get("flaky") or {}).get("missing"):
         sub += f'<span class="sub">{e(FLAKY_MISSING)}</span>'
     return tile(look, "Automated checks", short, sub, "#facts")
 
@@ -1587,7 +1562,7 @@ def render_findings_tile(data: dict) -> str:
         said = "None reported" if count else "No review report found"
         items.append(pill(f"No issues in the {count} report{'' if count == 1 else 's'} read" if count
                           else "No review report found", "" if count else "amber", "#finders"))
-    if late_fixes(data)[0]:  # said beside the outcomes, and not a colour: it is a count, not a verdict
+    if late_fixes(data)[0]:
         items.append(pill(f"Fixed after the last review: {late_fixes(data)[0]}", "", "#finders"))
     items += [pill(f"{FINDERS[finder]}: no report found", "amber", "#finders") for finder in data["absent"]]
     if data["orphans"]:
@@ -1638,7 +1613,7 @@ def render_standing(data: dict) -> str:
             settled = ("every reported issue is recorded either as not a defect or as fixed, each fix naming the test meant to "
                        "show it works. The outcomes are the build's own record: this page did not test the fixes")
             judged = sum(len(rows) for state, rows in data["groups"] if state == "not-a-defect")
-            if judged:  # each gives a reason and none is rated as blocking use, or the group would be listed above
+            if judged:
                 settled += (f". {issues(judged).capitalize()} {'is' if judged == 1 else 'are'} judged not a defect: that is the "
                             "build's own judgement, which this page did not check")
         headline = (f'<p class="headline green">{mark("green")}{e(headline_said(0, done))}</p>'
@@ -1731,13 +1706,13 @@ def render_parts(data: dict, own: list[dict], said: list[str]) -> str:
         words = {"passed": "This part passed.", "failed": "This part failed.", "did not run": "This part did not run."}
         return f' <span class="soft">{words[result]}</span>' if result in words else f" {unknown('How this part ended was not recorded.')}"
 
-    shots = sorted(data["shots"], key=part_of)  # in the parts' order; sorted() keeps each part's pictures in theirs
+    shots = sorted(data["shots"], key=part_of)
     per = [sum(1 for shot in shots if part_of(shot) == index) for index in range(total)]
     frames, first, seen = [], {}, [0] * total
     for index, shot in enumerate(shots):
         plain, src = shot_parts(shot)
         part = part_of(shot)
-        lazy = ' loading="lazy"' if index and not src.startswith("data:") else ""  # only a picture that is a file can wait
+        lazy = ' loading="lazy"' if index and not src.startswith("data:") else ""
         if part == total:
             frames.append(f'<figure class="frame"><img src="{e(src)}" alt="{e(plain)}"{lazy}><figcaption>{e(plain)}</figcaption></figure>')
             continue
@@ -1807,7 +1782,7 @@ def render_recording(data: dict) -> str:
     frames = []
     for index, shot in enumerate(data["shots"]):
         caption, src = shot_parts(shot)
-        lazy = ' loading="lazy"' if index and not src.startswith("data:") else ""  # only a picture that is a file can wait
+        lazy = ' loading="lazy"' if index and not src.startswith("data:") else ""
         frames.append(f'<figure class="frame"><img src="{e(src)}" alt="{e(caption)}"{lazy}>'
                       f"<figcaption>{e(caption)}</figcaption></figure>")
     stage = f'<div class="stage">{"".join(frames)}</div>' if frames else "<p>No screenshots: the walk-through left none.</p>"
@@ -1836,7 +1811,7 @@ def render_summary(data: dict) -> str:
     for key, kicker, title in (("so_what", "So what", "What it gives you"), ("now_what", "Now what", "What is left for you")):
         lines = summary.get(key) or []
         listed = lambda some: "".join(f"<li>{e(line)}</li>" for line in some)  # noqa: E731 (a one-line helper local to this function)
-        first, rest = lines[:SUMMARY_LINES], lines[SUMMARY_LINES:]  # the agent writes the weightiest first; the tail is folded, and counted
+        first, rest = lines[:SUMMARY_LINES], lines[SUMMARY_LINES:]
         more = f"<details><summary>{len(rest)} more</summary><ul>{listed(rest)}</ul></details>" if rest else ""
         body = listed(first) if lines else f"<li>{unknown('nothing written')}</li>"
         cards.append(f'<div class="card{" next" if key == "now_what" else ""}"><p class="kicker">{kicker}</p><h3>{title}</h3><ul>{body}</ul>{more}</div>')
@@ -1853,7 +1828,7 @@ def render_last_run(data: dict) -> str:
         said.append(unknown())
     else:
         off = stale(full.get("tip", "unknown"), full.get("dirty"), tip)
-        looks = {"green": "amber" if off else "green", "red": "red"}  # green is drawn green only for the last commit as committed
+        looks = {"green": "amber" if off else "green", "red": "red"}
         listed = "".join(
             f'<li>{e(chip(check.get("name", "?")))}: {pill(RUN_ENDS.get(str(check.get("result")), check.get("result", "unknown")), looks.get(str(check.get("result")), ""))}'
             f'{"" if check.get("result") == "not run" else " " + e(minutes(check.get("minutes"))) + ","} '
@@ -2034,13 +2009,13 @@ def render_finding(finding: dict, shared: str = "", same_as: str = "") -> str:
             trace("Severity", e(SEVERITIES.get(severity, severity or "not recorded in the review report")))]
     if finding.get("where"):
         rows.append(trace("Where", e(finding["where"])))
-    if finding.get("check") and finding["check"] != fate.get("check"):  # said once when the outcome names the same test
+    if finding.get("check") and finding["check"] != fate.get("check"):
         rows.append(trace("Reviewer's test", code(finding["check"])))
     rows.append(trace("Outcome recorded", e(fate.get("fate") or "none")))
     if fate.get("commit"):
         rows.append(trace("Commit", code(fate["commit"])))
     named = str(fate.get("check") or "").strip()
-    if fixed or named:  # a name with no :: is a whole file of tests, and the record does not say which test shows the fix
+    if fixed or named:
         whole = " (a whole test file: the record does not say which test in it)" if named and "::" not in named else ""
         rows.append(trace("Test named", code(named) + whole if named else "none"))
     if why and why != shared and fixed:
@@ -2058,7 +2033,7 @@ def render_findings(data: dict) -> str:
     orphans = ""
     if data["orphans"]:
         count = len(data["orphans"])
-        def orphan(fate: dict) -> str:  # the outcome in the page's words; a reason only when the record gives one
+        def orphan(fate: dict) -> str:
             kind, why = str(fate.get("fate") or ""), reason(fate)
             outcome = OUTCOMES.get(kind) or (f'"{kind}", as written' if kind else "no outcome named")
             return f'<li><code>{e(fate.get("id", ""))}</code>: {e(outcome)}.{" Reason recorded: " + e(why) if why else ""}</li>'
@@ -2084,9 +2059,9 @@ def render_findings(data: dict) -> str:
         look, opened = state_look(state, rows)[1:]
         what, so_what = state_said(state, rows, data["verified"])
         so_what = undecided(so_what, data)
-        shared = shared_reason(rows)  # one reason for all: said once, not on every issue
+        shared = shared_reason(rows)
         same = (f'<p class="why"><b>The reason recorded, the same for all {len(rows)}:</b> {e(shared)}</p>' if shared else "")
-        first, cards = {}, []  # the first issue in the list to give each reason
+        first, cards = {}, []
         for row in rows:
             why = reason(row["fate"])
             cards.append(render_finding(row, shared, first.get(why, "") if why else ""))
@@ -2115,7 +2090,6 @@ def render(data: dict) -> str:
             f'<body><main>{body}<footer>{footer}</footer></main><script>{SCRIPT}</script></body></html>\n')
 
 
-# Recording the walk.
 
 def tree_state(root: pathlib.Path) -> dict:
     """The commit the folder is at now, and whether anything in it is uncommitted."""
@@ -2139,7 +2113,6 @@ def changed_walks(root: pathlib.Path, base: str, tip: str) -> list[tuple[str, st
         hunk = re.match(r"@@ -\S+ \+(\d+)(?:,(\d+))? @@", line) if path else None
         if hunk:
             start, count = int(hunk.group(1)), int(hunk.group(2) or 1)
-            # Lines only removed leave no line of their own: they count for the function they were removed from inside.
             touched.setdefault(path, []).append((start, start + count - 1) if count else (start + 1, start))
     found = []
     for path in sorted(touched):
@@ -2226,7 +2199,7 @@ def record_walk(root: pathlib.Path, feature: str, out: pathlib.Path, picked=(), 
     for folder in (scratch, shots):
         shutil.rmtree(folder, ignore_errors=True)
         folder.mkdir(parents=True)
-    for old in ("recording.webm", "recording.json"):  # an earlier run's pass must not outlive this run
+    for old in ("recording.webm", "recording.json"):
         (out / old).unlink(missing_ok=True)
     words = {part["walk"]: part for part in picked}
     ids = list(words) or [WALK]
@@ -2253,14 +2226,13 @@ def record_walk(root: pathlib.Path, feature: str, out: pathlib.Path, picked=(), 
                       reason=f"It was stopped after {limit // 60} minutes" if timed_out else f"The command that runs it could not start: {error}")
     record["minutes"] = round((time.time() - started) / 60, 1)
     (out / "walk-output.txt").write_text(printed, encoding="utf-8")
-    # A walk's videos and screenshots are named after it (walks/helper.py keep_video, shot_name); take this run's only.
     if picked:
         results = junit_results(scratch / "junit.xml")
         clips.mkdir()
         record["walks"] = []
         for one in ids:
             kept = []
-            for video in sorted(scratch.glob(f"{walk_prefix(one)}*.webm")):  # a walk that opened a second page left a second video
+            for video in sorted(scratch.glob(f"{walk_prefix(one)}*.webm")):
                 video.replace(clips / video.name)
                 kept.append(video.name)
             record["walks"].append({"walk": one, "title": words[one]["title"], "legend": words[one]["legend"],
@@ -2308,7 +2280,7 @@ def default_browser(record: pathlib.Path = LAUNCH_SERVICES) -> str:
     try:
         with open(record, "rb") as handle:
             handlers = plistlib.load(handle).get("LSHandlers", [])
-    except Exception:  # the record is the system's own: missing, unreadable, or in a shape not known here
+    except Exception:
         return SAFARI
     for scheme in ("https", "http"):
         for handler in handlers:
@@ -2331,7 +2303,7 @@ def open_in_browser(page: pathlib.Path, platform: str = sys.platform, run=subpro
         return "" if done.returncode == 0 else f"`open` ended {done.returncode} ({(done.stderr or '').strip() or 'it gave no reason'})"
     try:
         return "" if other(page.as_uri()) else "no browser was found"
-    except Exception as error:  # whatever the platform's opener raises: the page is built either way
+    except Exception as error:
         return f"the browser could not be started ({error})"
 
 
@@ -2354,12 +2326,11 @@ def main(argv=None, root: pathlib.Path = ROOT, show=None) -> int:
         raise SystemExit(f"handover: no feature folder {feature_dir}")
     out = feature_dir / "hand-over"
     out.mkdir(exist_ok=True)
-    # Everything that can refuse is read before the walk, so a refusal does not cost a recording.
     facts = git_facts(root, args.base, args.tip)
     files, fates, summary = read_findings(feature_dir), read_fates(feature_dir), read_summary(feature_dir)
     runs = run_facts(read_runs(root / ".checks" / "runs.jsonl"), args.branch or git(root, "rev-parse", "--abbrev-ref", "HEAD"))
     record, picked, left_out = None, [], []
-    if not args.no_walk:  # which walks, and the words for each: a refusal here costs no recording
+    if not args.no_walk:
         parts, left_out = walk_parts(summary, changed_walks(root, args.base, args.tip), feature_dir / "hand-over.json")
         picked = [{"walk": nodeid, "title": part["title"], "legend": part["legend"]}
                   for part, nodeid in zip(parts, walk_ids(root, [part["test"] for part in parts]))]
@@ -2387,7 +2358,7 @@ def main(argv=None, root: pathlib.Path = ROOT, show=None) -> int:
     if show and not args.no_open:
         try:
             why = show(page.resolve())
-        except Exception as error:  # the page is built: a failure to open it is said, and is not the build's
+        except Exception as error:
             why = f"opening it failed ({error})"
         if why:
             print(f"The page could not be opened in a browser: {why}. This command opens it:")

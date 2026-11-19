@@ -9,8 +9,6 @@ and arm-specific, so we link out to the ClinicalTrials.gov results tab instead.
 
 import ctgov
 
-# The subset of the API's PascalCase fields this view needs. Passing these to
-# ctgov.search() keeps bulk pulls small.
 FIELDS = [
     "NCTId", "BriefTitle", "OfficialTitle", "Acronym", "OrgStudyId", "SecondaryId",
     "LeadSponsorName", "LeadSponsorClass", "CollaboratorName", "ResponsiblePartyType",
@@ -66,34 +64,25 @@ def profile(study: dict) -> dict:
     comp, comp_type = date("completionDateStruct")
 
     return {
-        # --- identity
         "nctId": nct,
         "briefTitle": ident.get("briefTitle"),
         "officialTitle": ident.get("officialTitle"),
         "acronym": ident.get("acronym"),
         "orgStudyId": _dig(ident, "orgStudyIdInfo", "id"),
         "secondaryIds": [s.get("id") for s in ident.get("secondaryIdInfos", [])],
-        # --- who
         "leadSponsor": _dig(spon, "leadSponsor", "name"),
         "sponsorClass": _dig(spon, "leadSponsor", "class"),
         "collaborators": [c.get("name") for c in spon.get("collaborators", [])],
         "responsibleParty": _dig(spon, "responsibleParty", "type"),
-        # --- what drugs
         "interventions": [i.get("name") for i in arms.get("interventions", [])],
         "interventionTypes": sorted({i.get("type") for i in arms.get("interventions", [])}),
         "armGroups": [a.get("label") for a in arms.get("armGroups", [])],
         "drugMeshTerms": [m["term"] for m in _dig(derived, "interventionBrowseModule", "meshes", default=[])],
-        # --- what disease
         "conditions": _dig(p, "conditionsModule", "conditions", default=[]),
         "conditionMeshTerms": [m["term"] for m in _dig(derived, "conditionBrowseModule", "meshes", default=[])],
-        # The inclusion and exclusion list, which defines who can enter the
-        # study: an amendment widening or narrowing it is a competitor moving
-        # its target population. Long free text, so the page shows an excerpt
-        # and links out for the wording.
         "eligibilityCriteria": elig.get("eligibilityCriteria"),
         "sex": elig.get("sex"),
         "minimumAge": elig.get("minimumAge"),
-        # --- design and scale
         "studyType": design.get("studyType"),
         "phases": design.get("phases", []),
         "enrollment": _dig(design, "enrollmentInfo", "count"),
@@ -101,11 +90,9 @@ def profile(study: dict) -> dict:
         "allocation": _dig(design, "designInfo", "allocation"),
         "primaryPurpose": _dig(design, "designInfo", "primaryPurpose"),
         "masking": _dig(design, "designInfo", "maskingInfo", "masking"),
-        # --- endpoints (titles only; values live on the results page)
         "primaryOutcomes": [o.get("measure") for o in outcomes.get("primaryOutcomes", [])],
         "primaryOutcomeTimeFrames": [o.get("timeFrame") for o in outcomes.get("primaryOutcomes", [])],
         "secondaryOutcomeCount": len(outcomes.get("secondaryOutcomes", [])),
-        # --- dates
         "overallStatus": status.get("overallStatus"),
         "whyStopped": status.get("whyStopped"),
         "startDate": start, "startDateType": start_type,
@@ -114,7 +101,6 @@ def profile(study: dict) -> dict:
         "studyFirstPostDate": _dig(status, "studyFirstPostDateStruct", "date"),
         "resultsFirstPostDate": _dig(status, "resultsFirstPostDateStruct", "date"),
         "lastUpdatePostDate": _dig(status, "lastUpdatePostDateStruct", "date"),
-        # --- results (linked, not extracted)
         "hasResults": study.get("hasResults"),
         "resultsUrl": f"{BASE_URL}/{nct}?tab=results" if study.get("hasResults") else None,
     }

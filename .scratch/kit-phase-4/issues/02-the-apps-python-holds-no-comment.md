@@ -4,11 +4,16 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `python3 checks.py --comments` lists no Python file outside `tests/` and `walks/`
-- [ ] The comments hold the command that compared every changed file's syntax tree with its tree at the commit before, and its result: all equal, with the number of files
-- [ ] The diff of this ticket's commit removes or shortens lines only: no line is added
+- [x] `python3 checks.py --comments` lists no Python file outside `tests/` and `walks/`
+- [x] The comments hold the command that compared every changed file's syntax tree with its tree at the commit before, and its result: all equal, with the number of files
+- [x] The diff of this ticket's commit removes or shortens lines only: no line is added
 - [ ] `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
+
+- Count before (at 4fc7b46): `python3 checks.py --comments` printed 1286 comments in 102 files; 479 of them in 21 Python files outside `tests/` and `walks/`. After: 807 comments in 81 files, none in a Python file outside `tests/` and `walks/`.
+- Removed with a throwaway tokenizer script (not kept): it took the lines `checks.python_comments` reports, so `#!` first lines and linter directives with their reason stay. 398 comment-only lines deleted, 82 lines cut after their code; the diff is 82 insertions (each a cut line, equal to its old self up to the comment) and 480 deletions.
+- Proof, run on the working tree before the commit against 4fc7b46: `git diff --name-only 4fc7b46 -- '*.py'`, then for each file `ast.dump(ast.parse(git show 4fc7b46:<file>)) == ast.dump(ast.parse(<file now>))`. Result: 21 files compared, 21 equal.
+- `python3 checks.py lint patterns unit` green on the change. No test read a removed comment. Every `find` text in `docs/agents/local/breaks.json` is still in its file, so it was not touched. The full `python3 checks.py` is left to the build's own run.

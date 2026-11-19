@@ -16,19 +16,13 @@ import urllib.request
 
 BASE = "https://clinicaltrials.gov/api/v2"
 
-# This machine sits behind a TLS-intercepting proxy whose CA lives in the Windows
-# certificate store, which Python ignores by default. `truststore` points SSL at
-# the OS store so verification still happens properly. Falls back to the stdlib
-# default anywhere that isn't needed.
 try:
     import truststore
 
     _SSL_CTX = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-except ImportError:  # pragma: no cover
+except ImportError:
     _SSL_CTX = ssl.create_default_context()
 
-# A useful default slice. Field names are the API's PascalCase ones.
-# Drop `fields=` entirely to get the full (large) study record.
 DEFAULT_FIELDS = [
     "NCTId",
     "BriefTitle",
@@ -44,7 +38,6 @@ DEFAULT_FIELDS = [
 ]
 
 
-# How long to wait on the registry before giving up, in seconds.
 TIMEOUT = 30
 
 
@@ -111,36 +104,11 @@ def search(
     )
 
 
-# --- the axes a competitor search is built on
-#
-# Four that name the studies wanted -- condition, intervention, sponsor and
-# phase: what somebody covering a therapy area actually says when they describe
-# what they want to watch. Three more that narrow them -- sponsor class, status
-# and start date: which of those studies are worth reading.
-#
-# Only the first three are plain query parameters. Everything else goes through
-# `filter.advanced`, which is one parameter however many things it constrains,
-# so the whole expression has to be assembled in one place rather than at each
-# call site.
 
-# The API's phase codes, in the order a reader expects to see them offered.
 PHASE_CODES = ["EARLY_PHASE1", "PHASE1", "PHASE2", "PHASE3", "PHASE4", "NA"]
 
-# How the registry classifies a lead sponsor, commercial first: that class is
-# the whole difference between competitor intelligence and everything else.
-#
-# AMBIG and UNKNOWN are real codes the registry still returns, and are left out
-# deliberately: fewer than a hundred studies carry either, and offering them
-# would cost a line of the picker for a case nobody searches on.
 SPONSOR_CLASSES = ["INDUSTRY", "OTHER", "NIH", "FED", "OTHER_GOV", "NETWORK", "INDIV"]
 
-# Where a study has got to, in lifecycle order rather than alphabetically,
-# because that is the order somebody reads a pipeline in.
-#
-# The expanded-access states (AVAILABLE, NO_LONGER_AVAILABLE,
-# TEMPORARILY_NOT_AVAILABLE, APPROVED_FOR_MARKETING) and WITHHELD are omitted:
-# they describe a drug-supply record rather than a trial in progress, which is
-# not what this tool watches.
 STATUS_CODES = [
     "NOT_YET_RECRUITING",
     "RECRUITING",
@@ -153,18 +121,10 @@ STATUS_CODES = [
     "UNKNOWN",
 ]
 
-# What the registry calls an open end of a date range. A window with one end
-# left blank is still a range, running to the beginning or the end of the data.
 EARLIEST = "MIN"
 LATEST = "MAX"
 
 
-# A registry code is a bare word: letters, digits and underscores. Anything
-# else cannot be one, and must not be interpolated into a filter expression --
-# a stray bracket would close the AREA clause early and leave the rest of the
-# expression to be read as a separate condition, which *widens* the search.
-# Queries are stored as JSON and re-run for months, so this is checked at the
-# point of use rather than trusted to whatever assembled the query.
 CODE = re.compile(r"^[A-Z0-9_]+$", re.IGNORECASE)
 
 
@@ -214,8 +174,6 @@ def search_params(
         clauses.append(_any_of("LeadSponsorClass", sponsor_types))
     if statuses:
         clauses.append(_any_of("OverallStatus", statuses))
-    # A window with one end open is still a range: the registry's own MIN and
-    # MAX stand in for the end the reader did not give.
     if (started_from or "").strip() or (started_to or "").strip():
         start = (started_from or "").strip() or EARLIEST
         end = (started_to or "").strip() or LATEST
@@ -324,6 +282,5 @@ def to_frame(studies: list[dict]):
     import pandas as pd
 
     df = pd.DataFrame([flatten(s) for s in studies])
-    # Strip the long, uniform `protocolSection.<x>Module.` prefixes for readability.
     df.columns = [c.split("Module.")[-1] for c in df.columns]
     return df
