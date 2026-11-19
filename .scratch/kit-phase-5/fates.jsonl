@@ -1,3 +1,5 @@
 {"id": "early-read-whole-01", "fate": "fixed", "commit": "e2148f8", "check": "walks/test_trial_page_walk.py::test_walk_next_trial_is_off_until_the_queue_answers_and_then_opens_the_next_trial", "why": ""}
 {"id": "walker-trial-page-01", "fate": "fixed", "commit": "fab81a7", "check": "walks/test_trial_page_walk.py::test_walk_a_reader_scrolled_down_stays_there_when_the_watchlist_s_queue_answers", "why": ""}
 {"id": "review-trial-page-01", "fate": "fixed", "commit": "fab81a7", "check": "walks/test_trial_page_walk.py::test_walk_a_reader_scrolled_down_stays_there_when_the_watchlist_s_queue_answers", "why": ""}
+{"id": "walker-trial-page-02", "fate": "fixed", "commit": "569f9f8", "check": "walks/test_trial_page_walk.py::test_walk_mark_reviewed_on_changes_another_tab_already_reviewed_says_so_and_offers_no_undo", "why": ""}
+{"id": "walker-trial-page-03", "fate": "fixed", "commit": "e45e52b", "check": "walks/test_trial_page_walk.py::test_walk_next_trial_states_that_the_list_of_trials_to_review_failed_to_load", "why": ""}
