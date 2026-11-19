@@ -9,7 +9,7 @@
 - [x] `python3 checks.py --comments` lists no file under `webapp/static/`
 - [x] The comments hold the command that compared each changed line with its old self, and its result, with the number of lines removed and the number cut
 - [x] The diff of this ticket's commit removes or shortens lines only: no line is added
-- [ ] A full `python3 checks.py`, not quick and not picked, ends green on this ticket's commit
+- [x] A full `python3 checks.py`, not quick and not picked, ends green on this ticket's commit
 
 ## Comments
 
@@ -19,3 +19,5 @@
 - **Line comparison.** `python3 compare_static.py . HEAD` (not kept) walks each changed file's old lines against its new ones in order. Each old line has to be one of three things: unchanged, a comment-only line now gone, or a line whose new text equals the old text up to the comment's first mark (trailing spaces dropped) plus anything after a closing `*/`. Any other line counts as an error. Result: `files 20, lines removed 129, lines cut 46, unchanged 2458, any other change 0`.
 - **Breaks.** No `find` text in `docs/agents/local/breaks.json` held a comment from these files, and each `find` text still occurs exactly once in its file. breaks.json is unchanged.
 - **Checks.** `python3 checks.py lint patterns unit` is green on the working tree that was committed. The full run is left to the coordinator.
+
+The full `python3 checks.py` (both window sizes) on 7c78013 ended green in 2.8 min (unit 0.3, walks 2.5), run by the build lead. The one before it, on the commit before this ticket (ticket 03, d5e5af3), was green in 2.9 min.
