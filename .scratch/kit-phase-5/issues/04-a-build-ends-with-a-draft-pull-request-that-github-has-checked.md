@@ -12,11 +12,13 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first: the test that pins the workflow's trigger fails until it is opened, pushed to and reopened, with no run on being marked ready, and still by hand and never on a push
-- [ ] The skill's last step pushes the branch, opens the draft, waits, and says what to do on green, on red, on red twice and when it cannot be made, or `skill-edits.md` holds that edit in full
-- [ ] The skill and `CLAUDE.md` agree: the builder opens only a draft, and marking it ready, `main` and the merge wait for the owner's yes; no sentence still says the builder never pushes or opens no pull request
-- [ ] The workflow's job name, steps and limit are unchanged and its opening lines give measured times; `repo.md` agrees; `python3 checks.py` ends green on this ticket's commit
+- [x] Red first: the test that pins the workflow's trigger fails until it is opened, pushed to and reopened, with no run on being marked ready, and still by hand and never on a push
+- [x] The skill's last step pushes the branch, opens the draft, waits, and says what to do on green, on red, on red twice and when it cannot be made, or `skill-edits.md` holds that edit in full
+- [x] The skill and `CLAUDE.md` agree: the builder opens only a draft, and marking it ready, `main` and the merge wait for the owner's yes; no sentence still says the builder never pushes or opens no pull request
+- [x] The workflow's job name, steps and limit are unchanged and its opening lines give measured times; `repo.md` agrees; `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
+
+The skill was edited directly (`.claude/skills/implement-spec/SKILL.md`, step 9); no `skill-edits.md` was needed. The page's sentence on accepting (`handover.ACCEPTING`) and the test that pins it to `CLAUDE.md` changed with `CLAUDE.md`'s line, since the page would otherwise tell the owner the agent opens the pull request on acceptance. Measured times are from `gh run list` (runs 44544077489, 44515905910, 44507924708, 44414135816).

@@ -1205,8 +1205,9 @@ def test_the_page_opens_on_its_own_conclusion_about_the_walk_through_and_the_che
     assert f'<p class="terms">{handover.e(handover.WORDS)}</p>' in text
     assert all(word in handover.WORDS for word in ("A commit is ", "The reviewers are ", "The build's record is "))
     rule = (pathlib.Path(handover.__file__).parent / "CLAUDE.md").read_text()
-    assert "**When the owner accepts a build:** push the feature branch, open a pull request and give them the link; the owner merges it" in rule
-    assert handover.ACCEPTING.startswith("In this project, when you accept a build the agent pushes the build's branch and opens a pull request")
+    assert "**When the owner accepts a build:** the build already pushed its branch and opened a draft pull request" in rule
+    assert "Mark the draft ready (`gh pr ready`) and give them the link; the owner merges it on GitHub." in rule
+    assert handover.ACCEPTING.startswith("In this project, when you accept a build the agent marks its draft pull request ready to merge")
     assert set(handover.CHECK_GLOSS) == set(handover.CHECK_NAMES)
 
 

@@ -35,11 +35,11 @@ def test_the_workflow_has_one_job_and_it_is_named_checks():
     assert re.search(r"^    name: checks\s*$", jobs, re.M)
 
 
-def test_it_runs_on_a_pull_request_opened_pushed_to_reopened_or_marked_ready_and_by_hand_never_on_a_push():
+def test_it_runs_on_a_pull_request_opened_pushed_to_or_reopened_and_by_hand_never_when_marked_ready_or_on_a_push():
     triggers = block("on")
     assert re.findall(r"^  ([\w-]+):", triggers, re.M) == ["pull_request", "workflow_dispatch"]
     types = re.search(r"types:\s*\[([^\]]*)\]", triggers).group(1)
-    assert sorted(t.strip() for t in types.split(",")) == ["opened", "ready_for_review", "reopened", "synchronize"]
+    assert sorted(t.strip() for t in types.split(",")) == ["opened", "reopened", "synchronize"]
     assert not re.search(r"^\s*push\s*:", text(), re.M)
 
 

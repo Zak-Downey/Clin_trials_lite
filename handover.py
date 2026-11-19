@@ -851,7 +851,7 @@ MERGED = "Nothing is left to accept: what this page lists is for you to know abo
 MERGED_HOW = "This build is already merged: this page found its last commit in main, the project's main line of work."
 AGAIN = "on the build's last commit"
 ASK = "tell the agent you are working with (a new session opened in this project will do)"
-ACCEPTING = ("In this project, when you accept a build the agent pushes the build's branch and opens a pull request, "
+ACCEPTING = ("In this project, when you accept a build the agent marks its draft pull request ready to merge, "
              "and you merge it yourself.")
 
 
