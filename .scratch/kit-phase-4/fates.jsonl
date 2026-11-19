@@ -3,3 +3,4 @@
 {"id": "review-whole-02", "fate": "fixed", "commit": "abdfad8", "check": "tests/test_check_trials.py::test_a_forced_check_that_finds_nothing_stores_no_second_copy_of_the_record", "why": ""}
 {"id": "review-whole-03", "fate": "fixed", "commit": "e93dff8", "check": "tests/test_lists.py::test_a_new_default_list_leaves_out_a_trial_dropped_when_its_last_list_was_deleted", "why": ""}
 {"id": "review-whole-04", "fate": "fixed", "commit": "3f14587", "check": "tests/test_trial_page_details.py::test_an_undo_in_the_same_second_as_its_review_is_listed_above_it_because_it_came_later", "why": ""}
+{"id": "review-whole-05", "fate": "fixed", "commit": "9033fbf", "check": "tests/test_checks.py::test_this_repo_holds_no_comment_the_rule_does_not_let_through_and_its_kept_list_reads", "why": ""}
