@@ -9,6 +9,8 @@
 - [x] Red first: the test of the settings fails until `docker`, `docker-compose` and opening the Docker app are refused, or `settings-edit.md` holds the edit in full
 - [x] `.claude/settings.json` is otherwise unchanged and still valid JSON, and no other file under `.claude/` changed
 - [x] `repo.md` has the sentence, true whichever form the ticket took
-- [ ] `python3 checks.py` ends green on this ticket's commit, and `python3 checks.py --comments` lists nothing
+- [x] `python3 checks.py` ends green on this ticket's commit, and `python3 checks.py --comments` lists nothing
 
 ## Comments
+
+The full `python3 checks.py` on aa32cda ended green in 2.0 min, and `python3 checks.py --comments` printed "0 comments in 0 files", run by the build lead.
