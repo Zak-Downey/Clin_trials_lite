@@ -1,0 +1,189 @@
+{
+  "about": "This product's map of the pages, read by walk_map.py and held by tests/test_walk_map.py. A new source file goes in the area whose page it draws or serves, or in `shared` when in doubt; a new walk file goes in the `walks` of every area it opens. Patterns are fnmatch, from the repo root (`*` crosses `/`).",
+  "shared": [
+    "webapp/static/index.html",
+    "webapp/static/app.js",
+    "webapp/static/focus.js",
+    "webapp/static/api.js",
+    "webapp/static/style.css",
+    "webapp/static/views/tabs.js",
+    "webapp/static/views/dialog.js",
+    "webapp/static/views/new_watchlist.js",
+    "webapp/static/views/watchlist_menu.js",
+    "webapp/static/views/check.js",
+    "webapp/static/views/trial_address.js",
+    "webapp/__init__.py",
+    "webapp/server.py",
+    "webapp/routes.py",
+    "webapp/errors.py",
+    "webapp/times.py",
+    "webapp/instance.py",
+    "webapp/api_watchlists.py",
+    "webapp/api_membership.py",
+    "webapp/api_saved_search.py",
+    "webapp/api_checks.py",
+    "storage.py",
+    "monitor.py",
+    "display.py",
+    "diff.py",
+    "ctgov.py",
+    "medical_affairs.py",
+    "briefing.py",
+    "simulate.py",
+    "walks/__init__.py",
+    "walks/helper.py",
+    "walks/conftest.py",
+    "walks/standin_registry.py",
+    "walks/serve.py",
+    "walks/run_walks.py",
+    "tests/fixtures/NCT03412565.json",
+    "checks.py",
+    "pytest.ini",
+    "requirements.txt",
+    "requirements-dev.txt"
+  ],
+  "always": [
+    "walks/test_walk_guards.py",
+    "walks/test_acceptance_walk.py"
+  ],
+  "areas": [
+    {
+      "name": "The shell and sidebar",
+      "files": [
+        "webapp/static/views/menu_keys.js"
+      ],
+      "walks": [
+        "walks/test_needs_review_walk.py",
+        "walks/test_check_walk.py",
+        "walks/test_watchlist_menu_walk.py",
+        "walks/test_add_by_id_walk.py",
+        "walks/test_late_answer_walk.py",
+        "walks/test_explore_dialogs_and_administration_dialogs_and_administration.py",
+        "walks/test_explore_watchlists_and_review_long_name_overflow.py",
+        "walks/test_explore_wr_an_older_sidebar_answer_overwrites_a_newer_one.py",
+        "walks/test_explore_wr_check_for_updates_gives_up_keyboard_focus.py"
+      ]
+    },
+    {
+      "name": "Needs review",
+      "files": [
+        "webapp/static/views/needs_review.js"
+      ],
+      "walks": [
+        "walks/test_needs_review_walk.py",
+        "walks/test_late_answer_walk.py",
+        "walks/test_explore_watchlists_and_review_failed_check_is_not_an_all_clear.py",
+        "walks/test_explore_watchlists_and_review_focus_and_state_kept.py",
+        "walks/test_explore_wr_double_click_mark_reviewed_leaves_an_undo_that_fails.py"
+      ]
+    },
+    {
+      "name": "All trials",
+      "files": [
+        "webapp/static/views/all_trials.js"
+      ],
+      "walks": [
+        "walks/test_all_trials_walk.py"
+      ]
+    },
+    {
+      "name": "New matches",
+      "files": [
+        "webapp/static/views/new_matches.js",
+        "webapp/static/views/saved_search.js",
+        "webapp/static/views/registry_trial.js",
+        "webapp/api_new_matches.py"
+      ],
+      "walks": [
+        "walks/test_new_matches_walk.py",
+        "walks/test_origin_walk.py",
+        "walks/test_explore_saved_search_and_new_matches_saved_search_new_matches.py",
+        "walks/test_explore_wr_check_refresh_clobbers_trial_origin.py",
+        "walks/test_explore_wr_view_dismissed_parks_focus_on_the_summary_tab.py"
+      ]
+    },
+    {
+      "name": "Summary",
+      "files": [
+        "webapp/static/views/summary.js",
+        "webapp/api_summary.py"
+      ],
+      "walks": [
+        "walks/test_summary_walk.py",
+        "walks/test_explore_summary_and_export_summary_explore.py"
+      ]
+    },
+    {
+      "name": "The trial page",
+      "files": [
+        "webapp/static/views/trial.js",
+        "webapp/static/views/registry_trial.js",
+        "webapp/static/views/menu_keys.js",
+        "webapp/api_trials.py"
+      ],
+      "walks": [
+        "walks/test_trial_page_walk.py",
+        "walks/test_trial_details_walk.py",
+        "walks/test_trial_address_walk.py",
+        "walks/test_intervention_changes_walk.py",
+        "walks/test_origin_walk.py",
+        "walks/test_explore_trial_page_many_watchlists.py",
+        "walks/test_explore_trial_page_menu_keyboard.py",
+        "walks/test_explore_trial_page_tab_focus.py",
+        "walks/test_explore_wr_double_click_mark_reviewed_leaves_an_undo_that_fails.py",
+        "walks/test_explore_wr_check_refresh_clobbers_trial_origin.py"
+      ]
+    },
+    {
+      "name": "Find trials",
+      "files": [
+        "webapp/static/views/find.js",
+        "webapp/static/views/add_by_id.js",
+        "webapp/static/views/saved_search.js",
+        "webapp/static/views/registry_trial.js",
+        "webapp/api_search.py"
+      ],
+      "walks": [
+        "walks/test_find_trials_walk.py",
+        "walks/test_find_select_walk.py",
+        "walks/test_saved_search_walk.py",
+        "walks/test_add_by_id_walk.py",
+        "walks/test_origin_walk.py",
+        "walks/test_explore_find_trials_focus_lost_after_redraw.py",
+        "walks/test_explore_find_trials_long_unbroken_query_widens_the_page.py",
+        "walks/test_explore_find_trials_stale_response_overwrites_view.py",
+        "walks/test_explore_find_and_add_error_after_a_failed_add_by_id_outlives_the_edit.py",
+        "walks/test_explore_find_and_add_failed_add_in_the_bar_reads_as_an_outcome_with_an_open_link.py",
+        "walks/test_explore_find_and_add_page_beyond_the_last.py",
+        "walks/test_explore_find_and_add_page_out_of_range_is_not_a_registry_error.py"
+      ]
+    },
+    {
+      "name": "The walks' own tooling",
+      "files": [
+        "walks/fidelity_check.py",
+        "walks/broken/broken_pages.py"
+      ],
+      "walks": [
+        "walks/test_run_walks.py",
+        "walks/test_fidelity_check.py",
+        "walks/test_standin_registry.py"
+      ]
+    }
+  ],
+  "none": [
+    ".scratch/*",
+    "docs/*",
+    "tests/*",
+    ".claude/*",
+    ".github/*",
+    ".gitignore",
+    "*.md",
+    "ruff.toml",
+    "run.py",
+    "explore.py",
+    "handover.py",
+    "prove.py",
+    "walk_map.py"
+  ]
+}
