@@ -9,8 +9,10 @@
 - [x] Red first, on a small repo in a temporary folder: a comment in a Python file, and `//` in a script, each turn the `patterns` check red, with a line that names the file and line and says what to do instead
 - [x] Red first: a kept entry lets its comment through; an entry whose text is gone, an entry with a field missing, and an eleventh entry are each reported
 - [x] Red first: the test that holds this repo to zero fails when a comment is added to any tracked Python file, and passes without it
-- [ ] `CLAUDE.md` and `repo.md` each have their one line, and `python3 checks.py` ends green on this ticket's commit
+- [x] `CLAUDE.md` and `repo.md` each have their one line, and `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
 
 - 05 built: `checks.py` gains `comments_not_let_through`, `comment_faults` and the kept list (`KEPT`, `KEPT_CEILING` = 10, `kept_entries`); `--patterns` prints the kept list's faults, then one line per comment (`<file>:<line>: say it in a name, or in a test that fails without it; a comment is checked by nothing (<the comment>)`), and `--comments` lets kept comments through too. `docs/agents/local/comments-kept.json` starts as `[]`; a missing list keeps nothing. Each new test in `tests/test_checks.py` was seen red first; the test holding this repo to zero was also seen red with `# a stray comment` appended to `walk_map.py`, then green with it removed. `CLAUDE.md` ("Building") and `repo.md` have their lines; the "Every check" line of `repo.md` now says `patterns` also reads comments. `python3 checks.py lint patterns escapes unit` was green on the working folder before the commit; the full run is left to the build.
+
+The full `python3 checks.py` on d8ba79b ended green in 2.9 min (unit 0.3, walks 2.6), run by the build lead.
