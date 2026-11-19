@@ -364,6 +364,44 @@ def test_a_run_line_with_no_quick_field_is_a_full_run():
     assert "a quick run" not in re.findall(r'title="([^"]*)"></span>', page(runs=runs, git=GIT))[0]
 
 
+def test_a_picked_run_after_a_full_one_never_replaces_it_as_the_last_full_run_and_is_counted_apart():
+    full = run("feature/x", "green", "2026-11-16T10:00:00Z", quick=False, picked=False)
+    picked = run("feature/x", "green", "2026-11-16T10:20:00Z", quick=False, picked=True,  # it lists every check, and is still not a full run
+                 base="the last green full run, at 1234567", picks=[{"check": "unit", "ran": 12, "of": 767, "why": "the tests that ran the changed Python"}])
+    runs = handover.run_facts([full, picked], "feature/x")
+    assert runs["full"]["at"] == "2026-11-16T10:00:00Z" and runs["runs"] == 2
+    assert [(r["result"], r["full"]) for r in runs["history"]] == [("green", True), ("green", False)]  # it is still in the history
+    text = page(runs=runs, git=GIT)
+    assert "16 Nov 2026, 10:00 UTC" in row(text, "Last full run of the checks") and tile(text, "#facts") == ("green", "Passed on the build&#x27;s last commit")
+    assert re.findall(r'<span class="(r-\w+)( part)?" title', text) == [("r-green", ""), ("r-green", " part")]
+    assert "16 Nov 2026, 10:20 UTC: passed, a run of only the tests the change could reach" in text
+    assert "1 of them ran only the tests the change could reach, so it is not a full run." in text
+    assert "picked" not in text
+
+
+def test_a_branch_with_only_picked_runs_after_the_last_change_has_no_full_run_and_the_page_says_so():
+    runs = handover.run_facts([run("feature/x", "green", "2026-11-16T10:00:00Z", quick=True, picked=True),
+                               run("feature/x", "green", "2026-11-16T10:20:00Z", picked=True)], "feature/x")
+    assert runs["full"] is None and [r["full"] for r in runs["history"]] == [False, False]
+    text = page(runs=runs, git=GIT)
+    assert row(text, "Last full run of the checks").startswith('<span class="unknown">unknown</span>')
+    assert "none of them is a full run, one of every check (lint, patterns, escapes, unit, walks)" in text
+    assert not drawn_green(text) and tile(text, "#facts") == ("amber", "No result on record")
+    assert "2 of them ran only the tests the change could reach, so none of those is a full run." in text
+    assert ("16 Nov 2026, 10:00 UTC: passed, a quick run, with the browser tests at one window size, "
+            "and a run of only the tests the change could reach") in text
+
+
+def test_a_run_log_with_no_picked_field_gives_the_page_it_gave_before_picked_runs():
+    old = [run("feature/x", "green", "2026-11-16T10:00:00Z"), run("feature/x", "green", "2026-11-16T10:20:00Z", quick=True)]
+    assert all("picked" not in line for line in old)
+    unpicked = [{**line, "picked": False} for line in old]
+    text = page(runs=handover.run_facts(old, "feature/x"), git=GIT)
+    assert text == page(runs=handover.run_facts(unpicked, "feature/x"), git=GIT)
+    assert "the change could reach" not in text
+    assert "1 of them" not in text
+
+
 def test_a_green_run_is_drawn_green_only_on_the_build_s_last_commit_as_committed():
     green = lambda **more: page(runs=handover.run_facts([run("feature/x", "green", **more)], "feature/x"), git=GIT)  # noqa: E731 (a one-line helper local to this function)
     assert 'pill green">passed<' in row(green(), "Last full run of the checks") and tile(green(), "#facts") == ("green", "Passed on the build&#x27;s last commit")

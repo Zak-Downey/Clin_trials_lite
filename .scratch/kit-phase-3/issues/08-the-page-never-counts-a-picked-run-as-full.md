@@ -4,11 +4,11 @@
 
 **Blocked by:** 06
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first: with a green full run followed by a green picked run, the page reports the full run as the last full run and counts the picked one apart
-- [ ] Red first: with only picked runs after the last change, the page says there is no full run of every check
-- [ ] A log with no `picked` field gives the same page as before this ticket
-- [ ] `python3 checks.py` ends green on this ticket's commit
+- [x] Red first: with a green full run followed by a green picked run, the page reports the full run as the last full run and counts the picked one apart
+- [x] Red first: with only picked runs after the last change, the page says there is no full run of every check
+- [x] A log with no `picked` field gives the same page as before this ticket
+- [x] `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
