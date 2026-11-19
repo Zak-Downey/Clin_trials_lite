@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first: a walk that slows what the test raced fails as the wobble did, and passes after the fix
-- [ ] The comments say what was read too early, whether the fault was the walk's or the page's, and what the test now waits for
-- [ ] No assertion of the walk was loosened, and no retry or fixed pause was added
-- [ ] The whole browser suite, run three times in a row at both window sizes, reports no wobbling test; `python3 checks.py` ends green on this ticket's commit
+- [x] Red first: a walk that slows what the test raced fails as the wobble did, and passes after the fix
+- [x] The comments say what was read too early, whether the fault was the walk's or the page's, and what the test now waits for
+- [x] No assertion of the walk was loosened, and no retry or fixed pause was added
+- [x] The whole browser suite, run three times in a row at both window sizes, reports no wobbling test; `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
 
@@ -20,3 +20,5 @@
 **The page's fault, not the walk's.** A person saw a bar with buttons and a blank first line for as long as the queue took, and could act in that moment. The page now draws the sentence, the heading and the count before it asks for the queue (`webapp/static/views/trial.js`), so the "Mark reviewed" button never appears without them. The old walk's wait is now enough: it waits for the "Mark reviewed" button, which the page now draws in the same step as everything the walk reads. The scroll reads were not racing: a scroll by script moves the page at once, and nothing that changes the page's height is drawn after the button any more. No assertion was loosened, and no retry or pause was added. Defect log: E-043.
 
 **Seen, not fixed.** In the same moment, before the queue answers, "Next trial" is enabled but does nothing when clicked, because its action is attached only once the queue is known. The ticket does not ask for it; it is left for the owner.
+
+**The last box.** I ran the whole browser suite three times in a row on commit d8782d5, at both window sizes (`WALK_FEATURE=kit-phase-5 .venv/bin/python walks/run_walks.py`): each run passed 415 of 415 walks and recorded no wobbling test (`.scratch/kit-phase-5/walks/flaky.jsonl`, three lines with `"flaky": []`, plus a fourth from the full check run). `python3 checks.py` (full, both window sizes) ended green on d8782d5 in 2.1 minutes. Three earlier runs before that commit also passed 415 of 415 with no wobble.
