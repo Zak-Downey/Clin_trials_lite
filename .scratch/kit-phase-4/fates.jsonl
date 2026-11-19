@@ -1,0 +1,1 @@
+{"id": "early-read-whole-01", "fate": "fixed", "commit": "94d7953", "check": "tests/test_checks.py::test_in_a_folder_git_cannot_list_every_file_outside_scratch_and_tool_folders_is_read", "why": ""}
