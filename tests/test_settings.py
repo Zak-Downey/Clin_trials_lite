@@ -13,3 +13,10 @@ def test_the_settings_refuse_gh_pr_merge_after_the_push_refusals():
     assert "Bash(gh pr merge*)" in deny
     last_push = max(i for i, rule in enumerate(deny) if rule.startswith("Bash(git push"))
     assert deny.index("Bash(gh pr merge*)") == last_push + 1
+
+
+def test_the_settings_refuse_a_push_that_skips_the_hook_right_after_the_refusals_of_a_push_to_main():
+    deny = json.loads(SETTINGS.read_text())["permissions"]["deny"]
+    assert "Bash(git push*--no-verify*)" in deny
+    last_to_main = max(i for i, rule in enumerate(deny) if rule.startswith("Bash(git push") and "main" in rule)
+    assert deny.index("Bash(git push*--no-verify*)") == last_to_main + 1

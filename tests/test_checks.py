@@ -615,3 +615,34 @@ def test_a_kept_list_that_is_not_a_json_list_is_reported(tmp_path, monkeypatch, 
 def test_this_repo_holds_no_comment_the_rule_does_not_let_through_and_its_kept_list_reads():
     assert (checks.ROOT / checks.KEPT).is_file()
     assert checks.comment_faults(checks.ROOT) == []
+
+
+HOOKS_OFF = "hooks: this clone has .githooks but has not switched it on; run git config core.hooksPath .githooks"
+
+
+def a_clone_with_githooks(tmp_path, monkeypatch, switched_on=False):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".githooks").mkdir()
+    if switched_on:
+        subprocess.run(["git", "config", "core.hooksPath", ".githooks"], cwd=tmp_path, check=True)
+
+
+def test_a_clone_with_githooks_not_switched_on_is_told_in_one_line_and_nothing_fails(tmp_path, monkeypatch):
+    a_clone_with_githooks(tmp_path, monkeypatch)
+    code, printed, _ = run(tmp_path, [passing()])
+    assert code == 0
+    assert printed.count(HOOKS_OFF) == 1
+
+
+def test_a_clone_that_has_switched_githooks_on_is_told_nothing_about_it(tmp_path, monkeypatch):
+    a_clone_with_githooks(tmp_path, monkeypatch, switched_on=True)
+    _, printed, _ = run(tmp_path, [passing()])
+    assert not [line for line in printed if line.startswith("hooks:")]
+
+
+def test_on_githubs_machine_nothing_is_said_about_githooks(tmp_path, monkeypatch):
+    a_clone_with_githooks(tmp_path, monkeypatch)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    _, printed, _ = run(tmp_path, [passing()])
+    assert not [line for line in printed if line.startswith("hooks:")]

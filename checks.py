@@ -17,7 +17,8 @@
 Each check's output goes to .checks/<name>.txt. One line is printed per check and one line is
 appended to .checks/runs.jsonl per run, with "quick" true or false, "every" true when every check was asked for,
 "picked" true or false, and for a picked run its "base" and its "picks" (per picked check: ran, of, why). Exit 1 when a check is red. Red is a non-zero exit code
-or a timeout: nothing here reads a suite's output to decide.
+or a timeout: nothing here reads a suite's output to decide. A clone that has .githooks and has not switched it on
+(git config core.hooksPath .githooks) is told so in one line, which fails nothing; GitHub's machine is not told.
 
 The checks: `lint` (Ruff over the repo, with the version pinned in requirements-dev.txt and the
 rules written in ruff.toml; it writes no cache), `patterns` (no file matches a forbidden pattern, PATTERNS below, and no file holds a comment
@@ -236,6 +237,11 @@ def git(*args, root=ROOT) -> str:
     return done.stdout.strip() if done.returncode == 0 else ""
 
 
+def hooks_off(root, env) -> bool:
+    on_github = env.get("GITHUB_ACTIONS") == "true"
+    return (root / ".githooks").is_dir() and not on_github and git("config", "core.hooksPath", root=root) != ".githooks"
+
+
 def walk_feature(branch: str, root=ROOT) -> str | None:
     """The feature whose folder the walks write to: the branch's last part, when .scratch has it."""
     slug = branch.rsplit("/", 1)[-1]
@@ -342,6 +348,8 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
     folder.mkdir(exist_ok=True)
     branch = git("rev-parse", "--abbrev-ref", "HEAD", root=root)
     env = dict(os.environ)
+    if hooks_off(root, env):
+        out("hooks: this clone has .githooks but has not switched it on; run git config core.hooksPath .githooks")
     env.pop(QUICK, None)
     if quick:
         env[QUICK] = "1"
