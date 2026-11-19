@@ -13,6 +13,7 @@
     "To go back to whole runs, remove --pick from steps 4 and 7 of the build instructions (.claude/skills/implement-spec/SKILL.md)."
   ],
   "now_what": [
+    "No exploratory testing was made, on purpose: no page of the app changed, and the spec's Testing Decisions say so. One reviewer read all of the code instead.",
     "The picker hid no break. I ran python3 prove.py --pick after the fixes and it ended 0: 6 of 7 breaks were caught by a pick smaller than the whole.",
     "The seventh break changes a file every page shares, so its pick is every browser test, which a quick run cannot finish in the proof's 2 minutes. Plain prove.py still catches it.",
     "The build treats a pick of everything that is stopped at the time limit as reported, not failed. That is the builder's reading of ticket 09; please confirm it.",
