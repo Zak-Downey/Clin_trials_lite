@@ -5,3 +5,4 @@
 {"id": "review-whole-04", "fate": "fixed", "commit": "3f14587", "check": "tests/test_trial_page_details.py::test_an_undo_in_the_same_second_as_its_review_is_listed_above_it_because_it_came_later", "why": ""}
 {"id": "review-whole-05", "fate": "fixed", "commit": "9033fbf", "check": "tests/test_checks.py::test_this_repo_holds_no_comment_the_rule_does_not_let_through_and_its_kept_list_reads", "why": ""}
 {"id": "review-whole-06", "fate": "fixed", "commit": "e45f1ce", "check": "tests/test_checks.py::test_this_repo_holds_no_comment_the_rule_does_not_let_through_and_its_kept_list_reads", "why": ""}
+{"id": "review-whole-07", "fate": "left", "commit": "", "check": "", "why": "The spec says code that a removed comment showed to be out of date is listed for the owner, not changed, in this build (spec, Further Notes, item 5)."}
