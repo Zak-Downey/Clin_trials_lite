@@ -73,6 +73,17 @@ def test_the_timeline_is_newest_first_with_checks_reviews_undos_start_and_the_un
     assert entries[5]["at"] == T1
 
 
+def test_an_undo_in_the_same_second_as_its_review_is_listed_above_it_because_it_came_later(conn, record):
+    """test_an_undo_in_the_same_second_as_its_review_is_listed_above_it_because_it_came_later"""
+    _add(conn, record)
+    storage.add_change(conn, NCT, {"field": "enrollment", "previous": 1, "current": 2}, T1)
+    ids = [m["ids"][0] for m in monitor.history(conn, NCT)]
+    event = storage.review_changes(conn, NCT, ids, T2)
+    storage.undo_review(conn, event["id"], T2)
+    entries = monitor.timeline(conn, NCT)
+    assert [e["kind"] for e in entries] == ["undo", "review", "detection", "start"]
+
+
 def test_every_field_of_the_eight_groups_lands_in_exactly_one_section_or_at_a_glance():
     """test_every_field_of_the_eight_groups_lands_in_exactly_one_section_or_at_a_glance"""
     placed = [f for _, fields in display.DETAIL_SECTIONS for f in fields] + list(display.GLANCE_FIELDS)
