@@ -66,6 +66,6 @@ document.addEventListener("pointerdown", (event) => {
 
 new MutationObserver(() => {
   check();
-  setTimeout(check, 60);
+  setTimeout(check, 60); // a disabled control loses focus a moment after the change
   setTimeout(check, 400);
 }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled", "hidden", "aria-disabled"] });
