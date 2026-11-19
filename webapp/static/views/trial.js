@@ -174,6 +174,10 @@ export async function render(root, nct, tab, place, alive = () => true) {
       state.reviewed = true;
       state.event = done.event;
       draw();
+      refresh();
+      const mine = shown.filter((c) => c.ids.some((i) => done.marked.includes(i))).length;
+      if (!done.event) { tell(`These ${shown.length} changes were already reviewed. This trial stays open.`); return; }
+      const already = shown.length - mine;
       const undo = el("button", { type: "button", class: "link" }, "Undo");
       undo.addEventListener("click", async () => {
         try {
@@ -186,9 +190,8 @@ export async function render(root, nct, tab, place, alive = () => true) {
           mark.focus({ preventScroll: true });
         } catch (err) { fail(err); }
       });
-      tell(`${plural(shown.length, "change")} marked reviewed. This trial stays open.`, undo);
+      tell(`${plural(mine, "change")} marked reviewed${already ? `; the other ${already} ${already === 1 ? "was" : "were"} already reviewed` : ""}. This trial stays open.`, undo);
       undo.focus({ preventScroll: true });
-      refresh();
     } catch (err) { fail(err); } finally { marking = false; }
   });
 

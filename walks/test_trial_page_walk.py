@@ -362,3 +362,48 @@ def test_walk_a_trial_with_simulated_changes_carries_the_simulated_label_on_its_
     page.goto(page.url.replace("NCT00000002", "NCT03412565"))
     page.locator("article.change").nth(4).wait_for()
     assert page.get_by_text("Simulated changes").count() == 0
+
+
+REVIEW_IN_ANOTHER_TAB = """async (count) => {
+  const trial = await (await fetch('/api/trials/NCT03412565')).json();
+  const ids = trial.groups.flatMap((g) => g.changes).slice(0, count).flatMap((c) => c.ids);
+  await fetch('/api/trials/NCT03412565/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+}"""
+
+
+def open_trial_reviewed_in_another_tab(make_app, make_walk, count):
+    app = make_app(seed=seed_trial_page)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(app.url + "#/trials/NCT03412565?list=1")
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    other = page.context.new_page()
+    other.goto(app.url)
+    other.evaluate(REVIEW_IN_ANOTHER_TAB, count)
+    other.close()
+    return walk
+
+
+def test_walk_mark_reviewed_on_changes_another_tab_already_reviewed_says_so_and_offers_no_undo(make_app, make_walk):
+    """test_walk_mark_reviewed_on_changes_another_tab_already_reviewed_says_so_and_offers_no_undo"""
+    walk = open_trial_reviewed_in_another_tab(make_app, make_walk, 5)
+    page = walk.page
+    page.get_by_role("button", name="Mark reviewed").click()
+    page.get_by_text("These 5 changes were already reviewed. This trial stays open.").wait_for()
+    walk.shot("already-reviewed")
+    assert page.get_by_role("button", name="Undo").count() == 0, "Undo is offered for a review this page did not make"
+    assert page.locator(".reviewed-label:visible").count() == 5
+    assert page.get_by_role("button", name="Mark reviewed").is_disabled()
+
+
+def test_walk_mark_reviewed_on_changes_another_tab_partly_reviewed_counts_only_its_own_and_undoes_them(make_app, make_walk):
+    """test_walk_mark_reviewed_on_changes_another_tab_partly_reviewed_counts_only_its_own_and_undoes_them"""
+    walk = open_trial_reviewed_in_another_tab(make_app, make_walk, 2)
+    page = walk.page
+    page.get_by_role("button", name="Mark reviewed").click()
+    page.get_by_text("3 changes marked reviewed; the other 2 were already reviewed. This trial stays open.").wait_for()
+    walk.shot("partly-reviewed")
+    page.get_by_role("button", name="Undo").click()
+    page.get_by_role("button", name="Undo").wait_for(state="detached")
+    assert page.locator(".banner.error-banner").count() == 0, "Undo of the page's own review failed"
+    wait_for_count(page, "Myeloma", "16 to review")
