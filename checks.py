@@ -20,7 +20,8 @@ appended to .checks/runs.jsonl per run, with "quick" true or false, "every" true
 or a timeout: nothing here reads a suite's output to decide.
 
 The checks: `lint` (Ruff over the repo, with the version pinned in requirements-dev.txt and the
-rules written in ruff.toml; it writes no cache), `patterns` (no file matches a forbidden pattern, PATTERNS below), `escapes` (the
+rules written in ruff.toml; it writes no cache), `patterns` (no file matches a forbidden pattern, PATTERNS below, and no file holds a comment
+the rule does not let through, comment_faults), `escapes` (the
 defect log reads, and each new line names the check that now catches its defect), `unit`
 (pytest over tests/) and `walks` (the browser walks).
 """
@@ -125,9 +126,67 @@ def listed_files(root) -> list[str]:
     return names
 
 
+KEPT = "docs/agents/local/comments-kept.json"
+KEPT_CEILING = 10
+KEPT_FIELDS = ("file", "text", "why")
+
+
+def kept_entries(root=ROOT, kept=KEPT) -> tuple[list[dict], list[str]]:
+    """(the entries of the kept list that have every field, what is wrong with the list). A missing list keeps nothing."""
+    file = pathlib.Path(root) / kept
+    if not file.is_file():
+        return [], []
+    try:
+        entries = json.loads(file.read_text(encoding="utf-8"))
+    except ValueError:
+        entries = None
+    if not isinstance(entries, list):
+        return [], [f"{kept}: not a JSON list"]
+    whole, problems = [], []
+    for number, entry in enumerate(entries, start=1):
+        if isinstance(entry, dict) and all(isinstance(entry.get(field), str) and entry[field].strip()
+                                           for field in KEPT_FIELDS):
+            whole.append(entry)
+        else:
+            problems.append(f"{kept}: entry {number} needs a `file`, the comment's exact `text` and `why` it must stay")
+    if len(entries) > KEPT_CEILING:
+        problems.append(f"{kept}: {len(entries)} entries, over the ceiling of {KEPT_CEILING}: "
+                        "say the rest in a name or a test")
+    return whole, problems
+
+
+def comments_not_let_through(root=ROOT, kept=KEPT) -> tuple[list[tuple[str, int, str]], list[str]]:
+    """(every comment comments() finds that no kept entry names, what is wrong with the kept list, including each
+    entry whose text is no longer a comment in its file)."""
+    entries, problems = kept_entries(root, kept)
+    found = comments(root)
+    present = {(name, said) for name, _, said in found}
+    for number, entry in enumerate(entries, start=1):
+        if (entry["file"], entry["text"]) not in present:
+            problems.append(f"{kept}: entry {number} keeps `{entry['text']}`, which is no longer a comment in "
+                            f"{entry['file']}: remove the entry")
+    keeps = {(entry["file"], entry["text"]) for entry in entries}
+    return [hit for hit in found if (hit[0], hit[2]) not in keeps], problems
+
+
 def comment_hits(root=ROOT) -> list[str]:
-    """`<file>:<line>: <the comment>` for every comment in a file listed_files gives outside .scratch/: in Python,
-    and in a script, style sheet or page under STATIC."""
+    """`<file>:<line>: <the comment>` for every comment that comments_not_let_through() gives."""
+    return [f"{name}:{line}: {said}" for name, line, said in comments_not_let_through(root)[0]]
+
+
+COMMENT_ADVICE = "say it in a name, or in a test that fails without it; a comment is checked by nothing"
+
+
+def comment_faults(root=ROOT) -> list[str]:
+    """The `patterns` check's lines: what is wrong with the kept list, then for every comment not let through where it
+    is, what to do instead and the comment."""
+    found, problems = comments_not_let_through(root)
+    return problems + [f"{name}:{line}: {COMMENT_ADVICE} ({said})" for name, line, said in found]
+
+
+def comments(root=ROOT) -> list[tuple[str, int, str]]:
+    """(file, line, the comment) for every comment in a file listed_files gives outside .scratch/: in Python, and in a
+    script, style sheet or page under STATIC."""
     hits = []
     for name in sorted(n for n in listed_files(root) if not n.startswith(".scratch/")):
         path = pathlib.Path(root) / name
@@ -139,7 +198,7 @@ def comment_hits(root=ROOT) -> list[str]:
             found = static_comments(path.read_text(errors="replace"), STATIC_MARKS[path.suffix])
         else:
             continue
-        hits.extend(f"{name}:{line}: {said}" for line, said in found)
+        hits.extend((name, line, said) for line, said in found)
     return hits
 
 
@@ -354,8 +413,8 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
 
 def main(argv) -> int:
     if argv == ["--patterns"]:
-        hits = pattern_hits()
-        print("\n".join(hits) if hits else f"no file matches any of the {len(PATTERNS)} patterns")
+        hits = pattern_hits() + comment_faults(ROOT)
+        print("\n".join(hits) if hits else f"no file matches any of the {len(PATTERNS)} patterns, and no file holds a comment")
         return 1 if hits else 0
     if argv == ["--escapes"]:
         problems = escape_problems()

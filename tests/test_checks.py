@@ -537,3 +537,81 @@ def test_the_comments_command_lists_each_comment_then_the_total_and_ends_zero(tm
     assert checks.main(["--comments"]) == 0
     assert capsys.readouterr().out.splitlines() == ["a.py:1: # one", "b.py:1: # two", "b.py:2: # three",
                                                      "3 comments in 2 files"]
+
+
+ADVICE = "say it in a name, or in a test that fails without it; a comment is checked by nothing"
+
+
+def test_a_comment_in_python_or_in_a_script_turns_the_patterns_check_red_naming_its_file_and_line(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"app/x.py": "x = 1\ny = 2  # after code\n", "webapp/static/a.js": "let a = 1;\n\n// on its own\n"})
+    monkeypatch.setattr(checks, "ROOT", tmp_path)
+    monkeypatch.setattr(checks, "pattern_hits", lambda: [])
+    assert checks.main(["--patterns"]) == 1
+    printed = capsys.readouterr().out.splitlines()
+    assert printed == [f"app/x.py:2: {ADVICE} (# after code)", f"webapp/static/a.js:3: {ADVICE} (// on its own)"]
+
+
+def test_without_a_comment_the_patterns_check_is_green(tmp_path, monkeypatch):
+    tracked(tmp_path, {"app/x.py": "x = '# not one'\n", "webapp/static/a.js": "let a = 1 / 2;\n"})
+    monkeypatch.setattr(checks, "ROOT", tmp_path)
+    monkeypatch.setattr(checks, "pattern_hits", lambda: [])
+    assert checks.main(["--patterns"]) == 0
+
+
+def kept(*entries):
+    return {"docs/agents/local/comments-kept.json": json.dumps(list(entries))}
+
+
+def patterns_check(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(checks, "ROOT", tmp_path)
+    monkeypatch.setattr(checks, "pattern_hits", lambda: [])
+    code = checks.main(["--patterns"])
+    return code, capsys.readouterr().out.splitlines()
+
+
+def test_a_kept_comment_is_let_through_by_the_patterns_check_and_by_the_count(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"app/x.py": "x = 1  # the registry counts from one\n",
+                       **kept({"file": "app/x.py", "text": "# the registry counts from one",
+                               "why": "No name can say which number the registry starts from."})})
+    assert patterns_check(tmp_path, monkeypatch, capsys)[0] == 0
+    assert checks.main(["--comments"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["0 comments in 0 files"]
+
+
+def test_a_kept_entry_whose_text_is_no_longer_in_its_file_is_reported(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"app/x.py": "x = 1\n", **kept({"file": "app/x.py", "text": "# gone", "why": "It was needed."})})
+    code, printed = patterns_check(tmp_path, monkeypatch, capsys)
+    assert code == 1
+    assert printed == ["docs/agents/local/comments-kept.json: entry 1 keeps `# gone`, which is no longer a comment in "
+                       "app/x.py: remove the entry"]
+
+
+def test_a_kept_entry_with_a_field_missing_is_reported(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"app/x.py": "x = 1  # here\n", **kept({"file": "app/x.py", "text": "# here"})})
+    code, printed = patterns_check(tmp_path, monkeypatch, capsys)
+    assert code == 1
+    assert printed == ["docs/agents/local/comments-kept.json: entry 1 needs a `file`, the comment's exact `text` and "
+                       "`why` it must stay", f"app/x.py:1: {ADVICE} (# here)"]
+
+
+def test_the_kept_list_has_a_ceiling_of_ten_and_an_eleventh_entry_is_reported(tmp_path, monkeypatch, capsys):
+    assert checks.KEPT_CEILING == 10
+    lines = [f"x{n} = {n}  # kept {n}\n" for n in range(11)]
+    entries = [{"file": "app/x.py", "text": f"# kept {n}", "why": "It must stay."} for n in range(11)]
+    tracked(tmp_path, {"app/x.py": "".join(lines), **kept(*entries[:10])})
+    assert patterns_check(tmp_path, monkeypatch, capsys) == (1, [f"app/x.py:11: {ADVICE} (# kept 10)"])
+    tracked(tmp_path, kept(*entries))
+    assert patterns_check(tmp_path, monkeypatch, capsys) == (1, [
+        "docs/agents/local/comments-kept.json: 11 entries, over the ceiling of 10: say the rest in a name or a test"])
+
+
+def test_a_kept_list_that_is_not_a_json_list_is_reported(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"app/x.py": "x = 1\n", "docs/agents/local/comments-kept.json": "{}"})
+    code, printed = patterns_check(tmp_path, monkeypatch, capsys)
+    assert code == 1
+    assert printed == ["docs/agents/local/comments-kept.json: not a JSON list"]
+
+
+def test_this_repo_holds_no_comment_the_rule_does_not_let_through_and_its_kept_list_reads():
+    assert (checks.ROOT / checks.KEPT).is_file()
+    assert checks.comment_faults(checks.ROOT) == []
