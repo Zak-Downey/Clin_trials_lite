@@ -50,16 +50,23 @@ def walks(changed, the_map: dict, every: list[str], walk_files=WALKS) -> tuple[l
 RECORDS = ".scratch/"  # the build's own records: a change there reaches no test
 
 
-def unit(changed) -> tuple[bool, str]:
+def unit(changed, apart=()) -> tuple[bool, str]:
     """(whether the unit tests may be selected by the record of which test ran which code, the reason in one sentence).
-    That record sees only Python, so any other changed file outside the build's records, or None (cannot tell what
-    changed), runs the whole suite."""
+    That record sees only Python run inside the test process, so any other changed file outside the build's records,
+    a changed file that matches `apart` (the Python the tests run only as a separate program; None when the map that
+    lists it cannot be read), or None (cannot tell what changed), runs the whole suite."""
     if changed is None:
         return False, "the whole suite: cannot tell what changed"
     changed = [name for name in changed if not name.startswith(RECORDS)]
     other = [name for name in changed if not name.endswith(".py")]
     if other:
         return False, f"the whole suite: {quoted(other)} {'is' if len(other) == 1 else 'are'} not Python, which the record of what each test ran cannot see"
+    if changed and apart is None:
+        return False, "the whole suite: no map says which Python the tests run as a separate program"
+    separate = [name for name in changed if matches(name, apart or [])]
+    if separate:
+        return False, (f"the whole suite: the tests run {quoted(separate)} as a separate program, which the record of "
+                       "what each test ran cannot see")
     if not changed:
         return True, f"the tests whose code changed since their last run: no file changed outside `{RECORDS}`"
     return True, f"the tests that ran the changed Python, {quoted(changed)}"

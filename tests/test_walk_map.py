@@ -6,6 +6,7 @@ Every repo below is a real git repo in a temporary folder with a hand-made map.
 from __future__ import annotations
 
 import pathlib
+import re
 import subprocess
 
 import walk_map
@@ -99,3 +100,28 @@ def test_this_repo_s_map_is_red_when_a_new_file_under_webapp_has_no_place():
     files = walk_map.repo_files(ROOT)
     for new in ("webapp/api_new_page.py", "webapp/static/views/new_page.js"):
         assert f"{new}: placed by no `shared`, area or `none`" in walk_map.problems(walk_map.read(ROOT), ROOT, files=files + [new])
+
+
+def run_apart_by_tests(root=ROOT) -> list[str]:
+    """The repo's Python files that a unit test that starts programs names: by its path, or, for a program (a file
+    with a `__main__` block), by its file name. Wider than what the tests run as a separate program, never narrower
+    for the ways this repo's tests start one: by path or name, or by copying the file into a folder of their own."""
+    tracked = [name for name in walk_map.repo_files(root)
+               if name.endswith(".py") and not name.startswith((".scratch/", "tests/"))]
+    programs = {name for name in tracked if '__name__ == "__main__"' in (root / name).read_text(encoding="utf-8")}
+    found = set()
+    for test in sorted((root / "tests").glob("*.py")):
+        text = test.read_text(encoding="utf-8")
+        if "subprocess" not in text:
+            continue
+        quoted = set(re.findall(r"""["']([\w./-]+\.py)["']""", text))
+        found.update(name for name in tracked
+                     if name in quoted or (name in programs and pathlib.PurePath(name).name in quoted))
+    return sorted(found)
+
+
+def test_this_repo_s_map_lists_every_python_file_a_unit_test_runs_as_a_separate_program():
+    # the unit picker's record sees only code run inside the test process: a change to one of these runs every test
+    listed = walk_map.read(ROOT).get("run_apart", [])
+    missing = [name for name in run_apart_by_tests() if not walk_map.matches(name, listed)]
+    assert missing == [], f"add to `run_apart` in {walk_map.MAP}: {missing}"

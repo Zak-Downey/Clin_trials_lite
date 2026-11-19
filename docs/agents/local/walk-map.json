@@ -1,5 +1,5 @@
 {
-  "about": "This product's map of the pages, read by walk_map.py and held by tests/test_walk_map.py. A new source file goes in the area whose page it draws or serves, or in `shared` when in doubt; a new walk file goes in the `walks` of every area it opens. Patterns are fnmatch, from the repo root (`*` crosses `/`).",
+  "about": "This product's map of the pages, read by walk_map.py and held by tests/test_walk_map.py. A new source file goes in the area whose page it draws or serves, or in `shared` when in doubt; a new walk file goes in the `walks` of every area it opens. `run_apart` lists the Python files the unit tests run only as a separate program (a change to one runs every unit test in a picked run); tests/test_walk_map.py is red, naming the file, when a test starts a program or names a file that it does not list. Patterns are fnmatch, from the repo root (`*` crosses `/`).",
   "shared": [
     "webapp/static/index.html",
     "webapp/static/app.js",
@@ -186,5 +186,14 @@
     "handover.py",
     "prove.py",
     "walk_map.py"
+  ],
+  "run_apart": [
+    ".github/workflows/judge_notice.py",
+    "checks.py",
+    "picker.py",
+    "prove.py",
+    "run.py",
+    "walk_map.py",
+    "walks/*.py"
   ]
 }

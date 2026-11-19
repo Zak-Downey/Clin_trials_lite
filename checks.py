@@ -6,7 +6,8 @@
                                    it combines with naming checks, and the run's line in the log says quick
     python3 checks.py --pick       the walks check runs only the walk files a change can reach (picker.py, on the map
                                    walk_map.py reads), and the unit check only the tests that ran the changed code
-                                   (pytest-testmon), when every changed file outside .scratch/ is Python; the other
+                                   (pytest-testmon), when every changed file outside .scratch/ is Python that the
+                                   tests run in their own process (not in the map's run_apart); the other
                                    checks run whole. It combines with --quick and with naming checks. A picked run is
                                    never a full run, whatever it ran. A run that is not picked runs every unit test and
                                    refreshes the record of which test ran which code
@@ -156,6 +157,15 @@ def pick_walks(root, changed) -> tuple[list[str], dict]:
     return ([] if set(files) >= set(every) else files), {"ran": len(files), "of": len(every), "why": why}
 
 
+def unit_map(root) -> dict:
+    """The map's lists for the unit picker (walk_map.py says what they are); {"run_apart": None} when there is no map."""
+    import walk_map
+    try:
+        return walk_map.read(root)
+    except (OSError, ValueError):
+        return {"run_apart": None}
+
+
 # What the unit check is given (pytest-testmon, which records which test ran which code, in pytest's cache folder):
 # select only the tests a change reaches, or run them all and refresh the record.
 SELECT, NOSELECT = "--testmon", "--testmon-noselect"
@@ -227,7 +237,7 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
         select, unit_why, there_are = False, None, None
         if name == "unit":
             if pick:
-                select, unit_why = picker.unit(changed)
+                select, unit_why = picker.unit(changed, unit_map(root).get("run_apart", []))
                 there_are = unit_there_are(command, root, env) if select else None
             command = [*command, SELECT if select else NOSELECT]
         result, took = run_one(command, minutes, output, root, env)
