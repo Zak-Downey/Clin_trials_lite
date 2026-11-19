@@ -61,7 +61,8 @@ def test_a_newer_run_on_the_same_branch_cancels_the_older_one():
     assert re.search(r"^  cancel-in-progress: true\s*$", concurrency, re.M)
 
 
-JUDGING = [".github/workflows/", "checks.py", ".claude/settings.json", "pytest.ini", "ruff.toml"]
+JUDGING = [".github/workflows/", "checks.py", ".claude/settings.json", "pytest.ini", "ruff.toml",
+           "docs/agents/local/comments-kept.json"]
 
 
 def notice_step():
@@ -77,7 +78,7 @@ def notice_paths():
     return run.group(1).split()[3:]
 
 
-def test_a_step_names_the_five_files_that_judge_a_pull_request_and_no_other():
+def test_a_step_names_the_six_files_that_judge_a_pull_request_and_no_other():
     assert sorted(notice_paths()) == sorted(JUDGING)
 
 

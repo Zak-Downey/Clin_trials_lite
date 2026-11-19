@@ -13,7 +13,8 @@ from pathlib import Path
 import pytest
 
 SCRIPT = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "judge_notice.py"
-JUDGING = [".github/workflows/", ".claude/settings.json", "pytest.ini", "checks.py", "ruff.toml"]
+JUDGING = [".github/workflows/", ".claude/settings.json", "pytest.ini", "checks.py", "ruff.toml",
+           "docs/agents/local/comments-kept.json"]
 
 
 def git(repo, *args):
@@ -43,6 +44,7 @@ BASE_FILES = {
     ".github/workflows/checks.yml": "name: checks\n",
     ".claude/settings.json": "{}\n",
     "ruff.toml": "[lint]\nselect = [\"F\"]\n",
+    "docs/agents/local/comments-kept.json": "[]\n",
     "app.py": "x = 1\n",
     "tests/test_app.py": "def test_one():\n    pass\n\n\ndef test_two():\n    pass\n",
     "tests/test_other.py": "def test_three():\n    pass\n",
@@ -84,6 +86,14 @@ def test_a_pull_request_that_changes_the_linters_rules_is_told_so_by_name(repo, 
     code, summary = notice(repo, base, tmp_path)
     assert code == 0
     assert "`ruff.toml`" in summary
+
+
+def test_a_pull_request_that_changes_the_comments_the_rule_keeps_is_told_so_by_name(repo, tmp_path):
+    base = commit(repo, BASE_FILES, "base")
+    commit(repo, {"docs/agents/local/comments-kept.json": '[{"file": "app.py", "line": "x = 1  # kept"}]\n'}, "keep a comment")
+    code, summary = notice(repo, base, tmp_path)
+    assert code == 0
+    assert "`docs/agents/local/comments-kept.json`" in summary
 
 
 def test_tests_taken_out_are_counted_net_of_tests_put_in_and_a_deleted_test_file_counts_all_of_its_tests(
