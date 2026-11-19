@@ -473,3 +473,59 @@ def test_the_checks_line_of_claude_md_lists_one_phrase_for_each_check_in_CHECKS_
     names = [name for name, _, _ in checks.CHECKS]
     assert len(listed) == len(names)
     assert [words[name] in phrase for name, phrase in zip(names, listed)] == [True] * len(names)
+
+
+def tracked(tmp_path, files):
+    """A repo in a temporary folder whose files are all added to git."""
+    for name, body in files.items():
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text(body)
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+
+
+def test_a_python_comment_on_its_own_line_or_after_code_is_listed_with_its_file_line_and_text(tmp_path):
+    tracked(tmp_path, {"app/x.py": "x = 1\n# on its own\ny = 2  # after code\n"})
+    assert checks.comment_hits(tmp_path) == ["app/x.py:2: # on its own", "app/x.py:3: # after code"]
+
+
+def test_a_hash_in_a_string_a_hashbang_first_line_and_a_linter_directive_with_its_reason_are_not_comments(tmp_path):
+    tracked(tmp_path, {"run.py": "#!/usr/bin/env python3\ns = '# not one'\nt = \"\"\"# nor this\"\"\"\n"
+                                 "import os  # " "noqa: F401 kept for the caller that imports it from here\n"})
+    assert checks.comment_hits(tmp_path) == []
+
+
+def test_a_linter_directive_with_no_reason_or_more_than_one_rule_is_listed(tmp_path):
+    tracked(tmp_path, {"x.py": "import os  # " "noqa: F401\nimport re  # " "noqa\nimport io  # " "noqa: F401,E402 both\n"})
+    assert checks.comment_hits(tmp_path) == ["x.py:1: # " "noqa: F401", "x.py:2: # " "noqa",
+                                             "x.py:3: # " "noqa: F401,E402 both"]
+
+
+def test_a_python_file_git_does_not_track_or_under_scratch_is_never_read(tmp_path):
+    tracked(tmp_path, {".scratch/f/x.py": "# a record\n"})
+    (tmp_path / "loose.py").write_text("# not tracked\n")
+    assert checks.comment_hits(tmp_path) == []
+
+
+def test_a_script_style_sheet_or_page_under_static_holding_a_comment_is_listed(tmp_path):
+    tracked(tmp_path, {"webapp/static/a.js": "let a = 1;\n// on its own\nlet b = 2; /* after */\n",
+                       "webapp/static/views/s.css": "p { color: red; } /* why */\n",
+                       "webapp/static/index.html": "<p>hi</p>\n<!-- a note -->\n"})
+    assert checks.comment_hits(tmp_path) == ["webapp/static/a.js:2: // on its own", "webapp/static/a.js:3: /* after */",
+                                             "webapp/static/index.html:2: <!-- a note -->",
+                                             "webapp/static/views/s.css:1: /* why */"]
+
+
+def test_a_script_style_sheet_or_page_without_one_is_not_listed_nor_is_a_script_outside_static(tmp_path):
+    tracked(tmp_path, {"webapp/static/a.js": "let a = 1 / 2;\n", "webapp/static/s.css": "p { color: red; }\n",
+                       "webapp/static/index.html": "<p>a / b</p>\n", "other/b.js": "// elsewhere\n",
+                       ".scratch/f/webapp/static/c.js": "// a record\n"})
+    assert checks.comment_hits(tmp_path) == []
+
+
+def test_the_comments_command_lists_each_comment_then_the_total_and_ends_zero(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"a.py": "# one\n", "b.py": "x = 1  # two\n# three\n"})
+    monkeypatch.setattr(checks, "ROOT", tmp_path)
+    assert checks.main(["--comments"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["a.py:1: # one", "b.py:1: # two", "b.py:2: # three",
+                                                     "3 comments in 2 files"]

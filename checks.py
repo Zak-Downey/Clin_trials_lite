@@ -11,6 +11,8 @@
                                    checks run whole. It combines with --quick and with naming checks. A picked run is
                                    never a full run, whatever it ran. A run that is not picked runs every unit test and
                                    refreshes the record of which test ran which code
+    python3 checks.py --comments   list every comment the rule does not let through (comment_hits), then the total
+                                   and how many files hold one; it fails nothing and ends 0
 
 Each check's output goes to .checks/<name>.txt. One line is printed per check and one line is
 appended to .checks/runs.jsonl per run, with "quick" true or false, "every" true when every check was asked for,
@@ -27,6 +29,7 @@ from __future__ import annotations
 
 import datetime
 import functools
+import io
 import json
 import os
 import pathlib
@@ -35,6 +38,7 @@ import signal
 import subprocess
 import sys
 import time
+import tokenize
 
 ROOT = pathlib.Path(__file__).resolve().parent
 PYTHON = str(ROOT / ".venv" / "bin" / "python")
@@ -76,6 +80,54 @@ def pattern_hits(patterns=PATTERNS, root=ROOT) -> list[str]:
                 for number, line in enumerate(path.read_text(errors="replace").splitlines(), start=1):
                     if regex.search(line):
                         hits.append(f"{path.relative_to(root)}:{number}: {rule['rule']}: {rule['why']}")
+    return hits
+
+
+STATIC = "webapp/static/"
+STATIC_MARKS = {".js": ("//", "/*"), ".css": ("//", "/*"), ".html": ("<!--",)}
+DIRECTIVE = re.compile(r"#\s*noqa:\s*[A-Z]+[0-9]+\s+(?![A-Z]+[0-9]+\b)\S.*\w", re.I)
+
+
+def python_comments(text: str) -> list[tuple[int, str]]:
+    """(line, text) of every comment Python's tokenizer finds, but a `#!` first line and a linter directive that
+    names one rule and gives its reason on the same line."""
+    found = []
+    for token in tokenize.generate_tokens(io.StringIO(text).readline):
+        if token.type != tokenize.COMMENT:
+            continue
+        line, said = token.start[0], token.string
+        if (line == 1 and said.startswith("#!")) or DIRECTIVE.match(said):
+            continue
+        found.append((line, said))
+    return found
+
+
+def static_comments(text: str, marks) -> list[tuple[int, str]]:
+    """(line, the line from its first mark on) for every line holding one of `marks`."""
+    found = []
+    for number, line in enumerate(text.splitlines(), start=1):
+        starts = [line.find(mark) for mark in marks if mark in line]
+        if starts:
+            found.append((number, line[min(starts):].strip()))
+    return found
+
+
+def comment_hits(root=ROOT) -> list[str]:
+    """`<file>:<line>: <the comment>` for every comment in a file git tracks outside .scratch/: in Python, and in a
+    script, style sheet or page under STATIC."""
+    hits = []
+    names = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, text=True).stdout.split("\0")
+    for name in sorted(n for n in names if n and not n.startswith(".scratch/")):
+        path = pathlib.Path(root) / name
+        if not path.is_file():
+            continue
+        if path.suffix == ".py":
+            found = python_comments(path.read_text(errors="replace"))
+        elif name.startswith(STATIC) and path.suffix in STATIC_MARKS:
+            found = static_comments(path.read_text(errors="replace"), STATIC_MARKS[path.suffix])
+        else:
+            continue
+        hits.extend(f"{name}:{line}: {said}" for line, said in found)
     return hits
 
 
@@ -299,6 +351,11 @@ def main(argv) -> int:
         problems = escape_problems()
         print("\n".join(problems) if problems else f"{ESCAPES}: every line reads and names its check where it must")
         return 1 if problems else 0
+    if argv == ["--comments"]:
+        hits = comment_hits(ROOT)
+        files = {hit.split(":", 1)[0] for hit in hits}
+        print("\n".join([*hits, f"{len(hits)} comments in {len(files)} files"]))
+        return 0
     options = {"--quick", "--pick"}
     return run([name for name in argv if name not in options], quick="--quick" in argv, pick="--pick" in argv)
 
