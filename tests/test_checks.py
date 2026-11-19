@@ -60,7 +60,7 @@ def test_a_check_that_runs_past_its_time_is_stopped_and_red(tmp_path):
     child = "import os, time; open('child.pid', 'w').write(str(os.getpid())); time.sleep(30)"
     slow = ("slow", [PY, "-c", f"import subprocess, sys, time; subprocess.Popen([sys.executable, '-c', {child!r}]); time.sleep(30)"], 0.01)
     code, _, runs = run(tmp_path, [slow])
-    pid = int((tmp_path / "child.pid").read_text())  # also shows the check ran in the root
+    pid = int((tmp_path / "child.pid").read_text())
     deadline = time.monotonic() + 2
     while time.monotonic() < deadline:
         try:
@@ -119,7 +119,7 @@ def test_a_run_line_says_when_and_where_and_names_only_the_checks_asked_for(tmp_
     line = runs[-1]
     assert line["branch"] == "feature/thing"
     assert len(line["tip"]) >= 7
-    assert line["dirty"] is True  # the untracked .gitignore
+    assert line["dirty"] is True
     assert [c["name"] for c in line["checks"]] == ["one"]
     assert line["at"].endswith("Z") and "T" in line["at"]
 
@@ -151,7 +151,7 @@ def test_a_check_is_told_the_feature_folder_unless_the_caller_already_named_one(
                    cwd=tmp_path, check=True)
     (tmp_path / ".scratch" / "saved-searches").mkdir(parents=True)
     says = ("says", [PY, "-c", "import os; print(os.environ.get('WALK_FEATURE'))"], 1)
-    monkeypatch.delenv("WALK_FEATURE", raising=False)  # checks.py sets it for the unit check on a feature branch
+    monkeypatch.delenv("WALK_FEATURE", raising=False)
     run(tmp_path, [says])
     assert (tmp_path / ".checks" / "says.txt").read_text() == "saved-searches\n"
     monkeypatch.setenv("WALK_FEATURE", "other")
@@ -161,7 +161,7 @@ def test_a_check_is_told_the_feature_folder_unless_the_caller_already_named_one(
 
 def test_a_quick_run_tells_the_walks_to_use_one_window_size_and_a_plain_run_does_not(tmp_path, monkeypatch):
     says = ("says", [PY, "-c", "import os; print(os.environ.get('WALK_QUICK'))"], 1)
-    monkeypatch.setenv("WALK_QUICK", "1")  # left over in the caller's shell: a plain run is still a full run
+    monkeypatch.setenv("WALK_QUICK", "1")
     run(tmp_path, [says])
     assert (tmp_path / ".checks" / "says.txt").read_text() == "None\n"
     monkeypatch.delenv("WALK_QUICK")
@@ -216,20 +216,20 @@ def test_a_picked_run_passes_the_picked_walk_files_to_the_walk_check_and_says_ho
     code, printed, runs = run(tmp_path, [args_of("unit"), args_of("walks")], pick=True)
     assert code == 0
     assert (tmp_path / ".checks" / "walks.txt").read_text().split() == ["walks/test_a.py", "walks/test_guards.py"]
-    assert (tmp_path / ".checks" / "unit.txt").read_text().split() == ["--testmon-noselect"]  # app/a.js is not Python
+    assert (tmp_path / ".checks" / "unit.txt").read_text().split() == ["--testmon-noselect"]
     said = next(line for line in printed if line.startswith("walks") and "picked" in line)
     assert "2 of 3 walk files" in said and "Page A" in said and "`app/a.js`" in said
     line = runs[-1]
     assert line["picked"] is True
     assert "where the branch left main" in line["base"]
     assert line["picks"][1:] == [{"check": "walks", "ran": 2, "of": 3, "why": said.split(": ", 1)[1]}]
-    assert line["picks"][0]["check"] == "unit" and line["picks"][0]["ran"] is None  # this stand-in prints no count
+    assert line["picks"][0]["check"] == "unit" and line["picks"][0]["ran"] is None
     assert "picked" in printed[-1]
 
 
 def test_a_picked_run_that_reaches_every_walk_gives_the_walk_check_no_files_so_it_runs_them_all(tmp_path):
     git_repo(tmp_path)
-    (tmp_path / "lib.py").write_text("")  # placed nowhere by the map
+    (tmp_path / "lib.py").write_text("")
     _, printed, runs = run(tmp_path, [args_of("walks")], pick=True)
     assert (tmp_path / ".checks" / "walks.txt").read_text() == "\n"
     assert runs[-1]["picks"][0]["ran"] == 3 and "`lib.py`" in runs[-1]["picks"][0]["why"]
@@ -271,10 +271,10 @@ def unit_pick(tmp_path, summary="3 passed in 0.10s"):
 
 def test_a_picked_run_whose_changed_files_are_all_python_lets_the_unit_check_select_and_says_how_many_of_how_many(tmp_path):
     git_repo(tmp_path)
-    (tmp_path / "app/a.js").write_text("a")  # back as main has it
+    (tmp_path / "app/a.js").write_text("a")
     (tmp_path / "lib.py").write_text("")
     (tmp_path / ".scratch/thing").mkdir(parents=True)
-    (tmp_path / ".scratch/thing/notes.md").write_text("")  # the build's own records never widen the run
+    (tmp_path / ".scratch/thing/notes.md").write_text("")
     code, said, given, picks = unit_pick(tmp_path)
     assert code == 0
     assert given == ["--testmon"]
@@ -283,7 +283,7 @@ def test_a_picked_run_whose_changed_files_are_all_python_lets_the_unit_check_sel
 
 
 def test_a_picked_run_with_a_changed_file_that_is_not_python_runs_the_whole_unit_suite_and_says_which(tmp_path):
-    git_repo(tmp_path)  # app/a.js changed
+    git_repo(tmp_path)
     (tmp_path / "lib.py").write_text("")
     _, said, given, picks = unit_pick(tmp_path, "12 passed in 0.30s")
     assert given == ["--testmon-noselect"]
@@ -293,7 +293,7 @@ def test_a_picked_run_with_a_changed_file_that_is_not_python_runs_the_whole_unit
 
 
 def test_a_picked_run_that_cannot_tell_what_changed_runs_the_whole_unit_suite_and_says_so(tmp_path):
-    _, said, given, picks = unit_pick(tmp_path, "1 failed, 11 passed, 2 skipped in 0.30s")  # no git here: no base
+    _, said, given, picks = unit_pick(tmp_path, "1 failed, 11 passed, 2 skipped in 0.30s")
     assert given == ["--testmon-noselect"]
     assert "picked 14 of 14 unit tests" in said and "whole" in said and "cannot tell" in said
     assert picks[0]["why"] == said.split(": ", 1)[1]
@@ -321,7 +321,7 @@ def test_pick_is_an_option_that_combines_with_quick_and_with_the_names_of_checks
     assert calls == [(["walks"], True, True), ([], False, True), (["walks"], False, False)]
 
 
-SELF = "assert (a, ident) == " + "(b, ident)\n"  # in two halves, so this file does not match the pattern itself
+SELF = "assert (a, ident) == " + "(b, ident)\n"
 
 SELF_COMPARE = [{"rule": "R-005", "why": "compares a value with itself", "globs": ["tests/**/*.py"],
                  "pattern": checks.PATTERNS[0]["pattern"]}]
@@ -398,7 +398,6 @@ def test_every_check_this_repo_lists_has_a_name_a_command_and_a_time_limit():
     names = [name for name, _, _ in checks.CHECKS]
     assert names == ["lint", "patterns", "escapes", "unit", "walks"]
     assert all(command for _, command, _ in checks.CHECKS)
-    # About three times a normal run; a change to one is deliberate and changes this line.
     limits = {name: minutes for name, _, minutes in checks.CHECKS}
     assert limits == {"lint": 1, "patterns": 1, "escapes": 1, "unit": 3, "walks": 8}
 
@@ -406,7 +405,7 @@ def test_every_check_this_repo_lists_has_a_name_a_command_and_a_time_limit():
 def test_the_unit_check_runs_the_suite_across_the_processors_the_machine_has():
     unit = next(command for name, command, _ in checks.CHECKS if name == "unit")
     assert unit[unit.index("-m") + 1] == "pytest"
-    assert unit[unit.index("-n") + 1] == "auto"  # pytest-xdist: one worker per processor
+    assert unit[unit.index("-n") + 1] == "auto"
 
 
 def test_the_unit_picker_is_pinned_to_one_exact_version_and_its_record_is_never_tracked():
@@ -418,12 +417,11 @@ def test_the_unit_picker_is_pinned_to_one_exact_version_and_its_record_is_never_
         assert ignored.returncode == 0, f"{record} is not git-ignored"
 
 
-WAITED_ON = 10  # minutes: the longest an agent's command tool waits on a command it runs in the foreground
+WAITED_ON = 10
 NUMBERS = {"five": 5, "ten": 10, "twelve": 12, "thirteen": 13, "fifteen": 15, "twenty": 20, "thirty": 30}
 
 
 def test_the_repo_notes_say_to_run_a_whole_run_in_the_background_when_it_can_outlast_a_waited_on_command():
-    # review-server-and-checks-03: the notes said to give a whole run a fifteen-minute timeout, which the tool refuses.
     notes = (checks.ROOT / "docs" / "agents" / "local" / "repo.md").read_text()
     every = next(line for line in notes.splitlines() if line.startswith("- **Every check.**"))
     if sum(minutes for _, _, minutes in checks.CHECKS) > WAITED_ON:
@@ -465,7 +463,6 @@ def test_the_every_check_line_of_repo_md_names_the_checks_in_CHECKS_in_order():
 
 
 def test_the_checks_line_of_claude_md_lists_one_phrase_for_each_check_in_CHECKS_in_order():
-    # CLAUDE.md names the checks in plain words, not by name: one phrase each, cheapest first.
     words = {"lint": "common mistakes", "patterns": "pattern", "escapes": "defect log", "unit": "unit", "walks": "walks"}
     text = (checks.ROOT / "CLAUDE.md").read_text()
     line = next(line for line in text.splitlines() if line.startswith("- **Checks.**"))
@@ -473,3 +470,179 @@ def test_the_checks_line_of_claude_md_lists_one_phrase_for_each_check_in_CHECKS_
     names = [name for name, _, _ in checks.CHECKS]
     assert len(listed) == len(names)
     assert [words[name] in phrase for name, phrase in zip(names, listed)] == [True] * len(names)
+
+
+def tracked(tmp_path, files):
+    """A repo in a temporary folder whose files are all added to git."""
+    for name, body in files.items():
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text(body)
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+
+
+def test_a_python_comment_on_its_own_line_or_after_code_is_listed_with_its_file_line_and_text(tmp_path):
+    tracked(tmp_path, {"app/x.py": "x = 1\n# on its own\ny = 2  # after code\n"})
+    assert checks.comment_hits(tmp_path) == ["app/x.py:2: # on its own", "app/x.py:3: # after code"]
+
+
+def test_a_hash_in_a_string_a_hashbang_first_line_and_a_linter_directive_with_its_reason_are_not_comments(tmp_path):
+    tracked(tmp_path, {"run.py": "#!/usr/bin/env python3\ns = '# not one'\nt = \"\"\"# nor this\"\"\"\n"
+                                 "import os  # " "noqa: F401 kept for the caller that imports it from here\n"})
+    assert checks.comment_hits(tmp_path) == []
+
+
+def test_a_linter_directive_with_no_reason_or_more_than_one_rule_is_listed(tmp_path):
+    tracked(tmp_path, {"x.py": "import os  # " "noqa: F401\nimport re  # " "noqa\nimport io  # " "noqa: F401,E402 both\n"})
+    assert checks.comment_hits(tmp_path) == ["x.py:1: # " "noqa: F401", "x.py:2: # " "noqa",
+                                             "x.py:3: # " "noqa: F401,E402 both"]
+
+
+def test_a_python_file_git_does_not_track_or_under_scratch_is_never_read(tmp_path):
+    tracked(tmp_path, {".scratch/f/x.py": "# a record\n"})
+    (tmp_path / "loose.py").write_text("# not tracked\n")
+    assert checks.comment_hits(tmp_path) == []
+
+
+def test_a_script_style_sheet_or_page_under_static_holding_a_comment_is_listed(tmp_path):
+    tracked(tmp_path, {"webapp/static/a.js": "let a = 1;\n// on its own\nlet b = 2; /* after */\n",
+                       "webapp/static/views/s.css": "p { color: red; } /* why */\n",
+                       "webapp/static/index.html": "<p>hi</p>\n<!-- a note -->\n"})
+    assert checks.comment_hits(tmp_path) == ["webapp/static/a.js:2: // on its own", "webapp/static/a.js:3: /* after */",
+                                             "webapp/static/index.html:2: <!-- a note -->",
+                                             "webapp/static/views/s.css:1: /* why */"]
+
+
+def test_a_script_style_sheet_or_page_without_one_is_not_listed_nor_is_a_script_outside_static(tmp_path):
+    tracked(tmp_path, {"webapp/static/a.js": "let a = 1 / 2;\n", "webapp/static/s.css": "p { color: red; }\n",
+                       "webapp/static/index.html": "<p>a / b</p>\n", "other/b.js": "// elsewhere\n",
+                       ".scratch/f/webapp/static/c.js": "// a record\n"})
+    assert checks.comment_hits(tmp_path) == []
+
+
+def test_in_a_folder_git_cannot_list_every_file_outside_scratch_and_tool_folders_is_read(tmp_path):
+    files = {"a.py": "x = 1  # in a copy with no git\n", "webapp/static/a.js": "// a script's\n",
+             ".github/b.py": "# under a dotted folder\n", ".scratch/f/c.py": "# a record\n",
+             ".venv/lib/d.py": "# a tool's\n", "__pycache__/e.py": "# a cache's\n"}
+    for name, body in files.items():
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text(body)
+    assert checks.comment_hits(tmp_path) == [".github/b.py:1: # under a dotted folder",
+                                             "a.py:1: # in a copy with no git", "webapp/static/a.js:1: // a script's"]
+
+
+def test_the_comments_command_lists_each_comment_then_the_total_and_ends_zero(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"a.py": "# one\n", "b.py": "x = 1  # two\n# three\n"})
+    monkeypatch.setattr(checks, "ROOT", tmp_path)
+    assert checks.main(["--comments"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["a.py:1: # one", "b.py:1: # two", "b.py:2: # three",
+                                                     "3 comments in 2 files"]
+
+
+ADVICE = "say it in a name, or in a test that fails without it; a comment is checked by nothing"
+
+
+def test_a_comment_in_python_or_in_a_script_turns_the_patterns_check_red_naming_its_file_and_line(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"app/x.py": "x = 1\ny = 2  # after code\n", "webapp/static/a.js": "let a = 1;\n\n// on its own\n"})
+    monkeypatch.setattr(checks, "ROOT", tmp_path)
+    monkeypatch.setattr(checks, "pattern_hits", lambda: [])
+    assert checks.main(["--patterns"]) == 1
+    printed = capsys.readouterr().out.splitlines()
+    assert printed == [f"app/x.py:2: {ADVICE} (# after code)", f"webapp/static/a.js:3: {ADVICE} (// on its own)"]
+
+
+def test_without_a_comment_the_patterns_check_is_green(tmp_path, monkeypatch):
+    tracked(tmp_path, {"app/x.py": "x = '# not one'\n", "webapp/static/a.js": "let a = 1 / 2;\n"})
+    monkeypatch.setattr(checks, "ROOT", tmp_path)
+    monkeypatch.setattr(checks, "pattern_hits", lambda: [])
+    assert checks.main(["--patterns"]) == 0
+
+
+def kept(*entries):
+    return {"docs/agents/local/comments-kept.json": json.dumps(list(entries))}
+
+
+def patterns_check(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(checks, "ROOT", tmp_path)
+    monkeypatch.setattr(checks, "pattern_hits", lambda: [])
+    code = checks.main(["--patterns"])
+    return code, capsys.readouterr().out.splitlines()
+
+
+def test_a_kept_comment_is_let_through_by_the_patterns_check_and_by_the_count(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"app/x.py": "x = 1  # the registry counts from one\n",
+                       **kept({"file": "app/x.py", "text": "# the registry counts from one",
+                               "why": "No name can say which number the registry starts from."})})
+    assert patterns_check(tmp_path, monkeypatch, capsys)[0] == 0
+    assert checks.main(["--comments"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["0 comments in 0 files"]
+
+
+def test_a_kept_entry_whose_text_is_no_longer_in_its_file_is_reported(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"app/x.py": "x = 1\n", **kept({"file": "app/x.py", "text": "# gone", "why": "It was needed."})})
+    code, printed = patterns_check(tmp_path, monkeypatch, capsys)
+    assert code == 1
+    assert printed == ["docs/agents/local/comments-kept.json: entry 1 keeps `# gone`, which is no longer a comment in "
+                       "app/x.py: remove the entry"]
+
+
+def test_a_kept_entry_with_a_field_missing_is_reported(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"app/x.py": "x = 1  # here\n", **kept({"file": "app/x.py", "text": "# here"})})
+    code, printed = patterns_check(tmp_path, monkeypatch, capsys)
+    assert code == 1
+    assert printed == ["docs/agents/local/comments-kept.json: entry 1 needs a `file`, the comment's exact `text` and "
+                       "`why` it must stay", f"app/x.py:1: {ADVICE} (# here)"]
+
+
+def test_the_kept_list_has_a_ceiling_of_ten_and_an_eleventh_entry_is_reported(tmp_path, monkeypatch, capsys):
+    assert checks.KEPT_CEILING == 10
+    lines = [f"x{n} = {n}  # kept {n}\n" for n in range(11)]
+    entries = [{"file": "app/x.py", "text": f"# kept {n}", "why": "It must stay."} for n in range(11)]
+    tracked(tmp_path, {"app/x.py": "".join(lines), **kept(*entries[:10])})
+    assert patterns_check(tmp_path, monkeypatch, capsys) == (1, [f"app/x.py:11: {ADVICE} (# kept 10)"])
+    tracked(tmp_path, kept(*entries))
+    assert patterns_check(tmp_path, monkeypatch, capsys) == (1, [
+        "docs/agents/local/comments-kept.json: 11 entries, over the ceiling of 10: say the rest in a name or a test"])
+
+
+def test_a_kept_list_that_is_not_a_json_list_is_reported(tmp_path, monkeypatch, capsys):
+    tracked(tmp_path, {"app/x.py": "x = 1\n", "docs/agents/local/comments-kept.json": "{}"})
+    code, printed = patterns_check(tmp_path, monkeypatch, capsys)
+    assert code == 1
+    assert printed == ["docs/agents/local/comments-kept.json: not a JSON list"]
+
+
+def test_this_repo_holds_no_comment_the_rule_does_not_let_through_and_its_kept_list_reads():
+    assert (checks.ROOT / checks.KEPT).is_file()
+    assert checks.comment_faults(checks.ROOT) == []
+
+
+HOOKS_OFF = "hooks: this clone has .githooks but has not switched it on; run git config core.hooksPath .githooks"
+
+
+def a_clone_with_githooks(tmp_path, monkeypatch, switched_on=False):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".githooks").mkdir()
+    if switched_on:
+        subprocess.run(["git", "config", "core.hooksPath", ".githooks"], cwd=tmp_path, check=True)
+
+
+def test_a_clone_with_githooks_not_switched_on_is_told_in_one_line_and_nothing_fails(tmp_path, monkeypatch):
+    a_clone_with_githooks(tmp_path, monkeypatch)
+    code, printed, _ = run(tmp_path, [passing()])
+    assert code == 0
+    assert printed.count(HOOKS_OFF) == 1
+
+
+def test_a_clone_that_has_switched_githooks_on_is_told_nothing_about_it(tmp_path, monkeypatch):
+    a_clone_with_githooks(tmp_path, monkeypatch, switched_on=True)
+    _, printed, _ = run(tmp_path, [passing()])
+    assert not [line for line in printed if line.startswith("hooks:")]
+
+
+def test_on_githubs_machine_nothing_is_said_about_githooks(tmp_path, monkeypatch):
+    a_clone_with_githooks(tmp_path, monkeypatch)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    _, printed, _ = run(tmp_path, [passing()])
+    assert not [line for line in printed if line.startswith("hooks:")]

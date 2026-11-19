@@ -1,4 +1,3 @@
-// The only place the page talks to the server.
 export const get = (path) => send(path);
 export const post = (path, body = {}) => send(path, {
   method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -17,8 +16,6 @@ async function send(path, options) {
 
 export function when(time) {
   if (!time) return "";
-  // The wall clock already in `iso` (the server's zone, named in `time.zone`):
-  // read it as UTC and format as UTC so the browser's own zone never shifts it.
   const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(time.iso);
   if (!m) return time.iso;
   const wall = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));

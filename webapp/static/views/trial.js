@@ -10,34 +10,21 @@ const el = (tag, attrs = {}, ...kids) => {
 };
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-// A removal made on this trial page, while the analyst stays on the trial: { nct, home, undo, last, order }.
-// Its own tabs are redrawn from the server, which no longer lists the watchlist; this keeps the
-// address, "Back to", Next trial (order: the queue as it stood before the removal) and the Undo on it. Only a reload, or leaving the trial, forgets it.
 let removed = null;
 window.addEventListener("hashchange", () => {
   if (removed && !new RegExp(`^#/trials/${removed.nct}(/|\\?|$)`, "i").test(location.hash)) removed = null;
 });
 
-// The trial page: header, tabs, and the Changes tab with its review action bar.
-// place: the watchlist and tab the address names ({ list, from }, and back: that tab's address as the
-// analyst left it in this page load), or null when it names none.
-// alive(): is this still the page the address names? A slow answer for a page the analyst left is dropped.
 export async function render(root, nct, tab, place, alive = () => true) {
   const trial = await get(`/api/trials/${nct}`);
   if (!alive()) return;
-  // The list the address names, else the first watchlist holding the trial.
   const kept = place && removed && removed.nct === nct && removed.home.id === place.list ? removed : null;
   const named = place && (trial.watchlists.find((w) => w.id === place.list) || (kept && kept.home));
   const home = named || trial.watchlists[0];
-  // The trial's own tabs and Next trial carry the address's watchlist and tab forward.
-  // An address that names no watchlist carries none, as before.
   const carry = !place ? null : named ? place : home ? { list: home.id, from: "needs-review" } : null;
-  // An address naming a watchlist that does not hold the trial (removed, deleted, a wrong number)
-  // is rewritten in place to name the one shown, with no extra step for the browser's Back.
   if (place && !named) history.replaceState(history.state, "", trialHref(nct, tab, carry));
   const others = trial.watchlists.filter((w) => !home || w.id !== home.id);
   const state = { reviewed: false, event: null };
-  // The watchlist's Needs review queue as it stood when the page opened: Next trial goes to the one after this.
   let order = kept ? kept.order : null;
   const queueOf = async (id) => {
     try { return (await get(`/api/watchlists/${id}/needs-review`)).trials.map((t) => t.nct_id); } catch { return []; }
@@ -80,7 +67,6 @@ export async function render(root, nct, tab, place, alive = () => true) {
   };
   const fail = (err) => { banner.hidden = false; banner.className = "banner error-banner"; banner.textContent = err.message; };
 
-  // The menu: which watchlists hold the trial, and Remove from this list (this one only).
   const drawMenu = () => {
     menu.replaceChildren(el("p", { class: "menu-title" }, "In watchlists"),
       ...(trial.watchlists.length
@@ -91,7 +77,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
       remove.addEventListener("click", async () => {
         closeMenu();
         try {
-          if (!order) order = await queueOf(home.id); // the queue after the removal no longer holds this trial
+          if (!order) order = await queueOf(home.id);
           const done = await post(`/api/watchlists/${home.id}/trials/${nct}/remove`);
           trial.watchlists = done.watchlists;
           removed = { nct, home: { id: home.id, name: home.name }, undo: done.undo, last: !done.watchlists.length, order };
@@ -103,7 +89,6 @@ export async function render(root, nct, tab, place, alive = () => true) {
       menu.append(remove);
     }
   };
-  // The removal's line and its Undo, drawn again on each of the trial's tabs while it stands.
   const tellRemoved = () => {
     const made = removed;
     const undo = el("button", { type: "button", class: "link" }, "Undo");
@@ -160,7 +145,6 @@ export async function render(root, nct, tab, place, alive = () => true) {
   body.append(list);
 
   const scope = el("strong", {});
-  // The scope is always stated in full; a long list scrolls inside a small box (the box takes the keyboard when it overflows).
   const also = el("span", { class: "meta also" },
     others.length ? `Also clears these changes in: ${others.map((w) => w.name).join(", ")}.`
       : "No other watchlist holds this trial.");
@@ -180,7 +164,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
   };
   const refresh = () => window.dispatchEvent(new Event("reviewchange"));
 
-  let marking = false; // a press while the request is in flight is ignored: one click, one review
+  let marking = false;
   mark.addEventListener("click", async () => {
     if (marking || state.reviewed) return;
     marking = true;
@@ -198,11 +182,11 @@ export async function render(root, nct, tab, place, alive = () => true) {
           draw();
           banner.hidden = true;
           refresh();
-          mark.focus({ preventScroll: true }); // the Undo just pressed is gone: keep the keyboard in place
+          mark.focus({ preventScroll: true });
         } catch (err) { fail(err); }
       });
       tell(`${plural(shown.length, "change")} marked reviewed. This trial stays open.`, undo);
-      undo.focus({ preventScroll: true }); // the pressed button is now disabled: focus must not fall to <body>
+      undo.focus({ preventScroll: true });
       refresh();
     } catch (err) { fail(err); } finally { marking = false; }
   });
@@ -224,12 +208,10 @@ const field = (f) => {
   return row;
 };
 
-// Trial details: At a glance, and five sections, long ones expandable on demand.
 async function drawDetails(body, nct) {
   drawSections(body, await get(`/api/trials/${nct}/details`));
 }
 
-// The same sections for a trial not monitored (no monitoring_began, nothing unreviewed).
 export function drawSections(body, details) {
   const glance = el("aside", { class: "glance", "aria-label": "At a glance" }, el("h2", {}, "At a glance"));
   const facts = el("dl", {});
@@ -244,7 +226,6 @@ export function drawSections(body, details) {
     const panel = el("dl", { class: "section-body" }, ...section.fields.map(field));
     const wrap = el("section", { class: "detail-section" });
     if (section.locked_open) {
-      // A section holding an unreviewed change is never collapsed.
       wrap.append(el("h2", {}, section.title, " ", el("span", { class: "unreviewed-flag" }, `${section.unreviewed} unreviewed`)), panel);
     } else {
       const open = index === 0;
@@ -267,10 +248,8 @@ const clock = (time) => {
   return m ? m[1] : "";
 };
 
-// History: one newest-first timeline.
 function valueCard(change) {
   const word = (q) => (q ? ` · ${q}` : "");
-  // A long value gets the whole width: Previously above Now, rather than side by side.
   const long = [change.previous, change.current].some((v) => v.length > 80 || v.includes("\n"));
   return el("article", { class: long ? "change long" : "change" },
     el("h3", { class: "field-name" }, change.label),
@@ -278,12 +257,9 @@ function valueCard(change) {
     el("div", { class: "value now" }, el("span", { class: "tag" }, "Now"), el("p", {}, change.current + word(change.qualifier))));
 }
 
-// A list read as names that each came or went: Removed, then Added, then the
-// count of what stayed, its names folded behind Show. The server sends the three.
 function splitCard(change) {
   const row = (kind, label, ...names) => el("div", { class: `split-row ${kind}` },
     el("span", { class: "split-label" }, label), el("div", { class: "split-names" }, ...names));
-  // Each name is its own list item: a registry name may hold a comma, so joined text could not show where one ends.
   const named = (names) => (names.length ? el("ul", { class: "split-list" }, ...names.map((n) => el("li", {}, n)))
     : el("span", { class: "none" }, "None"));
   const kept = change.unchanged;

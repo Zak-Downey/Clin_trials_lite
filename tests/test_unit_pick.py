@@ -57,7 +57,6 @@ def picking_repo(tmp_path, the_map=MAP) -> Path:
 
 
 def quiet_env():
-    # nothing writes bytecode: a change of the same length within the same second would otherwise run the cached module
     return {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
 
 
@@ -87,7 +86,7 @@ def test_without_a_map_a_picked_unit_run_cannot_tell_which_python_runs_apart_and
 
 
 def test_a_picked_unit_run_whose_record_selects_no_test_runs_the_tests_that_always_run_and_says_so(tmp_path):
-    root = picking_repo(tmp_path)  # nothing changed since the base: the record selects no test
+    root = picking_repo(tmp_path)
     code, said, pick = picked_unit(root)
     assert code == 0, said
     assert pick["ran"] == 2 and pick["of"] == 3, pick

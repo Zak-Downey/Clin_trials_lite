@@ -102,11 +102,9 @@ def test_walk_all_trials_lists_every_trial_with_its_facts_headers_stay_and_title
     assert cells.nth(3).inner_text().startswith("Nov 8, 2026, 11:45 AM EST"), cells.nth(3).inner_text()
     assert page.get_by_text("19 trials").first.is_visible()
     walk.shot("table")
-    # A long title wraps onto a taller row and nothing runs sideways.
     assert page.locator('tr[data-nct="NCT00000005"] td a').first.inner_text() == LONG_TITLE
     assert_the_long_title_wraps_onto_a_taller_row(page)
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
-    # Headers stay visible while the page scrolls.
     head = page.locator("table.trials thead th").first
     page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
     assert page.evaluate("window.scrollY") > 100
@@ -204,7 +202,6 @@ def test_walk_a_watchlist_opens_on_needs_review_and_remembers_all_trials(make_ap
     assert page.get_by_role("tab", name="Needs review").get_attribute("aria-selected") == "true"
     page.get_by_role("tab", name="All trials").click()
     page.get_by_role("table").wait_for()
-    # Leave for Find trials and come back through the sidebar: All trials is kept.
     page.get_by_role("link", name="Find trials").click()
     page.get_by_role("heading", name="Find trials").first.wait_for()
     page.get_by_role("link", name="Watchlists", exact=True).click()
@@ -212,7 +209,6 @@ def test_walk_a_watchlist_opens_on_needs_review_and_remembers_all_trials(make_ap
     assert page.get_by_role("tab", name="All trials").get_attribute("aria-selected") == "true"
     page.get_by_label("Watchlists").get_by_role("link", name="Inventory").click()
     page.get_by_role("table").wait_for()
-    # A check that changes the counts does not switch the tab.
     before = page.locator('tr[data-nct="NCT03412565"] td').nth(2).inner_text()
     page.get_by_role("button", name="Check for updates").click()
     page.wait_for_function(

@@ -1,0 +1,17 @@
+[
+  {
+    "file": "webapp/static/views/dialog.js",
+    "text": "// The opener may have been redrawn meanwhile: find its replacement by id.",
+    "why": "Nothing else records that the opener can be redrawn while its dialog is open, which is why focus is sought by id."
+  },
+  {
+    "file": "webapp/static/views/dialog.js",
+    "text": "// After the browser's own focus restore, which would otherwise win.",
+    "why": "No test fails when the delay is removed, so this is the only record of why it is there."
+  },
+  {
+    "file": "webapp/static/focus.js",
+    "text": "// a disabled control loses focus a moment after the change",
+    "why": "No test fails when the early check is removed, because the later one still runs, so this is the only record of why it is there."
+  }
+]

@@ -86,8 +86,6 @@ def trial(ctx, nct_id: str, **_):
             "qualifier": _word(move["qualifier"]),
             "simulated": move["synthetic"],
         }
-        # A field shown as names added and removed carries them, computed here from
-        # the stored lists, so a change saved before this was drawn reads the same.
         if move["field"] in diff.SPLIT:
             change.update(diff.split(move["previous"], move["current"]))
         group["changes"].append(change)

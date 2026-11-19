@@ -23,7 +23,7 @@ import pathlib
 import subprocess
 
 MAP = "docs/agents/local/walk-map.json"
-WALKS = "walks/test_*.py"  # what the walk runner runs: a walk file
+WALKS = "walks/test_*.py"
 
 
 def read(root, path=MAP) -> dict:

@@ -121,7 +121,6 @@ def run_apart_by_tests(root=ROOT) -> list[str]:
 
 
 def test_this_repo_s_map_lists_every_python_file_a_unit_test_runs_as_a_separate_program():
-    # the unit picker's record sees only code run inside the test process: a change to one of these runs every test
     listed = walk_map.read(ROOT).get("run_apart", [])
     missing = [name for name in run_apart_by_tests() if not walk_map.matches(name, listed)]
     assert missing == [], f"add to `run_apart` in {walk_map.MAP}: {missing}"

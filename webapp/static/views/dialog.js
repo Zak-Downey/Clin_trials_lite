@@ -1,10 +1,6 @@
-// The one dialog every flow uses: focus is trapped, Escape cancels, and focus goes back
-// to the control that opened it. Nothing here changes the address or the scroll position.
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-// opener: the control that opened it; content: nodes inside; first: the node to focus first.
-// Returns { close(), dialog }.
-let counter = 0; // dialogs can stack (a New watchlist over Watch this search): each names itself
+let counter = 0;
 export function openDialog(opener, title, content, first) {
   const dialog = document.createElement("dialog");
   dialog.className = "dialog";

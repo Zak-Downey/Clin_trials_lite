@@ -25,7 +25,7 @@ def _fetch_outside_lock(ctx, ids):
         for nct in ids:
             try:
                 got[nct] = fetch(nct)
-            except Exception as err:  # replayed, and worded, by monitor.add
+            except Exception as err:
                 got[nct] = err
     finally:
         ctx.lock.acquire()
@@ -49,7 +49,7 @@ def add_trials(ctx, list_id: str, body=None, **_):
         if storage.get_trial(ctx.conn, nct) is None and nct not in needed:
             needed.append(nct)
     got = _fetch_outside_lock(ctx, needed)
-    if storage.get_list(ctx.conn, target["id"]) is None:  # deleted while the lock was released
+    if storage.get_list(ctx.conn, target["id"]) is None:
         raise ApiError(404, "watchlist_not_found", f"There is no watchlist {list_id}.")
 
     def replay(nct):

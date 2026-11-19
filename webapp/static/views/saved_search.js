@@ -1,5 +1,3 @@
-// Saved search: the "Watch this search" dialog (from Find trials), the banner a watchlist
-// carries, and Manage saved search (Edit search, Turn off).
 import { get, post } from "/static/api.js";
 import { openDialog } from "/static/views/dialog.js";
 import { newWatchlistDialog } from "/static/views/new_watchlist.js";
@@ -12,7 +10,6 @@ const el = (tag, attrs = {}, ...kids) => {
   return node;
 };
 
-// The query as the dialogs show it: a main line, and the narrowing filters under it.
 function queryBox(q, className = "query-box") {
   const lines = summary(q);
   return el("div", { class: className }, el("strong", {}, lines.main || "Any trial"),
@@ -24,9 +21,6 @@ const asText = (q) => {
   return [lines.main, lines.side].filter(Boolean).join(" · ");
 };
 
-// opener: the "Watch this search" button. q: the submitted query (page shape).
-// where: { lists(): watchlists, destination(): id, created(watchlist, all) } so a watchlist made
-// from here becomes the destination of the Find trials view behind.
 export function watchSearchDialog(opener, q, where) {
   const pick = el("select", { id: "watch-destination" });
   const fill = () => {
@@ -50,7 +44,7 @@ export function watchSearchDialog(opener, q, where) {
   const { dialog, close } = openDialog(opener, "Watch this search", [body], pick);
   cancel.addEventListener("click", close);
 
-  let asked = 0; // the answer to an earlier choice of watchlist is never shown for a later one
+  let asked = 0;
   const check = async () => {
     const mine = ++asked;
     save.disabled = true;
@@ -106,7 +100,6 @@ export function watchSearchDialog(opener, q, where) {
   return dialog;
 }
 
-// Manage saved search for one watchlist. onChange() runs after Turn off.
 export async function manageDialog(opener, watchlist, onChange) {
   let have = null;
   let failure = "";
@@ -142,7 +135,6 @@ export async function manageDialog(opener, watchlist, onChange) {
   close.addEventListener("click", () => dialog.close());
 }
 
-// The banner above a watchlist's tabs. onChange() redraws the watchlist.
 export function banner(watchlist, onChange) {
   const manage = el("button", { type: "button", class: "link", id: "manage-saved-search" }, "Manage");
   manage.addEventListener("click", () => manageDialog(manage, watchlist, onChange));

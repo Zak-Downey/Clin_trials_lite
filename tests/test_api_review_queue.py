@@ -42,17 +42,14 @@ def seeded(api, record, restyled):
     ):
         monitor.add(conn, nct, LIST_ID, fetch=lambda _n, rec=rec: rec, when="2026-11-01T08:00:00+00:00")
 
-    # Trial 1: two checks. The first moved two fields, the second one.
     storage.add_snapshot(conn, "NCT03412565", _revised(record, "2026-11-05"), FIRST_CHECK)
     storage.add_change(conn, "NCT03412565", {"field": "enrollment", "previous": 10, "current": 20}, FIRST_CHECK)
     storage.add_change(conn, "NCT03412565", {"field": "primaryCompletionDate", "previous": "2026-01", "current": "2026-06"}, FIRST_CHECK)
     storage.add_snapshot(conn, "NCT03412565", _revised(record, "2026-11-07"), SECOND_CHECK)
     storage.add_change(conn, "NCT03412565", {"field": "overallStatus", "previous": "RECRUITING", "current": "COMPLETED"}, SECOND_CHECK)
 
-    # Trial 2: one simulated change, detected before trial 1's newest.
     storage.add_change(conn, "NCT00000002", {"field": "enrollment", "previous": 1, "current": 2}, FIRST_CHECK, synthetic=True)
 
-    # Trial 3: a change that was already read.
     storage.add_change(conn, "NCT00000003", {"field": "enrollment", "previous": 1, "current": 2}, FIRST_CHECK)
     storage.mark_reviewed(conn, "NCT00000003", SECOND_CHECK)
     conn.close()
@@ -88,7 +85,6 @@ def test_listing_a_trials_changes_carries_ids_check_and_review_state(seeded):
     assert changes[1]["check"] == changes[2]["check"] != newest["check"]
     assert (newest["previous"], newest["current"]) == ("RECRUITING", "COMPLETED")
     assert newest["reviewed"] is False and newest["synthetic"] is False
-    # The sponsor's revision date as of that check, not as of today.
     assert newest["registry_updated"] == "2026-11-07"
     assert changes[2]["registry_updated"] == "2026-11-05"
 
@@ -109,7 +105,7 @@ def test_watchlists_carry_counts_last_checked_and_saved_search_flag(seeded):
     assert only["trial_count"] == 3
     assert only["needs_review_count"] == 2
     assert only["saved_search"] is False
-    assert only["last_checked"] is None  # no check for updates has finished yet
+    assert only["last_checked"] is None
 
     conn = storage.connect(seeded.path)
     storage.set_list_search(conn, LIST_ID, {"cond": "myeloma"})
@@ -122,7 +118,6 @@ def test_needs_review_holds_only_unreviewed_trials_newest_detection_first(seeded
     status, body = seeded.get(f"/api/watchlists/{LIST_ID}/needs-review")
     assert status == 200
     assert [t["nct_id"] for t in body["trials"]] == ["NCT03412565", "NCT00000002"]
-    # Trials and field changes are separate numbers: 2 trials, 4 fields.
     assert body["counts"] == {"trials": 2, "field_changes": 3 + 1}
 
 
@@ -175,7 +170,6 @@ def test_a_stamp_without_an_offset_is_read_as_utc(monkeypatch):
 def test_a_watchlists_last_checked_is_when_its_most_recent_check_for_updates_finished(seeded):
     """test_a_watchlists_last_checked_is_when_its_most_recent_check_for_updates_finished"""
     conn = storage.connect(seeded.path)
-    # A trial checked later than the run finished (or by another route) does not move it.
     storage.mark_checked(conn, "NCT00000002", "2026-11-09T10:00:00+00:00")
     assert seeded.get("/api/watchlists")[1]["watchlists"][0]["last_checked"] is None
     storage.finish_check_run(conn, LIST_ID, [], "2026-11-03T10:00:00+00:00")
@@ -265,7 +259,7 @@ def test_all_trials_lists_every_trial_with_review_state_freshness_and_failure(se
     assert acro["review"] == {"state": "unreviewed", "label": "1 change"}
     assert read["review"] == {"state": "reviewed", "label": "Reviewed"}
     assert first["heading"].startswith("A Study to Evaluate") and acro["heading"] == "ACRO"
-    assert first["status"] == "Completed"  # the registry status, apart from the review state
+    assert first["status"] == "Completed"
     assert first["latest_change"]["iso"].startswith("2026-11-08")
     assert read["last_checked"]["iso"].startswith("2026-11-08")
     assert read["check_failed"]["kind"] == "unreachable"

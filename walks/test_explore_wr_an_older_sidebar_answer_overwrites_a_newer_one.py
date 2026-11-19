@@ -24,7 +24,7 @@ def test_walk_a_late_older_sidebar_answer_does_not_overwrite_the_newer_badges(ma
 
     def handler(route):
         if route.request.method == "GET" and not held:
-            held.append((route, route.fetch()))  # the answer as it stands after Mark reviewed
+            held.append((route, route.fetch()))
         else:
             route.continue_()
 
@@ -37,7 +37,7 @@ def test_walk_a_late_older_sidebar_answer_does_not_overwrite_the_newer_badges(ma
     page.get_by_role("button", name="Mark reviewed").wait_for()
     page.wait_for_timeout(500)
     assert badges(page) == ["2", "0"]
-    held[0][0].fulfill(response=held[0][1])  # the older answer arrives last
+    held[0][0].fulfill(response=held[0][1])
     page.wait_for_timeout(500)
     walk.shot("after-late-answer")
     assert badges(page) == ["2", "0"], f"the sidebar shows {badges(page)}: an older answer overwrote the newer one"

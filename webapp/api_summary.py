@@ -78,8 +78,6 @@ def _trial(conn, entry: dict) -> dict:
     checks: dict[str, list[dict]] = {}
     for move in entry["moves"]:
         checks.setdefault(move["detected"], []).append(_move(move))
-    # Newest check first, the order the summary is read in; within one check
-    # the entry's own order (high-signal first) stands.
     ordered = sorted(checks.items(), key=lambda item: item[0], reverse=True)
     return {
         "nct_id": entry["nct_id"],

@@ -55,10 +55,8 @@ def test_deleting_a_watchlist_keeps_every_trials_history_and_trials_in_another_l
     status, body = api.post("/api/watchlists/1/delete")
     assert status == 200 and [w["id"] for w in body["watchlists"]] == [other]
     assert api.get("/api/watchlists/1/needs-review")[0] == 404
-    # Every trial, snapshot and change is still there.
     assert {n: storage.count_snapshots(conn, n) for n in snapshots} == snapshots
     assert [c["field"] for c in storage.list_changes(conn, "NCT00000001")] == ["enrollment"]
-    # NCT00000001 held only by the deleted list: no longer checked. The other two still are.
     assert storage.lists_holding(conn, "NCT00000001") == []
     assert [t["nct_id"] for t in storage.list_trials(conn, other)] == ["NCT00000002", "NCT00000003"]
     assert [e["kind"] for e in storage.monitoring_events(conn, "NCT00000001")] == ["stopped"]

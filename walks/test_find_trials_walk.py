@@ -48,7 +48,7 @@ def test_walk_submitting_with_none_of_the_four_shows_the_error_and_keeps_every_v
     error = page.get_by_role("alert")
     assert "at least" in error.inner_text().lower() or "add a condition" in error.inner_text().lower()
     group = page.get_by_role("group", name="Start with at least one of these four fields")
-    assert group.get_by_role("alert").count() == 1  # beside the group, inside it
+    assert group.get_by_role("alert").count() == 1
     assert page.get_by_role("group", name="Lead sponsor type").get_by_label("Industry").is_checked()
     assert page.get_by_label("Recruiting", exact=True).is_checked()
     assert page.get_by_label("Study started from").input_value() == "2020-01-01"
@@ -65,7 +65,7 @@ def test_walk_phase_is_labelled_toggle_buttons_that_differ_by_more_than_colour_a
     assert phase3.get_attribute("aria-pressed") == "true" and phase2.get_attribute("aria-pressed") == "true"
     assert page.get_by_role("button", name="Phase 1", exact=True).get_attribute("aria-pressed") == "false"
     mark = page.evaluate("(el) => getComputedStyle(el, '::before').content", phase3.element_handle())
-    assert "✓" in mark  # a tick, not only a colour
+    assert "✓" in mark
     page.get_by_label("Condition").fill("kept until cleared")
     page.get_by_role("button", name="Clear all").click()
     assert phase3.get_attribute("aria-pressed") == "false" and phase2.get_attribute("aria-pressed") == "false"
@@ -121,7 +121,7 @@ def test_walk_after_results_the_form_is_a_one_line_summary_and_edit_search_keeps
     page.get_by_label("Active, not recruiting", exact=True).check()
     page.get_by_role("button", name="Search trials").click()
     page.get_by_role("heading", name="3 matches").wait_for()
-    assert page.get_by_label("Condition").count() == 0  # the form is gone
+    assert page.get_by_label("Condition").count() == 0
     summary = page.locator(".summary").inner_text()
     assert "Multiple myeloma · Janssen · Phase 3" in summary
     assert "Industry · Recruiting or Active, not recruiting" in summary
@@ -145,7 +145,6 @@ def test_walk_results_page_with_next_and_previous_and_the_cap_is_stated(make_app
     assert page.get_by_text("Showing the first 100 of 134. Narrow your search to see the rest").is_visible()
     assert page.locator(".card").count() == 10
     assert page.get_by_role("button", name="Previous").is_disabled()
-    # one page, no nested scrolling area
     nested = page.evaluate("""() => [...document.querySelectorAll('*')].filter((e) => {
       const s = getComputedStyle(e); return /(auto|scroll)/.test(s.overflowY) && e.scrollHeight > e.clientHeight + 1 &&
       e !== document.documentElement && e !== document.body; }).length""")
@@ -217,7 +216,7 @@ def test_walk_start_dates_the_wrong_way_round_show_the_swap_message_beside_the_d
     assert page.get_by_role("button", name="More filters").get_attribute("aria-expanded") == "true"
     assert page.get_by_label("Study started from").is_visible() and message.is_visible()
     dates = page.locator(".dates")
-    assert dates.get_by_text("Swap the two dates.").count() == 1  # beside the date fields
+    assert dates.get_by_text("Swap the two dates.").count() == 1
     assert page.get_by_role("button", name="Retry").count() == 0
     assert page.get_by_label("Condition").input_value() == "many"
     assert page.get_by_label("Study started from").input_value() == "2022-01-01"

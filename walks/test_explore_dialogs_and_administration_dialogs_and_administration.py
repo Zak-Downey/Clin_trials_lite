@@ -25,13 +25,12 @@ def open_menu_item(page, item):
 
 def test_explore_an_empty_watchlist_can_be_renamed_and_deleted(make_app, make_walk):
     """test_explore_an_empty_watchlist_can_be_renamed_and_deleted"""
-    app = make_app()  # a fresh database: one empty default watchlist
+    app = make_app()
     walk = make_walk(app)
     page = walk.page
     page.goto(app.url)
     page.get_by_role("heading", level=2, name="Monitor your first trial").wait_for()
     walk.shot("first-use-no-menu")
-    # A mistaken or unwanted empty watchlist has no way to be renamed or deleted.
     assert page.get_by_role("button", name="Watchlist actions").count() == 1
 
 
@@ -50,7 +49,6 @@ def test_explore_deleting_the_last_watchlist_leaves_focus_somewhere_usable(make_
         page.wait_for_timeout(500)
     page.get_by_text("No watchlists yet").wait_for()
     walk.shot("no-watchlists")
-    # Focus fell to the page body: a keyboard user starts again from the top.
     assert page.evaluate("document.activeElement !== document.body")
 
 
@@ -69,7 +67,6 @@ def test_explore_the_delete_dialog_title_shows_a_long_unbroken_name(make_app, ma
     open_menu_item(page, "Delete watchlist")
     title = page.get_by_role("dialog").get_by_role("heading", level=2)
     walk.shot("long-delete-title")
-    # The name being deleted runs out of the dialog's box and is clipped.
     assert title.evaluate("e => e.scrollWidth <= e.clientWidth")
 
 
@@ -85,7 +82,6 @@ def test_explore_enter_on_check_for_updates_keeps_keyboard_focus(make_app, make_
     page.keyboard.press("Enter")
     page.get_by_text("Checking for updates…").wait_for()
     walk.shot("focus-after-check")
-    # The button is disabled while it runs and focus drops to the body.
     assert page.evaluate("document.activeElement !== document.body")
 
 
@@ -105,7 +101,6 @@ def test_explore_full_recheck_while_a_check_runs_says_why_nothing_started(make_a
     page.wait_for_function("!document.querySelector('dialog')")
     page.wait_for_timeout(500)
     walk.shot("recheck-while-busy")
-    # The dialog closed as if it had started; the refusal is never shown to the user.
     assert "already" in page.locator("#view").inner_text().lower().replace("a check is already running.", "") \
         or page.locator("#view .error").count() > 0
 

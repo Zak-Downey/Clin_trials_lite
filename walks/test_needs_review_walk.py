@@ -36,9 +36,8 @@ def test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps(ma
     assert long_link.locator(".badge").inner_text() == "2"
     quiet = links.nth(1)
     assert quiet.locator(".name").inner_text() == "Quiet"
-    assert quiet.locator(".counts").inner_text() == "1 trial"  # one trial, not "1 trials"
+    assert quiet.locator(".counts").inner_text() == "1 trial"
     assert quiet.locator(".badge").inner_text() == "0"
-    # Wrapped, not cut: the name's text is whole, it spans several lines, and nothing spills out of the sidebar.
     name = long_link.locator(".name")
     lines = page.evaluate(
         "(el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight))",
@@ -46,7 +45,6 @@ def test_walk_sidebar_lists_every_watchlist_with_counts_and_a_long_name_wraps(ma
     assert lines >= 3
     assert page.evaluate("(el) => el.scrollWidth <= el.clientWidth", long_link.element_handle())
     assert page.evaluate("(el) => getComputedStyle(el).textOverflow", name.element_handle()) != "ellipsis"
-    # The count badge is a pill with room round its words, on one line.
     badge = long_link.locator(".badge")
     box = badge.bounding_box()
     assert box["height"] <= 24 and page.evaluate("(el) => el.scrollWidth <= el.clientWidth", badge.element_handle())
@@ -65,7 +63,7 @@ def test_walk_a_watchlist_opens_on_needs_review_newest_detection_first(make_app,
     counts = page.locator("#queue-counts").inner_text()
     assert counts == "6 unreviewed field changes · Most recently detected first", counts
     rows = page.locator("ul.queue > li")
-    assert rows.count() == 2  # NCT00000003 has nothing unreviewed, so it is not listed
+    assert rows.count() == 2
     assert [rows.nth(i).get_attribute("data-nct") for i in range(2)] == ["NCT03412565", "NCT00000002"]
     walk.shot("queue")
     page.get_by_label("Watchlists").get_by_role("link", name="Quiet").click()
@@ -78,12 +76,11 @@ def test_walk_a_queue_entry_is_a_narrow_card_and_labels_simulated_changes(make_a
     _, walk = open_app(make_app, make_walk)
     page = walk.page
     real = page.locator('li[data-nct="NCT03412565"]')
-    assert real.get_by_role("heading", level=3).inner_text()  # a heading
+    assert real.get_by_role("heading", level=3).inner_text()
     assert real.locator(".identity").inner_text().startswith("NCT03412565 · Phase 2 · ")
     assert real.locator(".identity").inner_text().endswith(" · Completed")
     assert real.locator(".fields").inner_text() == "Completion date · Enrollment · Interventions"
     assert real.locator(".changes").inner_text() == "3 changes"
-    # The detected time is the server's wall clock in its zone (New York), not the browser's (Tokyo).
     assert real.locator(".detected").inner_text() == "Detected Nov 8, 2026, 11:45 AM EST", real.locator(".detected").inner_text()
     assert real.get_by_role("link", name="Review changes").is_visible()
     assert page.locator("ul.queue input[type=checkbox], table").count() == 0
@@ -102,8 +99,7 @@ def test_walk_a_card_reads_in_words_and_its_badge_and_button_stay_whole(make_app
     identity = card.locator(".identity").inner_text()
     assert "Phase 2" in identity and "Completed" in identity and "COMPLETED" not in identity, identity
     fields = card.locator(".fields").inner_text()
-    assert not re.search(r"[a-z][A-Z]", fields), fields  # no completionDate-style field names
-    # The badge and the button each sit on one line.
+    assert not re.search(r"[a-z][A-Z]", fields), fields
     for sel in (".changes", ".button"):
         lines = page.evaluate(
             "(td) => { const r = document.createRange(); r.selectNodeContents(td); return r.getClientRects().length }",

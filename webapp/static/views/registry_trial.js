@@ -1,4 +1,3 @@
-// Details of a trial that is not monitored: one registry fetch, nothing stored.
 import { get, post } from "/static/api.js";
 import { drawSections } from "/static/views/trial.js";
 import { withNewEntry } from "/static/views/new_watchlist.js";
@@ -11,14 +10,12 @@ const el = (tag, attrs = {}, ...kids) => {
   return node;
 };
 
-// Where the analyst came from: set by Find trials and by a New matches tab as they draw.
-// back is the address "Back" returns to; list() is the watchlist to preset in Add to.
 let origin = { back: "#/find", label: "‹ Back to results", list: () => null };
 export function setOrigin(next) { origin = { label: "‹ Back to results", ...next }; }
 
 export async function render(root, nct, alive = () => true) {
   const [trial, { watchlists }] = await Promise.all([get(`/api/registry/trials/${nct}`), get("/api/watchlists")]);
-  if (!alive()) return; // the analyst has moved on while the registry answered
+  if (!alive()) return;
   const back = el("a", { class: "back", href: origin.back }, origin.label);
   const facts = [trial.phase, trial.sponsor, trial.status].filter(Boolean).join(" · ");
   const banner = el("div", { class: "banner", role: "status", hidden: "" });
@@ -32,14 +29,12 @@ export async function render(root, nct, alive = () => true) {
     window.dispatchEvent(new Event("reviewchange"));
     pick.focus({ preventScroll: true });
   });
-  // The watchlists named under the title: redrawn after each add, so it never says "Not monitored" beside "Added to".
   const holds = [...trial.watchlists];
   const metaLine = () => [nct, facts, holds.length ? `In: ${holds.map((w) => w.name).join(", ")}` : "Not monitored"].filter(Boolean).join(" · ");
   const meta = el("p", { class: "meta" }, metaLine());
   const add = el("button", { type: "button", class: "primary" }, "Add to watchlist");
   const problem = el("p", { class: "field-error", id: "add-error", role: "alert" });
   add.setAttribute("aria-describedby", "add-error");
-  // aria-disabled, not disabled, while the add is saved: a disabled button drops keyboard focus.
   const setBusy = (busy) => add.setAttribute("aria-disabled", String(busy));
   add.addEventListener("click", async () => {
     if (add.getAttribute("aria-disabled") === "true") return;

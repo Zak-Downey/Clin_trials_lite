@@ -13,7 +13,8 @@ from pathlib import Path
 import pytest
 
 SCRIPT = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "judge_notice.py"
-JUDGING = [".github/workflows/", ".claude/settings.json", "pytest.ini", "checks.py", "ruff.toml"]
+JUDGING = [".github/workflows/", ".claude/settings.json", "pytest.ini", "checks.py", "ruff.toml",
+           "docs/agents/local/comments-kept.json"]
 
 
 def git(repo, *args):
@@ -43,6 +44,7 @@ BASE_FILES = {
     ".github/workflows/checks.yml": "name: checks\n",
     ".claude/settings.json": "{}\n",
     "ruff.toml": "[lint]\nselect = [\"F\"]\n",
+    "docs/agents/local/comments-kept.json": "[]\n",
     "app.py": "x = 1\n",
     "tests/test_app.py": "def test_one():\n    pass\n\n\ndef test_two():\n    pass\n",
     "tests/test_other.py": "def test_three():\n    pass\n",
@@ -86,19 +88,27 @@ def test_a_pull_request_that_changes_the_linters_rules_is_told_so_by_name(repo, 
     assert "`ruff.toml`" in summary
 
 
+def test_a_pull_request_that_changes_the_comments_the_rule_keeps_is_told_so_by_name(repo, tmp_path):
+    base = commit(repo, BASE_FILES, "base")
+    commit(repo, {"docs/agents/local/comments-kept.json": '[{"file": "app.py", "line": "x = 1  # kept"}]\n'}, "keep a comment")
+    code, summary = notice(repo, base, tmp_path)
+    assert code == 0
+    assert "`docs/agents/local/comments-kept.json`" in summary
+
+
 def test_tests_taken_out_are_counted_net_of_tests_put_in_and_a_deleted_test_file_counts_all_of_its_tests(
     repo, tmp_path
 ):
     base = commit(repo, BASE_FILES, "base")
     commit(repo, {
-        "tests/test_app.py": "def test_one():\n    pass\n",  # test_two out
-        "tests/test_other.py": None,  # test_three out with its file
-        "walks/test_added.py": "async def test_four():\n    pass\n",  # test_four in
-        "app.py": "x = 2\n\n\ndef test_like():\n    pass\n",  # not a test file: counts as nothing
+        "tests/test_app.py": "def test_one():\n    pass\n",
+        "tests/test_other.py": None,
+        "walks/test_added.py": "async def test_four():\n    pass\n",
+        "app.py": "x = 2\n\n\ndef test_like():\n    pass\n",
     }, "drop tests")
     code, summary = notice(repo, base, tmp_path)
     assert code == 0
-    assert "Tests removed: 1" in summary  # two out (test_two, test_three), one in (test_four)
+    assert "Tests removed: 1" in summary
     assert "Files that judge" not in summary
 
 
@@ -126,7 +136,6 @@ def test_a_notice_that_cannot_be_worked_out_still_does_not_fail_the_run(repo, tm
 def test_renaming_a_judging_file_away_is_named_and_renaming_a_test_file_out_of_collection_counts_its_tests_removed(
     repo, tmp_path
 ):
-    # review-server-and-checks-02: git's rename detection reported only the new name, with no removed lines.
     base = commit(repo, BASE_FILES, "base")
     for old, new in [("pytest.ini", "pytest.ini.off"), ("checks.py", "checks_old.py"),
                      ("tests/test_app.py", "tests/app_checks_off.py")]:
@@ -135,4 +144,4 @@ def test_renaming_a_judging_file_away_is_named_and_renaming_a_test_file_out_of_c
     code, summary = notice(repo, base, tmp_path)
     assert code == 0
     assert "`pytest.ini`" in summary and "`checks.py`" in summary
-    assert "Tests removed: 2" in summary  # test_one and test_two are no longer in a test_*.py file
+    assert "Tests removed: 2" in summary

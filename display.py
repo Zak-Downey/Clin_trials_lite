@@ -10,9 +10,6 @@ import re
 
 EMPTY = "—"
 
-# Shown against anything the simulator caused, so nobody in a demo mistakes
-# fabricated data for the registry's. The mark alone is used where a cell is
-# too narrow to spell it out.
 SYNTHETIC_MARK = "🧪"
 SYNTHETIC = f"{SYNTHETIC_MARK} SYNTHETIC"
 
@@ -35,37 +32,21 @@ def show(value) -> str:
     return str(value)
 
 
-# Colour directives in markdown, so the highlight is not injected HTML.
-# Which of the two a move gets is decided in field_line.
 HIGHLIGHT = "orange-background"
 HIGHLIGHT_HIGH_SIGNAL = "red-background"
 
 RESULTS_LINK = "View results on ClinicalTrials.gov"
 
-# Marks what has moved since the analyst last said they had read it.
 UNREVIEWED = "🔔"
 
-# The eligibility criteria: the inclusion and exclusion list deciding who can
-# enter the study. Forty lines of bullets in a card a third of the page wide,
-# so the card carries an excerpt and the exact wording stays one registry link
-# away -- and an amendment is *said* rather than printed twice over, because a
-# full before-and-after would swamp the card and every other change beside it.
 CRITERIA = "eligibilityCriteria"
 CRITERIA_LINK = "Full criteria"
 AMENDED = "Amended — the wording is on the registry"
 
-# Where a study is read in full. Stated here rather than reached for in
-# medical_affairs, which owns the same root for the results link: this module
-# formats and nothing else, and importing the registry client to obtain one
-# string would put the network client behind every page that renders a label.
 STUDY_URL = "https://clinicaltrials.gov/study"
 
-# The markers the registry lists criteria with, which carry no meaning once the
-# list is one line.
 BULLETS = ("*", "-", "•")
 
-# How many characters of the criteria the excerpt carries. Enough to tell which population
-# the study is in, short enough that the field costs a line like any other.
 EXCERPT_CHARS = 180
 
 
@@ -142,8 +123,6 @@ def field_line(row: dict, nct_id: str | None = None) -> str:
 
     if criteria:
         value = excerpt(row["value"])
-        # No link off an empty field: there is no wording on the registry to
-        # follow it to.
         if nct_id and row["value"]:
             value += f" [{CRITERIA_LINK}]({STUDY_URL}/{nct_id})"
     elif row["field"] == "resultsUrl" and row["value"]:
@@ -154,13 +133,8 @@ def field_line(row: dict, nct_id: str | None = None) -> str:
     if not row["changed"]:
         return f"**{name}** · {value}"
 
-    # The louder colour is reserved for a high-signal move, so a slipped
-    # completion date does not look like a typo fix in the official title.
     colour = HIGHLIGHT_HIGH_SIGNAL if row["high_signal"] else HIGHLIGHT
-    # The mark alone: a card is a third of the page wide.
     fake = f" {SYNTHETIC_MARK}" if row["synthetic"] else ""
-    # The criteria state that they moved rather than repeating themselves at
-    # length; every other field is short enough to show what it moved from.
     was = (
         AMENDED
         if criteria
@@ -172,25 +146,7 @@ def field_line(row: dict, nct_id: str | None = None) -> str:
     )
 
 
-# --- the dossier
-#
-# The profile is 41 fields, which in one column is several screens of mostly
-# white. Dealt into titled cards across the page, each card answering one
-# question about the study, the whole profile fits on roughly one screen and a
-# reader after the dates goes straight to the card called that.
 
-# Where each profile field belongs. Ordered: the cards are dealt in this order
-# every time, so the reader learns where to look rather than re-reading titles.
-#
-# A field the registry qualifies as estimated or actual is listed once, under
-# the value's own name: the marked-up rows carry the qualifier folded into the
-# value, so a qualifier never arrives as a field of its own to be dealt.
-#
-# This restates a grouping medical_affairs.profile already implies, and it does
-# so on purpose: the order fields are gathered in is a question about the
-# registry, while the order they are read in is a question about the page, and
-# the two are free to disagree. A field added there and not here still appears,
-# under OTHER.
 CARDS = [
     ("Identity", ("nctId", "briefTitle", "officialTitle", "acronym", "orgStudyId",
                   "secondaryIds")),
@@ -210,9 +166,6 @@ CARDS = [
     ("Results", ("hasResults", "resultsUrl")),
 ]
 
-# Where a field the grouping does not recognise goes. A field added to the
-# monitored profile later must show up somewhere rather than silently
-# disappearing off the page.
 OTHER = "Other"
 
 
@@ -258,11 +211,6 @@ def render_card(title: str, rows: list[dict], nct_id: str | None = None) -> str:
     )
 
 
-# --- the trial page's details
-#
-# The eight cards above regrouped into the design's five sections, plus the four
-# facts kept in view in At a glance. A display mapping only: the monitored fields
-# are the same. Every field of CARDS sits in exactly one place here (a test says so).
 
 NOT_REPORTED = "Not reported"
 
@@ -281,7 +229,6 @@ DETAIL_SECTIONS = [
                          "hasResults", "resultsUrl")),
 ]
 
-# A value's registry qualifier lives in a field of its own in the profile.
 QUALIFIER_OF = {
     "startDate": "startDateType", "primaryCompletionDate": "primaryCompletionDateType",
     "completionDate": "completionDateType", "enrollment": "enrollmentType",
@@ -325,19 +272,11 @@ def detail_sections(profile: dict, changed=()) -> dict:
     return {"glance": [_detail(f, profile, changed) for f in GLANCE_FIELDS], "sections": sections}
 
 
-# --- a card's history
-#
-# Reviewing a trial clears its highlighting, which is right for "what is new"
-# and wrong for "what has this card been through". Each card therefore folds
-# its own record away underneath it: read, but one click from being read again.
 
-# Marks a move somebody has already reviewed, beside UNREVIEWED for one nobody has.
 REVIEWED = "✓"
 
 NO_HISTORY = "No changes since monitoring began."
 
-# How much of a value a line of the history shows. A card is a third of the
-# page wide, and an arm list in full would push the rest of the log off it.
 HISTORY_CHARS = 60
 
 
@@ -395,29 +334,11 @@ def render_history(moves: list[dict]) -> str:
     return "  \n".join(lines)
 
 
-# --- the study tables
-#
-# One line per trial, so every cell is a single short string. Pure functions
-# over a row from monitor.watchlist, kept here so the table's wording can be
-# tested on its own.
-#
-# Two tables are drawn from this: the watchlist, and the search results that
-# fill it. They share the columns below so a result reads as the line it is
-# about to become, rather than as a different view of the same study.
 
-# How many field names one cell shows before the rest collapse into "+n more".
-# Three fits the column at a normal window width; the names arrive high-signal
-# first, so what falls under the fold is always the least urgent of them.
 CHANGE_CAP = 3
 
-# A momentJS pattern, applied client-side by the date column. The month is
-# spelled out: an all-numeric date has to be decoded before it can be read, and
-# a spelled month cannot be misread as a day.
 DATE_FORMAT = "DD MMMM YYYY"
 
-# How a date box is typed into. A date input takes only a handful of
-# orders and the table's spelled-out month is not one of them, so this is the
-# nearest unambiguous form -- day first, the way it is written here.
 INPUT_DATE_FORMAT = "DD/MM/YYYY"
 
 PHASE_NAMES = {"NA": "N/A", "EARLY_PHASE1": "Early Phase 1"}
@@ -432,11 +353,6 @@ def phase_label(phases) -> str:
     )
 
 
-# What each axis of a search is called, in the order it is typed and read back.
-# One place, read by both the form that asks and the line that says what a list
-# is watching for, so the screen an analyst types into cannot come to disagree
-# with the screen that tells them what they typed. The axes themselves are
-# monitor's list; these are the words.
 AXIS_NAMES = {
     "cond": "Condition",
     "intr": "Intervention",
@@ -448,30 +364,16 @@ AXIS_NAMES = {
     "started_to": "Started on or before",
 }
 
-# How a coded axis is turned into words. An axis absent here is free text and
-# is printed as typed.
 AXIS_FORMATS = {
     "phases": lambda codes: phase_label(codes),
     "sponsor_types": lambda codes: sponsor_type_label(codes),
     "statuses": lambda codes: statuses_label(codes),
 }
 
-# Axes whose value already contains its own label: "Phase 3" needs no "Phase"
-# in front of it, and the date window reads as a sentence of its own.
 SELF_NAMING = ("phases", "started_from", "started_to")
 
-# The order the axes are read back in, which is the order they are typed.
 READ_BACK_ORDER = ("cond", "intr", "spons", "phases", "sponsor_types", "statuses")
 
-# The registry's sponsor classes as the kinds of organisation they stand for.
-#
-# INDUSTRY is the commercial sponsors, and it is the lead sponsor's class only:
-# a company funding somebody else's trial is a *collaborator* on it and is
-# classed wherever the lead sponsor sits, which for an academic centre is
-# OTHER. So OTHER is not "the ones that are not companies" and must not be
-# labelled as though it were -- it is a mixed bucket, and saying so is the
-# difference between a filter the analyst can trust and one that quietly drops
-# a third of the commercial activity in their indication.
 SPONSOR_TYPE_NAMES = {
     "INDUSTRY": "Industry",
     "OTHER": "Other (incl. academic)",
@@ -482,8 +384,6 @@ SPONSOR_TYPE_NAMES = {
     "INDIV": "Individual",
 }
 
-# The separator between codes of one axis, owned here so the three code axes
-# cannot come to disagree about it.
 CODES_JOIN = "/"
 
 
@@ -544,9 +444,6 @@ def search_line(query: dict | None) -> str:
         if not value:
             continue
         shown = AXIS_FORMATS[key](value) if key in AXIS_FORMATS else value
-        # Named unless the value names itself. A bare "Network" or "Unknown"
-        # does not say which box it was typed in, which is the whole reason
-        # this line is built axis by axis rather than as a query string.
         parts.append(shown if key in SELF_NAMING else f"{AXIS_NAMES[key]} {shown}")
     window = started_label(query.get("started_from", ""), query.get("started_to", ""))
     if window:
@@ -651,14 +548,6 @@ def study_line(row: dict) -> dict:
     }
 
 
-# How wide each shared column is dealt. Named widths rather than
-# a UI library's column objects, so both
-# pages lay the same columns out the same way.
-#
-# The two reference columns are the ones given up when a table runs out of
-# room: a drug list rarely moves and is one click away, whereas a cut-off
-# "What changed" is the column the watchlist exists for. So the news gets the
-# width and these truncate first.
 COLUMN_WIDTHS = {
     "NCT ID": "small",
     "Official title": "large",

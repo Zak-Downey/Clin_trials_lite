@@ -1,0 +1,42 @@
+{
+  "what": [
+    "The code holds no comments: about 1,110 were removed from the Python and 175 lines from the pages' scripts and styles. Docstrings stay.",
+    "The automated checks now fail on any new comment, naming the file and line and saying to use a name or a test instead.",
+    "Three comments are kept on purpose, each with its reason, in a list capped at 10 (docs/agents/local/comments-kept.json).",
+    "A push from this clone is refused in about half a second when it carries a comment; the settings stop an agent skipping that.",
+    "The browser tests run about a quarter faster, and the settings refuse the building agent Docker."
+  ],
+  "so_what": [
+    "The next agent that reads this code no longer sees comments to copy, and the checks stop it if it writes one.",
+    "You can read the kept list to see exactly which comments remain and why; a change to it is named on the pull request.",
+    "Try it first: add a comment to any Python file and run python3 checks.py patterns; it goes red with the file and line.",
+    "A full run of the automated checks took about 2 minutes at the end of this build, against about 3 at its start."
+  ],
+  "now_what": [
+    "One issue was left for you: display.py still holds three date and column-width settings no page uses. The spec lists such code; it does not change it.",
+    "Count before and after: the Python held 1,111 comments in 82 files, the scripts and styles 175 lines in 20 files; both are now 0, plus 3 kept.",
+    "Proof that only comments went: the 82 changed Python files have the same syntax tree as before; in the scripts and styles 129 lines went, 46 were cut and none changed otherwise.",
+    "Four facts that only a comment held are now tests: a registry code with a bracket is refused, and three more in monitor.py and storage.py (issues 01 to 04 of the review).",
+    "Kept comment 1, dialog.js: the opener may be redrawn while its dialog is open, so focus is sought by id. No test can see it.",
+    "Kept comment 2, dialog.js: focus goes back after the browser's own restore, which would otherwise win. No test fails without the delay.",
+    "Kept comment 3, focus.js: a disabled control loses focus a moment after a change, the reason for the 60 ms check. No test fails without it.",
+    "The push hook is switched on in this clone only; another clone runs git config core.hooksPath .githooks once, and the checks remind it.",
+    "The builder timed the hook in a copy of the repo: a push with a comment was refused in 0.42 s, and a clean push went through in 1.15 s.",
+    "The settings file was edited directly, so no settings-edit.md was needed. It now refuses a push with --no-verify, docker, docker-compose and opening Docker.",
+    "The Docker refusal also stops the agent opening any file with docker in its path. That is broader than asked; narrow it if it gets in the way.",
+    "Browser tests, one full run: 157 s before the stand-in registry fix, 127 s after; 124 s before the broken-pages fix, 109 s after.",
+    "The broken pages now run once per run of the browser tests instead of four times.",
+    "To save that time the guard tests now run first; every other browser test keeps its order. Without the reordering they still run once, but nothing is saved.",
+    "Defaults used as the spec named them, unconfirmed by you: docstrings stay, non-code files keep comments, the list caps at 10, no exploratory testing, Docker refused.",
+    "No exploratory testing was done: the spec rules it out because the pages changed in comments only, and one code review read the whole change.",
+    "Every changed browser test (86, almost all for removed comments) is left out of the walk-through except the whole-app keyboard walk, which shows the app works as before.",
+    "Linux was not checked here; the checks run on GitHub when the pull request is opened are where it is checked."
+  ],
+  "walk_through": [
+    {
+      "test": "test_walk_the_whole_journey_by_keyboard_alone",
+      "title": "The whole app works as before, now that its comments are gone",
+      "legend": "By keyboard alone: a watchlist is made, trials are added, a saved search finds new ones, a change is reviewed and dismissed, the summary is copied and the list exported. Each step should end as it did before."
+    }
+  ]
+}

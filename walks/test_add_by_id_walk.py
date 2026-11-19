@@ -35,14 +35,14 @@ def test_walk_new_watchlist_from_the_sidebar_and_the_picker_validates_inline_and
     walk.expect(409, "/api/watchlists")
     dialog(page).get_by_role("button", name="Create watchlist").click()
     dialog(page).get_by_text("There is already a watchlist called").wait_for()
-    assert dialog(page).get_by_label("Name").input_value() == "myeloma"  # kept
+    assert dialog(page).get_by_label("Name").input_value() == "myeloma"
     walk.shot("refused")
     dialog(page).get_by_label("Name").fill("Lung")
     dialog(page).get_by_role("button", name="Create watchlist").click()
     dialog(page).wait_for(state="detached")
     assert page.locator("#add-to").evaluate("(s) => s.selectedOptions[0].textContent") == "Lung"
-    assert page.get_by_role("link", name=re.compile("^Lung")).count() == 1  # in the sidebar
-    assert page.locator("li.card input:checked").count() == 1  # the task is as it was
+    assert page.get_by_role("link", name=re.compile("^Lung")).count() == 1
+    assert page.locator("li.card input:checked").count() == 1
     page.get_by_role("button", name="+ New watchlist").click()
     dialog(page).get_by_label("Name").fill("Kidney")
     dialog(page).get_by_role("button", name="Create watchlist").click()
@@ -56,13 +56,12 @@ def test_walk_every_dialog_traps_focus_and_escape_cancels_and_returns_to_the_ope
     _, walk = results(make_app, make_walk)
     page = walk.page
     box(page, "NCT10000001").check()
-    # the sidebar's button, from the top of the page
     names = page.locator("#sidebar a").count()
     opener = page.get_by_role("button", name="+ New watchlist")
     opener.click()
     dialog(page).wait_for()
     assert page.evaluate("document.activeElement.id") == "new-watchlist-name"
-    for _ in range(6):  # more tabs than the dialog has controls
+    for _ in range(6):
         page.keyboard.press("Tab")
         assert page.evaluate("!!document.activeElement.closest('dialog')")
     page.keyboard.press("Shift+Tab")
@@ -71,8 +70,7 @@ def test_walk_every_dialog_traps_focus_and_escape_cancels_and_returns_to_the_ope
     page.keyboard.press("Escape")
     dialog(page).wait_for(state="detached")
     page.wait_for_function("document.activeElement.id === 'new-watchlist'")
-    assert page.locator("#sidebar a").count() == names  # nothing created
-    # the picker's entry, further down the page
+    assert page.locator("#sidebar a").count() == names
     page.evaluate("window.scrollTo(0, 400)")
     here = page.evaluate("[location.hash, window.scrollY]")
     assert here[1] > 0
@@ -87,7 +85,6 @@ def test_walk_every_dialog_traps_focus_and_escape_cancels_and_returns_to_the_ope
     dialog(page).wait_for(state="detached")
     assert page.locator("#add-to").evaluate("(s) => s.selectedOptions[0].textContent") != "+ New watchlist"
     assert page.evaluate("[location.hash, window.scrollY]") == here
-    # saving leaves the view and place too
     bar(page).get_by_label("Add to").select_option(label="+ New watchlist")
     dialog(page).get_by_label("Name").fill("Saved")
     dialog(page).get_by_role("button", name="Create watchlist").click()
@@ -116,10 +113,10 @@ def test_walk_add_by_nct_id_names_its_destination_and_shows_the_trial_before_add
     found = page.locator(".found")
     for word in ("NCT00000002", "Sponsor:", "Status:"):
         assert word in found.inner_text()
-    assert page.get_by_role("link", name=re.compile("^Myeloma")).inner_text().count("1 trial") == 1  # nothing added yet
+    assert page.get_by_role("link", name=re.compile("^Myeloma")).inner_text().count("1 trial") == 1
     walk.shot("looked-up")
-    page.get_by_label("NCT ID").fill("NCT00000003")  # a different ID than the one shown
-    assert page.get_by_role("button", name="Add to watchlist").count() == 0  # so nothing unseen can be added
+    page.get_by_label("NCT ID").fill("NCT00000003")
+    assert page.get_by_role("button", name="Add to watchlist").count() == 0
     page.get_by_role("button", name="Look up trial").click()
     page.get_by_role("button", name="Add to watchlist").wait_for()
     assert "NCT00000003" in page.locator(".found").inner_text()
@@ -156,7 +153,7 @@ def test_walk_each_lookup_failure_shows_its_own_message_in_place_keeps_the_id_an
     missing = attempt("NCT00000002", 404)
     registry.set("not_found", False)
     assert "No trial with that ID was found" in missing
-    page.get_by_role("link", name="Find trials").first.hover()  # keep the page honest
+    page.get_by_role("link", name="Find trials").first.hover()
     field.fill("NCT00000002")
     look.click()
     page.get_by_role("button", name="Add to watchlist").wait_for()

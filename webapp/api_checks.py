@@ -22,14 +22,14 @@ from .times import local
 class Run:
     def __init__(self, list_id: int, kind: str, steps: list[tuple[str, str | None]]):
         self.list_id = list_id
-        self.kind = kind  # "check", "recheck" or "retry"
-        self.steps = steps  # ("trial", nct) ... then ("search", None)
+        self.kind = kind
+        self.steps = steps
         self.processed = 0
         self.results: list[dict] = []
         self.running = True
         self.finished_at: str | None = None
         self.crashed: str | None = None
-        self.skipped = 0  # trial steps dropped because the watchlist no longer held the trial
+        self.skipped = 0
 
 
 def _runs(ctx) -> dict:
@@ -70,15 +70,15 @@ def _work(ctx, run: Run, force: bool) -> None:
                 time.sleep(pause)
             with ctx.lock:
                 if storage.get_list(ctx.conn, run.list_id) is None:
-                    break  # the watchlist was deleted while the run waited
+                    break
                 if kind == "trial" and not storage.is_member(ctx.conn, run.list_id, nct):
-                    run.skipped += 1  # removed from this watchlist since the run began
+                    run.skipped += 1
                     run.processed = index + 1
                     continue
                 if kind == "trial":
 
                     def held_fetch(n, nct=nct):
-                        record = fetch(n)  # the lock is retaken here
+                        record = fetch(n)
                         if not storage.is_member(ctx.conn, run.list_id, nct):
                             raise _Removed(nct)
                         return record
@@ -94,7 +94,7 @@ def _work(ctx, run: Run, force: bool) -> None:
                 if result is not None:
                     run.results.append(result)
                 run.processed = index + 1
-    except Exception as err:  # the run must end, or the watchlist could never be checked again
+    except Exception as err:
         run.crashed = str(err)
     finally:
         try:

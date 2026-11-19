@@ -33,7 +33,6 @@ def test_falsy_but_real_values_are_not_mistaken_for_empty(value, expected):
     assert display.show(value) == expected
 
 
-# --- marking changed fields in a rendered profile
 
 
 @pytest.fixture
@@ -50,8 +49,6 @@ def row():
             "previous": previous,
             "high_signal": high_signal,
             "synthetic": synthetic,
-            # Whether the registry calls the value estimated or actual, for the
-            # fields that state it; None for every other field.
             "qualifier": qualifier,
             "previous_qualifier": previous_qualifier,
         }
@@ -137,7 +134,6 @@ def test_no_elapsed_time_is_calculated_for_a_date_change(row):
         assert word not in rendered.lower()
 
 
-# --- the two columns of the watchlist table that carry the news
 
 
 @pytest.fixture
@@ -236,13 +232,10 @@ def test_a_record_the_registry_gives_no_revision_date_for_renders_empty(line):
 
 
 def test_the_date_column_spells_the_month_out(line):
-    # A momentJS pattern, rendered client-side: MMMM is the month's name, and
-    # an all-numeric date would need a numeric month token instead.
     assert "MMMM" in display.DATE_FORMAT.split()
     assert not {"M", "MM"} & set(display.DATE_FORMAT.split())
 
 
-# --- the remaining columns
 
 
 @pytest.mark.parametrize(
@@ -271,7 +264,6 @@ def test_registry_status_codes_render_as_readable_statuses(status, expected):
     assert display.status_label(status) == expected
 
 
-# --- the dossier: the profile's fields dealt into cards
 
 
 @pytest.fixture
@@ -288,14 +280,11 @@ def test_every_profile_field_lands_in_exactly_one_card(profile_rows, record):
     import diff
     import medical_affairs
 
-    # Every field the marked-up rows carry: a qualifier is folded into the
-    # value it qualifies before the cards are dealt, so it is never one of them.
     fields = [f for f in medical_affairs.profile(record) if f not in diff.QUALIFIES]
     cards = display.group_fields(profile_rows(fields))
 
     dealt = [r["field"] for _, rows in cards for r in rows]
     assert sorted(dealt) == sorted(fields)
-    # In a named card, not swept into the fallback.
     assert display.OTHER not in [title for title, _ in cards]
 
 
@@ -327,7 +316,6 @@ def test_a_card_is_one_block_holding_every_field_it_was_given(profile_rows):
     assert "IDENTITY" in card
     assert "Nct id" in card
     assert "Acronym" in card
-    # A markdown line break, not a paragraph: one block, three lines in it.
     assert card.count("  \n") == 2
 
 
@@ -350,7 +338,6 @@ def test_a_card_with_nothing_unreviewed_carries_no_count(row):
     assert "IDENTITY" in title
 
 
-# --- a value and whether the registry calls it estimated or actual
 
 
 def test_a_date_is_shown_beside_whether_it_is_estimated_or_actual(row):
@@ -388,10 +375,6 @@ def test_a_field_with_no_type_to_state_is_rendered_as_it_always_was(row):
     )
 
 
-# --- eligibility criteria
-#
-# Forty lines of bullets in a card a third of the page wide, so what is shown
-# is an excerpt and the exact wording is one registry link away.
 
 
 @pytest.fixture
@@ -407,7 +390,7 @@ def test_the_criteria_render_as_a_short_single_line_excerpt(row, criteria):
     assert len(rendered.splitlines()) == 1
     assert len(rendered) < len(criteria)
     assert "Inclusion Criteria:" in rendered
-    assert rendered.endswith("…")  # cut off, rather than running on
+    assert rendered.endswith("…")
 
 
 def test_short_criteria_are_not_cut(row):
@@ -471,19 +454,10 @@ def test_an_amendment_does_not_grow_the_card_it_sits_in(row, criteria):
     assert len(amended.splitlines()) == len(plain.splitlines()) + 1
 
 
-# --- the narrowing axes read back
-#
-# A list's remembered search is the one place an analyst checks whether it is
-# still watching for the right thing, so a sponsor class has to read as a kind
-# of organisation and a date window as a sentence -- never as the registry's
-# own codes.
 
 
 def test_a_sponsor_class_reads_as_a_kind_of_organisation():
     assert display.sponsor_type_label(["INDUSTRY"]) == "Industry"
-    # Not "Academic or other": a company funding an academic centre's trial is
-    # a collaborator on it and lands in OTHER, so the bucket is mixed and the
-    # label must not promise that the companies are all in Industry.
     assert display.sponsor_type_label(["OTHER"]) == "Other (incl. academic)"
     assert display.sponsor_type_label(["OTHER_GOV"]) == "Other government"
 
@@ -556,7 +530,6 @@ def test_a_registry_code_nobody_gave_a_word_to_still_renders():
     assert display.sponsor_type_label(["AMBIG"]) == "Ambig"
 
 
-# --- a card's history
 
 
 def move(field="enrollment", previous=300, current=265, when="2026-09-05T10:00:00+00:00",

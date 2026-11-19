@@ -20,7 +20,7 @@ def seed(db, registry):
 
     find_seed(db, registry)
     conn = storage.connect(db)
-    assert any(w["name"] == "Myeloma" for w in storage.list_lists(conn))  # the find seed made it
+    assert any(w["name"] == "Myeloma" for w in storage.list_lists(conn))
     storage.add_change(conn, "NCT10000002", {"field": "enrollment", "previous": 1, "current": 2}, STAMP)
     prior = monitor.create_list(conn, "Prior", when=STAMP)
     monitor.remember_search(conn, prior, monitor.as_query(cond="lymphoma", statuses=["RECRUITING"]))
@@ -51,13 +51,13 @@ def test_walk_watch_this_search_saves_the_query_with_nothing_selected_to_an_empt
     """test_walk_watch_this_search_saves_the_query_with_nothing_selected_to_an_empty_watchlist_and_adds_no_trials"""
     app, walk = results(make_app, make_walk, start="#/find")
     page = walk.page
-    assert page.get_by_role("region", name="Add selected trials").is_hidden()  # nothing selected
+    assert page.get_by_role("region", name="Add selected trials").is_hidden()
     page.get_by_role("button", name="Watch this search").click()
     watch = dialog(page)
     watch.wait_for()
-    assert "many" in watch.locator(".query-box").inner_text()  # the submitted query
+    assert "many" in watch.locator(".query-box").inner_text()
     assert page.evaluate("document.activeElement.id") == "watch-destination"
-    watch.get_by_label("Watchlist").select_option(label="Elsewhere")  # a watchlist with no trials
+    watch.get_by_label("Watchlist").select_option(label="Elsewhere")
     watch.get_by_role("button", name="Watch this search").wait_for()
     assert watch.get_by_text("already has a saved search").count() == 0
     walk.shot("dialog")
@@ -66,11 +66,11 @@ def test_walk_watch_this_search_saves_the_query_with_nothing_selected_to_an_empt
     text = watch.inner_text()
     assert "Elsewhere will check for new matches when you run Check for updates." in text
     walk.shot("saved")
-    assert sidebar_count(page, "Elsewhere") == "0 trials"  # nothing was added
+    assert sidebar_count(page, "Elsewhere") == "0 trials"
     assert sidebar_count(page, "Myeloma") == "1 trial"
     watch.get_by_role("link", name=re.compile("^Open watchlist")).click()
     page.get_by_role("heading", level=1, name="Elsewhere").wait_for()
-    page.get_by_text("Saved search is on").wait_for()  # a watchlist with a saved search and no trials is not first-use
+    page.get_by_text("Saved search is on").wait_for()
     assert page.get_by_role("heading", name="Monitor your first trial").count() == 0
 
 
@@ -93,9 +93,8 @@ def test_walk_a_watchlist_that_already_has_a_saved_search_shows_it_and_replace_i
     prior.click()
     page.get_by_role("heading", level=1, name="Prior").wait_for()
     page.get_by_role("button", name="Manage").click()
-    dialog(page, "Manage saved search").get_by_text("lymphoma").wait_for()  # Cancel left the old one
+    dialog(page, "Manage saved search").get_by_text("lymphoma").wait_for()
     dialog(page, "Manage saved search").get_by_role("button", name="Close").click()
-    # and replacing is possible: pick it again and confirm
     page.goto(app.url + "#/find")
     page.get_by_label("Condition").fill("many")
     page.get_by_label("Condition").press("Enter")
@@ -147,7 +146,7 @@ def test_walk_a_saved_search_banner_sits_above_the_tabs_and_leaves_the_review_li
     card.wait_for()
     size = page.viewport_size
     box = card.bounding_box()
-    assert box["y"] + box["height"] <= size["height"]  # the list is still on the first screen
+    assert box["y"] + box["height"] <= size["height"]
     assert page.get_by_role("heading", name="Monitor your first trial").count() == 0
     walk.shot("banner")
 
@@ -156,7 +155,7 @@ def test_walk_manage_shows_the_query_edit_search_prefills_find_and_turn_off_keep
     """test_walk_manage_shows_the_query_edit_search_prefills_find_and_turn_off_keeps_every_trial"""
     app, walk = results(make_app, make_walk)
     page = walk.page
-    page.goto(app.url + "#/watchlists/3/needs-review")  # Prior
+    page.goto(app.url + "#/watchlists/3/needs-review")
     page.get_by_role("heading", level=1, name="Prior").wait_for()
     page.get_by_role("button", name="Manage").click()
     manage = dialog(page, "Manage saved search")
@@ -167,20 +166,17 @@ def test_walk_manage_shows_the_query_edit_search_prefills_find_and_turn_off_keep
     manage.get_by_role("link", name="Edit search").click()
     page.get_by_role("heading", level=1, name="Find trials").wait_for()
     page.get_by_text("matches").first.wait_for()
-    assert "lymphoma" in page.locator("#query-summary").inner_text()  # Find trials, pre-filled
+    assert "lymphoma" in page.locator("#query-summary").inner_text()
     page.get_by_role("button", name="Edit search").click()
     assert page.get_by_label("Condition").input_value() == "lymphoma"
-    # nothing was replaced by looking: Prior still has its query
     page.goto(app.url + "#/watchlists/3/needs-review")
     page.get_by_role("button", name="Manage").click()
     assert "lymphoma" in dialog(page, "Manage saved search").locator(".query-box").inner_text()
     dialog(page, "Manage saved search").get_by_role("button", name="Close").click()
-    # Turn off keeps every trial: use Myeloma, which holds one
     page.goto(app.url + "#/watchlists/1/needs-review")
     page.get_by_role("heading", level=1, name="Myeloma").wait_for()
-    page.get_by_text("Saved search is on").count()  # may be absent: Myeloma has none yet
+    page.get_by_text("Saved search is on").count()
     assert page.get_by_label("Saved search").count() == 0
-    # give Myeloma one through the dialog, then turn it off
     page.goto(app.url + "#/find")
     page.get_by_label("Condition").fill("many")
     page.get_by_label("Condition").press("Enter")
@@ -207,13 +203,13 @@ def test_walk_a_late_answer_for_an_earlier_watchlist_never_changes_the_dialog_fo
     page.get_by_role("button", name="Watch this search").click()
     watch = dialog(page)
     picker = watch.get_by_label("Watchlist")
-    picker.select_option(label="Prior")  # its answer is held back
+    picker.select_option(label="Prior")
     page.wait_for_function("true")
     while not held:
         page.wait_for_timeout(50)
-    picker.select_option(label="Myeloma")  # answered at once: no saved search
+    picker.select_option(label="Myeloma")
     watch.get_by_role("button", name="Watch this search").wait_for()
-    held[0].continue_()  # now the earlier answer arrives
+    held[0].continue_()
     page.wait_for_timeout(500)
     assert watch.get_by_text("already has a saved search").count() == 0
     assert watch.get_by_role("button", name="Replace saved search").count() == 0
@@ -235,7 +231,7 @@ def test_walk_a_saved_search_with_two_sponsor_types_keeps_both_through_manage_ed
     app = make_app(seed=seed_two_sponsor_types)
     walk = make_walk(app)
     page = walk.page
-    page.goto(app.url + "#/watchlists/3/needs-review")  # Funded
+    page.goto(app.url + "#/watchlists/3/needs-review")
     page.get_by_role("heading", level=1, name="Funded").wait_for()
     page.get_by_role("button", name="Manage").click()
     dialog(page, "Manage saved search").get_by_role("link", name="Edit search").click()

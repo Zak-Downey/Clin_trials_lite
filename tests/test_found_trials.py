@@ -48,7 +48,6 @@ def searches(results: list[dict]) -> list[dict]:
     return [r for r in results if r["kind"] == "search"]
 
 
-# --- a list remembering a search
 
 
 def test_a_search_can_be_remembered_against_a_list(conn, myeloma):
@@ -104,7 +103,6 @@ def test_a_remembered_search_survives_the_list_being_renamed(conn, watching):
     assert monitor.remembered_search(conn, watching)["cond"] == "multiple myeloma"
 
 
-# --- the search running as part of a check
 
 
 def test_a_list_with_no_remembered_search_is_not_searched(conn, myeloma, make_finder):
@@ -221,7 +219,6 @@ def test_a_trial_watched_under_another_list_is_still_offered_here(
     assert [r["nct_id"] for r in monitor.found_trials(conn, watching)] == ["NCT03412565"]
 
 
-# --- the feed
 
 
 def test_a_found_trial_appears_in_the_feed_unreviewed(
@@ -247,7 +244,6 @@ def test_a_dismissed_trial_stops_being_unreviewed_in_the_feed(
     assert events[0]["reviewed"] is True
 
 
-# --- adopting and dismissing
 
 
 def test_adopting_a_found_trial_records_its_baseline_and_adds_it(
@@ -259,8 +255,6 @@ def test_adopting_a_found_trial_records_its_baseline_and_adds_it(
 
     assert storage.is_member(conn, watching, "NCT99999999")
     assert storage.count_snapshots(conn, "NCT99999999") == 1
-    # A baseline, not 41 changes: adding a trial never reports its own fields
-    # as having moved.
     assert storage.list_changes(conn, "NCT99999999") == []
 
 
@@ -318,7 +312,6 @@ def test_several_found_trials_are_adopted_in_one_go(
     assert monitor.found_trials(conn, watching) == []
 
 
-# --- a search that fails
 
 
 def test_a_failing_search_does_not_stop_the_trials_being_checked(
@@ -374,7 +367,6 @@ def test_an_uncapped_search_does_not_nag_about_narrowing(
     assert "narrow" not in searches(results)[0]["detail"].lower()
 
 
-# --- how the run reads
 
 
 def test_a_run_that_found_a_trial_is_not_summarised_as_no_changes(
@@ -404,10 +396,6 @@ def test_a_quiet_run_still_reads_as_nothing_happened(
     assert "no changes" in summary["message"]
 
 
-# --- a query stored before the narrowing axes existed
-#
-# The only route that reaches a query with keys genuinely missing: written to
-# the database in the shape an older version stored, then read back and run.
 
 
 def test_a_search_stored_before_the_narrowing_axes_existed_still_runs(

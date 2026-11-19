@@ -115,12 +115,12 @@ def test_walk_each_change_has_labelled_previously_and_now_and_a_long_value_stack
     short = page.locator("article.change", has_text="Completion date")
     assert short.get_by_text("Previously").count() == 1 and short.get_by_text("Now", exact=True).count() == 1
     prev, now = (short.locator(f".{c}").bounding_box() for c in ("previously", "now"))
-    assert now["x"] > prev["x"] + prev["width"] - 1  # short values sit side by side
+    assert now["x"] > prev["x"] + prev["width"] - 1
     long = page.locator("article.change", has_text="Eligibility criteria")
     prev, now = (long.locator(f".{c}").bounding_box() for c in ("previously", "now"))
-    assert now["y"] >= prev["y"] + prev["height"] - 1 and abs(now["x"] - prev["x"]) < 2  # stacked, Previously first
+    assert now["y"] >= prev["y"] + prev["height"] - 1 and abs(now["x"] - prev["x"]) < 2
     assert page.evaluate("(el) => el.scrollWidth <= el.clientWidth", long.element_handle())
-    assert long.locator(".now p").bounding_box()["height"] > 60  # wrapped over lines, not cut
+    assert long.locator(".now p").bounding_box()["height"] > 60
     assert "Inclusion: adults" in long.locator(".now p").inner_text()
     walk.shot("changes")
 
@@ -131,14 +131,13 @@ def test_walk_each_check_group_shows_both_dates_and_a_field_that_moved_twice_sho
     page = walk.page
     dates = page.locator(".group-dates").all_inner_texts()
     assert len(dates) == 2
-    # Detected times are the server's wall clock in its zone (New York), not the browser's (Tokyo).
     assert re.fullmatch(r"Registry updated \d+ \w+ \d{4} · Detected .*11:45 AM EST", dates[0]), dates
     assert re.fullmatch(r"Registry updated \d+ \w+ \d{4} · Detected .*9:20 AM EST", dates[1]), dates
     moves = page.locator("article.change", has_text="Enrollment")
     assert moves.count() == 2
     texts = [moves.nth(i).inner_text() for i in range(2)]
-    assert "265" in texts[0] and "282" in texts[0]  # the newer check: 265 to 282
-    assert "248" in texts[1] and "265" in texts[1]  # the earlier one: 248 to 265
+    assert "265" in texts[0] and "282" in texts[0]
+    assert "248" in texts[1] and "265" in texts[1]
 
 
 def test_walk_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear(make_app, make_walk):
@@ -149,14 +148,14 @@ def test_walk_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_
     assert "Review covers all 5 changes shown above." in bar.inner_text()
     assert "Also clears these changes in: Elsewhere." in bar.inner_text()
     height = page.evaluate("innerHeight")
-    assert page.evaluate("document.documentElement.scrollHeight") > height  # there is something to scroll
-    assert bar.bounding_box()["y"] + bar.bounding_box()["height"] <= height + 1  # visible before any scrolling
+    assert page.evaluate("document.documentElement.scrollHeight") > height
+    assert bar.bounding_box()["y"] + bar.bounding_box()["height"] <= height + 1
     page.evaluate("window.scrollTo(0, 200)")
     box = bar.bounding_box()
     assert box["y"] + box["height"] <= height + 1 and box["y"] >= 0
     page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
     last = page.locator("article.change").last.bounding_box()
-    assert last["y"] + last["height"] <= bar.bounding_box()["y"] + 1  # the bar never covers the last change
+    assert last["y"] + last["height"] <= bar.bounding_box()["y"] + 1
     walk.shot("action-bar")
 
 
@@ -188,7 +187,6 @@ def test_walk_undo_restores_the_changes_and_counts_and_is_gone_after_leaving(mak
     assert page.locator(".reviewed-label:visible").count() == 0
     assert page.get_by_role("button", name="Mark reviewed").is_enabled()
     wait_for_count(page, "Myeloma", "16 to review")
-    # Review again, then take another action (a tab): Undo is gone and stays gone on return.
     page.get_by_role("button", name="Mark reviewed").click()
     page.get_by_role("button", name="Undo").wait_for()
     page.get_by_role("tab", name="History").click()
@@ -208,7 +206,7 @@ def test_walk_next_trial_opens_the_next_in_needs_review_and_marks_nothing(make_a
     page.get_by_role("button", name="Mark reviewed").wait_for()
     assert to_review(page, "Myeloma") == "16 to review"
     page.get_by_role("link", name="‹ Back to Myeloma").click()
-    page.locator('li.card[data-nct="NCT03412565"]').wait_for()  # still in the queue, unreviewed
+    page.locator('li.card[data-nct="NCT03412565"]').wait_for()
 
 
 def test_walk_a_trial_with_simulated_changes_carries_the_simulated_label_on_its_changes_tab(make_app, make_walk):
@@ -218,5 +216,5 @@ def test_walk_a_trial_with_simulated_changes_carries_the_simulated_label_on_its_
     assert page.get_by_text("Simulated changes").is_visible()
     walk.shot("simulated")
     page.goto(page.url.replace("NCT00000002", "NCT03412565"))
-    page.locator("article.change").nth(4).wait_for()  # only NCT03412565 has five changes
+    page.locator("article.change").nth(4).wait_for()
     assert page.get_by_text("Simulated changes").count() == 0

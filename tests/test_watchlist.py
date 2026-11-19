@@ -33,7 +33,6 @@ def moved(conn, nct_id, field, when, previous=None, current=None, synthetic=Fals
     )
 
 
-# --- what moved the last time the trial changed
 
 
 def test_a_trial_that_has_never_changed_reports_no_last_change(watched):
@@ -62,7 +61,6 @@ def test_an_unread_field_from_an_earlier_check_is_still_reported(watched):
     change = monitor.last_change(watched, "NCT03412565")
 
     assert set(change["fields"]) == {"completionDate", "officialTitle"}
-    # The newest of the moves shown, so the column's date is not stale.
     assert change["at"] == "2026-09-05T10:00:00+00:00"
 
 
@@ -172,7 +170,6 @@ def test_a_genuine_detection_is_not_reported_as_simulated(watched):
     assert monitor.last_change(watched, "NCT03412565")["synthetic"] is False
 
 
-# --- the row behind each line of the table
 
 
 def test_there_is_one_row_per_watched_trial_in_watchlist_order(conn, record, make_fetcher):
@@ -234,7 +231,6 @@ def test_a_row_carries_the_registrys_own_revision_date(watched):
     assert monitor.watchlist(watched)[0]["registry_updated"] == "2025-04-29"
 
 
-# --- a trial's whole history, read or not
 
 
 def test_a_trial_that_has_never_changed_has_no_history(watched):

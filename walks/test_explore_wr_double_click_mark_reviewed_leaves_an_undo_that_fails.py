@@ -16,7 +16,7 @@ def test_walk_undo_after_a_double_click_on_mark_reviewed_still_undoes_the_review
     page.get_by_role("button", name="Mark reviewed").dblclick()
     undo = page.get_by_role("button", name="Undo")
     undo.first.wait_for()
-    page.wait_for_timeout(500)  # both answers have come back
+    page.wait_for_timeout(500)
     undo.first.click()
     page.wait_for_timeout(500)
     walk.shot("after-undo")

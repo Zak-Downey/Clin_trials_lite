@@ -83,7 +83,7 @@ def main(argv):
             with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
                 summary.write(text)
             print(text)
-    except Exception as error:  # a notice never fails the run
+    except Exception as error:
         print(f"The notice could not be written: {error}")
     return 0
 

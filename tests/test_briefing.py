@@ -98,7 +98,6 @@ def fields_in(summary: dict, nct_id: str = NCT) -> list[str]:
     return [move["field"] for move in entry["moves"]]
 
 
-# --- the date range
 
 
 def test_a_change_detected_on_the_first_day_of_the_range_is_in_it(watched, detect):
@@ -135,7 +134,6 @@ def test_a_range_reports_only_the_checks_inside_it(watched, detect):
     assert [m["current"] for m in reported["entries"][0]["moves"]] == [310]
 
 
-# --- what one entry says
 
 
 def test_the_summary_names_the_list_it_is_for(conn, record, fetcher):
@@ -203,7 +201,6 @@ def test_a_trial_that_did_not_move_in_the_range_gets_no_entry(watched, detect, r
     assert summary(watched, "2026-03-01", "2026-03-31")["entries"] == []
 
 
-# --- ordering
 
 
 def test_fields_are_ordered_high_signal_first_within_a_trial(watched, detect):
@@ -232,7 +229,6 @@ def test_moves_from_several_checks_are_gathered_under_one_trial(watched, detect)
     assert len(entries[0]["moves"]) == 2
 
 
-# --- reviewed and unreviewed alike
 
 
 def test_a_reviewed_change_still_appears_in_the_briefing(watched, detect):
@@ -256,7 +252,6 @@ def test_reviewed_and_unreviewed_changes_both_appear(watched, detect):
     ]
 
 
-# --- the two forms
 
 
 def test_the_text_names_the_trial_its_fields_and_both_values(watched, detect):
@@ -280,7 +275,6 @@ def test_the_csv_carries_one_row_per_move_with_both_dates(watched, detect):
     assert len(rows) == 1
     assert rows[0]["NCT ID"] == NCT
     assert rows[0]["Field"] == display.label("enrollment")
-    # Enrolment carries the registry's word for it, which travels with the value.
     assert rows[0]["New value"].startswith("300")
     assert rows[0]["Registry updated"] == "2026-02-14"
     assert rows[0]["Detected"] == "2026-03-10T09:00:00+00:00"
@@ -346,7 +340,6 @@ def test_a_multi_line_value_stays_on_one_line_of_the_text(watched, detect, recor
     assert not any(line.strip() == "* Aged 18 or over" for line in text.splitlines())
 
 
-# --- simulated data, marked in both
 
 
 @pytest.fixture
@@ -388,7 +381,6 @@ def test_a_real_move_is_not_marked_as_simulated(watched, detect):
     assert rows_of(briefing.as_csv(reported))[0]["Simulated"] == ""
 
 
-# --- an empty range
 
 
 def test_an_empty_range_says_so_rather_than_reading_as_a_fault(watched, detect):
@@ -412,7 +404,6 @@ def test_an_empty_list_produces_no_file_either(conn):
     assert "No changes" in briefing.as_text(reported)
 
 
-# --- the presets
 
 
 def test_this_week_runs_from_monday_to_today():
@@ -438,7 +429,6 @@ def test_the_file_is_named_for_the_list_and_the_range(watched):
     assert "2026-03-01" in named and "2026-03-31" in named
 
 
-# --- ticket 12: the periods the Summary tab offers, and the local zone
 
 
 def test_period_ranges_run_monday_to_sunday_and_the_calendar_month():
@@ -455,7 +445,7 @@ def test_period_ranges_run_monday_to_sunday_and_the_calendar_month():
 
 def test_a_range_is_read_in_the_zone_given_not_in_utc(watched, detect):
     """test_a_range_is_read_in_the_zone_given_not_in_utc"""
-    detect("2026-03-31T20:00:00+00:00", "2026-03-30", enrolment=300)  # 1 April in Tokyo
+    detect("2026-03-31T20:00:00+00:00", "2026-03-30", enrolment=300)
     tokyo = datetime.timezone(datetime.timedelta(hours=9))
 
     def over(start, end, zone):

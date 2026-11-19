@@ -39,7 +39,6 @@ def test_an_older_database_opens_with_its_data_and_an_upgraded_schema(tmp_path):
     assert trial["nct_id"] == "NCT00000001"
     (change,) = storage.list_changes(conn, "NCT00000001")
     assert (change["previous"], change["current"], change["reviewed"]) == (1, 2, False)
-    # Upgraded in place: the schema version is recorded, and the trial is housed.
     assert conn.execute("PRAGMA user_version").fetchone()[0] == storage.SCHEMA_VERSION
     assert [t["nct_id"] for t in storage.list_trials(conn, 1)] == ["NCT00000001"]
 

@@ -40,7 +40,6 @@ def test_the_trial_page_groups_unreviewed_changes_by_check_and_names_every_watch
     assert status == 200
     assert [g["check"] for g in body["groups"]] == [SECOND, FIRST]
     assert [len(g["changes"]) for g in body["groups"]] == [2, 1]
-    # A field that moved in two checks shows both transitions.
     moves = [(c["label"], c["previous"], c["current"]) for g in body["groups"] for c in g["changes"] if c["field"] == "enrollment"]
     assert moves == [("Enrollment", "20", "30"), ("Enrollment", "10", "20")]
     assert body["groups"][0]["changes"][0]["qualifier"] in (None, "Actual", "Estimated")
@@ -55,7 +54,7 @@ def test_marking_reviewed_marks_exactly_the_ids_sent_and_a_later_change_stays_un
     """test_marking_reviewed_marks_exactly_the_ids_sent_and_a_later_change_stays_unreviewed"""
     _setup(api, record, restyled)
     shown = _ids(api.get("/api/trials/NCT03412565")[1])
-    conn = storage.connect(api.path)  # a check finishes while the analyst reads
+    conn = storage.connect(api.path)
     storage.add_change(conn, "NCT03412565", {"field": "briefTitle", "previous": "a", "current": "b"}, "2026-11-09T09:00:00+00:00")
     conn.close()
     status, body = api.post("/api/trials/NCT03412565/review", {"ids": shown})
@@ -63,7 +62,6 @@ def test_marking_reviewed_marks_exactly_the_ids_sent_and_a_later_change_stays_un
     assert sorted(body["marked"]) == sorted(shown) and body["unreviewed_count"] == 1
     left = api.get("/api/trials/NCT03412565")[1]
     assert [c["field"] for g in left["groups"] for c in g["changes"]] == ["briefTitle"]
-    # Another trial's change is never touched by naming its ID.
     other_id = _ids(api.get("/api/trials/NCT00000002")[1])
     _, again = api.post("/api/trials/NCT03412565/review", {"ids": other_id})
     assert again["marked"] == [] and again["event"] is None
@@ -213,8 +211,6 @@ def test_a_review_that_covered_only_a_hidden_interventions_change_is_not_in_the_
     assert [e["kind"] for e in entries] == ["review", "detection", "start"]
     assert entries[0]["count"] == 1
 
-    # Nothing else leans on the hidden review: the queue is empty and undoing
-    # the review that is still shown returns the one change to it.
     assert api.get("/api/watchlists/1/needs-review")[1]["trials"] == []
     status, body = api.post(f"/api/reviews/{alone['id'] + 1}/undo", {})
     assert status == 200 and body["unreviewed_count"] == 1

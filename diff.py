@@ -7,18 +7,9 @@ those whose movement matters most to the team reading the page.
 
 from __future__ import annotations
 
-# Two fields are deliberately never reported as changed:
-#   lastUpdatePostDate -- the registry's own stamp, which moves by definition
-#     whenever anything else does, so alerting on it is circular.
-#   resultsUrl -- derived from hasResults, so alerting on it duplicates that.
 EXCLUDED = ("lastUpdatePostDate", "resultsUrl")
 
 
-# The list fields read as names that are each there or not, and so are shown
-# as added, removed and unchanged. The registry can name an intervention once
-# per arm, so how often a name repeats is not news. A field in this set moved
-# only when its split adds or removes a name; other list fields keep counting
-# repeats. Another list field opts in by joining the set.
 SPLIT = ("interventions",)
 
 
@@ -94,9 +85,6 @@ def compare(previous: dict, current: dict) -> list[dict]:
     ]
 
 
-# The fields a medical affairs team acts on. A slipped completion date and a
-# typo fix in the official title must not look alike, so these are marked for
-# greater prominence when they move.
 HIGH_SIGNAL = (
     "overallStatus",
     "whyStopped",
@@ -106,21 +94,12 @@ HIGH_SIGNAL = (
     "armGroups",
     "interventions",
     "hasResults",
-    # A moved endpoint, a trial that changed phase, and an amended eligible
-    # population are each read as competitor intelligence ahead of an edit to
-    # the intervention wording, so none of them is what the watchlist's
-    # overflow drops.
     "primaryOutcomes",
     "phases",
     "eligibilityCriteria",
 )
 
 
-# A value and the registry's word for whether it is estimated or actual. The
-# pair is one fact: a primary completion date going from estimated to actual is
-# the single most informative thing that can happen to that field, and reported
-# as a date move plus an unrelated type move it reads as neither. So the
-# qualifier is folded into the value it qualifies wherever a change is named.
 QUALIFIED_BY = {
     "startDate": "startDateType",
     "primaryCompletionDate": "primaryCompletionDateType",
@@ -195,7 +174,6 @@ def fold_moves(changes, profile: dict | None = None) -> list[dict]:
                 "previous_qualifier": alongside["previous"] if alongside else stated,
                 "qualifier": alongside["current"] if alongside else stated,
                 "change": change,
-                # Every row the move folds: a value and the qualifier beside it.
                 "changes": [change, alongside] if alongside else [change],
             }
         )
@@ -255,16 +233,12 @@ def annotate(profile: dict, changes: list[dict]) -> list[dict]:
     latest = _latest_unreviewed(changes)
 
     def moved(field):
-        # A field that is never reported as changed is never marked as one,
-        # whatever happens to be recorded against it.
         if field is None or field in EXCLUDED:
             return None
         return latest.get(field)
 
     rows = []
     for field, value in profile.items():
-        # A qualifier has no row of its own: it is folded into the value it
-        # qualifies, which is the row above it in profile order.
         if field in QUALIFIES:
             continue
 
@@ -277,9 +251,6 @@ def annotate(profile: dict, changes: list[dict]) -> list[dict]:
                 "field": field,
                 "value": value,
                 "changed": bool(move or qualified_move),
-                # What the field moved from, which for a value whose qualifier
-                # alone moved is the value it still holds: the news there is
-                # the qualifier, and the value is the context for it.
                 "previous": move["previous"] if move else (value if qualified_move else None),
                 "qualifier": stated,
                 "previous_qualifier": (

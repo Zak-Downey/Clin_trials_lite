@@ -1,4 +1,3 @@
-// Find trials > Add by NCT ID: look a trial up, see it, then add it. Nothing is added unseen.
 import { get, post } from "/static/api.js";
 import { withNewEntry } from "/static/views/new_watchlist.js";
 
@@ -9,12 +8,10 @@ const el = (tag, attrs = {}, ...kids) => {
   return node;
 };
 
-// ctx: { lists(), destination(), setDestination(id), created(watchlist, watchlists) }
-// Returns { redraw() } so a watchlist made elsewhere can be shown as the destination.
 export function renderAddById(root, ctx) {
   const panel = el("section", { class: "card-panel" });
   root.append(panel);
-  let found = null; // the trial shown, which is what Add adds
+  let found = null;
   let banner = null;
 
   function draw() {
@@ -23,7 +20,7 @@ export function renderAddById(root, ctx) {
     const look = el("button", { type: "submit" }, "Look up trial");
     const pick = el("select", { id: "destination" }, ...ctx.lists().map((w) => el("option", { value: String(w.id) }, w.name)));
     if (ctx.destination() != null) pick.value = String(ctx.destination());
-    const typed = input; // the value typed survives every failure
+    const typed = input;
     const result = el("div", { class: "lookup-result", "aria-live": "polite" });
     const form = el("form", { novalidate: "" },
       el("div", { class: "field" }, el("label", { for: "destination" }, "Destination"), pick),

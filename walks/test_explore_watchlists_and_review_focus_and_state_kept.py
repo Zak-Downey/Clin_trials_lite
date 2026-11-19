@@ -22,7 +22,7 @@ def test_walk_focus_is_not_lost_after_remove_from_this_list_and_its_undo(make_ap
     page.get_by_role("button", name="More actions").focus()
     page.keyboard.press("Enter")
     page.keyboard.press("Tab")
-    page.keyboard.press("Enter")  # Remove from this list
+    page.keyboard.press("Enter")
     undo = page.get_by_role("button", name="Undo")
     undo.wait_for()
     walk.shot("after-remove")

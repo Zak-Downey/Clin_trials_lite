@@ -28,7 +28,6 @@ def search(ctx, query: dict, **_):
         monitor._refuse_unanswerable(monitor.as_query(**args))
     except monitor.MonitorError as err:
         raise ApiError(400, err.kind, str(err))
-    # The lock is held by the dispatcher; the registry call is not made under it.
     ctx.lock.release()
     try:
         found = monitor.search_page(**args, page=page, find_page=ctx.find_page)

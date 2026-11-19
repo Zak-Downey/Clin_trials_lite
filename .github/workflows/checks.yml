@@ -10,8 +10,9 @@
 # - The limit is 20 minutes, to be tightened once a real run has been timed. A slower run is red.
 # - On red, the files under `.checks/` are uploaded with the run, so the reason can be read from the pull request.
 # - Before the checks run, a notice in the run's summary lists the files the pull request changes that judge it
-#   (this folder, checks.py, .claude/settings.json, pytest.ini, ruff.toml) and how many tests it removes. It never
-#   fails the run and says nothing when there is nothing to say; on a by-hand run there is no base and it says nothing.
+#   (this folder, checks.py, .claude/settings.json, pytest.ini, ruff.toml, docs/agents/local/comments-kept.json)
+#   and how many tests it removes. It never fails the run and says nothing when there is nothing to say; on a
+#   by-hand run there is no base and it says nothing.
 #   The whole history is fetched so the pull request's base is there to compare against.
 # - The Python version is the one the repo's own `.venv` uses.
 # Measured on GitHub's own machine: not yet (first run: date, run id, minutes whole).
@@ -42,7 +43,7 @@ jobs:
         continue-on-error: true
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
-        run: python3 .github/workflows/judge_notice.py "$BASE" .github/workflows/ .claude/settings.json pytest.ini ruff.toml checks.py
+        run: python3 .github/workflows/judge_notice.py "$BASE" .github/workflows/ .claude/settings.json pytest.ini ruff.toml docs/agents/local/comments-kept.json checks.py
       - name: Cache the Python packages and the test browsers
         uses: actions/cache@v4
         with:

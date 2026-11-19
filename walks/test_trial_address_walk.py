@@ -148,8 +148,6 @@ def test_walk_a_trial_address_with_no_watchlist_uses_the_first_watchlist_as_befo
     page.get_by_role("link", name="‹ Back to Myeloma").wait_for()
 
 
-# Ticket 03: an address naming a watchlist that does not hold the trial falls back quietly.
-# Elsewhere (id 2) holds NCT03412565 and NCT10000001 but not NCT00000002, which only Myeloma holds.
 
 
 def seed_elsewhere_deleted(db, registry):
@@ -231,8 +229,6 @@ def test_walk_a_trial_in_no_watchlist_still_goes_back_to_watchlists(make_app, ma
     walk.shot("no-watchlist-back-to-watchlists")
 
 
-# Ticket 04: "Open the trial" on the registry details page carries the watchlist just added to.
-# NCT00000002 is held only in Myeloma (id 1), so after adding it to Elsewhere (id 2) Myeloma is still its first.
 
 
 def test_walk_open_the_trial_after_adding_from_registry_details_goes_back_to_that_watchlist(make_app, make_walk):
@@ -256,8 +252,6 @@ def test_walk_open_the_trial_after_adding_from_registry_details_goes_back_to_tha
     walk.shot("opened-with-elsewhere")
 
 
-# Fixes after the build's review: Remove from this list keeps the watchlist across the trial's own tabs;
-# "Back to" Summary keeps the period within one page load.
 
 
 def test_walk_switching_the_trial_tab_after_removing_it_from_the_list_keeps_that_list(make_app, make_walk):
@@ -352,15 +346,13 @@ def test_walk_adding_from_registry_details_by_keyboard_keeps_focus_on_the_button
     add.focus()
     page.keyboard.press("Enter")
     page.get_by_text("Added to").wait_for()
-    page.wait_for_timeout(300)  # the focus keeper acts a moment after a control is disabled
+    page.wait_for_timeout(300)
     walk.shot("after-add")
     assert page.evaluate("document.activeElement.textContent.trim()") == "Add to watchlist"
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement.textContent.trim()") == "Open the trial"
 
 
-# Fixes after the re-check: Next trial after a removal and a switch of the trial's tabs; "Back to"
-# Summary after the period changed on a visit made with the browser's Back and Forward.
 
 
 def test_walk_next_trial_after_removing_and_switching_tabs_goes_on_to_the_following_trial(make_app, make_walk):
@@ -380,7 +372,7 @@ def test_walk_next_trial_after_removing_and_switching_tabs_goes_on_to_the_follow
     page.get_by_role("heading", name="Trial history").wait_for()
     page.get_by_role("tab", name=re.compile("^Changes")).click()
     page.get_by_role("button", name="Mark reviewed").wait_for()
-    page.wait_for_timeout(500)  # Next trial is wired once the page knows the queue; nothing drawn says when
+    page.wait_for_timeout(500)
     walk.shot("removed-then-back-on-changes")
     page.get_by_role("button", name="Next trial").click()
     page.wait_for_function(f"!location.hash.includes('{queue[2]}')")

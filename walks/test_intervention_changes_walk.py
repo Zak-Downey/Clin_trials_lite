@@ -76,7 +76,6 @@ def test_walk_a_removed_intervention_reads_removed_added_none_and_six_unchanged_
     assert names.is_hidden()
     assert card.get_by_role("button", name="Show").get_attribute("aria-expanded") == "false"
 
-    # Every other change on the page keeps Previously / Now.
     others = page.locator("article.change").filter(has_not_text="Interventions")
     assert others.count() == 4
     for i in range(others.count()):
@@ -143,7 +142,6 @@ def test_walk_a_name_holding_a_comma_reads_as_one_entry_apart_from_two_names(mak
     card.wait_for()
     assert _rows(card) == [("Removed", ["Interferon alfa-2b, recombinant"]),
                            ("Added", ["Interferon alfa-2b", "recombinant"]), ("Unchanged", ["1 intervention"])]
-    # Each name is visibly its own entry: every list item sits on a line below the one before it.
     for kind in ("removed", "added"):
         items = card.locator(f".split-row.{kind} .split-names li").all()
         boxes = [item.bounding_box() for item in items]

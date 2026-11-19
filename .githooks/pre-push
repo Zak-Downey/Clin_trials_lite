@@ -1,0 +1,5 @@
+#!/bin/sh
+cd "$(git rev-parse --show-toplevel)" || exit 1
+said=$(python3 checks.py lint patterns escapes 2>&1) && exit 0
+printf '%s\n' "$said" >&2
+exit 1

@@ -23,11 +23,8 @@ import medical_affairs
 import monitor
 import storage
 
-# How far back a simulated past is wound.
 REWIND_YEARS = 1
 
-# The stored past is given a *higher* enrolment than the live record, so what
-# the check then detects is a drop of this many participants.
 ENROLMENT_DROP = 85
 
 
@@ -89,9 +86,6 @@ def rewind(
         raise monitor.MonitorError(f"{nct} is not on the watchlist.")
 
     altered = _alter_record(snapshot["record"])
-    # What moved is read off the same comparison a check uses, rather than
-    # predicted from the edits above: winding one raw field back can move more
-    # than one derived profile field.
     moved = [
         change["field"]
         for change in diff.compare(

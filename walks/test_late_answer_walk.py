@@ -83,7 +83,6 @@ def test_walk_a_delayed_answer_for_a_tab_already_left_does_not_replace_the_page_
     if start != "Needs review":
         page.get_by_role("tab", name=re.compile(start)).click()
         page.get_by_label("Filter by title, NCT ID or sponsor").wait_for()
-    # The tab's own answers, and the sidebar's, are held for the first click only: the tab is left before they land.
     held_tab = hold_first(page, tab_answer(tab))
     held_side = hold_first(page, "**/api/watchlists") if side else []
     page.get_by_role("tab", name=re.compile(tab)).click()
@@ -145,16 +144,16 @@ def test_walk_removing_a_trial_and_its_undo_leave_the_sidebar_marking_where_the_
     page = walk.page
     page.get_by_role("link", name="Review changes").first.click()
     page.get_by_role("button", name="More actions").click()
-    held = hold_first(page, "**/api/watchlists")  # the sidebar answer to the removal is held
+    held = hold_first(page, "**/api/watchlists")
     page.get_by_role("menuitem", name="Remove from this list").click()
     page.get_by_role("button", name="Undo").wait_for()
     assert held, "the removal did not ask for the sidebar"
-    assert marked(page).count() == 0  # a trial page names no watchlist, so the sidebar marks none
+    assert marked(page).count() == 0
     page.get_by_role("button", name="Undo").click()
     page.get_by_role("button", name="Undo").wait_for(state="detached")
     page.get_by_role("link", name=re.compile("^‹ Back to")).click()
     page.get_by_role("tab", name=re.compile("Needs review")).wait_for()
     assert marked(page).count() == 1
-    release(page, held, "**/api/watchlists")  # the removal's sidebar answer lands on the watchlist page
+    release(page, held, "**/api/watchlists")
     walk.shot("back-after-undo")
     assert marked(page).count() == 1 and helper.LONG_NAME[:20] in marked(page).inner_text()

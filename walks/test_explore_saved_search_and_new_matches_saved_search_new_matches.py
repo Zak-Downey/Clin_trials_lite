@@ -53,7 +53,6 @@ def test_undo_that_the_server_refuses_says_so_and_can_be_pressed_again(make_app,
     page.get_by_role("button", name="Dismiss 1").click()
     page.get_by_role("button", name="Yes, dismiss 1").click()
     page.get_by_role("button", name="Undo").wait_for()
-    # Another window deletes the watchlist.
     other = page.context.new_page()
     other.goto(app.url)
     other.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Quiet")).click()
@@ -84,7 +83,6 @@ def test_a_long_unbroken_condition_keeps_find_trials_inside_the_window(make_app,
     page.get_by_label("Condition").press("Enter")
     page.get_by_role("heading", name="3 matches").wait_for()
     walk.shot("long-condition")
-    # the guard reports a page wider than the window when the test ends; assert it now as well
     wide = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
     assert wide <= 0, f"the page is {wide}px wider than the window; Watch this search and Edit search are pushed off its edge"
 

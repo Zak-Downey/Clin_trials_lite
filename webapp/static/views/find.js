@@ -1,4 +1,3 @@
-// Find trials: the Search tab. The address (#/find?cond=...&page=2) holds the submitted query.
 import { get, post } from "/static/api.js";
 import { withNewEntry } from "/static/views/new_watchlist.js";
 import { renderAddById } from "/static/views/add_by_id.js";
@@ -22,15 +21,12 @@ const STATUSES = [["NOT_YET_RECRUITING", "Not yet recruiting"], ["RECRUITING", "
   ["WITHDRAWN", "Withdrawn"], ["UNKNOWN", "Unknown"]];
 const NAMING = "Start with at least one of these four fields";
 
-// Kept across renders, so selections survive paging, viewing a trial and leaving Find trials.
-const selected = new Map(); // NCT ID -> title
-let destination = null; // the watchlist chosen to add to
-let cameFrom = null; // the watchlist whose "Add trials" opened Find trials last
-let outcome = null; // what the last add did, shown in the bar until the next selection
-let lastFind = "#/find"; // where "Back to results" goes
+const selected = new Map();
+let destination = null;
+let cameFrom = null;
+let outcome = null;
+let lastFind = "#/find";
 
-// A watchlist made elsewhere (the sidebar) becomes the destination; the open view, if it
-// shows one, is told so it can redraw its picker without being rebuilt.
 let refreshDestination = () => {};
 export function chooseDestination(id) {
   destination = id;
@@ -195,7 +191,6 @@ function results(q, data, page, go, edit, clearOptional, changed, watch) {
   return out;
 }
 
-// alive(): is this still the page the address names? A slow answer for a page the analyst left is dropped.
 export async function render(root, search, listId, tab = "search", alive = () => true) {
   const base = listId ? `#/find/${listId}` : "#/find";
   refreshDestination = () => {};
@@ -309,7 +304,6 @@ export async function render(root, search, listId, tab = "search", alive = () =>
     data = await get(`/api/search?${toParams(q, page)}`);
   } catch (err) {
     if (!alive()) return;
-    // A refusal is the analyst's to fix: the message sits beside its fields, the form open, no Retry.
     if (err.kind === "nothing_asked" || err.kind === "bad_page") { open(q, err.message, null); return; }
     if (err.kind === "bad_dates") { open(q, "", null, err.message); return; }
     const retry = el("button", { type: "button" }, "Retry");
@@ -318,7 +312,6 @@ export async function render(root, search, listId, tab = "search", alive = () =>
     return;
   }
   if (!alive()) return;
-  // A page past the last of a search that has matches opens the last page, never an empty list.
   if (data.pages >= 1 && page > data.pages) {
     location.replace(`${location.pathname}${location.search}${base}?${toParams(q, data.pages)}`);
     return;

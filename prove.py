@@ -113,7 +113,7 @@ def named_test_problems(test, root) -> list[str]:
     return []
 
 
-GRACE_SECONDS = 10  # how long a stopped run's group has to stop what it started before it is killed
+GRACE_SECONDS = 10
 
 
 def copy_of(root, into) -> pathlib.Path:
@@ -131,7 +131,7 @@ def copy_of(root, into) -> pathlib.Path:
     return copy
 
 
-RECORD = ".testmondata*"  # the unit record the picker selects tests by (pytest-testmon)
+RECORD = ".testmondata*"
 RUN_LOG = ".checks/runs.jsonl"
 
 
@@ -143,7 +143,7 @@ def copy_for_pick(root, into) -> pathlib.Path:
     quiet = {"cwd": copy, "capture_output": True, "check": True}
     subprocess.run(["git", "clone", "-q", "--shared", "--no-checkout", str(root), str(copy)], capture_output=True, check=True)
     subprocess.run(["git", "fetch", "-q", "--update-head-ok", "origin", "+refs/heads/*:refs/heads/*"], **quiet)
-    subprocess.run(["git", "reset", "-q"], **quiet)  # the index at HEAD, the folder left as copy_of leaves it
+    subprocess.run(["git", "reset", "-q"], **quiet)
     copy_of(root, into)
     (copy / ".checks").mkdir(exist_ok=True)
     for source in [root / RUN_LOG, *root.glob(RECORD)]:
@@ -167,7 +167,7 @@ def run_in(command, copy, minutes, output) -> int | None:
             return process.wait(timeout=minutes * 60)
         except subprocess.TimeoutExpired:
             return None
-        finally:  # SIGTERM first: checks.py then stops its check, which runs in a session of its own
+        finally:
             if process.poll() is None:
                 os.killpg(process.pid, signal.SIGTERM)
                 try:
@@ -178,7 +178,7 @@ def run_in(command, copy, minutes, output) -> int | None:
                     os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
-                except PermissionError:  # macOS: a group whose members have all exited, some not yet reaped
+                except PermissionError:
                     if group_has_live_member(process.pid):
                         raise
                 process.wait()
@@ -243,7 +243,7 @@ def prove_picked(item, root, minutes) -> tuple[str, str, list[str], dict]:
             return ("caught, but nothing was picked" if whole else "caught"), "", [], pick
         if code == 0:
             return "hidden", "", tail(after), pick
-        if code is None and whole:  # nothing was picked, so picking hid nothing: the plain proof says whether it is caught
+        if code is None and whole:
             return "could not run, but nothing was picked", f"stopped after {minutes} minutes", [], pick
         why = f"stopped after {minutes} minutes" if code is None else f"checks.py ended {code}: it did not run and fail"
         return "could not run", why, tail(after), pick
@@ -349,13 +349,13 @@ def log(root, outcomes, result, pick=False) -> None:
             "commit": checks.git("rev-parse", "--short", "HEAD", root=root),
             "dirty": bool(checks.git("status", "--porcelain", root=root)),
             "result": result, "breaks": outcomes}
-    if pick:  # a plain proof's line is as it was
+    if pick:
         line["picked"] = True
     with open(root / ".checks" / "proof.jsonl", "a") as file:
         file.write(json.dumps(line) + "\n")
 
 
 if __name__ == "__main__":
-    for stop in (signal.SIGTERM, signal.SIGHUP):  # stopped from outside: leave through the finally blocks
+    for stop in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(stop, lambda *_: sys.exit(143))
     sys.exit(prove(pick="--pick" in sys.argv[1:]))

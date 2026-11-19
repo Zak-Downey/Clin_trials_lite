@@ -196,7 +196,6 @@ def test_changes_are_reported_in_profile_order(profile):
     assert fields == sorted(fields, key=order.index)
 
 
-# --- marking a profile up for review
 
 
 @pytest.fixture
@@ -223,8 +222,6 @@ def change():
 def test_the_whole_profile_is_marked_up_not_only_what_moved(profile, change):
     rows = diff.annotate(profile, [change("enrollment", 350, 265)])
 
-    # Every field but a qualifier, which is folded into the value it qualifies
-    # rather than standing as a row of its own.
     shown = [f for f in profile if f not in diff.QUALIFIES]
     assert [r["field"] for r in rows] == shown
     assert [r["value"] for r in rows] == [profile[f] for f in shown]
@@ -324,7 +321,6 @@ def test_two_moves_recorded_in_the_same_second_resolve_to_the_newer(profile, cha
 
     assert rows["enrollment"]["previous"] == 300
 
-# --- clearing what has already been reviewed
 
 
 def test_a_change_already_reviewed_is_no_longer_marked(profile, change):
@@ -370,11 +366,6 @@ def test_reviewing_one_field_leaves_another_field_marked(profile, change):
     assert rows["overallStatus"]["changed"] is True
 
 
-# --- eligibility criteria
-#
-# The inclusion and exclusion list defines who can enter the study, so an
-# amendment widening or narrowing a competitor's target population is exactly
-# the kind of move this tool exists to catch.
 
 
 def test_an_amended_eligibility_criteria_is_reported(profile):
@@ -387,7 +378,6 @@ def test_an_amended_eligibility_criteria_is_reported(profile):
     assert change["previous"] == profile["eligibilityCriteria"]
 
 
-# --- what counts as high signal
 
 
 @pytest.mark.parametrize(
@@ -409,11 +399,6 @@ def test_a_promoted_field_outranks_an_ordinary_one_in_the_order(profile):
     assert ordered[:2] == ["eligibilityCriteria", "phases"]
 
 
-# --- a value and whether it is estimated or actual
-#
-# A primary completion date going from estimated to actual is one event, and
-# the single most informative thing that can happen to that field. Reported as
-# a date move and an unrelated type move, it reads as neither.
 
 
 def test_a_qualifier_gets_no_row_of_its_own(profile):
@@ -440,7 +425,6 @@ def test_a_date_becoming_actual_marks_the_date_itself_as_moved(profile, change):
     row = rows["primaryCompletionDate"]
 
     assert row["changed"] is True
-    # The value it moved from is the value it still holds: only its type moved.
     assert row["previous"] == profile["primaryCompletionDate"]
     assert row["previous_qualifier"] == "ESTIMATED"
 
@@ -510,7 +494,6 @@ def test_folding_leaves_an_unqualified_field_alone():
     assert diff.fold_qualifiers(["overallStatus", "acronym"]) == ["overallStatus", "acronym"]
 
 
-# --- the same folding, for a caller holding changes rather than a profile
 
 
 def test_a_value_and_its_qualifier_moving_together_fold_into_one_move(change, profile):
@@ -531,7 +514,6 @@ def test_a_qualifier_that_moved_alone_is_reported_under_its_value(change, profil
     folded = diff.fold_moves([change("completionDateType", "ESTIMATED", "ACTUAL")], profile)
 
     assert [m["field"] for m in folded] == ["completionDate"]
-    # The value did not move, and stands as the context for the word about it.
     assert folded[0]["previous"] == folded[0]["current"] == profile["completionDate"]
 
 

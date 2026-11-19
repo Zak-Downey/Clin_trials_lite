@@ -178,6 +178,7 @@
     "tests/*",
     ".claude/*",
     ".github/*",
+    ".githooks/*",
     ".gitignore",
     "*.md",
     "ruff.toml",

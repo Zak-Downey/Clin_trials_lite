@@ -30,7 +30,6 @@ def watched(conn, record, fetcher):
     return conn
 
 
-# --- the cheap pre-check
 
 
 def test_an_untouched_registry_record_reports_no_changes(watched, fetcher):
@@ -57,7 +56,6 @@ def test_a_moved_registry_stamp_stores_a_fresh_snapshot(watched, record, make_fe
     assert monitor.profile_of(watched, "NCT03412565")["lastUpdatePostDate"] == "2026-01-15"
 
 
-# --- last checked
 
 
 def test_last_checked_updates_when_nothing_changed(watched, fetcher):
@@ -76,7 +74,6 @@ def test_last_checked_updates_when_the_record_moved(watched, record, make_fetche
     assert trial["last_checked"] == "2026-02-02T09:00:00+00:00"
 
 
-# --- a revision that moved nothing monitored
 
 
 def test_a_revision_outside_what_is_monitored_is_not_reported_as_untouched(
@@ -107,7 +104,6 @@ def test_a_record_stating_no_revision_date_is_not_called_revised(conn, record, m
     assert result["detail"] == "No changes."
 
 
-# --- eligibility criteria
 
 
 def amended(record: dict, criteria: str = "Inclusion Criteria:\n* Aged 12 or over") -> dict:
@@ -152,7 +148,6 @@ def test_monitoring_a_further_field_does_not_report_watched_trials_as_changed(
     assert storage.list_changes(watched, "NCT03412565") == []
 
 
-# --- a date becoming actual
 
 
 def test_a_date_becoming_actual_reads_as_one_entry_not_two(conn, record, make_fetcher):
@@ -186,7 +181,6 @@ def test_the_feed_counts_a_date_becoming_actual_as_one_field(watched, record, ma
     assert entry["kind"] == "1 field changed"
 
 
-# --- forcing a full comparison
 
 
 def test_a_forced_check_compares_every_field_despite_an_untouched_stamp(
@@ -221,6 +215,16 @@ def test_a_forced_check_that_finds_nothing_says_the_registry_was_untouched(watch
     assert result["detail"] == "No changes."
 
 
+def test_a_forced_check_that_finds_nothing_stores_no_second_copy_of_the_record(watched, fetcher):
+    """It re-fetched the record the baseline already holds. Storing it would grow a
+    copy per forced check and move the stored registry stamp past a change the
+    watchlist may still be reporting."""
+    monitor.check(watched, "NCT03412565", fetch=fetcher, force=True)
+    monitor.check(watched, "NCT03412565", fetch=fetcher, force=True)
+
+    assert storage.count_snapshots(watched, "NCT03412565") == 1
+
+
 def test_a_forced_run_forces_every_trial_in_it(conn, record, fetcher, make_fetcher):
     monitor.add(conn, "NCT03412565", fetch=fetcher, when="2026-01-01T00:00:00+00:00")
     monitor.add(conn, "NCT00000001", fetch=fetcher, when="2026-01-02T00:00:00+00:00")
@@ -241,7 +245,6 @@ def test_checking_a_trial_that_is_not_watched_is_refused(conn, fetcher):
     assert fetcher.calls == []
 
 
-# --- checking the whole watchlist
 
 
 def test_every_watched_trial_is_checked(conn, fetcher):
@@ -289,7 +292,6 @@ def test_trials_are_checked_one_at_a_time_with_a_pause_between(conn, fetcher, mo
 
     list(monitor.check_all(conn, fetch=fetcher))
 
-    # Two trials, one gap between them -- and no pause before the first.
     assert pauses == [monitor.PAUSE]
 
 
@@ -298,7 +300,6 @@ def test_checking_an_empty_watchlist_yields_nothing(conn, fetcher):
     assert fetcher.calls == []
 
 
-# --- what the analyst is told about a completed run
 
 
 def test_a_clean_run_is_reported_as_no_changes():
@@ -349,12 +350,10 @@ def test_a_revised_record_is_not_reported_by_its_last_updated_date(watched, reco
     result = monitor.check(watched, "NCT03412565", fetch=fetch)
 
     assert "2026-03-03" not in result["detail"]
-    # Still reported -- just not as a monitored field having moved.
     assert result["outcome"] == "no_monitored_change"
     assert "no changes" not in monitor.summarise([result])["message"]
 
 
-# --- the marked-up profile the page reads
 
 
 def revised(record: dict, count: int, date: str) -> dict:
@@ -384,7 +383,7 @@ def test_a_changed_field_is_marked_up_with_the_value_it_moved_from(
     rows = {r["field"]: r for r in monitor.marked_profile(watched, "NCT03412565")["rows"]}
     assert rows["enrollment"]["changed"] is True
     assert rows["enrollment"]["value"] == 180
-    assert rows["enrollment"]["previous"] == 265  # the registry's own figure
+    assert rows["enrollment"]["previous"] == 265
     assert rows["briefTitle"]["changed"] is False
 
 
@@ -411,7 +410,6 @@ def test_a_field_that_moved_twice_is_marked_up_from_the_most_recent_move(
     assert rows["enrollment"]["value"] == 180
 
 
-# --- marking a trial reviewed
 
 
 @pytest.fixture
@@ -542,7 +540,7 @@ def test_a_failed_check_records_its_time_and_kind_and_a_later_success_clears_it(
     trial = storage.get_trial(conn, "NCT03412565")
     assert result["outcome"] == "error" and result["error_kind"] == "unreachable"
     assert (trial["check_failed_at"], trial["check_error_kind"]) == ("2026-02-01T00:00:00+00:00", "unreachable")
-    assert trial["last_checked"] == "2026-01-01T00:00:00+00:00"  # not moved
+    assert trial["last_checked"] == "2026-01-01T00:00:00+00:00"
     monitor.check_one(conn, "NCT03412565", fetch=fetcher, when="2026-03-01T00:00:00+00:00")
     trial = storage.get_trial(conn, "NCT03412565")
     assert (trial["check_failed_at"], trial["check_error_kind"]) == (None, None)
@@ -567,9 +565,7 @@ def test_retry_failed_rechecks_only_the_trials_that_failed_in_the_last_run(conn,
     monitor.finish_run(conn, 1, results, "2026-02-01T00:00:00+00:00")
 
     assert monitor.failed_in_last_run(conn, 1) == ["NCT00000002"]
-    # A trial that failed in an earlier run is not retried: only the last run's failures.
     storage.mark_check_failed(conn, "NCT00000003", "unreachable", "2025-12-01T00:00:00+00:00")
     assert monitor.failed_in_last_run(conn, 1) == ["NCT00000002"]
-    # Once it has succeeded it is no longer failed.
     monitor.check_one(conn, "NCT00000002", fetch=fetcher)
     assert monitor.failed_in_last_run(conn, 1) == []

@@ -1,5 +1,3 @@
-// The watchlist's tab bar. One place, so every tab draws the same bar.
-// watchlist (optional) is the overview entry; with it, each tab but Summary carries its count.
 export function tabs(listId, selected, watchlist) {
   const nav = document.createElement("nav");
   nav.className = "tabs";

@@ -70,7 +70,8 @@ class Registry:
 
     def __init__(self):
         self.server = standin_registry.make_registry()
-        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread = threading.Thread(
+            target=self.server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
         self.thread.start()
         self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
 
@@ -112,7 +113,7 @@ def seed_queue(db: str, registry: Registry) -> None:
     import storage
 
     conn = storage.connect(db)
-    first = storage.list_lists(conn)[0]["id"]  # a new database already has one default list
+    first = storage.list_lists(conn)[0]["id"]
     monitor.rename_list(conn, first, LONG_NAME)
     quiet = monitor.create_list(conn, "Quiet", when="2026-11-01T08:00:00+00:00")
     stamp = "2026-11-01T08:00:00+00:00"
@@ -139,7 +140,7 @@ class App:
             seed(self.db, registry)
         self.log = open(tmp / "server.log", "w")
         env = {k: v for k, v in os.environ.items() if k not in ("MONITOR_DB",)}
-        env["TZ"] = "America/New_York"  # the server's zone; the browser is put elsewhere
+        env["TZ"] = "America/New_York"
         self.proc = subprocess.Popen(
             [sys.executable, str(ROOT / "walks" / "serve.py"), self.db, registry.url],
             stdout=subprocess.PIPE, stderr=self.log, text=True, env=env,

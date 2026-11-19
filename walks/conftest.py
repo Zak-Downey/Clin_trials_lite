@@ -12,7 +12,7 @@ def browser():
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as pw:
-        chromium = pw.chromium.launch(**helper.launch_options())  # no options unless WALK_RECORD is set
+        chromium = pw.chromium.launch(**helper.launch_options())
         yield chromium
         chromium.close()
 
@@ -58,7 +58,7 @@ class Walk:
         helper.SHOTS.mkdir(parents=True, exist_ok=True)
         path = helper.SHOTS / f"{self.name}-{self.count:02d}-{step}.png"
         self.page.screenshot(path=str(path))
-        self.guards.measure()  # a page too wide now is a fault even if it is narrower later
+        self.guards.measure()
         return str(path)
 
 
@@ -69,16 +69,14 @@ def make_walk(browser, viewport, request):
 
     def build(app) -> Walk:
         width, height = helper.VIEWPORTS[viewport]
-        # The browser is put in a different zone from the server so a page that
-        # shifts a time into the browser's own zone shows.
         context = browser.new_context(
             viewport={"width": width, "height": height}, locale="en-US", timezone_id="Asia/Tokyo",
-            **helper.context_options(width, height))  # no options unless WALK_RECORD is set
+            **helper.context_options(width, height))
         context.set_default_timeout(5000)
         contexts.append(context)
         page = context.new_page()
         walks = request.node.__dict__.setdefault("walks", [])
-        suffix = f"-page{len(walks) + 1}" if walks else ""  # a second page keeps its own shots
+        suffix = f"-page{len(walks) + 1}" if walks else ""
         walk = Walk(page, helper.Guards(page, app.url.rstrip("/")),
                     f"{helper.shot_name(request.node.nodeid)}{suffix}")
         walks.append(walk)
@@ -88,7 +86,7 @@ def make_walk(browser, viewport, request):
     yield build
     for context in contexts:
         context.close()
-    for page, name in recorded:  # the video file is complete only once its context has closed
+    for page, name in recorded:
         helper.keep_video(page, name)
 
 
@@ -109,3 +107,8 @@ def pytest_runtest_makereport(item, call):
     if problems and not report.failed:
         report.outcome = "failed"
         report.longrepr = "walk guard tripped:\n  " + "\n  ".join(problems)
+
+
+def pytest_collection_modifyitems(items):
+    """The tests that read the broken pages' one run go first, so the worker that takes them runs it while the others walk."""
+    items.sort(key=lambda item: "broken_run" not in item.fixturenames)
