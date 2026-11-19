@@ -160,17 +160,29 @@ def pick_walks(root, changed) -> tuple[list[str], dict]:
 # select only the tests a change reaches, or run them all and refresh the record.
 SELECT, NOSELECT = "--testmon", "--testmon-noselect"
 
-COUNTED = re.compile(r"(\d+) (passed|failed|errors?|skipped|xfailed|xpassed|deselected)\b")
+COUNTED = re.compile(r"(\d+) (passed|failed|errors?|skipped|xfailed|xpassed)\b")
+COLLECTED = re.compile(r"(\d+) tests? collected")
 
 
-def unit_counts(output: str) -> tuple[int | None, int | None]:
-    """(tests run, tests there are) from the summary line pytest ends with; (None, None) when it printed none."""
+def unit_ran(output: str) -> int | None:
+    """How many tests ran, from the summary line pytest ends with; None when it printed none."""
     for line in reversed(output.splitlines()):
         counts = COUNTED.findall(line)
         if counts:
-            ran = sum(int(n) for n, word in counts if word != "deselected")
-            return ran, ran + sum(int(n) for n, word in counts if word == "deselected")
-    return None, None
+            return sum(int(n) for n, _ in counts)
+    return None
+
+
+def unit_there_are(command, root, env) -> int | None:
+    """How many unit tests there are, by collecting them without running any. A selecting run cannot say: across
+    processors, pytest's summary leaves out the tests it deselected."""
+    try:
+        done = subprocess.run([*command, "--collect-only", "-q", "--no-testmon"], cwd=root, env=env,
+                              capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    found = COLLECTED.search(done.stdout)
+    return int(found.group(1)) if found else None
 
 
 QUICK = "WALK_QUICK"  # set to 1 for a quick run: the walk fixtures then use the first window size only
@@ -212,16 +224,18 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
             command = [*command, *files]
             picks.append({"check": name, **said})
             out(f"{name:<9} picked {said['ran']} of {said['of']} walk files: {said['why']}")
-        select, unit_why = False, None
+        select, unit_why, there_are = False, None, None
         if name == "unit":
             if pick:
                 select, unit_why = picker.unit(changed)
+                there_are = unit_there_are(command, root, env) if select else None
             command = [*command, SELECT if select else NOSELECT]
         result, took = run_one(command, minutes, output, root, env)
         if unit_why:
-            ran, of = unit_counts(output.read_text(errors="replace"))
+            ran = unit_ran(output.read_text(errors="replace"))
+            of = there_are if select else ran
             picks.append({"check": name, "ran": ran, "of": of, "why": unit_why})
-            counted = f"{ran} of {of} unit tests" if ran is not None else "an unknown number of unit tests (pytest printed no count)"
+            counted = f"{'?' if ran is None else ran} of {'?' if of is None else of} unit tests"
             out(f"{name:<9} picked {counted}: {unit_why}")
         results.append({"name": name, "result": result, "minutes": took, "output": str(shown)})
         out(f"{name:<9} {result:<6} {took:>5.1f} min  {shown}")

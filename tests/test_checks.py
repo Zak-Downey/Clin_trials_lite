@@ -253,12 +253,16 @@ def test_a_plain_run_and_a_quick_run_are_not_picked_and_give_the_walk_check_what
     assert not any("picked" in line for line in printed)
 
 
-def counted(name, summary):
-    """A stand-in check that writes the arguments it was given, then a summary line as pytest -q ends with."""
-    return (name, [PY, "-c", f"import sys; print(' '.join(sys.argv[1:])); print({summary!r})"], 1)
+def counted(name, summary, there_are=12):
+    """A stand-in unit check: asked to collect only, it says how many tests there are; otherwise it writes the
+    arguments it was given, then a summary line as pytest -q ends with. Run across processors, pytest's summary
+    leaves out the tests the picker deselected, so the stand-in's does too."""
+    code = (f"import sys; print('{there_are} tests collected in 0.01s') if '--collect-only' in sys.argv "
+            f"else print(' '.join(sys.argv[1:]) + '\\n' + {summary!r})")
+    return (name, [PY, "-c", code], 1)
 
 
-def unit_pick(tmp_path, summary="3 passed, 9 deselected in 0.10s"):
+def unit_pick(tmp_path, summary="3 passed in 0.10s"):
     code, printed, runs = run(tmp_path, [counted("unit", summary)], pick=True)
     said = next(line for line in printed if line.startswith("unit") and "picked" in line)
     given = (tmp_path / ".checks" / "unit.txt").read_text().splitlines()[0].split()
