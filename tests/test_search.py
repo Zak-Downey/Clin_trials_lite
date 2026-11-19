@@ -108,6 +108,22 @@ def test_every_narrowing_axis_ands_with_the_others_rather_than_replacing_it():
     assert params["query.cond"] == "cll"
 
 
+@pytest.mark.parametrize("axis", ["phases", "sponsor_types", "statuses"])
+@pytest.mark.parametrize(
+    "code", ["PHASE3) OR AREA[Phase](PHASE1", "PHASE3]", "PHASE 3", "PHASE-3", ""]
+)
+def test_a_code_that_is_not_a_bare_word_is_refused_because_a_bracket_would_widen_a_stored_search(
+    axis, code
+):
+    """A code reaches here unchecked from the browser and from saved searches re-run for months.
+
+    A stray bracket would close the AREA clause early and leave the rest to be
+    read as a separate condition, which widens the search.
+    """
+    with pytest.raises(ValueError):
+        ctgov.search_params(cond="cll", **{axis: ("RECRUITING", code)})
+
+
 def test_a_narrowing_axis_left_empty_adds_no_filter():
     assert ctgov.search_params(cond="cll", sponsor_types=(), statuses=(), started_from="") == {
         "query.cond": "cll"
