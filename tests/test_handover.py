@@ -1543,18 +1543,65 @@ def test_a_small_screenshot_goes_inside_the_page_and_a_very_large_one_stays_a_fi
 def test_run_as_a_script_the_page_is_opened_in_the_browser_unless_told_not_to(repo, capsys):
     (repo / ".scratch" / "feat").mkdir(parents=True)
     opened = []
-    assert handover.main(["feat", "--no-walk"], root=repo, show=opened.append) == 0
-    page_file = repo / ".scratch" / "feat" / "hand-over" / "index.html"
-    assert opened == [page_file.resolve().as_uri()] and opened[0].startswith("file:///")
-    assert capsys.readouterr().out.splitlines()[-1] == f"open {page_file}"  # still printed, for a session that cannot open it
-    assert handover.main(["feat", "--no-walk", "--no-open"], root=repo, show=opened.append) == 0 and len(opened) == 1
-    capsys.readouterr()
 
-    def broken(address):
+    def opens(page):
+        opened.append(page)
+        return ""
+    assert handover.main(["feat", "--no-walk"], root=repo, show=opens) == 0
+    page_file = repo / ".scratch" / "feat" / "hand-over" / "index.html"
+    assert opened == [page_file.resolve()]
+    printed = capsys.readouterr().out.splitlines()
+    assert printed[-1] == "The page is open in your browser."
+    assert not [line for line in printed if line.startswith("open ")]  # no path to click once the page is open
+    assert handover.main(["feat", "--no-walk", "--no-open"], root=repo, show=opens) == 0 and len(opened) == 1
+    assert capsys.readouterr().out.splitlines()[-1] == f"open {page_file}"  # told not to: the command that opens it
+
+
+def test_a_page_that_could_not_be_opened_says_why_and_ends_on_the_command_that_opens_it(repo, capsys):
+    (repo / ".scratch" / "feat").mkdir(parents=True)
+    page_file = repo / ".scratch" / "feat" / "hand-over" / "index.html"
+    assert handover.main(["feat", "--no-walk"], root=repo, show=lambda page: "`open` ended 1 (not allowed)") == 0
+    printed = capsys.readouterr().out.splitlines()
+    assert printed[-2:] == ["The page could not be opened in a browser: `open` ended 1 (not allowed). This command opens it:", f"open {page_file}"]
+
+    def broken(page):
         raise OSError("no browser")
-    with pytest.raises(OSError):
-        handover.main(["feat", "--no-walk"], root=repo, show=broken)
-    assert capsys.readouterr().out.splitlines()[-1] == f"open {page_file}"  # printed before the browser is asked, so it is never lost
+    assert handover.main(["feat", "--no-walk"], root=repo, show=broken) == 0  # the page is built; failing to open it is not the build's failure
+    printed = capsys.readouterr().out.splitlines()
+    assert "no browser" in printed[-2] and printed[-1] == f"open {page_file}"
+
+
+def test_on_a_mac_the_page_goes_to_the_app_that_opens_web_links_by_name(tmp_path):
+    import plistlib
+    import types
+    record = tmp_path / "launch.plist"
+    record.write_bytes(plistlib.dumps({"LSHandlers": [{"LSHandlerURLScheme": "mailto", "LSHandlerRoleAll": "com.apple.mail"},
+                                                      {"LSHandlerURLScheme": "https", "LSHandlerRoleAll": "com.google.chrome"}]}))
+    assert handover.default_browser(record) == "com.google.chrome"
+    record.write_bytes(plistlib.dumps({"LSHandlers": [{"LSHandlerURLScheme": "mailto", "LSHandlerRoleAll": "com.apple.mail"}]}))
+    assert handover.default_browser(record) == "com.apple.Safari"  # none recorded: the system's own default
+    record.write_text("not a property list")
+    assert handover.default_browser(record) == "com.apple.Safari"
+    assert handover.default_browser(tmp_path / "missing.plist") == "com.apple.Safari"
+
+    ran, asked = [], []
+    page = tmp_path / "index.html"
+
+    def run(command, **options):
+        ran.append(command)
+        return types.SimpleNamespace(returncode=0, stderr="")
+    other = lambda address: asked.append(address) or True  # noqa: E731 (a one-line stand-in for the platform's opener)
+    assert handover.open_in_browser(page, platform="darwin", run=run, browser=lambda: "com.google.chrome", other=other) == ""
+    assert ran == [["open", "-b", "com.google.chrome", str(page)]] and asked == []  # by name, never by the file's type
+
+    refused = lambda command, **options: types.SimpleNamespace(returncode=1, stderr="not allowed\n")  # noqa: E731 (a one-line stand-in for `open`)
+    assert handover.open_in_browser(page, platform="darwin", run=refused, browser=lambda: "com.apple.Safari", other=other) == "`open` ended 1 (not allowed)"
+
+    def missing(command, **options):
+        raise FileNotFoundError("open")
+    assert "could not run" in handover.open_in_browser(page, platform="darwin", run=missing, other=other)
+    assert handover.open_in_browser(page, platform="linux", run=run, other=other) == "" and asked == [page.as_uri()]
+    assert handover.open_in_browser(page, platform="linux", run=run, other=lambda address: False) == "no browser was found"
 
 
 def test_the_walk_helper_records_nothing_unless_it_is_asked_to(monkeypatch):
