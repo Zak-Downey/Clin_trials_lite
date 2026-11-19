@@ -4,12 +4,17 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Red first, with a stand-in for the `gh` command: one test for each of the five things the page can say, each checking the words the owner reads and whether the count of things to look at went up
-- [ ] Red first: a run that belongs to an earlier commit is not reported as this commit's; with two runs for the commit the newer decides
-- [ ] Red first: with a draft pull request for the branch, the page gives its address and says it is not yet accepted; with none, it says nothing of one
-- [ ] Red first: with the command missing, or ending in an error, or taking too long, the page is still built and says GitHub could not be asked and why
-- [ ] A page built from records with no such answer at all (an older build) reads as it did before, apart from the new statement; `python3 checks.py` ends green on this ticket's commit
+- [x] Red first, with a stand-in for the `gh` command: one test for each of the five things the page can say, each checking the words the owner reads and whether the count of things to look at went up
+- [x] Red first: a run that belongs to an earlier commit is not reported as this commit's; with two runs for the commit the newer decides
+- [x] Red first: with a draft pull request for the branch, the page gives its address and says it is not yet accepted; with none, it says nothing of one
+- [x] Red first: with the command missing, or ending in an error, or taking too long, the page is still built and says GitHub could not be asked and why
+- [x] A page built from records with no such answer at all (an older build) reads as it did before, apart from the new statement; `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
+
+- `handover.py` asks GitHub through `gh` (`gh_said`, `ask_github`; each question waits at most `GITHUB_SECONDS`, 5) for the runs of `checks.yml` on the branch, keeps only the build's last commit's (by full `headSha`; the newest by `createdAt` decides), asks for the failed step only on a failure, and asks for the branch's pull request (`url,isDraft,state`). `github_parts` says one of five things; every one but a pass is an amber item of the page's own list (`to_look_at`), so it adds one to the headline's count. A pass is said under the headline; all five are also a row of the folded facts. A page built without asking (`github=None`) lists nothing for it and its fact row says GitHub was not asked. The module docstring lists GitHub among what the page reads.
+- Beyond the ticket: a merged or closed pull request is said as such, not as ready (found by asking the real GitHub once, read-only, about `feature/kit-phase-4`: its pull request #16 is merged).
+- Tests, all seen red first against the previous `handover.py` (12 failed, the 132 earlier ones passed): in `tests/test_handover.py`, `test_a_run_on_github_that_passed_...`, `..._that_failed_...`, `..._still_going_...`, `test_no_run_on_github_for_this_commit_...`, `test_when_github_cannot_be_asked_the_page_is_still_built_and_says_why` (missing, signed out, error quoted, too slow), `test_a_run_of_an_earlier_commit_is_never_this_commit_s_and_of_two_runs_of_this_commit_the_newer_decides`, `test_a_draft_pull_request_is_given_...`, `test_github_is_asked_about_the_checks_workflow_on_the_branch_asked_for`, `test_a_page_built_without_asking_github_...`. The stand-in for `gh` is a shell script (`gh()` in the test file); an autouse fixture points `handover.GH` at a missing file, so no test talks to GitHub.
+- Size: 97 lines added to `handover.py` outside tests (4 changed), about 35 over the ~60 aimed for: the five sentences and their what-to-do lines, the pull request's states, and the docstring lines.

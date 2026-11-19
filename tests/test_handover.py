@@ -2172,3 +2172,147 @@ def test_a_page_from_a_run_that_lists_lint_names_it_in_the_owner_s_words_never_b
     named = [m.start() for m in re.finditer(r"\blint\b", text) if not text[m.end():].startswith(".txt")]
     bare = [i for i in named if not text[:i].endswith("check of the code for common mistakes (")]
     assert named and bare == [], [text[max(i - 60, 0):i + 20] for i in bare]
+
+
+
+@pytest.fixture(autouse=True)
+def no_github(monkeypatch, tmp_path):
+    """No test talks to GitHub: the page asks a `gh` that is not there unless a test puts its own stand-in in its place."""
+    monkeypatch.setattr(handover, "GH", str(tmp_path / "no-gh-here"))
+
+
+def gh(repo: pathlib.Path, runs=(), jobs=(), pr=None, code=0, said="", wait=0) -> pathlib.Path:
+    """A `gh` that answers as GitHub would: the runs of a workflow, a run's jobs, the branch's pull request (none: it ends 1)."""
+    script = repo.parent / "gh"
+    pr_said = f"printf '%s' '{json.dumps(pr)}'" if pr else "echo 'no pull requests found' >&2; exit 1"
+    script.write_text("\n".join([
+        "#!/bin/sh", f"[ {wait} -gt 0 ] && exec sleep {wait}", f'echo "$*" >> "{repo.parent / "gh-asked.txt"}"',
+        f"[ {code} -ne 0 ] && {{ printf '%s' '{said}' >&2; exit {code}; }}",
+        'case "$1 $2" in',
+        f"  'run list') printf '%s' '{json.dumps(list(runs))}' ;;",
+        f"  'run view') printf '%s' '{json.dumps({'jobs': list(jobs)})}' ;;",
+        f"  'pr view') {pr_said} ;;",
+        "esac", ""]))
+    script.chmod(0o755)
+    return script
+
+
+def gh_run(repo, ref="feature/x", status="completed", conclusion="success", number=57, at="2026-11-02T11:00:00Z", **more):
+    return {"databaseId": 900 + number, "number": number, "status": status, "conclusion": conclusion, "headSha": git(repo, "rev-parse", ref),
+            "url": f"https://github.com/o/r/actions/runs/{900 + number}", "createdAt": at, "startedAt": at,
+            "updatedAt": "2026-11-02T11:07:00Z", **more}
+
+
+def built_with(repo, monkeypatch, stand_in=None) -> str:
+    """The page main() builds of feature/x, with `gh` played by the stand-in (None: no gh on this computer)."""
+    if stand_in:
+        monkeypatch.setattr(handover, "GH", str(stand_in))
+    write_lines(repo / ".scratch" / "feat" / "findings" / "walker-a.jsonl", [])
+    assert handover.main(["feat", "--base", "main", "--tip", "feature/x", "--branch", "feature/x", "--no-walk"], root=repo) == 0
+    return (repo / ".scratch" / "feat" / "hand-over" / "index.html").read_text(encoding="utf-8")
+
+
+def github_thing(text: str) -> tuple[str, str, str, str] | None:
+    """The one thing to look at that is about GitHub's run of the checks, if the list has one."""
+    return next((thing for thing in things(text) if "GitHub" in thing[2]), None)
+
+
+def test_a_run_on_github_that_passed_says_so_with_its_number_and_minutes_and_adds_nothing_to_look_at(repo, monkeypatch):
+    text = built_with(repo, monkeypatch, gh(repo, runs=[gh_run(repo)]))
+    assert github_thing(text) is None
+    assert "GitHub&#x27;s run of the automated checks passed on the build&#x27;s last commit: run 57, which took 7 minutes." in top(text)
+
+
+def count_of(text: str) -> int:
+    return len(things(text))
+
+
+def test_a_run_on_github_that_failed_gives_its_address_and_failed_step_and_is_one_more_thing_to_look_at(repo, monkeypatch):
+    passed = count_of(built_with(repo, monkeypatch, gh(repo, runs=[gh_run(repo)])))
+    jobs = [{"name": "checks", "steps": [{"name": "Set up", "conclusion": "success"}, {"name": "Run every check", "conclusion": "failure"}]}]
+    text = built_with(repo, monkeypatch, gh(repo, runs=[gh_run(repo, conclusion="failure")], jobs=jobs))
+    assert count_of(text) == passed + 1
+    tone, href, what, why = github_thing(text)
+    assert (tone, what) == ("amber", "GitHub&#x27;s run of the automated checks failed on the build&#x27;s last commit")
+    assert "Run 57 (https://github.com/o/r/actions/runs/957) failed at the step “Run every check”." in why
+    assert "its own computer, which runs Linux" in why and "Ask for the failure to be fixed before you accept this build." in why
+
+
+def test_a_run_on_github_still_going_says_to_wait_and_build_the_page_again(repo, monkeypatch):
+    passed = count_of(built_with(repo, monkeypatch, gh(repo, runs=[gh_run(repo)])))
+    text = built_with(repo, monkeypatch, gh(repo, runs=[gh_run(repo, status="in_progress", conclusion="")]))
+    assert count_of(text) == passed + 1
+    tone, href, what, why = github_thing(text)
+    assert what == "GitHub&#x27;s run of the automated checks had not finished when this page was built"
+    assert "was still running, so this page cannot say whether it passes" in why
+    assert "Wait for it to end, then ask for this page to be built again." in why
+
+
+def test_no_run_on_github_for_this_commit_says_so_and_how_to_start_one(repo, monkeypatch):
+    passed = count_of(built_with(repo, monkeypatch, gh(repo, runs=[gh_run(repo)])))
+    text = built_with(repo, monkeypatch, gh(repo, runs=[]))
+    assert count_of(text) == passed + 1
+    tone, href, what, why = github_thing(text)
+    tip = git(repo, "rev-parse", "--short", "feature/x")
+    assert what == "GitHub has not run the automated checks on the build&#x27;s last commit"
+    assert f"No run was made for commit {tip} of branch feature/x." in why and "earlier commit" not in why
+    assert "pushing the branch to GitHub with a pull request open for it starts one" in why
+
+
+@pytest.mark.parametrize("stand_in, why, fix", [
+    (None, "The gh command, through which this page asks GitHub, is not installed on this computer.", "Install the gh command"),
+    (dict(code=4, said="To get started with GitHub CLI, please run:  gh auth login"), "The gh command is not signed in to GitHub.",
+     "Sign in: type gh auth login in a terminal, then ask for this page to be built again."),
+    (dict(code=1, said="HTTP 502: Bad gateway"), "The gh command ended with an error: “HTTP 502: Bad gateway”.", "built again in a few minutes"),
+    (dict(wait=30), "GitHub did not answer within 1 seconds.", "built again in a few minutes"),
+])
+def test_when_github_cannot_be_asked_the_page_is_still_built_and_says_why(repo, monkeypatch, stand_in, why, fix):
+    passed = count_of(built_with(repo, monkeypatch, gh(repo, runs=[gh_run(repo)])))
+    monkeypatch.setattr(handover, "GITHUB_SECONDS", 1)
+    started = time.monotonic()
+    text = built_with(repo, monkeypatch, stand_in and gh(repo, **stand_in))
+    if stand_in is None:
+        monkeypatch.setattr(handover, "GH", str(repo.parent / "no-gh-here"))
+        text = built_with(repo, monkeypatch)
+    assert time.monotonic() - started < 10
+    assert count_of(text) == passed + 1
+    tone, href, what, said = github_thing(text)
+    assert what == "This page could not ask GitHub how its run of the automated checks went"
+    assert why in said and fix in said and "nothing on this page says whether the checks pass on GitHub&#x27;s computer" in said
+
+
+def test_a_run_of_an_earlier_commit_is_never_this_commit_s_and_of_two_runs_of_this_commit_the_newer_decides(repo, monkeypatch):
+    earlier = gh_run(repo, ref="feature/x~1", number=56)
+    text = built_with(repo, monkeypatch, gh(repo, runs=[earlier]))
+    tone, href, what, why = github_thing(text)
+    assert what == "GitHub has not run the automated checks on the build&#x27;s last commit"
+    assert "GitHub has a run of an earlier commit of the branch; it says nothing of this one." in why and "Run 56" not in text
+    newer_red = [gh_run(repo, number=58, conclusion="failure", at="2026-11-02T12:00:00Z"), gh_run(repo, number=57), earlier]
+    assert "Run 58 " in github_thing(built_with(repo, monkeypatch, gh(repo, runs=newer_red)))[3]
+    newer_green = [gh_run(repo, number=57, conclusion="failure"), gh_run(repo, number=58, at="2026-11-02T12:00:00Z")]
+    text = built_with(repo, monkeypatch, gh(repo, runs=newer_green))
+    assert github_thing(text) is None and "passed on the build&#x27;s last commit: run 58," in top(text)
+
+
+def test_a_draft_pull_request_is_given_with_its_address_and_said_not_yet_accepted_and_none_is_not_mentioned(repo, monkeypatch):
+    draft = {"url": "https://github.com/o/r/pull/12", "isDraft": True}
+    text = built_with(repo, monkeypatch, gh(repo, runs=[gh_run(repo)], pr=draft))
+    assert ("The pull request is at https://github.com/o/r/pull/12. It is still a draft: not yet accepted, so it cannot be merged."
+            in top(text))
+    text = built_with(repo, monkeypatch, gh(repo, runs=[], pr=draft))
+    assert "https://github.com/o/r/pull/12. It is still a draft" in github_thing(text)[3]
+    merged = built_with(repo, monkeypatch, gh(repo, runs=[gh_run(repo)], pr={"url": "https://github.com/o/r/pull/9", "isDraft": False, "state": "MERGED"}))
+    assert "The pull request is at https://github.com/o/r/pull/9. It is already merged." in top(merged)
+    text = built_with(repo, monkeypatch, gh(repo, runs=[gh_run(repo)]))
+    assert "The pull request is at" not in text
+
+
+def test_github_is_asked_about_the_checks_workflow_on_the_branch_asked_for(repo, monkeypatch):
+    built_with(repo, monkeypatch, gh(repo, runs=[gh_run(repo)]))
+    asked = (repo.parent / "gh-asked.txt").read_text().splitlines()
+    assert asked[0].startswith("run list --workflow checks.yml --branch feature/x ") and asked[1] == "pr view feature/x --json url,isDraft,state"
+
+
+def test_a_page_built_without_asking_github_says_github_was_not_asked_and_lists_nothing_for_it():
+    text = page(git=GIT)
+    assert github_thing(text) is None and "GitHub was not asked" in text
