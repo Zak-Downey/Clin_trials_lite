@@ -1,0 +1,38 @@
+{
+  "what": [
+    "This page now says what GitHub's own run of the automated checks found for the commit you are judging, with the draft pull request's address.",
+    "A build now ends by pushing its branch and opening a draft pull request, which GitHub checks once; marking it ready when you accept starts no second run.",
+    "A browser test that fails beside the others and passes alone now fails the automated checks, instead of only being listed.",
+    "On the trial page, the review bar's words and Next trial appear only once they are true, and the page no longer jumps to the top while it loads.",
+    "Two rules are written down (a fix's test covers every case; a reason the code depends on is held by a test), and three unused display settings are gone."
+  ],
+  "so_what": [
+    "You can see whether the build passed on GitHub's Linux machine before you say yes, instead of after.",
+    "When you accept, the draft is marked ready and you merge it; there is no second wait for GitHub.",
+    "Try first: open a trial from Needs review, scroll down at once, and check the page stays where you put it.",
+    "Then open a trial in two tabs, mark it reviewed in one, then in the other: the second now says the changes were already reviewed."
+  ],
+  "now_what": [
+    "One case is left unfixed: after Undo, where another tab had already reviewed some changes, the page shows all of them unreviewed until it is reloaded. No finding names it.",
+    "The tester could not try a slow server for the trial list alone: the stand-in registry has no switch for it, so the test held the answer in the browser instead.",
+    "The tester could not try hostile data (hundreds of changes or watchlists, long names) or the server stopping mid-action; time went to timing and stale tabs.",
+    "The tester could not check how a screen reader announces the new error line in the review bar: there is no screen reader here.",
+    "The wobbling test was reading the review bar's first sentence before the page drew it; the page drew it only after the trial list answered. A test that held that answer showed it red first.",
+    "That was a fault of the page, not only the test, so the page was fixed (defect log E-043). The same moment also made the page jump to the top, which was fixed too (E-048).",
+    "No run of the browser tests in this build recorded a test that wobbled, so none was turned red by the new rule (28 recorded runs looked up in this build's record).",
+    "The build's instructions were edited in place; nothing was left for you to apply by hand.",
+    "The workflow's opening lines give the times of four earlier GitHub runs (6 to 17 minutes), not this build's own: that run does not exist until the branch is pushed.",
+    "The sentence added to the build's instructions does not cite R-006 by name, because that file is this product's and the instructions must read the same in any product.",
+    "Finding review-whole-07 of kit-phase-4 (the unused settings) is now done by ticket 07; its outcome in kit-phase-4's records still says left, since a later build does not rewrite them.",
+    "The page's GitHub question added 97 lines to the page builder, against about 60 hoped for; the extra is the five statements' wording and the pull request's states.",
+    "Defaults used as the spec named: a wobble is red at once; the page asks GitHub itself; a second red run on GitHub ends the trying; the draft is opened before you judge; the limit stays 20 minutes."
+  ],
+  "walk_through": [
+    {"test": "test_walk_the_action_bar_states_its_scope_while_the_watchlist_s_queue_is_still_unanswered", "title": "The review bar says what it covers before the trial list answers", "legend": "A trial is opened while the list of trials to review is held back. The review bar already says it covers all 5 changes. Once the list answers, Next trial opens the next trial."},
+    {"test": "test_walk_next_trial_is_off_until_the_queue_answers_and_then_opens_the_next_trial", "title": "Next trial is off until the page knows which trial is next", "legend": "With the trial list held back, Next trial is greyed out and says it is looking for the next trial. Once the list answers, it turns on and opens the next trial."},
+    {"test": "test_walk_a_reader_scrolled_down_stays_there_when_the_watchlist_s_queue_answers", "title": "The trial page stays where you scrolled while it loads", "legend": "A trial is opened and scrolled to the bottom before the trial list answers. When it answers, the page should stay at the bottom, not jump to the top."},
+    {"test": "test_walk_mark_reviewed_on_changes_another_tab_already_reviewed_says_so_and_offers_no_undo", "title": "Mark reviewed says when another tab got there first", "legend": "Another tab has already reviewed this trial's 5 changes. Mark reviewed here should say they were already reviewed, offer no Undo, and show all 5 as reviewed."},
+    {"test": "test_walk_next_trial_states_that_the_list_of_trials_to_review_failed_to_load", "title": "A failed trial list is said, not taken for an empty one", "legend": "The list of trials to review fails to load. Next trial should stay off, and the review bar should say the next trial could not be found and why."},
+    {"test": "test_walk_the_review_bar_of_a_trial_with_one_change_says_it_in_the_singular", "title": "One change is spoken of as one change", "legend": "A trial with a single change is opened. The bar should say it covers the 1 change, and after another tab reviews it, that this change was already reviewed."}
+  ]
+}

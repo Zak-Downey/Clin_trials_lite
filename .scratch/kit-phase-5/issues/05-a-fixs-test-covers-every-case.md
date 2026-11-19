@@ -8,8 +8,10 @@
 
 - [x] Step 7 of the skill says the finding's check covers every place its rule applies, in one sentence, or `skill-edits.md` holds that edit in full
 - [x] No other line of the skill file changed in this ticket, and neither brief beside it
-- [ ] `python3 checks.py` ends green on this ticket's commit
+- [x] `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
 
 The edit took the first form: one sentence added to step 7 of the skill file itself, no `skill-edits.md` entry; I ran `python3 checks.py --quick --pick` on it (green), not the full `python3 checks.py`, so the third box stays open for the hand-over's full run.
+
+The full `python3 checks.py` was green on 21f8a53 and later commits, which carry this ticket's change unaltered; it was not run on a7f82b0 itself.
