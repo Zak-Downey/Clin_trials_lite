@@ -124,6 +124,14 @@ def test_a_run_line_says_when_and_where_and_names_only_the_checks_asked_for(tmp_
     assert line["at"].endswith("Z") and "T" in line["at"]
 
 
+def test_a_run_line_says_whether_the_run_asked_for_every_check(tmp_path):
+    both = [passing("one"), passing("two")]
+    _, _, runs = run(tmp_path, both)
+    run(tmp_path, both, names=["one"])
+    _, _, runs = run(tmp_path, both, names=["two", "one"])
+    assert [line["every"] for line in runs] == [True, False, True]
+
+
 def test_naming_a_check_that_does_not_exist_runs_nothing_and_says_which_exist(tmp_path):
     code, printed, runs = run(tmp_path, [passing("one")], names=["oen"])
     assert code == 2

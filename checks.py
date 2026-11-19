@@ -6,7 +6,7 @@
                                    it combines with naming checks, and the run's line in the log says quick
 
 Each check's output goes to .checks/<name>.txt. One line is printed per check and one line is
-appended to .checks/runs.jsonl per run, with "quick" true or false. Exit 1 when a check is red. Red is a non-zero exit code
+appended to .checks/runs.jsonl per run, with "quick" true or false and "every" true when every check was asked for. Exit 1 when a check is red. Red is a non-zero exit code
 or a timeout: nothing here reads a suite's output to decide.
 
 The checks: `lint` (Ruff over the repo, with the version pinned in requirements-dev.txt and the
@@ -182,6 +182,7 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
         "result": "red" if red else "green",
         "minutes": total,
         "quick": quick,
+        "every": set(known) <= set(names or known),  # every check was asked for: a run that can be a base (picker.py)
         "checks": results,
     }
     with open(folder / "runs.jsonl", "a") as log:

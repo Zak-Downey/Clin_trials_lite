@@ -38,6 +38,7 @@
     "walks/run_walks.py",
     "tests/fixtures/NCT03412565.json",
     "checks.py",
+    "picker.py",
     "pytest.ini",
     "requirements.txt",
     "requirements-dev.txt"
