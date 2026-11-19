@@ -9,7 +9,7 @@
 - [x] Red first, by a real push from a temporary repo to a temporary remote, with a stand-in `checks.py`: when a check is red the push is refused, the red check's lines are printed and the remote does not have the commit; when all are green the commit arrives
 - [x] Red first: `python3 checks.py` prints its one line in a clone that has `.githooks` and has not switched it on, prints nothing about it once switched on, and prints nothing on GitHub's machine
 - [x] In this clone the hook is switched on. In a copy of this repo in a temporary folder, with a temporary remote and the real `checks.py`, a push with a comment added is refused in about a second; the comments hold what was printed and how long it took. This ticket pushes nothing to GitHub
-- [ ] The settings refuse `git push` with `--no-verify`, or `settings-edit.md` holds the edit in full; `repo.md`'s "Local hooks" line is true; `python3 checks.py` ends green on this ticket's commit
+- [x] The settings refuse `git push` with `--no-verify`, or `settings-edit.md` holds the edit in full; `repo.md`'s "Local hooks" line is true; `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
 
@@ -26,3 +26,5 @@
   ```
 
   With the comment taken out again, the push went through in 1.15 seconds with only git's own lines. The temporary folder was deleted; nothing was pushed to GitHub.
+
+The full `python3 checks.py` on 646ddcb ended green in 2.9 min, run by the build lead. `.claude/settings.json` was edited directly (one added line); no `settings-edit.md` was needed.
