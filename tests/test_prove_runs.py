@@ -263,7 +263,7 @@ MAP = {"shared": ["pages/shared.js"], "always": [],
        "none": ["*.py", "tests/*", "docs/*", ".gitignore", "pytest.ini"]}
 
 
-def pick_repo(tmp_path, breaks, the_map=MAP):
+def pick_repo(tmp_path, breaks, the_map=MAP, run_walks=RUN_WALKS):
     """A small repo with a unit suite, two walk files on a map of two pages, and what the picker reads: a green run of
     every check at its last commit in the run log, and the unit record that run would have left."""
     root = small_repo(tmp_path, breaks, tests=PICK_TESTS)
@@ -275,7 +275,7 @@ def pick_repo(tmp_path, breaks, the_map=MAP):
     for name in ("a", "b", "shared"):
         (root / "pages" / f"{name}.js").write_text(f"// {name}: ok\n")
     (root / "walks").mkdir()
-    (root / "walks" / "run_walks.py").write_text(RUN_WALKS)
+    (root / "walks" / "run_walks.py").write_text(run_walks)
     for name in ("a", "b"):
         (root / "walks" / f"test_{name}_walk.py").write_text(WALK.format(name=name))
     (root / "docs" / "agents" / "local" / "walk-map.json").write_text(json.dumps(the_map))
@@ -327,3 +327,16 @@ def test_a_break_whose_pick_ran_everything_is_caught_but_not_counted_as_proof_of
     assert printed[-1] == "proof --pick: 1 of 1 breaks caught, 0 by a pick smaller than the whole; 0 proved by a check left to python3 prove.py"
     assert code == 0
     assert line["breaks"] == [{"id": "shared-broken", "outcome": "caught, but nothing was picked", "ran": 2, "of": 2}]
+
+
+def test_a_pick_of_everything_stopped_at_the_limit_is_reported_so_and_does_not_fail_the_picked_proof(tmp_path):
+    # nothing was picked, so picking hid nothing; whether the test catches the break is the plain proof's to say
+    slow_whole = "import sys, time\nif not sys.argv[1:]:\n    time.sleep(30)\n" + RUN_WALKS
+    root = pick_repo(tmp_path, [walk_entry(page="shared"), walk_entry()], run_walks=slow_whole)
+    code, printed, line = prove_in(root, pick=True, minutes=0.1)
+    assert printed[0].startswith("shared-broken  walks  could not run, but nothing was picked (stopped after 0.1 minutes)"
+                                 "  picked 2 of 2 walk files: every walk"), printed
+    assert printed[-1] == ("proof --pick: 1 of 2 breaks caught, 1 by a pick smaller than the whole; 1 stopped at the limit, "
+                           "but its pick ran everything; 0 proved by a check left to python3 prove.py")
+    assert code == 0
+    assert line["breaks"][0] == {"id": "shared-broken", "outcome": "could not run, but nothing was picked", "ran": 2, "of": 2}

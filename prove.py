@@ -21,8 +21,11 @@ With --pick, the copy also carries what the picker reads in the working folder: 
 this repo's objects, so the base commit is there), the run log (.checks/runs.jsonl, whose last green run of every
 check is the base) and the unit record (.testmondata*). Its unbroken run is the named test; its broken run is the
 picked check, which must end 1. Each line says how many the pick ran of how many there are: a break whose pick ran
-everything is "caught, but nothing was picked", and one whose pick stayed green is "hidden". Breaks proved by a check
-are left to the plain proof. Its log line carries "picked": true.
+everything is "caught, but nothing was picked", and one whose pick stayed green is "hidden". A pick of everything
+stopped at the time limit is "could not run, but nothing was picked" and does not make the proof red: nothing was
+picked, so picking hid nothing, and the plain proof says whether the test catches it. Exit 0 only when no break was
+hidden, stopped in a smaller pick, red before the change or otherwise not run. Breaks proved by a check are left to the
+plain proof. Its log line carries "picked": true.
 """
 
 from __future__ import annotations
@@ -33,6 +36,7 @@ import functools
 import json
 import os
 import pathlib
+import re
 import shutil
 import signal
 import subprocess
@@ -232,12 +236,15 @@ def prove_picked(item, root, minutes) -> tuple[str, str, list[str], dict]:
         path.write_text(path.read_text(encoding="utf-8").replace(item["find"], item["replace"]), encoding="utf-8")
         after = pathlib.Path(scratch) / "after.txt"
         code = run_in([sys.executable, "checks.py", "--quick", "--pick", check], copy, minutes, after)
-        pick = {"check": check, **last_pick(copy, check)} if code is not None else {}
+        said = last_pick(copy, check) if code is not None else printed_pick(after, check)
+        pick = {"check": check, **said} if said else {}
+        whole = pick.get("ran") is not None and pick.get("ran") == pick.get("of")
         if code == 1:
-            whole = pick.get("ran") is not None and pick.get("ran") == pick.get("of")
             return ("caught, but nothing was picked" if whole else "caught"), "", [], pick
         if code == 0:
             return "hidden", "", tail(after), pick
+        if code is None and whole:  # nothing was picked, so picking hid nothing: the plain proof says whether it is caught
+            return "could not run, but nothing was picked", f"stopped after {minutes} minutes", [], pick
         why = f"stopped after {minutes} minutes" if code is None else f"checks.py ended {code}: it did not run and fail"
         return "could not run", why, tail(after), pick
 
@@ -252,7 +259,17 @@ def last_pick(copy, check) -> dict:
     return {key: said.get(key) for key in ("ran", "of", "why")}
 
 
+def printed_pick(output, check) -> dict:
+    """What checks.py printed it picked for the check, {"ran", "of", "why"}: a run stopped at its limit logs nothing."""
+    for line in output.read_text(errors="replace").splitlines():
+        found = re.match(rf"{check}\s+picked (\d+) of (\d+) [a-z]+ [a-z]+: (.*)$", line)
+        if found:
+            return {"ran": int(found.group(1)), "of": int(found.group(2)), "why": found.group(3)}
+    return {}
+
+
 NOUNS = {"unit": "unit tests", "walks": "walk files"}
+FINE = ("caught", "caught, but nothing was picked", "could not run, but nothing was picked")
 
 
 def picked_words(pick) -> str:
@@ -316,10 +333,12 @@ def prove_pick(breaks, root, minutes, out) -> int:
             out(f"    {text}")
     caught = sum(o["outcome"].startswith("caught") for o in outcomes)
     smaller = sum(o["outcome"] == "caught" for o in outcomes)
-    green = bool(outcomes) and caught == len(outcomes)
+    stopped = sum(o["outcome"] == "could not run, but nothing was picked" for o in outcomes)
+    green = bool(outcomes) and all(o["outcome"] in FINE for o in outcomes)
     log(root, outcomes, "green" if green else "red", True)
     out(f"proof --pick: {caught} of {len(outcomes)} breaks caught, {smaller} by a pick smaller than the whole; "
-        f"{by_check} proved by a check left to python3 prove.py")
+        + (f"{stopped} stopped at the limit, but {'its pick' if stopped == 1 else 'their picks'} ran everything; " if stopped else "")
+        + f"{by_check} proved by a check left to python3 prove.py")
     return 0 if green else 1
 
 
