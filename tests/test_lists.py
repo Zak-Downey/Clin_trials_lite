@@ -269,6 +269,24 @@ def test_reopening_a_database_does_not_re_home_a_trial_that_lost_its_last_list(
     assert storage.list_trials(conn, only) == []
 
 
+def test_a_new_default_list_leaves_out_a_trial_dropped_when_its_last_list_was_deleted(
+    tmp_path, record, make_fetcher
+):
+    """Only a database that never had lists gets every trial housed; a trial the
+    analyst let go stays let go, its removal recorded."""
+    path = str(tmp_path / "live.db")
+    conn = storage.connect(path)
+    only = storage.list_lists(conn)[0]["id"]
+    monitor.add(conn, "NCT03412565", only, fetch=make_fetcher(default=record))
+    storage.delete_list(conn, only)
+    conn.close()
+
+    conn = storage.connect(path)
+
+    [home] = storage.list_lists(conn)
+    assert storage.list_trials(conn, home["id"]) == []
+
+
 def test_adding_without_naming_a_list_says_so_when_there_are_none(conn, fetcher):
     storage.delete_list(conn, storage.list_lists(conn)[0]["id"])
 
