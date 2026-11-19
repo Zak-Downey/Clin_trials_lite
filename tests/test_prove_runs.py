@@ -2,7 +2,8 @@
 
 Every case is a small hand-made git repo in a temporary folder (a module, its tests, a list of
 breaks), whose `.venv` is a link to this repo's, as a real one would be. The proof runs real pytest
-and the real checks.py in its copy; nothing is stubbed but the time limit.
+and the real checks.py in its copy; nothing is stubbed but the time limit, and in two tests the refused
+kill macOS answers for a group whose members have exited but are not yet reaped.
 """
 
 from __future__ import annotations
@@ -213,3 +214,36 @@ def test_ctrl_c_during_a_check_leaves_nothing_running(tmp_path):
     else:
         os.kill(pid, 9)
         raise AssertionError("the check's pytest outlived the proof stopped by Ctrl+C")
+
+
+def killpg_refusing_the_kill(real=os.killpg):
+    """os.killpg as macOS answers it when every member of the group has exited but some are not yet
+    reaped: the stop is delivered, the kill after it is refused with EPERM."""
+    def killpg(pgid, sig):
+        if sig == signal.SIGKILL:
+            raise PermissionError(1, "Operation not permitted")
+        real(pgid, sig)
+    return killpg
+
+
+def test_a_run_whose_group_has_only_unreaped_members_left_at_the_kill_is_still_stopped_cleanly(tmp_path, monkeypatch):
+    monkeypatch.setattr(prove.os, "killpg", killpg_refusing_the_kill())
+    code = prove.run_in([sys.executable, "-c", "import time; time.sleep(30)"], tmp_path, 0.005, tmp_path / "out.txt")
+    assert code is None
+
+
+def test_a_refused_kill_of_a_group_with_a_live_member_is_not_hidden(tmp_path, monkeypatch):
+    monkeypatch.setattr(prove, "GRACE_SECONDS", 0.2)
+    monkeypatch.setattr(prove.os, "killpg", killpg_refusing_the_kill())
+    stubborn = "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(30)"
+    pid_file = tmp_path / "pid"
+    command = [sys.executable, "-c", f"import os; open({str(pid_file)!r}, 'w').write(str(os.getpid())); {stubborn}"]
+    try:
+        try:
+            prove.run_in(command, tmp_path, 0.01, tmp_path / "out.txt")
+        except PermissionError:
+            pass
+        else:
+            raise AssertionError("a refused kill of a live process was taken for a stopped run")
+    finally:
+        os.kill(int(pid_file.read_text()), signal.SIGKILL)

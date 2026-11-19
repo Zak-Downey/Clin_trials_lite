@@ -100,6 +100,9 @@ def named_test_problems(test, root) -> list[str]:
     return []
 
 
+GRACE_SECONDS = 10  # how long a stopped run's group has to stop what it started before it is killed
+
+
 def copy_of(root, into) -> pathlib.Path:
     """The files git tracks in `root`, as they are on disk, copied into `into`, with `.venv` a link to root's."""
     root, copy = pathlib.Path(root), pathlib.Path(into) / "copy"
@@ -134,14 +137,24 @@ def run_in(command, copy, minutes, output) -> int | None:
             if process.poll() is None:
                 os.killpg(process.pid, signal.SIGTERM)
                 try:
-                    process.wait(timeout=10)
+                    process.wait(timeout=GRACE_SECONDS)
                 except subprocess.TimeoutExpired:
                     pass
                 try:
                     os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
+                except PermissionError:  # macOS: a group whose members have all exited, some not yet reaped
+                    if group_has_live_member(process.pid):
+                        raise
                 process.wait()
+
+
+def group_has_live_member(pgid) -> bool:
+    """Whether any process in the group is running: one that has exited but is not yet reaped does not count."""
+    listed = subprocess.run(["ps", "-A", "-o", "pgid=,stat="], capture_output=True, text=True, check=True)
+    return any(fields[0] == str(pgid) and not fields[1].startswith("Z")
+               for fields in map(str.split, listed.stdout.splitlines()) if len(fields) == 2)
 
 
 def prove_one(item, root, minutes) -> tuple[str, str, list[str]]:
