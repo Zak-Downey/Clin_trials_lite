@@ -1,5 +1,3 @@
-// The New matches tab: what the saved search found that is not monitored yet.
-// Not changes, not registrations: an invitation to add. Dismissing is remembered per watchlist.
 import { get, post } from "/static/api.js";
 import { setOrigin } from "/static/views/registry_trial.js";
 import { tabs as tabBar } from "/static/views/tabs.js";
@@ -13,7 +11,6 @@ const el = (tag, attrs = {}, ...kids) => {
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const CONSEQUENCE = "These trials will not be suggested again for this list.";
 
-// What the analyst set, kept per watchlist so a redraw while a check finishes does not clear it.
 const kept = new Map();
 
 export async function render(root, listId, watchlist) {
@@ -21,13 +18,13 @@ export async function render(root, listId, watchlist) {
   if (!kept.has(listId)) kept.set(listId, { showing: "new", pending: false, selected: new Set() });
   const mine = kept.get(listId);
   const selected = mine.selected;
-  let outcome = null; // what the last action did, shown in the bar
+  let outcome = null;
   let current = watchlist;
 
   const refreshTabs = async () => {
     try {
       current = (await get("/api/watchlists")).watchlists.find((w) => w.id === Number(listId)) || current;
-    } catch { /* the counts stay as they were */ }
+    } catch { }
     window.dispatchEvent(new Event("reviewchange"));
   };
 
@@ -46,7 +43,7 @@ export async function render(root, listId, watchlist) {
       back.addEventListener("click", async () => {
         mine.showing = "new"; outcome = null;
         await draw();
-        focusOn("#view-dismissed"); // the button pressed is gone; the keyboard stays in the view, not the tab strip
+        focusOn("#view-dismissed");
       });
       body.push(el("div", { class: "matches-head" },
         el("div", {},
@@ -165,8 +162,7 @@ export async function render(root, listId, watchlist) {
                 await refreshTabs();
                 draw();
               } catch (err) {
-                undo.disabled = false; // the analyst is told, and can press it again
-                // Written beside the button on the page now, not through drawBar: that one belongs to a drawing since replaced.
+                undo.disabled = false;
                 let note = undo.parentElement.querySelector(".undo-error");
                 if (!note) { note = el("div", { role: "alert", class: "meta undo-error" }); undo.before(note); }
                 note.textContent = `Could not undo: ${err.message}`;
@@ -175,7 +171,7 @@ export async function render(root, listId, watchlist) {
             outcome = { text: `${plural(done.dismissed.length, "trial")} dismissed. ${CONSEQUENCE}`, undo };
             await refreshTabs();
             await draw();
-            undo.focus({ preventScroll: true }); // the Yes, dismiss the keyboard pressed is gone
+            undo.focus({ preventScroll: true });
           } catch (err) { confirm.disabled = false; note.textContent = err.message; }
         });
         bar.replaceChildren(el("strong", { class: "count" }, `${n} selected`),

@@ -17,12 +17,11 @@ const SORTS = {
   status: ["Trial status", (a, b) => a.status.localeCompare(b.status, "en") || byText(a, b)],
 };
 
-// The filter and sort the analyst set, kept per watchlist so a redraw while a check finishes does not clear them.
 const kept = new Map();
 
 export async function render(root, listId, watchlist, alive = () => true) {
   const { trials } = await get(`/api/watchlists/${listId}/all-trials`);
-  if (!alive()) return; // the analyst has moved on while the answer was on its way
+  if (!alive()) return;
   const filter = el("input", { type: "text", id: "trial-filter", "aria-describedby": "filter-note", autocomplete: "off" });
   const sort = el("select", { id: "trial-sort" },
     ...Object.entries(SORTS).map(([key, [label]]) => el("option", { value: key }, label)));

@@ -1,5 +1,3 @@
-// The watchlist's ⋯ menu (design page 13): Rename, Manage saved search, Full recheck, Delete.
-// Each item opens its own dialog; no dialog both creates, renames and deletes.
 import { post } from "/static/api.js";
 import { openDialog } from "/static/views/dialog.js";
 import { manageDialog } from "/static/views/saved_search.js";
@@ -78,8 +76,6 @@ function deleteDialog(opener, watchlist, onDeleted) {
   });
 }
 
-// watchlist: the current one. hooks: { renamed(watchlist), recheck(), changed(), deleted() }.
-// options.basic: only Rename and Delete (an empty watchlist has no saved search to manage or trials to recheck).
 export function menu(watchlist, hooks, options = {}) {
   const button = el("button", { type: "button", id: "watchlist-menu-button", class: "secondary menu-button", "aria-label": "Watchlist actions", "aria-haspopup": "menu", "aria-expanded": "false" }, "⋯");
   const list = el("div", { class: "menu", role: "menu", "aria-label": "Watchlist actions", hidden: "" });

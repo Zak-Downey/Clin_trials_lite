@@ -1,19 +1,8 @@
-// Keeps the keyboard's place when a view redraws itself.
-//
-// Most views rebuild their DOM after an action (a page of results, a tab, a bar). The
-// control that held keyboard focus is then a new node, or gone, and the browser drops
-// focus to <body>: a keyboard user has to Tab in from the top again. This module
-// remembers what held focus, and when focus has fallen to <body> after a redraw (the node
-// was removed, replaced or disabled), puts focus on the node that replaced it. If nothing replaced it,
-// on the nearest control that was beside it. It never acts after a click elsewhere, in a
-// dialog, or when the address has moved to another page (a tab strip excepted: its tabs
-// are the same controls on the next page).
 const ROOTS = "#view, #sidebar";
 const TABBABLE = 'a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
 const WAIT_MS = 3000;
 
 const visible = (node) => node.getClientRects().length > 0 && !node.closest("[hidden]");
-// aria-disabled stays focusable (a busy button keeps the keyboard's place); only `disabled` loses it.
 const usable = (node) => node.isConnected && !node.disabled && visible(node);
 const pageOf = () => location.hash.split("?")[0];
 
@@ -29,7 +18,6 @@ function tabbables() {
   return [...document.querySelectorAll(ROOTS)].flatMap((root) => [...root.querySelectorAll(TABBABLE)]).filter(visible);
 }
 
-// The node, then its neighbours in Tab order: the ones before it nearest first, then after.
 function describe(node) {
   const all = tabbables();
   const at = all.indexOf(node);
@@ -46,8 +34,8 @@ function replacement({ key, nth }) {
   return same[nth] || same[0] || null;
 }
 
-let last = null; // what held focus most recently, inside the page
-let lost = null; // the same, once it has gone and focus has fallen to <body>
+let last = null;
+let lost = null;
 
 function settled() {
   const active = document.activeElement;
@@ -55,7 +43,7 @@ function settled() {
 }
 
 function check() {
-  if (lost && Date.now() > lost.until) { lost = null; last = null; } // gave up: nothing like it came back
+  if (lost && Date.now() > lost.until) { lost = null; last = null; }
   if (lost && settled()) lost = null;
   if (!lost && last && !settled()) lost = { ...last, until: Date.now() + WAIT_MS };
   if (!lost) return;
@@ -70,8 +58,6 @@ document.addEventListener("focusin", (event) => {
   lost = null;
   last = event.target.closest && event.target.closest(ROOTS) ? describe(event.target) : null;
 }, true);
-// A click on something that cannot take focus is the analyst moving on, not a redraw.
-// (A click on a control that already has focus fires no focusin, so it is noted here.)
 document.addEventListener("pointerdown", (event) => {
   const control = event.target.closest && event.target.closest(TABBABLE);
   lost = null;
@@ -80,6 +66,6 @@ document.addEventListener("pointerdown", (event) => {
 
 new MutationObserver(() => {
   check();
-  setTimeout(check, 60); // a disabled control loses focus a moment after the change
+  setTimeout(check, 60);
   setTimeout(check, 400);
 }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled", "hidden", "aria-disabled"] });

@@ -1,4 +1,3 @@
-// The watchlist header and the checking status area (design pages 1 and 12).
 import { get, post, when } from "/static/api.js";
 import { menu as watchlistMenu } from "/static/views/watchlist_menu.js";
 
@@ -23,17 +22,15 @@ function searchLine(state) {
     : `Saved search succeeded: ${state.search.detail}`;
 }
 
-// ctx: { alive(): is this view still shown, refresh(): redraw the queue and sidebar, return the watchlist }
 export function mount(headerEl, statusEl, listId, watchlist, ctx) {
   const button = el("button", { type: "button", class: "button", id: "check-button" }, "Check for updates");
   const reason = el("span", { class: "reason", id: "check-reason" });
   let current = watchlist;
   let busy = false;
-  let note = ""; // why a second start did not begin, shown beside the button while the first runs
+  let note = "";
 
   function drawHeader() {
     const n = current.trial_count;
-    // A watchlist with a saved search and no trials has one thing to check: the search.
     button.textContent = !n && current.saved_search ? "Check for new matches" : "Check for updates";
     const last = current.last_checked ? `Last checked ${when(current.last_checked)}` : "Not checked yet";
     const add = el("a", { class: "button primary", href: `#/find/${listId}` }, "Add trials");
@@ -41,7 +38,7 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
       renamed: (renamed) => {
         current = { ...current, name: renamed.name };
         drawHeader();
-        window.dispatchEvent(new Event("reviewchange")); // the sidebar carries the name too
+        window.dispatchEvent(new Event("reviewchange"));
       },
       recheck: () => begin(`/api/watchlists/${listId}/recheck`),
       changed: ctx.changed,
@@ -57,7 +54,6 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
     setBusy(busy);
   }
 
-  // aria-disabled, not disabled: a disabled button drops keyboard focus to the page.
   function setBusy(value) {
     busy = value;
     if (!busy) note = "";
@@ -126,7 +122,6 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
     panel("complete", [main]);
   }
 
-  // A check state that cannot be read is stated in words, and the button is usable again.
   function unreadable(what, err) {
     setBusy(false);
     statusEl.replaceChildren(el("div", { class: "error", role: "status" }, `${what} could not be read: ${err.message}`));
@@ -198,15 +193,14 @@ export function mount(headerEl, statusEl, listId, watchlist, ctx) {
     }
   }
 
-  // The watchlist's trials changed elsewhere (New matches, a removal): re-read the header.
-  let rereads = 0; // an older answer that arrives after a newer request began is dropped
+  let rereads = 0;
   async function onChange() {
     if (!ctx.alive()) { window.removeEventListener("reviewchange", onChange); return; }
     const mine = ++rereads;
     try {
       const fresh = (await get("/api/watchlists")).watchlists.find((w) => w.id === Number(listId));
       if (fresh && ctx.alive() && mine === rereads) { current = fresh; drawHeader(); }
-    } catch { /* the header stays as it was */ }
+    } catch { }
   }
   window.addEventListener("reviewchange", onChange);
 

@@ -180,7 +180,6 @@ button:disabled { opacity: .5; cursor: default; }
 .entry-text p { margin: 4px 0; overflow-wrap: anywhere; }
 .transitions { margin: 8px 0 0; padding-left: 18px; overflow-wrap: anywhere; } .transitions[hidden] { display: none; }
 .reviewed-tag { color: var(--accent); font-weight: 600; }
-/* Summary tab (ticket 12) */
 .summary-controls { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
 .periods, .outputs { display: flex; flex-wrap: wrap; gap: 8px; }
 .custom-dates { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; padding: 12px 16px; margin: 0 0 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
@@ -197,7 +196,6 @@ ul.moves { margin: 0; padding-left: 18px; }
 .state { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px; background: var(--page); color: var(--muted); border: 1px solid var(--line); }
 .state.simulated { color: var(--simulated); border-color: var(--simulated); }
 
-/* Find trials: selecting and adding */
 .select-page { margin: 4px 0 8px; font-size: 14px; }
 .select-page label { display: inline-flex; align-items: center; gap: 8px; }
 li.card.result { display: flex; align-items: flex-start; gap: 12px; }
@@ -210,11 +208,10 @@ li.card.result input[type=checkbox], .select-page input { width: 20px; height: 2
 .find-bar .count { margin-right: 4px; }
 .find-bar > label { margin-left: auto; }
 .head-actions { flex-wrap: wrap; }
-/* Registry details: the title keeps its width; a long watchlist name in "Add to" is cut, not the title */
 .registry-head > div:first-child { flex: 1 1 320px; min-width: 240px; }
 .registry-head .head-actions { flex: 0 1 auto; justify-content: flex-end; }
 #add-to { max-width: 16em; min-width: 0; text-overflow: ellipsis; }
-#add-to + button[aria-disabled=true] { opacity: .5; cursor: default; } /* saving: looks disabled, keeps focus */
+#add-to + button[aria-disabled=true] { opacity: .5; cursor: default; }
 
 .table-tools { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin: 0 0 12px; }
 .table-tools .field:first-child { flex: 1 1 auto; max-width: 560px; }
@@ -229,7 +226,6 @@ table.trials .identity { margin-top: 2px; }
 .review-state.unreviewed { background: var(--accent-soft); color: var(--accent); }
 table.trials .warning { color: #b42318; font-size: 12px; margin-top: 2px; }
 
-/* Dialogs, first use, Add by NCT ID */
 #sidebar .new-watchlist { display: block; width: 100%; margin-top: 12px; font-weight: 600; text-align: left; }
 dialog.dialog { border: 1px solid var(--line); border-radius: 8px; padding: 20px 24px; width: min(420px, calc(100vw - 32px)); color: var(--ink); }
 dialog.dialog::backdrop { background: rgba(16, 24, 40, .4); }
@@ -252,7 +248,6 @@ dialog.dialog h2 { margin: 0 0 12px; font-size: 18px; }
 .saved-banner span { flex: 1 1 320px; }
 button.danger { color: #b42318; }
 
-/* New matches (ticket 11) */
 .tab-count { margin-left: 2px; font-weight: 600; }
 .matches-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
 .matches-head h2 { margin: 24px 0 2px; font-size: 18px; }
@@ -271,7 +266,6 @@ li.card.match .card-body { flex: 1 1 auto; }
 .menu-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 button.danger { color: #b42318; border-color: #b42318; background: #fff; }
 
-/* Exploration fixes (ticket 16): a long unbroken word wraps instead of widening the page; a long list stays small. */
 #view, #sidebar, dialog.dialog { overflow-wrap: anywhere; }
 .action-bar > div:first-child { min-width: 0; flex: 1 1 auto; }
 .action-bar .also { display: block; max-height: 4.5em; overflow-y: auto; }

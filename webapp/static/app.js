@@ -1,6 +1,5 @@
-// Shell and router. The URL hash holds the state: #/watchlists/<id>, #/find.
 import { get } from "/static/api.js";
-import "/static/focus.js"; // keeps the keyboard's place across redraws
+import "/static/focus.js";
 import { render as renderFind, chooseDestination } from "/static/views/find.js";
 import { render as renderAll } from "/static/views/all_trials.js";
 import { render as renderQueue } from "/static/views/needs_review.js";
@@ -16,7 +15,7 @@ import { menu as watchlistMenu } from "/static/views/watchlist_menu.js";
 
 const sidebar = document.getElementById("sidebar");
 const view = document.getElementById("view");
-let generation = 0; // a view whose number is not the latest has been left: its timers stop
+let generation = 0;
 
 const el = (tag, attrs = {}, ...kids) => {
   const node = document.createElement(tag);
@@ -29,15 +28,12 @@ function newButton() {
   const button = el("button", { type: "button", id: "new-watchlist", class: "new-watchlist" });
   button.textContent = "+ New watchlist";
   button.addEventListener("click", () => newWatchlistDialog(button, async (made) => {
-    chooseDestination(made.id); // a Find trials view open behind the dialog now adds here
+    chooseDestination(made.id);
     window.dispatchEvent(new Event("reviewchange"));
   }));
   return button;
 }
 
-// activeId: the watchlist to mark, null for none, undefined for the one the address names now.
-// alive(): is this still the page the address names? A late answer for a page the analyst left is not drawn.
-// A newer request overtakes an older one: an answer that arrives after a newer request began is not drawn.
 let sidebarRequest = 0;
 async function drawSidebar(activeId, alive = () => true) {
   const mine = ++sidebarRequest;
@@ -55,7 +51,7 @@ async function drawSidebar(activeId, alive = () => true) {
   note.textContent = "Number badges show trials with unreviewed changes.";
   sidebar.replaceChildren(heading, ...watchlists.map((w) => {
     const link = document.createElement("a");
-    link.href = `#/watchlists/${w.id}`; // the tab is the remembered one, else Needs review
+    link.href = `#/watchlists/${w.id}`;
     if (w.id === activeId) { link.className = "active"; link.setAttribute("aria-current", "page"); }
     const name = document.createElement("span");
     name.className = "name";
@@ -73,11 +69,7 @@ async function drawSidebar(activeId, alive = () => true) {
   return watchlists;
 }
 
-// The trial's address names the watchlist and tab the analyst came from (trial_address.js).
-// What the address cannot hold is the queue's scroll position and the watchlist address's own
-// query (Summary's period): they are kept here, for the trial page's "Back to" link within this
-// page load, and the scroll in the queue entry's history state (which browser Back and Forward read).
-let left = null; // { at: the watchlist address left, without its query; full: with it; scroll }
+let left = null;
 let pendingScroll = null;
 
 document.addEventListener("click", (event) => {
@@ -90,9 +82,6 @@ document.addEventListener("click", (event) => {
   const back = event.target.closest && event.target.closest("a[data-back]");
   if (back && left && [left.at, left.full].includes(back.getAttribute("href"))) pendingScroll = left.scroll;
 }, true);
-// Leaving that same watchlist tab again (the browser's Forward after its Back) keeps its address as it
-// is now: Summary moves its period with replaceState, so the address kept at the click may be stale.
-// Registered before route's own listener, so the trial page drawn next reads it.
 window.addEventListener("hashchange", (event) => {
   const was = new URL(event.oldURL).hash;
   if (left && (was === left.at || was.startsWith(`${left.at}?`))) left.full = was;
@@ -104,10 +93,9 @@ const remembered = (id) => {
   try { return localStorage.getItem(`tab:${id}`); } catch { return null; }
 };
 const remember = (id, tab) => {
-  try { localStorage.setItem(`tab:${id}`, tab); } catch { /* the choice just is not kept */ }
+  try { localStorage.setItem(`tab:${id}`, tab); } catch { }
 };
 
-// A watchlist with nothing in it teaches one next step: no tabs, summary, activity or checking.
 function drawFirstUse(watchlist) {
   const find = el("a", { class: "button primary", href: `#/find/${watchlist.id}` });
   find.textContent = "Find trials";
@@ -115,7 +103,6 @@ function drawFirstUse(watchlist) {
   byId.textContent = "Add by NCT ID";
   const title = el("h1");
   title.textContent = watchlist.name;
-  // An empty watchlist can still be renamed or deleted; there is nothing to recheck or search.
   const more = watchlistMenu(watchlist, {
     renamed: () => { window.dispatchEvent(new Event("reviewchange")); route(); },
     deleted: () => { location.hash = "#/watchlists"; },
@@ -162,7 +149,6 @@ async function route() {
     if (parts[0] === "trials" && parts[1]) {
       await drawSidebar(null, alive);
       if (!alive()) return;
-      // "Back to" the watchlist tab the analyst left returns to it as it was (Summary's period).
       const place = readPlace(hashQuery);
       if (place && left && left.at === `#/watchlists/${place.list}/${place.from}`) place.back = left.full;
       await renderTrial(view, parts[1].toUpperCase(), parts[2] || "changes", place, alive);
@@ -176,12 +162,9 @@ async function route() {
     if (id === undefined) {
       view.textContent = "No watchlists yet. Use + New watchlist to make one.";
       const make = document.getElementById("new-watchlist");
-      if (make && document.activeElement === document.body) make.focus({ preventScroll: true }); // the menu that held focus is gone
+      if (make && document.activeElement === document.body) make.focus({ preventScroll: true });
       return;
     }
-    // The address always names the watchlist and the tab, so reload and Back land where you were.
-    // A tab chosen is remembered per watchlist; a bare address opens the remembered one,
-    // else Needs review. A count that changes never changes the tab.
     const known = ["needs-review", "all-trials", "summary", "new-matches"];
     const tab = known.includes(parts[2]) ? parts[2] : (remembered(id) || "needs-review");
     remember(id, tab);
@@ -189,7 +172,7 @@ async function route() {
     if (tab !== "summary" && location.hash !== canonical) history.replaceState(null, "", canonical);
     if (tab === "summary" && !parts[2]) history.replaceState(null, "", canonical);
     const draw = tab === "summary"
-      ? (node, listId, current) => renderSummary(node, listId, current, location.hash.split("?")[1] || "", alive) // read now: Summary moves the period with replaceState
+      ? (node, listId, current) => renderSummary(node, listId, current, location.hash.split("?")[1] || "", alive)
       : tab === "all-trials" ? (node, listId, current) => renderAll(node, listId, current, alive)
         : tab === "new-matches" ? renderNewMatches : (node, listId, current) => renderQueue(node, listId, current, alive);
     await drawSidebar(id, alive);
@@ -204,12 +187,12 @@ async function route() {
     if (!alive()) return;
     mountCheck(header, status, id, watchlist, {
       alive,
-      changed: route, // the saved search was turned off: redraw the watchlist
-      deleted: () => { location.hash = "#/watchlists"; }, // the first remaining watchlist, or none
+      changed: route,
+      deleted: () => { location.hash = "#/watchlists"; },
       refresh: async () => {
         const fresh = await drawSidebar(id, alive);
         const current = fresh.find((w) => w.id === id);
-        if (!alive()) return current; // the analyst left this page while the answer was out: draw nothing
+        if (!alive()) return current;
         await draw(queue, id, current);
         return current;
       },
@@ -218,7 +201,7 @@ async function route() {
     pendingScroll = null;
     if (y) window.scrollTo(0, y);
   } catch (err) {
-    if (generation !== mine) return; // the analyst has already moved on
+    if (generation !== mine) return;
     const box = document.createElement("div");
     box.className = "error";
     box.textContent = err.message;

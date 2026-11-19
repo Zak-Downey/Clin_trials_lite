@@ -1,4 +1,3 @@
-// New watchlist: a dialog, and the "New watchlist" entry every destination picker carries.
 import { post } from "/static/api.js";
 import { openDialog } from "/static/views/dialog.js";
 
@@ -9,8 +8,6 @@ const el = (tag, attrs = {}, ...kids) => {
   return node;
 };
 
-// opener: the control that opened it. onCreated(watchlist, watchlists) runs after Create;
-// onCancel() after any other way out.
 export function newWatchlistDialog(opener, onCreated, onCancel = () => {}) {
   const input = el("input", { type: "text", id: "new-watchlist-name", autocomplete: "off", "aria-describedby": "new-watchlist-help new-watchlist-error" });
   const error = el("p", { class: "field-error", id: "new-watchlist-error", role: "alert" });
@@ -45,8 +42,6 @@ export function newWatchlistDialog(opener, onCreated, onCancel = () => {}) {
 
 export const NEW = "new";
 
-// Add the "New watchlist" entry to a destination <select>; choosing it opens the dialog.
-// onCreated(watchlist, watchlists) must leave the picker showing the new watchlist.
 export function withNewEntry(select, onCreated) {
   select.append(el("option", { value: NEW }, "+ New watchlist"));
   let before = select.value;

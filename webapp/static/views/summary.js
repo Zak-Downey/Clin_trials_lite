@@ -1,4 +1,3 @@
-// The Summary tab (design page 10): a period, a heading, trials grouped by check, Copy and Export.
 import { get, when } from "/static/api.js";
 import { tabs } from "/static/views/tabs.js";
 import { trialHref } from "/static/views/trial_address.js";
@@ -12,7 +11,6 @@ const el = (tag, attrs = {}, ...kids) => {
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const PERIODS = [["week", "This week"], ["month", "This month"], ["custom", "Custom dates"]];
 
-// The platform's clipboard and download, bound once here and passed as bare functions.
 const writeClipboard = (text) => navigator.clipboard.writeText(text);
 
 function download(name, text) {
@@ -62,7 +60,6 @@ function trialCard(trial, listId) {
   return card;
 }
 
-// Whether Custom dates is open and what was typed in it, kept per watchlist so a redraw while a check finishes does not clear them.
 const kept = new Map();
 
 export async function render(root, listId, watchlist, hashQuery = "", alive = () => true) {
@@ -73,11 +70,11 @@ export async function render(root, listId, watchlist, hashQuery = "", alive = ()
     if (!period.from || !period.to) period = { kind: "week" };
   }
   let data = await get(`/api/watchlists/${listId}/summary?${queryOf(period)}`);
-  if (!alive()) return; // the analyst has moved on while the answer was on its way
+  if (!alive()) return;
   const mine = kept.get(listId) || { editing: false };
   kept.set(listId, mine);
   const closeForm = () => { mine.editing = false; delete mine.from; delete mine.to; };
-  let editing = mine.editing; // the Custom dates form is open
+  let editing = mine.editing;
   let notice = "";
 
   const body = el("div", { class: "summary-body" });
@@ -154,7 +151,7 @@ export async function render(root, listId, watchlist, hashQuery = "", alive = ()
     copy.addEventListener("click", async () => {
       try { await writeClipboard(data.text); notice = "Summary copied."; }
       catch { notice = "The summary could not be copied here. Select it from the export instead."; }
-      showNotice(); // not draw(): that would close trials the analyst opened and clear dates they typed
+      showNotice();
     });
     exportCsv.addEventListener("click", () => download(data.filename, data.csv));
     return [el("div", { class: "outputs" }, copy, exportCsv), reason];
