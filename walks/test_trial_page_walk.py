@@ -407,3 +407,25 @@ def test_walk_mark_reviewed_on_changes_another_tab_partly_reviewed_counts_only_i
     page.get_by_role("button", name="Undo").wait_for(state="detached")
     assert page.locator(".banner.error-banner").count() == 0, "Undo of the page's own review failed"
     wait_for_count(page, "Myeloma", "16 to review")
+
+
+def test_walk_next_trial_states_that_the_list_of_trials_to_review_failed_to_load(make_app, make_walk):
+    """test_walk_next_trial_states_that_the_list_of_trials_to_review_failed_to_load"""
+    app = make_app(seed=seed_trial_page)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(app.url)
+    page.locator('li.card[data-nct="NCT03412565"]').wait_for()
+    walk.expect(500, "/api/watchlists/1/needs-review")
+    page.route(QUEUE_ANSWER, lambda route: route.fulfill(
+        status=500, content_type="application/json",
+        body='{"error": {"message": "The server failed.", "kind": "server_error"}}'))
+    page.locator('li.card[data-nct="NCT03412565"] h3 a').click()
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    page.wait_for_function(NEXT_SETTLED)
+    bar = page.get_by_role("region", name="Review")
+    following = bar.get_by_role("button", name="Next trial")
+    walk.shot("queue-failed")
+    assert following.is_disabled()
+    assert following.get_attribute("title") == "The list of trials to review could not be loaded"
+    assert "The next trial could not be found: The server failed." in bar.inner_text()

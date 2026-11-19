@@ -26,9 +26,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
   const others = trial.watchlists.filter((w) => !home || w.id !== home.id);
   const state = { reviewed: false, event: null };
   let order = kept ? kept.order : null;
-  const queueOf = async (id) => {
-    try { return (await get(`/api/watchlists/${id}/needs-review`)).trials.map((t) => t.nct_id); } catch { return []; }
-  };
+  const queueOf = async (id) => (await get(`/api/watchlists/${id}/needs-review`)).trials.map((t) => t.nct_id);
 
   const back = el("a", { class: "back", "data-back": "", href: !home ? "#/watchlists" : named && place.back || `#/watchlists/${home.id}/${named ? place.from : "needs-review"}` },
     `‹ Back to ${home ? home.name : "watchlists"}`);
@@ -77,7 +75,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
       remove.addEventListener("click", async () => {
         closeMenu();
         try {
-          if (!order) order = await queueOf(home.id);
+          if (!order) order = await queueOf(home.id).catch(() => null);
           const done = await post(`/api/watchlists/${home.id}/trials/${nct}/remove`);
           trial.watchlists = done.watchlists;
           removed = { nct, home: { id: home.id, name: home.name }, undo: done.undo, last: !done.watchlists.length, order };
@@ -151,8 +149,9 @@ export async function render(root, nct, tab, place, alive = () => true) {
   if (others.length > 3) { also.setAttribute("tabindex", "0"); also.setAttribute("role", "group"); also.setAttribute("aria-label", "Other watchlists this review also applies to"); }
   const next = el("button", { type: "button", class: "secondary", disabled: "", title: "Looking for the next trial to review" }, "Next trial");
   const mark = el("button", { type: "button", class: "primary" }, "Mark reviewed");
+  const notes = el("div", {}, scope, el("br"), also);
   const bar = el("div", { class: "action-bar", role: "region", "aria-label": "Review" },
-    el("div", {}, scope, el("br"), also), el("div", { class: "buttons" }, next, mark));
+    notes, el("div", { class: "buttons" }, next, mark));
   body.append(bar);
 
   const draw = () => {
@@ -206,6 +205,10 @@ export async function render(root, nct, tab, place, alive = () => true) {
       next.disabled = false;
       next.removeAttribute("title");
     } else next.title = "No other trial needs review";
+  }, (err) => {
+    if (!alive()) return;
+    next.title = "The list of trials to review could not be loaded";
+    notes.append(el("p", { class: "field-error", role: "alert" }, `The next trial could not be found: ${err.message}`));
   });
 }
 
