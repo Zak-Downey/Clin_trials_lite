@@ -39,7 +39,7 @@ def test_runner_lists_a_walk_that_erred_in_setup_as_well_as_one_that_failed():
 def test_runner_is_red_when_a_walk_is_red_alone_and_when_a_run_failed_with_nothing_to_re_run():
     """test_runner_is_red_when_a_walk_is_red_alone_and_when_a_run_failed_with_nothing_to_re_run"""
     assert run_walks.exit_code(1, ["a -- red alone (x)", "b -- red under load, green alone (y)"]) == 1
-    assert run_walks.exit_code(1, ["b -- red under load, green alone (y)"]) == 0
+    assert run_walks.exit_code(1, ["b -- red under load, green alone (y)"]) == 1
     assert run_walks.exit_code(2, []) == 2
     assert run_walks.exit_code(0, []) == 0
 
@@ -212,14 +212,21 @@ def test_each_run_adds_its_own_line_to_the_record(tmp_path, capsys):
     assert [json.loads(line)["flaky"] for line in lines] == [["test_once.py::test_once"], []]
 
 
-def test_a_run_whose_only_failures_were_flaky_exits_0_with_the_switch_off_and_1_with_it_on(tmp_path, capsys, monkeypatch):
-    """test_a_run_whose_only_failures_were_flaky_exits_0_with_the_switch_off_and_1_with_it_on"""
-    assert run_walks.FLAKY_IS_RED is False
+def test_a_walk_red_beside_the_others_and_green_alone_ends_the_run_red_and_is_named_as_a_wobble(tmp_path, capsys):
+    """test_a_walk_red_beside_the_others_and_green_alone_ends_the_run_red_and_is_named_as_a_wobble"""
     (tmp_path / "test_once.py").write_text(ONCE)
-    code, _ = run_in(tmp_path, capsys, targets=("test_once.py",))
-    assert code == 0
-    (tmp_path / "seen").unlink()
-    monkeypatch.setattr(run_walks, "FLAKY_IS_RED", True)
-    code, _ = run_in(tmp_path, capsys, targets=("test_once.py",))
-    assert last_record(tmp_path)["flaky"] == ["test_once.py::test_once"]
+    (tmp_path / "test_fine.py").write_text("def test_fine():\n    assert True\n")
+    code, out = run_in(tmp_path, capsys, targets=("test_once.py", "test_fine.py"))
     assert code == 1
+    assert "test_once.py::test_once wobbled: failed beside the others, passed alone" in out.split("## Result")[1]
+    assert "test_fine" not in out.split("## Result")[1]
+    assert last_record(tmp_path)["flaky"] == ["test_once.py::test_once"]
+
+
+def test_a_walk_red_both_times_is_reported_red_alone_and_not_as_a_wobble(tmp_path, capsys):
+    """test_a_walk_red_both_times_is_reported_red_alone_and_not_as_a_wobble"""
+    (tmp_path / "test_always.py").write_text("def test_always():\n    assert False\n")
+    code, out = run_in(tmp_path, capsys, targets=("test_always.py",))
+    assert code == 1
+    assert [v for _, _, v, _ in read_results(out)] == ["red alone"]
+    assert "wobbled" not in out
