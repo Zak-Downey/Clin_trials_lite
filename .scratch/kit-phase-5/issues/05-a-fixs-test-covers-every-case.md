@@ -4,10 +4,12 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Step 7 of the skill says the finding's check covers every place its rule applies, in one sentence, or `skill-edits.md` holds that edit in full
-- [ ] No other line of the skill file changed in this ticket, and neither brief beside it
+- [x] Step 7 of the skill says the finding's check covers every place its rule applies, in one sentence, or `skill-edits.md` holds that edit in full
+- [x] No other line of the skill file changed in this ticket, and neither brief beside it
 - [ ] `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
+
+The edit took the first form: one sentence added to step 7 of the skill file itself, no `skill-edits.md` entry; I ran `python3 checks.py --quick --pick` on it (green), not the full `python3 checks.py`, so the third box stays open for the hand-over's full run.
