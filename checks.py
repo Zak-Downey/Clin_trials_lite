@@ -5,8 +5,11 @@
     python3 checks.py --quick      the same with the walks at the first window size only (WALK_QUICK=1);
                                    it combines with naming checks, and the run's line in the log says quick
     python3 checks.py --pick       the walks check runs only the walk files a change can reach (picker.py, on the map
-                                   walk_map.py reads); the other checks run whole. It combines with --quick and with
-                                   naming checks. A picked run is never a full run, whatever it ran
+                                   walk_map.py reads), and the unit check only the tests that ran the changed code
+                                   (pytest-testmon), when every changed file outside .scratch/ is Python; the other
+                                   checks run whole. It combines with --quick and with naming checks. A picked run is
+                                   never a full run, whatever it ran. A run that is not picked runs every unit test and
+                                   refreshes the record of which test ran which code
 
 Each check's output goes to .checks/<name>.txt. One line is printed per check and one line is
 appended to .checks/runs.jsonl per run, with "quick" true or false, "every" true when every check was asked for,
@@ -40,7 +43,7 @@ CHECKS = [
     ("lint", [PYTHON, "-m", "ruff", "check", "--no-cache", "."], 1),
     ("patterns", [sys.executable, str(ROOT / "checks.py"), "--patterns"], 1),
     ("escapes", [sys.executable, str(ROOT / "checks.py"), "--escapes"], 1),
-    ("unit", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-n", "auto"], 3),  # -n auto: one worker per processor (pytest-xdist)
+    ("unit", [PYTHON, "-m", "pytest", "-q", "-n", "auto"], 3),  # -n auto: one worker per processor (pytest-xdist)
     ("walks", [PYTHON, "walks/run_walks.py"], 8),
 ]
 
@@ -153,6 +156,23 @@ def pick_walks(root, changed) -> tuple[list[str], dict]:
     return ([] if set(files) >= set(every) else files), {"ran": len(files), "of": len(every), "why": why}
 
 
+# What the unit check is given (pytest-testmon, which records which test ran which code, in pytest's cache folder):
+# select only the tests a change reaches, or run them all and refresh the record.
+SELECT, NOSELECT = "--testmon", "--testmon-noselect"
+
+COUNTED = re.compile(r"(\d+) (passed|failed|errors?|skipped|xfailed|xpassed|deselected)\b")
+
+
+def unit_counts(output: str) -> tuple[int | None, int | None]:
+    """(tests run, tests there are) from the summary line pytest ends with; (None, None) when it printed none."""
+    for line in reversed(output.splitlines()):
+        counts = COUNTED.findall(line)
+        if counts:
+            ran = sum(int(n) for n, word in counts if word != "deselected")
+            return ran, ran + sum(int(n) for n, word in counts if word == "deselected")
+    return None, None
+
+
 QUICK = "WALK_QUICK"  # set to 1 for a quick run: the walk fixtures then use the first window size only
 
 
@@ -192,7 +212,17 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
             command = [*command, *files]
             picks.append({"check": name, **said})
             out(f"{name:<9} picked {said['ran']} of {said['of']} walk files: {said['why']}")
+        select, unit_why = False, None
+        if name == "unit":
+            if pick:
+                select, unit_why = picker.unit(changed)
+            command = [*command, SELECT if select else NOSELECT]
         result, took = run_one(command, minutes, output, root, env)
+        if unit_why:
+            ran, of = unit_counts(output.read_text(errors="replace"))
+            picks.append({"check": name, "ran": ran, "of": of, "why": unit_why})
+            counted = f"{ran} of {of} unit tests" if ran is not None else "an unknown number of unit tests (pytest printed no count)"
+            out(f"{name:<9} picked {counted}: {unit_why}")
         results.append({"name": name, "result": result, "minutes": took, "output": str(shown)})
         out(f"{name:<9} {result:<6} {took:>5.1f} min  {shown}")
         if result == "red":

@@ -216,13 +216,14 @@ def test_a_picked_run_passes_the_picked_walk_files_to_the_walk_check_and_says_ho
     code, printed, runs = run(tmp_path, [args_of("unit"), args_of("walks")], pick=True)
     assert code == 0
     assert (tmp_path / ".checks" / "walks.txt").read_text().split() == ["walks/test_a.py", "walks/test_guards.py"]
-    assert (tmp_path / ".checks" / "unit.txt").read_text() == "\n"  # the unit check runs whole until it picks too
+    assert (tmp_path / ".checks" / "unit.txt").read_text().split() == ["--testmon-noselect"]  # app/a.js is not Python
     said = next(line for line in printed if line.startswith("walks") and "picked" in line)
     assert "2 of 3 walk files" in said and "Page A" in said and "`app/a.js`" in said
     line = runs[-1]
     assert line["picked"] is True
     assert "where the branch left main" in line["base"]
-    assert line["picks"] == [{"check": "walks", "ran": 2, "of": 3, "why": said.split(": ", 1)[1]}]
+    assert line["picks"][1:] == [{"check": "walks", "ran": 2, "of": 3, "why": said.split(": ", 1)[1]}]
+    assert line["picks"][0]["check"] == "unit" and line["picks"][0]["ran"] is None  # this stand-in prints no count
     assert "picked" in printed[-1]
 
 
@@ -250,6 +251,61 @@ def test_a_plain_run_and_a_quick_run_are_not_picked_and_give_the_walk_check_what
     assert (tmp_path / ".checks" / "walks.txt").read_text() == "\n"
     assert [r["picked"] for r in runs] == [False, False]
     assert not any("picked" in line for line in printed)
+
+
+def counted(name, summary):
+    """A stand-in check that writes the arguments it was given, then a summary line as pytest -q ends with."""
+    return (name, [PY, "-c", f"import sys; print(' '.join(sys.argv[1:])); print({summary!r})"], 1)
+
+
+def unit_pick(tmp_path, summary="3 passed, 9 deselected in 0.10s"):
+    code, printed, runs = run(tmp_path, [counted("unit", summary)], pick=True)
+    said = next(line for line in printed if line.startswith("unit") and "picked" in line)
+    given = (tmp_path / ".checks" / "unit.txt").read_text().splitlines()[0].split()
+    return code, said, given, runs[-1]["picks"]
+
+
+def test_a_picked_run_whose_changed_files_are_all_python_lets_the_unit_check_select_and_says_how_many_of_how_many(tmp_path):
+    git_repo(tmp_path)
+    (tmp_path / "app/a.js").write_text("a")  # back as main has it
+    (tmp_path / "lib.py").write_text("")
+    (tmp_path / ".scratch/thing").mkdir(parents=True)
+    (tmp_path / ".scratch/thing/notes.md").write_text("")  # the build's own records never widen the run
+    code, said, given, picks = unit_pick(tmp_path)
+    assert code == 0
+    assert given == ["--testmon"]
+    assert "picked 3 of 12 unit tests" in said and "`lib.py`" in said
+    assert picks == [{"check": "unit", "ran": 3, "of": 12, "why": said.split(": ", 1)[1]}]
+
+
+def test_a_picked_run_with_a_changed_file_that_is_not_python_runs_the_whole_unit_suite_and_says_which(tmp_path):
+    git_repo(tmp_path)  # app/a.js changed
+    (tmp_path / "lib.py").write_text("")
+    _, said, given, picks = unit_pick(tmp_path, "12 passed in 0.30s")
+    assert given == ["--testmon-noselect"]
+    assert "picked 12 of 12 unit tests" in said and "whole" in said and "`app/a.js` is not Python" in said
+    assert "`lib.py`" not in said
+    assert picks[0]["ran"] == picks[0]["of"] == 12
+
+
+def test_a_picked_run_that_cannot_tell_what_changed_runs_the_whole_unit_suite_and_says_so(tmp_path):
+    _, said, given, picks = unit_pick(tmp_path, "1 failed, 11 passed, 2 skipped in 0.30s")  # no git here: no base
+    assert given == ["--testmon-noselect"]
+    assert "picked 14 of 14 unit tests" in said and "whole" in said and "cannot tell" in said
+    assert picks[0]["why"] == said.split(": ", 1)[1]
+
+
+def test_a_run_that_is_not_picked_gives_the_unit_check_the_whole_suite_and_refreshes_its_record(tmp_path):
+    git_repo(tmp_path)
+    for options in ({}, {"quick": True}):
+        _, printed, runs = run(tmp_path, [args_of("unit")], **options)
+        assert (tmp_path / ".checks" / "unit.txt").read_text().split() == ["--testmon-noselect"]
+        assert runs[-1]["picks"] == [] and not any("picked" in line for line in printed)
+
+
+def test_the_unit_check_keeps_pytests_cache_which_its_picker_needs():
+    unit = next(command for name, command, _ in checks.CHECKS if name == "unit")
+    assert "no:cacheprovider" not in unit
 
 
 def test_pick_is_an_option_that_combines_with_quick_and_with_the_names_of_checks(monkeypatch):
@@ -347,6 +403,15 @@ def test_the_unit_check_runs_the_suite_across_the_processors_the_machine_has():
     unit = next(command for name, command, _ in checks.CHECKS if name == "unit")
     assert unit[unit.index("-m") + 1] == "pytest"
     assert unit[unit.index("-n") + 1] == "auto"  # pytest-xdist: one worker per processor
+
+
+def test_the_unit_picker_is_pinned_to_one_exact_version_and_its_record_is_never_tracked():
+    lines = (checks.ROOT / "requirements-dev.txt").read_text().splitlines()
+    testmon = [line for line in lines if line.startswith("pytest-testmon")]
+    assert len(testmon) == 1 and re.fullmatch(r"pytest-testmon==\d+\.\d+\.\d+", testmon[0]), testmon
+    for record in (".testmondata", ".testmondata-shm", ".testmondata-wal"):
+        ignored = subprocess.run(["git", "check-ignore", "-q", "--no-index", record], cwd=checks.ROOT)
+        assert ignored.returncode == 0, f"{record} is not git-ignored"
 
 
 WAITED_ON = 10  # minutes: the longest an agent's command tool waits on a command it runs in the foreground

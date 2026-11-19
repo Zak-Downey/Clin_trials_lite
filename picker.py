@@ -1,6 +1,7 @@
 """What a change can reach. `changed` says which files differ from a base commit (`base`: the last whole green run
-in the run log, else where the branch left main), and `walks` picks the walk files a set of changed files reaches on a map of the pages
-(walk_map.py says what a map holds); it is pure, and reads no test output.
+in the run log, else where the branch left main), `walks` picks the walk files a set of changed files reaches on a map of the pages
+(walk_map.py says what a map holds), and `unit` says whether the unit tests may be selected; both are pure, and read no
+test output.
 """
 
 from __future__ import annotations
@@ -44,6 +45,24 @@ def walks(changed, the_map: dict, every: list[str], walk_files=WALKS) -> tuple[l
     if not changed:
         return sorted(picked), "only the walks that always run: nothing changed"
     return sorted(picked), f"only the walks that always run: {quoted(changed)} reach no walk"
+
+
+RECORDS = ".scratch/"  # the build's own records: a change there reaches no test
+
+
+def unit(changed) -> tuple[bool, str]:
+    """(whether the unit tests may be selected by the record of which test ran which code, the reason in one sentence).
+    That record sees only Python, so any other changed file outside the build's records, or None (cannot tell what
+    changed), runs the whole suite."""
+    if changed is None:
+        return False, "the whole suite: cannot tell what changed"
+    changed = [name for name in changed if not name.startswith(RECORDS)]
+    other = [name for name in changed if not name.endswith(".py")]
+    if other:
+        return False, f"the whole suite: {quoted(other)} {'is' if len(other) == 1 else 'are'} not Python, which the record of what each test ran cannot see"
+    if not changed:
+        return True, f"the tests whose code changed since their last run: no file changed outside `{RECORDS}`"
+    return True, f"the tests that ran the changed Python, {quoted(changed)}"
 
 
 def changed(root, main="main") -> tuple[list[str] | None, str]:
