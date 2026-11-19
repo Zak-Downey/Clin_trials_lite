@@ -18,7 +18,6 @@ import monitor
 import storage
 
 
-# --- the four fields becoming registry query parameters
 
 
 def test_a_condition_becomes_the_registrys_condition_parameter():
@@ -52,12 +51,6 @@ def test_a_query_with_nothing_in_it_has_no_parameters():
     assert ctgov.search_params() == {}
 
 
-# --- the three narrowing axes
-#
-# Sponsor class, status and start date do not name a programme; they say which
-# of the studies already named are worth reading. Each goes through the
-# advanced filter, so what is asserted here is the expression they build and,
-# above all, that they AND together rather than replacing one another.
 
 
 def test_a_sponsor_class_becomes_an_advanced_filter():
@@ -121,7 +114,6 @@ def test_a_narrowing_axis_left_empty_adds_no_filter():
     }
 
 
-# --- searching
 
 
 def test_a_search_with_every_field_blank_is_refused(make_finder):
@@ -189,7 +181,6 @@ def test_an_unreachable_registry_is_reported_rather_than_showing_an_empty_table(
         monitor.search(cond="myeloma", find=finder)
 
 
-# --- filing several results into a list
 
 
 def test_several_trials_are_added_to_the_chosen_list_at_once(
@@ -283,12 +274,6 @@ def test_a_new_list_that_partly_filled_is_kept(conn, record, make_fetcher):
     assert storage.get_list(conn, made) is not None
 
 
-# --- the narrowing axes travelling with a query
-#
-# A query is one shape wherever it goes: run from the form now, or stored
-# against a list and re-run on every check. These assert the new axes reach the
-# registry from the form, and that the refusal still turns on the four axes
-# that name a programme rather than on the three that only narrow one.
 
 
 def test_the_narrowing_axes_reach_the_registry(make_finder):
@@ -359,7 +344,6 @@ def test_an_axis_nobody_set_is_an_axis_that_does_not_narrow(make_finder):
 
     asked = finder.calls[0]
     assert asked["cond"] == "cll"
-    # A blank text axis reaches the client as text, not as an empty tuple.
     assert asked["intr"] == ""
     assert asked["spons"] == ""
     assert asked["sponsor_types"] == ()
@@ -418,7 +402,6 @@ def test_the_two_refusals_carry_their_own_kinds_whatever_their_wording_says(monk
     with pytest.raises(monitor.MonitorError) as inverted:
         monitor._refuse_unanswerable(monitor.as_query(cond="x", started_from="2022-01", started_to="2020-01"))
     assert empty.value.kind == "nothing_asked" and inverted.value.kind == "bad_dates"
-    # reworded, each keeps its kind: nothing reads the message to tell them apart
     monkeypatch.setattr(monitor, "NOTHING_ASKED", "Type something first.")
     with pytest.raises(monitor.MonitorError) as reworded:
         monitor._refuse_unanswerable(monitor.as_query())

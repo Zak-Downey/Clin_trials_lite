@@ -51,17 +51,17 @@ def test_walk_each_result_has_a_real_checkbox_and_a_separate_title_link_and_long
     assert first.get_by_role("checkbox").count() == 1 and first.get_by_role("link", name=re.compile("^View details")).count() == 1
     results_hash = page.evaluate("location.hash")
     box(page, "NCT10000001").check()
-    assert page.evaluate("location.hash") == results_hash  # ticking never opens
+    assert page.evaluate("location.hash") == results_hash
     page.get_by_text("1 trial selected").wait_for()
     first.get_by_role("link", name=re.compile("^View details")).click()
-    page.get_by_role("button", name="Add to watchlist").wait_for()  # the details view, unique to it
+    page.get_by_role("button", name="Add to watchlist").wait_for()
     page.go_back()
     page.get_by_role("heading", name="134 matches").wait_for()
-    page.get_by_text("1 trial selected").wait_for()  # the link did not change what was selected
+    page.get_by_text("1 trial selected").wait_for()
     assert box(page, "NCT10000001").is_checked() and not box(page, "NCT10000003").is_checked()
     title = page.locator("li.card").first.locator("strong")
     line = page.evaluate("(e) => parseFloat(getComputedStyle(e).lineHeight) || 20", title.element_handle())
-    assert title.bounding_box()["height"] > line * 1.5  # wraps over several lines
+    assert title.bounding_box()["height"] > line * 1.5
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     walk.shot("rows")
 
@@ -75,7 +75,7 @@ def test_walk_select_ten_on_this_page_selects_only_the_page_and_selections_survi
     assert page.locator("li.card input:checked").count() == 10
     page.get_by_role("button", name="Next").click()
     page.get_by_text("11–20 of 134 matches").wait_for()
-    assert page.locator("li.card input:checked").count() == 0  # only the first page
+    assert page.locator("li.card input:checked").count() == 0
     box(page, "NCT10000011").check()
     page.get_by_text("11 trials selected").wait_for()
     page.get_by_role("button", name="Previous").click()
@@ -112,7 +112,7 @@ def test_walk_the_action_bar_names_count_clear_and_destination_and_leaves_the_la
     assert bar.get_by_role("button", name="Add 2 trials").is_visible()
     page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
     last = page.locator("li.card").last.bounding_box()
-    assert last["y"] + last["height"] <= bar.bounding_box()["y"] + 1  # not covered
+    assert last["y"] + last["height"] <= bar.bounding_box()["y"] + 1
     walk.shot("bar")
     bar.get_by_role("button", name="Clear").click()
     assert page.locator("li.card input:checked").count() == 0
@@ -126,7 +126,6 @@ def test_walk_opened_from_add_trials_the_destination_is_that_watchlist(make_app,
     page = walk.page
     page.goto(app.url)
     page.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Elsewhere")).click()
-    # Elsewhere is empty, so it shows the first-use screen (ticket 09), whose button carries it
     page.locator("#view").get_by_role("link", name="Find trials").click()
     page.get_by_role("heading", level=1, name="Find trials").wait_for()
     page.get_by_label("Condition").fill("many")
@@ -175,7 +174,7 @@ def test_walk_a_newly_added_trial_is_monitored_with_no_changes_and_does_not_ente
     assert side.locator(".badge").get_attribute("title") == "0 to review"
     page.get_by_role("link", name="Open Myeloma").click()
     page.get_by_role("button", name="Check for updates").wait_for()
-    assert page.locator('li.card[data-nct="NCT10000001"]').count() == 0  # not in Needs review
+    assert page.locator('li.card[data-nct="NCT10000001"]').count() == 0
     page.goto(page.url.split("#")[0] + "#/trials/NCT10000001")
     page.get_by_text("No unreviewed changes").wait_for()
     page.get_by_role("tab", name="History").click()
@@ -191,7 +190,7 @@ def test_walk_view_details_of_a_trial_not_monitored_shows_sections_without_chang
     page.get_by_role("button", name="Add to watchlist").wait_for()
     assert page.get_by_role("heading", name="At a glance").is_visible()
     assert page.get_by_role("button", name=re.compile("Summary|Eligibility|Design|Sponsor", re.I)).count() > 0
-    assert page.get_by_role("tab").count() == 0  # no Changes or History tabs
+    assert page.get_by_role("tab").count() == 0
     assert page.get_by_text("Not monitored").first.is_visible()
     walk.shot("details")
     assert page.request.get(page.url.split("#")[0] + "api/trials/NCT10000005").status == 404

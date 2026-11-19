@@ -81,7 +81,7 @@ def focus_desc(page):
 def test_a_long_unbroken_title_does_not_push_the_summary_sideways(make_app, make_walk):
     """test_a_long_unbroken_title_does_not_push_the_summary_sideways"""
     _app, walk = open_summary(lambda seed: make_app(seed=seed_long), make_walk)
-    walk.shot("long-title")  # the sideways-scroll guard measures here
+    walk.shot("long-title")
 
 
 def test_keyboard_user_keeps_focus_on_the_period_button_they_pressed(make_app, make_walk):
@@ -182,7 +182,6 @@ def test_two_quick_period_clicks_end_on_the_last_one_clicked(make_app, make_walk
         import time
         time.sleep(next(delays, 0) / 1000)
         route.continue_()
-    # the first request to leave is the slow one, the second is quick
     page.route("**/summary?period=month", lambda r: (__import__("time").sleep(0.8), r.continue_()))
     page.get_by_role("button", name="This month").click()
     page.get_by_role("button", name="This week").click()

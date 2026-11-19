@@ -75,7 +75,7 @@ class State:
         self.on = {name: False for name in SWITCHES}
         self.delay = 2.0
         self.fail_ids: list[str] = []
-        self.requests = []  # (path) of every registry call, for tests
+        self.requests = []
 
     def snapshot(self) -> dict:
         with self.lock:
@@ -123,7 +123,7 @@ class Handler(BaseHTTPRequestHandler):
             if flags["fail"] and nct in flags["fail_ids"]:
                 return self._reply(500, {"error": f"{nct} failed"})
             if nct not in studies and re.fullmatch(r"NCT100000(0[1-9]|[1-9]\d|1[0-2]\d|13[0-4])", nct):
-                studies[nct] = _copy_as(_captured(), nct)  # one of the "many" search answers
+                studies[nct] = _copy_as(_captured(), nct)
             if flags["not_found"] or nct not in studies:
                 return self._reply(404, {"error": f"{nct} not found"})
             return self._reply(200, studies[nct])

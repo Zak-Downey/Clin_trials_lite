@@ -44,8 +44,6 @@ def test_ruff_toml_states_the_python_version_of_this_repos_venv():
 
 
 def test_ruff_toml_exempts_no_rule_file_or_folder_but_leaves_scratch_unread():
-    # Held to exactly the agreed keys, so any setting that skips code (an ignore list, an allowed
-    # unused import, an exclude) turns this red without being named here.
     top = config()
     assert set(top) == {"target-version", "extend-exclude", "lint"}
     assert set(top["lint"]) == {"select"}
@@ -69,7 +67,6 @@ def test_no_python_file_silences_the_linter_for_the_whole_file():
     assert silenced == []
 
 
-# A line-level marker as the spec allows it: the word noqa, a colon, one rule and the reason, all on one line.
 NOQA = re.compile(r"#\s*noqa\b", re.I)
 ALLOWED_NOQA = re.compile(r"#\s*noqa:\s*[A-Z]+[0-9]+\s+(?![A-Z]+[0-9]+\b)\S.*\w", re.I)
 
@@ -99,9 +96,6 @@ def test_ruff_reads_every_tracked_python_file_outside_scratch_and_nothing_under_
     assert {p for p in tracked if not p.startswith(".scratch/")} <= read
 
 
-# Each way of telling Ruff to skip code that the rule tests must catch: an unused import allowed
-# by name in ruff.toml, a second config that switches the rules off in one folder, and a file
-# silenced from inside it. Each case is a small copy of the repo where Ruff would report nothing.
 EXEMPTIONS = {
     "allowed-unused-imports": ({"ruff.toml": '\n[lint.pyflakes]\nallowed-unused-imports = ["os"]\n'}, ""),
     "nested-config": ({"pkg/ruff.toml": "[lint]\nselect = []\n"}, ""),

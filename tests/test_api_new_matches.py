@@ -54,7 +54,7 @@ def test_a_dismissed_match_is_not_offered_again_by_later_checks_and_nothing_else
     checked(api, studies, list_id=other)
     status, body = api.post("/api/watchlists/1/new-matches/dismiss", {"nct_ids": IDS[:1]})
     assert status == 200 and body["dismissed"] == IDS[:1] and body["undo_token"]
-    checked(api, studies)  # a later check finds the same studies
+    checked(api, studies)
     assert [t["nct_id"] for t in api.get("/api/watchlists/1/new-matches")[1]["trials"]] == IDS[1:]
     assert [t["nct_id"] for t in api.get(f"/api/watchlists/{other}/new-matches")[1]["trials"]] == IDS
     dismissed = api.get("/api/watchlists/1/new-matches/dismissed")[1]
@@ -69,7 +69,7 @@ def test_restoring_a_dismissed_match_offers_it_again_and_undo_restores_the_same_
     assert status == 200 and body["restored"] == IDS[:1]
     assert [t["nct_id"] for t in api.get("/api/watchlists/1/new-matches")[1]["trials"]] == [IDS[0], IDS[2]]
     status, body = api.post("/api/watchlists/1/new-matches/undo", {"token": token})
-    assert status == 200 and body["restored"] == IDS[1:2]  # the first was restored already
+    assert status == 200 and body["restored"] == IDS[1:2]
     assert len(api.get("/api/watchlists/1/new-matches")[1]["trials"]) == 3
     assert api.get("/api/watchlists/1/new-matches/dismissed")[1]["trials"] == []
 

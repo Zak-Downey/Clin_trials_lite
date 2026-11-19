@@ -136,7 +136,7 @@ def test_runner_takes_targets_from_its_command_line_and_gives_options_to_each_re
     assert names == ["test_wanted"]
     alone = (tmp_path / "out" / "alone-test_wanted-test-wanted.txt").read_text()
     assert "1 failed" in alone
-    assert "def test_wanted" not in alone  # the short traceback reached the re-run (the default one prints the source)
+    assert "def test_wanted" not in alone
 
 
 def test_a_mass_failure_stops_the_first_run_early_and_still_names_each_red_walk_it_saw(tmp_path, capsys):
@@ -151,7 +151,7 @@ def test_a_mass_failure_stops_the_first_run_early_and_still_names_each_red_walk_
             "    assert False\n")
     code, out = run_in(tmp_path, capsys)
     ran = (tmp_path / "ran.log").read_text().split()
-    first_run = len(ran) - run_walks.ALONE_CAP  # each re-run alone logs once more
+    first_run = len(ran) - run_walks.ALONE_CAP
     assert first_run < 80, "the first run went on through a mass failure"
     got = read_results(out)
     named = {t for _, t, _, _ in got}
@@ -214,7 +214,7 @@ def test_each_run_adds_its_own_line_to_the_record(tmp_path, capsys):
 
 def test_a_run_whose_only_failures_were_flaky_exits_0_with_the_switch_off_and_1_with_it_on(tmp_path, capsys, monkeypatch):
     """test_a_run_whose_only_failures_were_flaky_exits_0_with_the_switch_off_and_1_with_it_on"""
-    assert run_walks.FLAKY_IS_RED is False  # off by default: a flaky walk is shown, not red
+    assert run_walks.FLAKY_IS_RED is False
     (tmp_path / "test_once.py").write_text(ONCE)
     code, _ = run_in(tmp_path, capsys, targets=("test_once.py",))
     assert code == 0

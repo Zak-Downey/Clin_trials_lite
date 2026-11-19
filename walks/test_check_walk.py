@@ -51,7 +51,7 @@ def test_walk_the_header_names_the_watchlist_and_offers_only_a_manual_check(make
     meta = page.locator("#watchlist-meta").inner_text()
     assert meta == "3 trials monitored · Last checked Nov 8, 2026, 11:45 AM EST", meta
     buttons = page.get_by_role("main").get_by_role("button")
-    assert [buttons.nth(i).inner_text() for i in range(buttons.count())] == ["Check for updates", "⋯", "Manage"]  # Manage: the saved-search banner (this seed has one)
+    assert [buttons.nth(i).inner_text() for i in range(buttons.count())] == ["Check for updates", "⋯", "Manage"]
     add = page.get_by_role("link", name="Add trials")
     assert add.get_attribute("href") == "#/find/1"
     text = page.get_by_role("main").inner_text().lower()
@@ -74,14 +74,12 @@ def test_walk_during_a_check_progress_shows_and_the_queue_and_a_trial_stay_usabl
     status.get_by_text("Checking for updates…").wait_for()
     assert re.search(r"\d of 3 trials checked · (Checking NCT\d{8}|Searching for new matches) next", status.inner_text()), status.inner_text()
     assert status.get_by_role("progressbar").count() == 1 or status.locator("progress").count() == 1
-    # A second check cannot be started: the button is disabled and says why.
     assert button.is_disabled()
     assert page.locator("#check-reason").inner_text() == "A check is already running."
     walk.shot("checking")
-    # The queue is readable and a trial opens while the check runs.
     assert page.locator("ul.queue > li.card").count() == 2
     page.locator('li.card[data-nct="NCT03412565"] h3 a').click()
-    page.get_by_role("link", name="Open ClinicalTrials.gov").wait_for()  # the real trial page now
+    page.get_by_role("link", name="Open ClinicalTrials.gov").wait_for()
     page.go_back()
     page.get_by_role("status").get_by_text("Checking for updates…").wait_for()
     assert page.get_by_role("button", name="Check for updates").is_disabled()
@@ -103,7 +101,7 @@ def test_walk_pressing_check_for_updates_during_a_check_starts_no_second_check_a
     button.click()
     page.get_by_role("status").get_by_text("Checking for updates…").wait_for()
     assert button.is_disabled()
-    button.click(force=True)  # an aria-disabled button still takes a click; the page must ignore it
+    button.click(force=True)
     button.click(force=True)
     page.get_by_text("Check complete").wait_for(timeout=30000)
     assert len(starts) == 1, starts
@@ -123,17 +121,14 @@ def test_walk_a_check_with_one_failed_trial_is_incomplete_and_never_an_all_clear
     status.get_by_role("heading", name="Check incomplete").wait_for(timeout=30000)
     text = status.inner_text()
     assert "2 of 3 trials checked · 1 trial could not be checked" in text, text
-    # The saved search's outcome is its own line.
     assert status.locator(".search-line").inner_text() == "Saved search succeeded: Nothing new matched."
     assert "Check complete" not in text and "No new changes" not in text
     assert status.get_by_role("button", name="Retry failed").is_visible()
     assert page.get_by_text("Check complete").count() == 0
-    # The failed trial keeps its previous data: the queue is as it was.
     assert page.locator("ul.queue > li.card").count() == 2
     status.get_by_role("button", name="Show details").click()
     assert "NCT00000002" in status.locator(".details").inner_text()
     walk.shot("incomplete")
-    # Retry failed re-checks only that trial, once the registry is back.
     app.registry.set("fail", False)
     count_before = len(app.registry.server.state.requests)
     status.get_by_role("button", name="Retry failed").click()
@@ -156,7 +151,7 @@ def test_walk_a_check_that_finds_nothing_says_so_and_keeps_earlier_entries_in_th
     assert "2 trials still need review from earlier checks" in text, text
     assert [page.locator("ul.queue > li.card").nth(i).get_attribute("data-nct") for i in range(2)] == ["NCT03412565", "NCT00000002"]
     assert re.search(r"Last checked .*", page.locator("#watchlist-meta").inner_text())
-    assert "11:45 AM EST" not in page.locator("#watchlist-meta").inner_text()  # moved on from the seeded check
+    assert "11:45 AM EST" not in page.locator("#watchlist-meta").inner_text()
     walk.shot("nothing-new")
 
 
@@ -176,7 +171,7 @@ def test_walk_with_nothing_to_review_the_queue_says_all_caught_up_and_stays_on_i
     assert caught_up.get_by_role("link", name="View all trials").is_visible()
     assert page.get_by_role("tab", name="Needs review").get_attribute("aria-selected") == "true"
     page.wait_for_timeout(800)
-    assert page.url == url  # nothing switched tabs by itself
+    assert page.url == url
     walk.shot("caught-up")
 
 

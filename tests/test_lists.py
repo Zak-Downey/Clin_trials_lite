@@ -29,7 +29,6 @@ def other_record(record: dict, nct_id: str) -> dict:
     return copied
 
 
-# --- creating, renaming, deleting
 
 
 def test_a_new_database_opens_with_one_list_to_stand_in(conn):
@@ -88,7 +87,6 @@ def test_deleting_a_list_removes_it(conn, myeloma):
     assert storage.find_list(conn, "Myeloma") is None
 
 
-# --- a trial in more than one list
 
 
 def test_a_trial_can_belong_to_two_lists_at_once(conn, myeloma, fetcher):
@@ -161,7 +159,6 @@ def test_deleting_a_list_stops_monitoring_only_what_no_other_list_holds(
     assert storage.get_trial(conn, "NCT00000001") is not None
 
 
-# --- reading one list at a time
 
 
 def test_the_watchlist_narrows_to_the_list_it_is_asked_for(conn, myeloma, record, make_fetcher):
@@ -214,7 +211,6 @@ def test_asking_for_no_list_in_particular_reads_everything_monitored(
     assert len(monitor.watchlist(conn)) == 2
 
 
-# --- a database that predates lists
 
 
 def pre_lists_database(path) -> str:
@@ -265,8 +261,6 @@ def test_reopening_a_database_does_not_re_home_a_trial_that_lost_its_last_list(
     conn = storage.connect(path)
     only = storage.list_lists(conn)[0]["id"]
     monitor.add(conn, "NCT03412565", only, fetch=make_fetcher(default=record))
-    # The trial outliving its membership is the state a reconnect must not
-    # rescue, so it is made directly rather than through monitor.remove.
     storage.remove_member(conn, only, "NCT03412565")
     conn.close()
 

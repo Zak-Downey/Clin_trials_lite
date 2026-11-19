@@ -27,7 +27,6 @@ def test_the_baseline_keeps_the_raw_record_not_just_the_profile(conn, fetcher):
     monitor.add(conn, "NCT03412565", fetch=fetcher)
 
     stored = storage.latest_snapshot(conn, "NCT03412565")["record"]
-    # A raw registry field the monitored profile discards entirely.
     assert stored["protocolSection"]["contactsLocationsModule"]["locations"]
 
 

@@ -130,7 +130,7 @@ def test_a_run_that_is_not_a_whole_green_run_on_this_branch_does_not_move_the_ba
 def test_with_no_whole_green_run_the_base_is_where_the_branch_left_main(tmp_path):
     root, start, _, second = a_branch(tmp_path)
     git(root, "checkout", "-q", "main")
-    commit(root, "app/later_on_main.js")  # main moved on: the base is still where the branch left it
+    commit(root, "app/later_on_main.js")
     git(root, "checkout", "-q", "feature/thing")
     log(root, {"tip": second, "result": "red"})
     commit_, why = picker.base(root)
@@ -163,7 +163,7 @@ def test_nothing_changed_since_the_base_is_an_empty_list_and_cannot_tell_is_none
     root, _, _, second = a_branch(tmp_path)
     log(root, {"tip": second})
     assert picker.changed(root)[0] == []
-    git(root, "branch", "-q", "-m", "main", "trunk")  # no main left, and no run in the log
+    git(root, "branch", "-q", "-m", "main", "trunk")
     (root / ".checks" / "runs.jsonl").unlink()
     files, why = picker.changed(root)
     assert files is None and "cannot tell" in why

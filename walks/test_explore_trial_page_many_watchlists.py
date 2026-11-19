@@ -26,7 +26,7 @@ def test_the_review_bar_stays_small_and_the_page_does_not_scroll_sideways_with_m
     page = walk.page
     page.goto(app.url + "#/trials/NCT03412565")
     page.get_by_role("button", name="Mark reviewed").wait_for()
-    walk.shot("bar")  # the shot's sideways-scroll guard fails the walk at 1024 x 768
+    walk.shot("bar")
     height = page.viewport_size["height"]
     assert page.get_by_role("region", name="Review").bounding_box()["height"] < height / 3
     mark = page.get_by_role("button", name="Mark reviewed").bounding_box()

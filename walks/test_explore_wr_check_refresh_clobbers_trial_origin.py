@@ -26,7 +26,7 @@ def test_walk_a_check_finishing_after_leaving_new_matches_does_not_change_where_
     page.route("**/api/watchlists", handler)
     armed.append(1)
     page.get_by_role("button", name="Check for updates").click()
-    page.wait_for_function("true")  # let the click run
+    page.wait_for_function("true")
     deadline = 0
     while not held and deadline < 100:
         page.wait_for_timeout(100)
@@ -39,7 +39,7 @@ def test_walk_a_check_finishing_after_leaving_new_matches_does_not_change_where_
     page.get_by_role("heading", name="134 matches").wait_for()
     with page.expect_response(re.compile(r"/api/watchlists$")):
         held[0].continue_()
-    page.wait_for_timeout(500)  # the late refresh has now drawn or not
+    page.wait_for_timeout(500)
     page.locator("li.card").first.get_by_role("link", name=re.compile("^View details")).click()
     page.get_by_role("button", name="Add to watchlist").wait_for()
     walk.shot("details")

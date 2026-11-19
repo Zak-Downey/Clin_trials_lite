@@ -26,7 +26,7 @@ def test_explore_a_slow_search_does_not_draw_over_the_watchlist_the_analyst_went
     page.get_by_role("link", name="Watchlists").first.click()
     page.wait_for_url("**#/watchlists/**")
     page.get_by_role("tab", name="Needs review").wait_for()
-    page.wait_for_timeout(4000)  # the slow answer has arrived by now
+    page.wait_for_timeout(4000)
     walk.shot("after-slow-answer")
     assert page.get_by_role("heading", level=1, name="Find trials").count() == 0, \
         f"address {page.url} but the page shows the Find trials results"
@@ -42,7 +42,7 @@ def test_explore_an_older_slow_search_does_not_replace_the_newer_one(make_app, m
     page.get_by_label("Condition").press("Enter")
     page.get_by_text("Searching").wait_for()
     registry.set("slow", False)
-    page.get_by_label("Condition").count()  # the form is gone while searching: a user edits the address or goes Back/forward
+    page.get_by_label("Condition").count()
     page.go_back()
     page.get_by_label("Condition").wait_for()
     page.get_by_label("Condition").fill("nothing")

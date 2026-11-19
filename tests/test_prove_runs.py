@@ -99,7 +99,7 @@ def test_a_test_that_is_red_before_the_break_is_reported_so_and_the_proof_ends_o
     code, printed, line = prove_in(small_repo(tmp_path, [item], tests=already_red))
     assert code == 1
     assert printed[0].split()[:6] == ["adds-wrong", "tests/test_app.py::test_total_of_nothing", "red", "before", "the", "change"]
-    assert "assert 0 == 1" in "\n".join(printed)  # the end of its output says why
+    assert "assert 0 == 1" in "\n".join(printed)
     assert line["breaks"] == [{"id": "adds-wrong", "outcome": "red before the change"}]
 
 
@@ -108,7 +108,7 @@ def test_a_break_that_stops_the_tests_being_collected_is_not_proof(tmp_path):
     code, printed, line = prove_in(small_repo(tmp_path, [item]))
     assert code == 1
     assert printed[0].split()[2:5] == ["could", "not", "run"]
-    assert "pytest ended 4" in printed[0]  # pytest's code when the test it was named could not be collected
+    assert "pytest ended 4" in printed[0]
     assert line["breaks"] == [{"id": "syntax", "outcome": "could not run"}]
 
 
@@ -165,8 +165,6 @@ def test_a_break_proved_by_a_check_is_caught_when_that_check_goes_red_in_the_cop
 
 
 def test_a_check_past_its_time_limit_does_not_outlive_the_proof(tmp_path):
-    # checks.py starts each check in a session of its own, so stopping the proof's run must let
-    # checks.py stop its check, or the check (here its pytest) keeps running after the proof ends.
     pid_file = tmp_path / "check.pid"
     slow = TESTS + ("\n\ndef test_slow():\n    import os, time\n"
                     f"    open({str(pid_file)!r}, 'w').write(str(os.getpid()))\n    time.sleep(60)\n")
@@ -249,8 +247,6 @@ def test_a_refused_kill_of_a_group_with_a_live_member_is_not_hidden(tmp_path, mo
         os.kill(int(pid_file.read_text()), signal.SIGKILL)
 
 
-# `python3 prove.py --pick`: each break proved by a test is made in a copy that carries the picker's base and record,
-# and the copy's `checks.py --quick --pick <check>` must go red.
 
 PICK_TESTS = TESTS + "\n\ndef test_label_says_many():\n    assert app.label(3) == 'many'\n"
 WALK = ("import pathlib\n\n\ndef test_{name}_page_reads_ok():\n"
@@ -330,7 +326,6 @@ def test_a_break_whose_pick_ran_everything_is_caught_but_not_counted_as_proof_of
 
 
 def test_a_pick_of_everything_stopped_at_the_limit_is_reported_so_and_does_not_fail_the_picked_proof(tmp_path):
-    # nothing was picked, so picking hid nothing; whether the test catches the break is the plain proof's to say
     slow_whole = "import sys, time\nif not sys.argv[1:]:\n    time.sleep(30)\n" + RUN_WALKS
     root = pick_repo(tmp_path, [walk_entry(page="shared"), walk_entry()], run_walks=slow_whole)
     code, printed, line = prove_in(root, pick=True, minutes=0.1)

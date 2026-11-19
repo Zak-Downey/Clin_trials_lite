@@ -88,7 +88,7 @@ def test_walk_new_matches_is_its_own_tab_with_a_count_and_never_called_a_change(
     assert "registration" not in text and "registered" not in text and "changed" not in text
     assert page.locator("li.card.match").count() == 12
     assert page.get_by_role("button", name="View dismissed").is_visible()
-    assert bar(page).is_hidden()  # nothing selected, no bar
+    assert bar(page).is_hidden()
     walk.shot("tab")
 
 
@@ -97,7 +97,7 @@ def test_walk_after_the_register_switch_a_check_adds_the_new_study_to_new_matche
     app, walk = open_tab(make_app, make_walk, seed=seed_empty, tab=None)
     page = walk.page
     page.get_by_role("tab", name=re.compile("^New matches")).click()
-    page.get_by_role("heading", level=2, name="No new matches").wait_for()  # nothing offered before a check
+    page.get_by_role("heading", level=2, name="No new matches").wait_for()
     app.registry.set("register", True)
     page.get_by_role("button", name="Check for updates").click()
     page.locator("#check-status").get_by_text("Check complete").wait_for(timeout=30000)
@@ -106,7 +106,7 @@ def test_walk_after_the_register_switch_a_check_adds_the_new_study_to_new_matche
     assert page.locator("#check-status").get_by_text("Saved search succeeded: 3 new trials found.").is_visible()
     assert page.get_by_role("tab", name=re.compile("^New matches")).inner_text().strip() == "New matches 3"
     page.get_by_role("tab", name=re.compile("^Needs review")).click()
-    page.get_by_text("All caught up").wait_for()  # the queue is unaffected
+    page.get_by_text("All caught up").wait_for()
     assert page.get_by_role("tab", name=re.compile("^Needs review")).inner_text().strip() == "Needs review 0"
     walk.shot("registered")
 
@@ -125,7 +125,7 @@ def test_walk_selecting_matches_shows_an_action_bar_that_never_covers_the_last_m
     page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
     last = page.locator("li.card.match").last.bounding_box()
     top = region.bounding_box()
-    assert last["y"] + last["height"] <= top["y"] + 1, (last, top)  # the bar does not cover the last match
+    assert last["y"] + last["height"] <= top["y"] + 1, (last, top)
     walk.shot("selected")
     region.get_by_role("button", name="Add 2 to watchlist").click()
     region.get_by_text("2 added").wait_for()
@@ -136,7 +136,7 @@ def test_walk_selecting_matches_shows_an_action_bar_that_never_covers_the_last_m
     region.get_by_role("link", name="View All trials").click()
     page.locator('tr[data-nct="NCT00000002"]').wait_for()
     row = page.locator('tr[data-nct="NCT00000002"]')
-    assert "No changes" in row.inner_text()  # a baseline, not a change
+    assert "No changes" in row.inner_text()
     assert "Not checked yet" not in row.inner_text()
 
 
@@ -148,7 +148,7 @@ def test_walk_dismiss_states_the_consequence_before_committing_and_then_offers_u
     region = bar(page)
     region.get_by_role("button", name="Dismiss 1").click()
     region.get_by_text("These trials will not be suggested again for this list.").wait_for()
-    assert page.locator("li.card.match").count() == 12  # nothing was dismissed yet
+    assert page.locator("li.card.match").count() == 12
     walk.shot("consequence")
     region.get_by_role("button", name="Cancel").click()
     region.get_by_role("button", name="Dismiss 1").wait_for()
@@ -161,7 +161,6 @@ def test_walk_dismiss_states_the_consequence_before_committing_and_then_offers_u
     region.get_by_role("button", name="Undo").click()
     page.get_by_role("heading", level=2, name="12 new matches").wait_for()
     page.locator('li.card[data-nct="NCT00000002"]').wait_for()
-    # dismissing in one watchlist changes nothing in another: Quiet still offers it
     page.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Quiet")).click()
     page.get_by_role("heading", level=1, name="Quiet").wait_for()
     page.get_by_role("tab", name=re.compile("^New matches")).click()
@@ -187,7 +186,7 @@ def test_walk_view_dismissed_lists_dismissed_matches_with_restore_and_a_restored
     page.get_by_role("button", name="Back to new matches").click()
     page.get_by_role("heading", level=2, name="11 new matches").wait_for()
     page.locator('li.card[data-nct="NCT00000002"]').wait_for()
-    assert page.locator('li.card[data-nct="NCT00000003"]').count() == 0  # still dismissed
+    assert page.locator('li.card[data-nct="NCT00000003"]').count() == 0
 
 
 def test_walk_a_watchlist_with_a_saved_search_and_no_trials_offers_check_for_new_matches(make_app, make_walk):
@@ -215,7 +214,7 @@ def test_walk_a_search_that_found_more_than_a_hundred_says_so_on_the_tab_and_in_
     status.get_by_text("Check complete").wait_for(timeout=60000)
     assert "more than 100" in status.inner_text(), status.inner_text()
     page.get_by_role("tab", name=re.compile("^New matches")).click()
-    page.get_by_role("heading", level=2, name="99 new matches").wait_for()  # 100 offered, one already held
+    page.get_by_role("heading", level=2, name="99 new matches").wait_for()
     note = page.get_by_role("note").filter(has_text="more than 100")
     assert note.is_visible()
     walk.shot("capped")

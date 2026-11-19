@@ -34,7 +34,6 @@ def test_removing_a_trial_from_its_last_watchlist_keeps_it_and_no_check_fetches_
     results = list(monitor.check_all(conn, None, fetch=lambda n: fetched.append(n) or record, pause=0))
     assert results == [] and fetched == []
     assert storage.list_trials(conn) == []
-    # Adding it back: no fetch, no new baseline; the next check reports what moved meanwhile.
     monitor.add(conn, NCT, 1, fetch=lambda n: fetched.append(n) or record, when=T1)
     assert fetched == [] and storage.count_snapshots(conn, NCT) == 1
     later = json.loads(json.dumps(record))
@@ -70,7 +69,7 @@ def test_the_timeline_is_newest_first_with_checks_reviews_undos_start_and_the_un
     assert review["count"] == 2 and review["from_checks"] == [T2]
     detection = entries[4]
     assert detection["at"] == T2 and detection["count"] == 2 and len(detection["moves"]) == 2
-    assert all(m["reviewed"] is False for m in detection["moves"])  # undone
+    assert all(m["reviewed"] is False for m in detection["moves"])
     assert entries[5]["at"] == T1
 
 

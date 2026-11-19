@@ -75,7 +75,6 @@ def test_a_second_check_for_the_same_watchlist_is_refused_while_one_runs(watched
     assert watched.post(f"/api/watchlists/{LIST_ID}/check/retry")[1]["error"]["kind"] == "check_running"
     GATE.set()
     assert finished(watched)["state"] == "complete"
-    # Once finished, a new check is accepted.
     assert watched.post(f"/api/watchlists/{LIST_ID}/check")[0] == 200
     finished(watched)
 
@@ -85,7 +84,7 @@ def test_a_check_reports_progress_while_the_watchlist_stays_readable(watched):
     GATE.clear()
     watched.post(f"/api/watchlists/{LIST_ID}/check")
     status, body = watched.get(f"/api/watchlists/{LIST_ID}/needs-review")
-    assert status == 200  # the queue answers while a fetch is waiting
+    assert status == 200
     progress = watched.get(f"/api/watchlists/{LIST_ID}/check")[1]
     assert (progress["state"], progress["processed"], progress["total"]) == ("running", 0, 3)
     assert progress["next"] == {"kind": "trial", "nct_id": "NCT00000001"}
@@ -107,12 +106,12 @@ def test_a_failed_trial_makes_the_check_incomplete_and_keeps_the_search_apart(wa
     assert (done["total"], done["checked"], done["failed"]) == (3, 2, 1)
     (bad,) = [t for t in done["trials"] if t["outcome"] == "error"]
     assert (bad["nct_id"], bad["error_kind"]) == ("NCT00000002", "unreachable")
-    assert done["search"]["outcome"] == "nothing_found"  # the search's own result, not the trials'
+    assert done["search"]["outcome"] == "nothing_found"
     assert done["retryable"] == 1
     conn = storage.connect(watched.path)
     trial = storage.get_trial(conn, "NCT00000002")
     assert trial["check_error_kind"] == "unreachable"
-    assert trial["last_checked"] == "2026-11-01T08:00:00+00:00"  # the baseline, never moved by the failure
+    assert trial["last_checked"] == "2026-11-01T08:00:00+00:00"
 
 
 def test_a_saved_search_failure_is_reported_apart_from_the_trials(watched, record):
@@ -221,7 +220,6 @@ def test_a_normal_check_skips_an_unmoved_stamp_and_a_full_recheck_compares_it_an
     full = finished(watched)
     assert full["kind"] == "recheck" and full["changed"] == 1
     assert [t["nct_id"] for t in full["trials"] if t["outcome"] == "updated"] == ["NCT00000002"]
-    # Once, not sticky: the next normal check is the cheap one again.
     watched.post(f"/api/watchlists/{LIST_ID}/check")
     assert finished(watched)["kind"] == "check"
 

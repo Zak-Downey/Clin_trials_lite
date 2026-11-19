@@ -20,8 +20,6 @@ def test_walk_a_check_where_every_trial_failed_is_not_an_all_clear(make_app, mak
     page.get_by_role("button", name="Check for updates").click()
     page.get_by_text("Check incomplete").wait_for()
     walk.shot("failed-check")
-    # The header's "Last checked" is when the check finished, by design (spec, "Check failures persist per trial").
-    # The empty queue must not read as an all-clear while a trial's latest check failed.
     caught_up = page.locator(".caught-up").inner_text()
     assert "All caught up" not in caught_up, f"the empty queue after a total failure: {caught_up!r}"
     assert "could not be checked" in caught_up, caught_up

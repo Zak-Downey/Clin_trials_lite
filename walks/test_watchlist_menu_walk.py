@@ -43,12 +43,11 @@ def test_walk_the_menu_offers_four_actions_and_each_opens_its_own_dialog(make_ap
         page.get_by_role("menuitem", name=item).click()
         dialog = page.get_by_role("dialog", name=title)
         dialog.wait_for()
-        # One task per dialog: the other actions' buttons are not here.
         names = [dialog.get_by_role("button").nth(i).inner_text() for i in range(dialog.get_by_role("button").count())]
         titles[item] = names
         page.keyboard.press("Escape")
         dialog.wait_for(state="detached")
-        page.wait_for_function("document.activeElement.id === 'watchlist-menu-button'")  # focus returns to the menu button
+        page.wait_for_function("document.activeElement.id === 'watchlist-menu-button'")
     assert "Create watchlist" not in sum(titles.values(), [])
     assert titles["Rename watchlist"] == ["Cancel", "Save name"]
     assert titles["Delete watchlist"] == ["Cancel", "Delete watchlist"]
@@ -61,9 +60,9 @@ def test_walk_rename_shows_the_current_name_refuses_empty_and_duplicate_inline_a
     page = walk.page
     page.evaluate("document.body.style.minHeight = '3000px'")
     url = page.url
-    choose(page, "Rename watchlist")  # the click brings the menu into view, so scroll once the dialog is open
+    choose(page, "Rename watchlist")
     page.evaluate("window.scrollTo(0, 250)")
-    assert page.evaluate("window.scrollY") == 250  # the page really scrolls
+    assert page.evaluate("window.scrollY") == 250
     dialog = page.get_by_role("dialog", name="Rename watchlist")
     name = dialog.get_by_label("Watchlist name")
     assert name.input_value() == helper.LONG_NAME
@@ -105,7 +104,6 @@ def test_walk_full_recheck_explains_itself_runs_once_and_finishes_with_its_own_l
     status = page.get_by_role("status")
     status.get_by_text(re.compile("^Full recheck complete")).wait_for(timeout=30000)
     walk.shot("full-complete")
-    # Once: the next normal check carries the normal label.
     page.get_by_role("button", name="Check for updates").click()
     status.get_by_text(re.compile("^Check complete")).wait_for(timeout=30000)
     assert "Full recheck" not in status.inner_text()
@@ -131,6 +129,5 @@ def test_walk_delete_names_the_watchlist_states_what_goes_and_stays_and_lands_on
     page.get_by_role("dialog", name="Delete “Quiet”?").get_by_role("button", name="Delete watchlist").click()
     page.get_by_role("heading", level=1, name=helper.LONG_NAME).wait_for()
     assert page.get_by_label("Watchlists").get_by_role("link", name=re.compile("^Quiet")).count() == 0
-    # The trial it shared is still in the other watchlist, unchanged.
     assert "3 trials" in page.locator("#watchlist-meta").inner_text()
     walk.shot("after-delete")

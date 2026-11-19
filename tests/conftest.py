@@ -108,8 +108,6 @@ def serve_in_background(server):
     """Start `server` answering on a daemon thread, as the `api` fixture does; returns the thread."""
     import threading
 
-    # serve_forever looks for a stop request every poll_interval seconds; its default
-    # of half a second made each teardown wait up to that long.
     thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     return thread

@@ -49,13 +49,12 @@ def red_walks(text: str) -> list[str]:
     return list(dict.fromkeys(re.findall(r"^(?:FAILED|ERROR) (\S+)", text, re.M)))
 
 
-ALONE_CAP = 10  # red walks re-run alone; the rest are listed red, so a mass failure still names every walk inside the timeout
-MASS_FAILURE = 20  # the first run stops once this many walks are red: a mass failure, where each walk left would only
-# wait out its timeouts and push the run past its time limit before any walk is named
+ALONE_CAP = 10
+MASS_FAILURE = 20
 
 
-FLAKY_IS_RED = False  # True: a walk red with the others and green alone makes the run exit 1, as one red alone does
-FLAKY_RECORD = "flaky.jsonl"  # beside walks-run.txt: one line per run, {"at", "tip", "flaky": [node ids]}; [] when none
+FLAKY_IS_RED = False
+FLAKY_RECORD = "flaky.jsonl"
 
 
 def record_flaky(folder: pathlib.Path, flaky: list[str]) -> None:

@@ -18,8 +18,6 @@ import zoneinfo
 from walks import helper
 
 
-# NCT03412565's two seeded changes in the period plus the three the simulated check of
-# NCT00000002 finds; the 45-day-old change is outside This week and This month.
 EXPECTED_CHANGES = 5
 
 
@@ -36,9 +34,6 @@ def seed_summary(db: str, registry: helper.Registry) -> None:
         monitor.add(conn, nct, first, fetch=registry.fetch, when=stamp)
     now = datetime.datetime.now(datetime.timezone.utc)
     iso = lambda delta: (now - delta).isoformat(timespec="seconds")  # noqa: E731 (a one-line helper local to this function)
-    # The earlier in-period change sits halfway between the later of This week's and This
-    # month's start (Monday / the 1st, 00:00 in the server's zone) and now, so it is inside
-    # both periods at any hour of the run, including just after midnight on a Monday or the 1st.
     zone = zoneinfo.ZoneInfo("America/New_York")
     today = now.astimezone(zone).date()
     starts = (today - datetime.timedelta(days=today.weekday()), today.replace(day=1))
@@ -135,7 +130,7 @@ def test_walk_the_summary_groups_by_trial_then_check_and_expands_to_every_transi
     assert card.locator(".move").first.is_hidden()
     card.get_by_text("View 2 changes").click()
     moves = card.locator(".move")
-    assert moves.count() == 2  # the field moved twice and is listed twice, not merged
+    assert moves.count() == 2
     texts = moves.all_inner_texts()
     assert "255 (Actual) → 265 (Actual)" in texts[0] and "Awaiting review" in texts[0]
     assert "248 (Actual) → 255 (Actual)" in texts[1] and "Reviewed" in texts[1]
@@ -169,7 +164,7 @@ def test_walk_export_csv_downloads_the_file_for_the_shown_period(make_app, make_
     download = info.value
     assert download.suggested_filename.startswith("myeloma-changes-") and download.suggested_filename.endswith(".csv")
     rows = list(csv.DictReader(io.StringIO(open(download.path(), encoding="utf-8").read())))
-    assert len(rows) == changes  # the 45-day-old change is outside the week
+    assert len(rows) == changes
     assert {r["NCT ID"] for r in rows} == {"NCT03412565", "NCT00000002"}
     assert {r["Review status"] for r in rows} == {"Reviewed", "Awaiting review"}
 

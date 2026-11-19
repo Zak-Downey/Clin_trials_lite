@@ -12,7 +12,7 @@ import storage
 def test_adding_several_trials_reports_which_were_added_which_were_already_there_and_which_failed(api):
     """test_adding_several_trials_reports_which_were_added_which_were_already_there_and_which_failed"""
     api.post("/api/watchlists/1/trials", {"nct_ids": ["NCT00000002"]})
-    original = type(api).fetch  # the class attribute, unbound
+    original = type(api).fetch
 
     def fetch(nct):
         if nct == "NCT00000004":
@@ -90,7 +90,7 @@ def test_a_watchlist_deleted_while_add_trials_is_fetching_gets_no_row_and_the_ad
     original = type(api).fetch
 
     def fetch(nct):
-        api.post("/api/watchlists/1/delete")  # the lock is released for the registry call
+        api.post("/api/watchlists/1/delete")
         return original(nct)
 
     api.fetch_override(fetch)

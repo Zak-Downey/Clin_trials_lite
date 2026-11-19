@@ -34,7 +34,6 @@ def simulated(watched):
     return watched
 
 
-# --- what the simulator does to stored history
 
 
 def test_simulating_reports_the_fields_it_moved(watched):
@@ -68,7 +67,6 @@ def test_simulating_an_unwatched_trial_is_refused(conn):
         simulate.rewind(conn, "NCT03412565")
 
 
-# --- detection through the ordinary check
 
 
 def test_the_next_check_detects_the_simulated_difference(simulated, fetcher):
@@ -106,7 +104,6 @@ def test_checking_twice_does_not_record_the_same_change_again(simulated, fetcher
     assert len(storage.list_changes(simulated)) == before
 
 
-# --- the feed
 
 
 def test_a_changed_trial_produces_one_feed_entry_naming_the_field_count(simulated, fetcher):
@@ -127,7 +124,6 @@ def test_the_feed_is_most_recent_first(simulated, fetcher):
     assert stamps == sorted(stamps, reverse=True)
 
 
-# --- synthetic marking and cleanup
 
 
 def test_the_snapshot_the_simulator_writes_is_marked_synthetic(simulated):
@@ -155,7 +151,6 @@ def test_stored_values_carry_no_synthetic_marker_text(simulated, fetcher):
     baseline a later genuine change is compared against."""
     monitor.check(simulated, "NCT03412565", fetch=fetcher)
 
-    # The flag itself is a column, so only the values are examined here.
     records = [r["record"] for r in simulated.execute("SELECT record FROM snapshots")]
     values = [[c["previous"], c["current"]] for c in storage.list_changes(simulated)]
     stored = json.dumps(records + values).lower()
@@ -222,7 +217,6 @@ def test_a_real_change_after_a_simulated_one_is_recorded_as_real(
     assert [c["field"] for c in real] == ["enrollment"]
     assert real[0]["current"] == 999
 
-    # Still flagged, because the simulated rows are still there to be seen.
     assert storage.is_synthetic(simulated, "NCT03412565") is True
 
     storage.delete_synthetic(simulated)

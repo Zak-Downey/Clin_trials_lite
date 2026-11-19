@@ -20,9 +20,9 @@ import monitor
 import storage
 
 LIST_ID = 1
-TODAY = "2026-11-08"  # a Sunday: the week is 2-8 November
-CHECK_A = "2026-11-03T03:00:00+00:00"  # 12:00 in Tokyo, 3 Nov
-CHECK_B = "2026-11-08T20:00:00+00:00"  # 5:00 on 9 Nov in Tokyo: outside the week, inside the next
+TODAY = "2026-11-08"
+CHECK_A = "2026-11-03T03:00:00+00:00"
+CHECK_B = "2026-11-08T20:00:00+00:00"
 CHECK_OLD = "2026-10-20T10:00:00+00:00"
 
 
@@ -64,7 +64,6 @@ def test_this_week_runs_monday_to_sunday_and_filters_on_detection_in_the_local_z
     """test_this_week_runs_monday_to_sunday_and_filters_on_detection_in_the_local_zone"""
     body = summary(seeded, "period=week")
     assert (body["period"]["start"], body["period"]["end"]) == ("2026-11-02", "2026-11-08")
-    # CHECK_B is 9 Nov in Tokyo: outside; CHECK_OLD is October.
     assert body["counts"]["field_changes"] == 4
     assert body["counts"]["trials"] == 3
     assert sorted(t["nct_id"] for t in body["trials"]) == ["NCT00000002", "NCT00000003", "NCT03412565"]
@@ -74,7 +73,6 @@ def test_this_month_is_the_calendar_month_and_reviewed_changes_stay_in(seeded):
     """test_this_month_is_the_calendar_month_and_reviewed_changes_stay_in"""
     body = summary(seeded, "period=month")
     assert (body["period"]["start"], body["period"]["end"]) == ("2026-11-01", "2026-11-30")
-    # CHECK_B (9 Nov local) is now in; the reviewed trial counts as reviewed, not absent.
     assert body["counts"]["field_changes"] == 5
     assert body["counts"]["reviewed"] == 1 and body["counts"]["awaiting_review"] == 4
     assert body["zone"] == "JST"
@@ -101,7 +99,6 @@ def test_the_summary_keeps_every_transition_of_a_field_that_moved_in_two_checks_
     body = summary(seeded, "period=month")
     trial = next(t for t in body["trials"] if t["nct_id"] == "NCT03412565")
     assert trial["change_count"] == 3 and trial["check_count"] == 2
-    # Newest check first; inside it, every transition.
     assert [sorted(c["field"] for c in check["changes"]) for check in trial["checks"]] == [
         ["enrollment"], ["briefTitle", "enrollment"]]
     assert [c["detected_at"]["iso"] for c in trial["checks"]] == [
@@ -109,7 +106,6 @@ def test_the_summary_keeps_every_transition_of_a_field_that_moved_in_two_checks_
     enrol = [(c["previous"], c["current"]) for check in trial["checks"] for c in check["changes"]
              if c["field"] == "enrollment"]
     assert enrol == [("20", "30"), ("10", "20")]
-    # The latest-change line names the newest check's fields only, not the older check's title.
     assert trial["latest"] == "Latest: enrollment updated."
 
 

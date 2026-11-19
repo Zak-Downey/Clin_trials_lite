@@ -26,7 +26,7 @@ ENGINES = {
 }
 
 
-SIZES = [helper.VIEWPORTS[name] for name in helper.window_sizes()]  # a quick run keeps WebKit: it is at the first size
+SIZES = [helper.VIEWPORTS[name] for name in helper.window_sizes()]
 
 
 @pytest.fixture(params=[name for name, (_, size) in ENGINES.items() if size in SIZES])
@@ -35,7 +35,7 @@ def engine(request):
 
 
 @pytest.fixture
-def viewport(engine):  # replaces conftest's: the walk's own three runs
+def viewport(engine):
     helper.VIEWPORTS.setdefault(engine, ENGINES[engine][1])
     return engine
 
@@ -50,7 +50,6 @@ def browser(engine):
         launched.close()
 
 
-# What a control must show when it has focus, read from the page's computed style.
 RING = """(e) => {
   const s = getComputedStyle(e);
   const outline = s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0;
@@ -58,7 +57,6 @@ RING = """(e) => {
   return outline || shadow;
 }"""
 
-# The control's accessible name, as far as a text label goes: aria-label, label, text, value.
 NAME = """(e) => {
   const by = (id) => (document.getElementById(id) || {}).innerText;
   const label = e.labels && e.labels.length ? [...e.labels].map((l) => l.innerText).join(' ') : '';
@@ -170,18 +168,16 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     app, walk, keys = open_empty(make_app, make_walk, engine)
     page = walk.page
 
-    # 1. Create a watchlist from the sidebar.
     keys.press(page.get_by_role("button", name="+ New watchlist"))
     dialog = page.get_by_role("dialog", name="New watchlist")
     dialog.wait_for()
-    assert page.evaluate("document.activeElement.id") == "new-watchlist-name"  # focus lands in the dialog
+    assert page.evaluate("document.activeElement.id") == "new-watchlist-name"
     page.keyboard.type("Myeloma")
-    page.keyboard.press("Enter")  # submits the form
+    page.keyboard.press("Enter")
     dialog.wait_for(state="detached")
     sidebar(page, "Myeloma").wait_for()
     walk.shot("created")
 
-    # 2. Search; select across two pages; add.
     keys.press(page.get_by_role("navigation").get_by_role("link", name="Find trials"))
     page.get_by_role("heading", level=1, name="Find trials").wait_for()
     keys.type(page.get_by_label("Condition"), "many", submit=True)
@@ -202,7 +198,6 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     assert sidebar(page, "Myeloma").locator(".counts").inner_text() == "3 trials"
     walk.shot("added")
 
-    # 3. The trial the registry will revise comes in by its ID.
     keys.press(page.get_by_role("tab", name="Add by NCT ID"))
     keys.choose(page.get_by_label("Destination"), "Myeloma")
     keys.type(page.get_by_label("NCT ID"), "NCT03412565", submit=True)
@@ -210,7 +205,6 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     keys.press(page.get_by_role("button", name="Add to watchlist"))
     page.get_by_text("Added NCT03412565 to Myeloma.").wait_for()
 
-    # 4. Save a search that finds the registry's three studies.
     keys.press(page.get_by_role("tab", name="Search"))
     page.get_by_role("heading", level=1, name="Find trials").wait_for()
     keys.type(page.get_by_label("Condition"), "myeloma", submit=True)
@@ -226,14 +220,12 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     page.get_by_text("Saved search is on").wait_for()
     walk.shot("saved-search")
 
-    # 5. Check for updates: nothing has moved yet.
     keys.press(page.get_by_role("button", name="Check for updates"))
     status = page.locator("#check-status")
     status.get_by_text("Check complete · No new changes detected").wait_for(timeout=30000)
     assert "Saved search succeeded: 2 new trials found." in status.inner_text(), status.inner_text()
     page.get_by_text("All caught up").wait_for()
 
-    # 6. The registry moves (the walk's one step off the page), and the next check sees it.
     app.registry.set("revise", True)
     app.registry.set("register", True)
     keys.press(page.get_by_role("button", name="Check for updates"))
@@ -244,7 +236,6 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     assert sidebar(page, "Myeloma").locator(".badge").get_attribute("title") == "1 to review"
     walk.shot("changed")
 
-    # 7. Open the changed trial; review it; undo; review again.
     keys.press(card.locator("h3 a"))
     page.get_by_role("button", name="Mark reviewed").wait_for()
     changes = page.locator("article.change")
@@ -252,10 +243,10 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     walk.shot("trial")
     keys.press(page.get_by_role("button", name="Mark reviewed"))
     page.get_by_text(re.compile(r"\d+ changes? marked reviewed")).wait_for()
-    assert page.evaluate("document.activeElement.textContent") == "Undo"  # the pressed button is now disabled: focus moves on, not to <body>
+    assert page.evaluate("document.activeElement.textContent") == "Undo"
     labels = page.locator(".reviewed-label:visible")
     assert labels.count() == changes.count()
-    assert all(text.strip() for text in labels.all_inner_texts())  # said in words, not by colour
+    assert all(text.strip() for text in labels.all_inner_texts())
     page.locator('.badge[title="0 to review"]').first.wait_for(state="attached")
     keys.press(page.get_by_role("button", name="Undo"))
     page.get_by_role("button", name="Undo").wait_for(state="detached")
@@ -269,7 +260,6 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     page.get_by_role("heading", level=1, name="Myeloma").wait_for()
     page.get_by_text("All caught up").wait_for()
 
-    # 8. New matches: add the new one; dismiss one and restore it.
     keys.press(page.get_by_role("tab", name=re.compile("^New matches")))
     page.get_by_role("heading", level=2, name="3 new matches").wait_for()
     match = lambda nct: page.locator(f'li.card[data-nct="{nct}"] input[type=checkbox]')  # noqa: E731 (a one-line helper local to this function)
@@ -293,7 +283,6 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     page.get_by_role("heading", level=2, name="2 new matches").wait_for()
     page.locator('li.card[data-nct="NCT00000002"]').wait_for()
 
-    # 9. Summary: view, copy, export.
     keys.press(page.get_by_role("tab", name="Summary"))
     page.locator("#summary-heading").wait_for()
     heading = page.locator("#summary-heading").inner_text()
@@ -314,7 +303,6 @@ def test_walk_the_whole_journey_by_keyboard_alone(make_app, make_walk, engine, t
     assert {r["Review status"] for r in rows} == {"Reviewed"}
     walk.shot("exported")
 
-    # Every control reached is a real control with a name and a focus ring.
     assert len(keys.reached) > 30
     bad = [c for c in keys.reached if not (c["real"] and c["name"] and c["ring"])]
     assert not bad, bad
@@ -342,7 +330,6 @@ def assert_controls(keys, since=0):
     assert not bad, bad
 
 
-# Properties that say a state without colour: weight, a line, a border, a mark in the text.
 NOT_COLOUR = """(e) => {
   const s = getComputedStyle(e), b = getComputedStyle(e, '::before');
   return JSON.stringify([s.fontWeight, s.fontStyle, s.textDecorationLine, s.borderBottomWidth, s.borderLeftWidth,
@@ -379,7 +366,6 @@ def test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_r
         assert stops[name] >= 8, (name, stops)
         assert_controls(keys, before)
         walk.shot(f"crawl-{name}")
-    # The tab and the sidebar link that are current differ from the others by more than colour.
     page.evaluate("(h) => { location.hash = h }", "#/watchlists/1/needs-review")
     page.locator("li.card").first.wait_for()
     tabs = page.get_by_role("tablist", name="Watchlist views").get_by_role("tab")
@@ -390,7 +376,6 @@ def test_walk_every_stop_in_every_view_is_a_real_labelled_control_with_a_focus_r
     other = page.get_by_label("Watchlists").locator("a:not(.active)")
     assert differs_beyond_colour(current.first, other.first)
     assert current.first.get_attribute("aria-current") == "page"
-    # A selected phase carries a mark in its text; a selected result is a checked checkbox with a count in words.
     page.evaluate("(h) => { location.hash = h }", "#/find")
     page.get_by_role("button", name="More filters").wait_for()
     keys.press(page.get_by_role("button", name="More filters"))
@@ -444,15 +429,15 @@ def test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboar
     """test_walk_the_acceptance_journey_measures_horizontal_scroll_on_every_keyboard_move_and_fails_on_a_wide_new_watchlist_dialog"""
     walk, keys = open_new_watchlist(make_app, make_walk, engine)
     page = walk.page
-    keys.type(page.get_by_label("Name"), "Wide")  # a normal dialog passes every move
-    page.add_style_tag(content="#view { min-width: 3000px; }")  # the page itself goes wide
+    keys.type(page.get_by_label("Name"), "Wide")
+    page.add_style_tag(content="#view { min-width: 3000px; }")
     with pytest.raises(AssertionError, match="the page is"):
         keys.type(page.get_by_label("Name"), "Wide")
     page.add_style_tag(content="#view { min-width: 0 !important; }")
     page.add_style_tag(content="dialog.dialog { width: 2400px !important; max-width: none !important; }")
     with pytest.raises(AssertionError, match="wider than the window"):
         keys.press(page.get_by_role("button", name="Cancel"))
-    walk.guards.found.clear()  # the failure is the point here
+    walk.guards.found.clear()
 
 
 def test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_when_a_control_passed_on_the_way_loses_its_name(make_app, make_walk, engine):
@@ -461,9 +446,9 @@ def test_walk_the_acceptance_journey_checks_every_tab_stop_it_passes_and_fails_w
     page = walk.page
     keys.focus(page.get_by_label("Name"))
     before = len(keys.reached)
-    keys.focus(page.get_by_role("button", name="Create watchlist"))  # passes Cancel, named: fine
+    keys.focus(page.get_by_role("button", name="Create watchlist"))
     assert any(c["text"] == "Cancel" for c in keys.reached[before:]), keys.reached[before:]
     keys.focus(page.get_by_label("Name"))
-    page.get_by_role("button", name="Cancel").evaluate("(b) => { b.textContent = ''; }")  # Cancel loses its name
+    page.get_by_role("button", name="Cancel").evaluate("(b) => { b.textContent = ''; }")
     with pytest.raises(AssertionError, match="not a real, named, ringed control"):
         keys.focus(page.locator("button.primary"))
