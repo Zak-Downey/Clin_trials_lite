@@ -143,7 +143,38 @@ def test_walk_each_check_group_shows_both_dates_and_a_field_that_moved_twice_sho
 def test_walk_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear(make_app, make_walk):
     """test_walk_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear"""
     _, walk = open_trial(make_app, make_walk)
+    assert_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear(walk.page)
+    walk.shot("action-bar")
+
+
+def test_walk_the_action_bar_states_its_scope_while_the_watchlist_s_queue_is_still_unanswered(make_app, make_walk):
+    """test_walk_the_action_bar_states_its_scope_while_the_watchlist_s_queue_is_still_unanswered"""
+    app = make_app(seed=seed_trial_page)
+    walk = make_walk(app)
     page = walk.page
+    page.goto(app.url)
+    page.locator('li.card[data-nct="NCT03412565"]').wait_for()
+    held = []
+    page.route(QUEUE_ANSWER, lambda route: held.append(route))
+    page.locator('li.card[data-nct="NCT03412565"] h3 a').click()
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    assert held, "the trial page never asked for its watchlist's queue"
+    walk.shot("queue-held")
+    assert_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear(page)
+    walk.shot("action-bar-before-the-queue")
+    with page.expect_response(QUEUE_ANSWER):
+        for route in held:
+            route.continue_()
+    page.unroute(QUEUE_ANSWER)
+    page.get_by_role("button", name="Next trial").click()
+    page.wait_for_url(re.compile(r"#/trials/NCT00000002\?list=1$"))
+    walk.shot("next-after-the-queue")
+
+
+QUEUE_ANSWER = re.compile(r"/api/watchlists/\d+/needs-review$")
+
+
+def assert_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear(page):
     bar = page.get_by_role("region", name="Review")
     assert "Review covers all 5 changes shown above." in bar.inner_text()
     assert "Also clears these changes in: Elsewhere." in bar.inner_text()
@@ -156,7 +187,6 @@ def test_walk_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_
     page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
     last = page.locator("article.change").last.bounding_box()
     assert last["y"] + last["height"] <= bar.bounding_box()["y"] + 1
-    walk.shot("action-bar")
 
 
 def test_walk_marking_reviewed_keeps_the_page_labels_each_change_drops_the_counts_and_holds_the_scroll(make_app, make_walk):

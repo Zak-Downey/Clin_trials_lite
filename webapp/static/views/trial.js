@@ -162,6 +162,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
     mark.disabled = state.reviewed;
     setCount();
   };
+  draw();
   const refresh = () => window.dispatchEvent(new Event("reviewchange"));
 
   let marking = false;
@@ -196,7 +197,6 @@ export async function render(root, nct, tab, place, alive = () => true) {
   const following = at >= 0 ? order[at + 1] : order.find((n) => n !== nct);
   if (following) next.addEventListener("click", () => { location.hash = trialHref(following, "changes", carry); });
   else { next.disabled = true; next.title = "No other trial needs review"; }
-  draw();
 }
 
 const field = (f) => {
