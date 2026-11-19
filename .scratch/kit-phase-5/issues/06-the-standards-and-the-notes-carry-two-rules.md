@@ -4,11 +4,14 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `CODING_STANDARDS.md` has R-007 in the form of the lines before it, citing defects that are in the defect log
-- [ ] Each cited line of the defect log names a test that exists, and the `escapes` check is green
-- [ ] `repo.md` has the line on GitHub's machine, pointing at the three entries
-- [ ] `python3 checks.py` ends green on this ticket's commit
+- [x] `CODING_STANDARDS.md` has R-007 in the form of the lines before it, citing defects that are in the defect log
+- [x] Each cited line of the defect log names a test that exists, and the `escapes` check is green
+- [x] `repo.md` has the line on GitHub's machine, pointing at the three entries
+- [x] `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
+
+- The defect log did not hold the four kit-phase-4 findings, so this ticket added them as E-044 (review-whole-01), E-045 (review-whole-02), E-046 (review-whole-03) and E-047 (review-whole-04), each naming the test its fate records as holding its reason; all four tests exist (tests/test_search.py, tests/test_check_trials.py, tests/test_lists.py, tests/test_trial_page_details.py). R-007 cites E-044 to E-047. The repo.md line sits at the end of "Running a walk" and cites E-038, E-039, E-040.
+- `python3 checks.py --quick --pick` was green on this change (escapes green; unit 838 of 838; walks 2 of 42 picked). The full run waits for the build's full run.

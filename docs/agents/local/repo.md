@@ -56,6 +56,8 @@ Write `walk = make_walk(make_app(seed=helper.seed_queue))`, `walk.page.goto(app.
 
 A script outside `walks/` (a walker's or reviewer's, under `.scratch/<feature>/findings/scripts/`) runs from the repo root with `WALK_FEATURE=<feature> .venv/bin/python -m pytest -p walks.conftest <script> -q`; a unit one with `-p tests.conftest`. The `-p` loads the fixtures and the hook that fails a walk whose guards tripped; do not copy or import the fixtures by name instead, because that leaves the hook out.
 
+**GitHub's machine is not the Mac.** GitHub runs the checks on Linux, where text is drawn in another font (DejaVu Sans) and a page draws later under load, so a walk waits for the thing it is about to read to be drawn and never judges by how much room a font takes (E-038, E-039, E-040).
+
 ## Stand-ins
 
 Every check in this repo runs against these. A row whose fidelity check starts with "None" is something no check here can vouch for.
