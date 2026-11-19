@@ -35,6 +35,6 @@
     "When unsure, the map puts a file in the shared list, which runs every browser test. Ticket 04's comments list those files; most of the server and app modules are there.",
     "Found wrong in the spec: the unit picker needs two lists the spec did not name (files run as separate programs, and the tests that always run). The map now holds both.",
     "Not checked here: a picked run on GitHub's Linux machine, since GitHub never picks; and whether a quick run should count as the base a pick is measured from (today it does).",
-    "To measure Linux, ticket 02's builder started Docker Desktop on your Mac and pulled a Python image; it says it removed the image and quit Docker afterwards."
+    "Ticket 02's builder started Docker Desktop and pulled a Python image. It said it quit Docker, but Docker was still running; you had it quit. Whether the image was removed is unchecked."
   ]
 }
