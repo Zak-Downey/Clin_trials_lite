@@ -177,7 +177,7 @@ def unit_there_are(command, root, env) -> int | None:
     """How many unit tests there are, by collecting them without running any. A selecting run cannot say: across
     processors, pytest's summary leaves out the tests it deselected."""
     try:
-        done = subprocess.run([*command, "--collect-only", "-q", "--no-testmon"], cwd=root, env=env,
+        done = subprocess.run([*command, "--collect-only", "--no-testmon"], cwd=root, env=env,
                               capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired):
         return None
