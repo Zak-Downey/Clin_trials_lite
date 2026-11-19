@@ -174,6 +174,76 @@ def test_walk_the_action_bar_states_its_scope_while_the_watchlist_s_queue_is_sti
 QUEUE_ANSWER = re.compile(r"/api/watchlists/\d+/needs-review$")
 
 
+def open_trial_with_the_queue_held(make_app, make_walk, watchlist="Myeloma"):
+    app = make_app(seed=seed_trial_page)
+    walk = make_walk(app)
+    page = walk.page
+    page.goto(app.url)
+    page.locator('li.card[data-nct="NCT03412565"]').wait_for()
+    link = page.get_by_label("Watchlists").get_by_role("link", name=re.compile(f"^{watchlist}"))
+    watchlist_id = re.search(r"#/watchlists/(\d+)", link.get_attribute("href")).group(1)
+    card = page.locator(f'li.card[data-nct="NCT03412565"] h3 a[href="#/trials/NCT03412565?list={watchlist_id}"]')
+    if not card.count():
+        link.click()
+    card.wait_for()
+    held = []
+    page.route(QUEUE_ANSWER, lambda route: held.append(route))
+    card.click()
+    page.get_by_role("button", name="Mark reviewed").wait_for()
+    assert held, "the trial page never asked for its watchlist's queue"
+    return walk, held
+
+
+def release(page, held):
+    with page.expect_response(QUEUE_ANSWER):
+        for route in held:
+            route.continue_()
+    page.unroute(QUEUE_ANSWER)
+
+
+def test_walk_next_trial_is_off_until_the_queue_answers_and_then_opens_the_next_trial(make_app, make_walk):
+    """test_walk_next_trial_is_off_until_the_queue_answers_and_then_opens_the_next_trial"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk)
+    page = walk.page
+    following = page.get_by_role("region", name="Review").get_by_role("button", name="Next trial")
+    assert following.is_disabled(), "Next trial looks usable before the page knows which trial is next"
+    assert following.get_attribute("title") == "Looking for the next trial to review"
+    walk.shot("next-off-while-the-queue-is-held")
+    release(page, held)
+    page.wait_for_function("() => !document.querySelector('.action-bar .buttons button.secondary').disabled")
+    assert following.get_attribute("title") is None
+    following.click()
+    page.wait_for_url(re.compile(r"#/trials/NCT00000002\?list=1$"))
+    walk.shot("next-after-the-queue")
+
+
+def test_walk_mark_reviewed_works_while_the_queue_is_still_unanswered(make_app, make_walk):
+    """test_walk_mark_reviewed_works_while_the_queue_is_still_unanswered"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk)
+    page = walk.page
+    bar = page.get_by_role("region", name="Review")
+    mark = bar.get_by_role("button", name="Mark reviewed")
+    assert mark.is_enabled()
+    mark.click()
+    page.get_by_text("5 changes marked reviewed. This trial stays open.").wait_for()
+    assert mark.is_disabled()
+    walk.shot("marked-while-the-queue-is-held")
+    release(page, held)
+
+
+def test_walk_next_trial_on_the_last_trial_to_review_is_never_offered_before_the_queue_answers(make_app, make_walk):
+    """test_walk_next_trial_on_the_last_trial_to_review_is_never_offered_before_the_queue_answers"""
+    walk, held = open_trial_with_the_queue_held(make_app, make_walk, watchlist="Elsewhere")
+    page = walk.page
+    following = page.get_by_role("region", name="Review").get_by_role("button", name="Next trial")
+    assert following.is_disabled(), "Next trial is offered on the last trial to review, then turns itself off"
+    walk.shot("last-trial-while-the-queue-is-held")
+    release(page, held)
+    page.locator('.action-bar button[title="No other trial needs review"]').wait_for()
+    assert following.is_disabled()
+    walk.shot("last-trial-after-the-queue")
+
+
 def assert_the_action_bar_states_its_scope_stays_visible_and_leaves_the_last_change_clear(page):
     bar = page.get_by_role("region", name="Review")
     assert "Review covers all 5 changes shown above." in bar.inner_text()

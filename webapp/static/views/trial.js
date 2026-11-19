@@ -149,7 +149,7 @@ export async function render(root, nct, tab, place, alive = () => true) {
     others.length ? `Also clears these changes in: ${others.map((w) => w.name).join(", ")}.`
       : "No other watchlist holds this trial.");
   if (others.length > 3) { also.setAttribute("tabindex", "0"); also.setAttribute("role", "group"); also.setAttribute("aria-label", "Other watchlists this review also applies to"); }
-  const next = el("button", { type: "button", class: "secondary" }, "Next trial");
+  const next = el("button", { type: "button", class: "secondary", disabled: "", title: "Looking for the next trial to review" }, "Next trial");
   const mark = el("button", { type: "button", class: "primary" }, "Mark reviewed");
   const bar = el("div", { class: "action-bar", role: "region", "aria-label": "Review" },
     el("div", {}, scope, el("br"), also), el("div", { class: "buttons" }, next, mark));
@@ -195,8 +195,11 @@ export async function render(root, nct, tab, place, alive = () => true) {
   if (!order) order = home ? await queueOf(home.id) : [];
   const at = order.indexOf(nct);
   const following = at >= 0 ? order[at + 1] : order.find((n) => n !== nct);
-  if (following) next.addEventListener("click", () => { location.hash = trialHref(following, "changes", carry); });
-  else { next.disabled = true; next.title = "No other trial needs review"; }
+  if (following) {
+    next.addEventListener("click", () => { location.hash = trialHref(following, "changes", carry); });
+    next.disabled = false;
+    next.removeAttribute("title");
+  } else next.title = "No other trial needs review";
 }
 
 const field = (f) => {
