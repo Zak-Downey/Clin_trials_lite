@@ -178,11 +178,87 @@ def test_a_quick_runs_line_says_it_was_quick_and_a_plain_runs_line_says_it_was_n
 
 def test_quick_is_an_option_that_can_be_given_with_the_names_of_checks(monkeypatch):
     calls = []
-    monkeypatch.setattr(checks, "run", lambda names=(), quick=False: calls.append((list(names), quick)) or 0)
+    monkeypatch.setattr(checks, "run", lambda names=(), quick=False, pick=False: calls.append((list(names), quick)) or 0)
     checks.main(["--quick", "unit"])
     checks.main(["unit", "walks"])
     checks.main(["--quick"])
     assert calls == [(["unit"], True), (["unit", "walks"], False), ([], True)]
+
+
+def git_repo(tmp_path):
+    """A repo whose main holds a map of two areas and three walk files, on a branch that changed one area's file."""
+    def git(*args):
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com", *args], cwd=tmp_path, check=True,
+                       capture_output=True)
+    files = {"app/a.js": "a", "app/b.js": "b", "walks/test_a.py": "", "walks/test_b.py": "", "walks/test_guards.py": "",
+             ".gitignore": ".checks/\n",
+             "docs/agents/local/walk-map.json": json.dumps({
+                 "shared": [], "always": ["walks/test_guards.py"], "none": ["docs/*", ".gitignore"],
+                 "areas": [{"name": "Page A", "files": ["app/a.js"], "walks": ["walks/test_a.py"]},
+                           {"name": "Page B", "files": ["app/b.js"], "walks": ["walks/test_b.py"]}]})}
+    for name, body in files.items():
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text(body)
+    git("init", "-q", "-b", "main")
+    git("add", ".")
+    git("commit", "-q", "-m", "start")
+    git("checkout", "-q", "-b", "feature/thing")
+    (tmp_path / "app/a.js").write_text("a changed")
+
+
+def args_of(name):
+    """A stand-in check that writes the arguments it was given, one a line."""
+    return (name, [PY, "-c", "import sys; print('\\n'.join(sys.argv[1:]))"], 1)
+
+
+def test_a_picked_run_passes_the_picked_walk_files_to_the_walk_check_and_says_how_many_of_how_many_and_why(tmp_path):
+    git_repo(tmp_path)
+    code, printed, runs = run(tmp_path, [args_of("unit"), args_of("walks")], pick=True)
+    assert code == 0
+    assert (tmp_path / ".checks" / "walks.txt").read_text().split() == ["walks/test_a.py", "walks/test_guards.py"]
+    assert (tmp_path / ".checks" / "unit.txt").read_text() == "\n"  # the unit check runs whole until it picks too
+    said = next(line for line in printed if line.startswith("walks") and "picked" in line)
+    assert "2 of 3 walk files" in said and "Page A" in said and "`app/a.js`" in said
+    line = runs[-1]
+    assert line["picked"] is True
+    assert "where the branch left main" in line["base"]
+    assert line["picks"] == [{"check": "walks", "ran": 2, "of": 3, "why": said.split(": ", 1)[1]}]
+    assert "picked" in printed[-1]
+
+
+def test_a_picked_run_that_reaches_every_walk_gives_the_walk_check_no_files_so_it_runs_them_all(tmp_path):
+    git_repo(tmp_path)
+    (tmp_path / "lib.py").write_text("")  # placed nowhere by the map
+    _, printed, runs = run(tmp_path, [args_of("walks")], pick=True)
+    assert (tmp_path / ".checks" / "walks.txt").read_text() == "\n"
+    assert runs[-1]["picks"][0]["ran"] == 3 and "`lib.py`" in runs[-1]["picks"][0]["why"]
+
+
+def test_a_picked_run_with_no_map_of_the_pages_runs_every_walk_and_says_so(tmp_path):
+    git_repo(tmp_path)
+    (tmp_path / "docs/agents/local/walk-map.json").unlink()
+    _, _, runs = run(tmp_path, [args_of("walks")], pick=True)
+    assert (tmp_path / ".checks" / "walks.txt").read_text() == "\n"
+    assert runs[-1]["picks"][0]["ran"] == 3 and "no map" in runs[-1]["picks"][0]["why"]
+
+
+def test_a_plain_run_and_a_quick_run_are_not_picked_and_give_the_walk_check_what_they_gave_it_before(tmp_path):
+    git_repo(tmp_path)
+    run(tmp_path, [args_of("walks")])
+    assert (tmp_path / ".checks" / "walks.txt").read_text() == "\n"
+    _, printed, runs = run(tmp_path, [args_of("walks")], quick=True)
+    assert (tmp_path / ".checks" / "walks.txt").read_text() == "\n"
+    assert [r["picked"] for r in runs] == [False, False]
+    assert not any("picked" in line for line in printed)
+
+
+def test_pick_is_an_option_that_combines_with_quick_and_with_the_names_of_checks(monkeypatch):
+    calls = []
+    monkeypatch.setattr(checks, "run", lambda names=(), quick=False, pick=False: calls.append((list(names), quick, pick)) or 0)
+    checks.main(["--quick", "--pick", "walks"])
+    checks.main(["--pick"])
+    checks.main(["walks"])
+    assert calls == [(["walks"], True, True), ([], False, True), (["walks"], False, False)]
 
 
 SELF = "assert (a, ident) == " + "(b, ident)\n"  # in two halves, so this file does not match the pattern itself

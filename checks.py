@@ -4,9 +4,13 @@
     python3 checks.py unit walks   run the named ones
     python3 checks.py --quick      the same with the walks at the first window size only (WALK_QUICK=1);
                                    it combines with naming checks, and the run's line in the log says quick
+    python3 checks.py --pick       the walks check runs only the walk files a change can reach (picker.py, on the map
+                                   walk_map.py reads); the other checks run whole. It combines with --quick and with
+                                   naming checks. A picked run is never a full run, whatever it ran
 
 Each check's output goes to .checks/<name>.txt. One line is printed per check and one line is
-appended to .checks/runs.jsonl per run, with "quick" true or false and "every" true when every check was asked for. Exit 1 when a check is red. Red is a non-zero exit code
+appended to .checks/runs.jsonl per run, with "quick" true or false, "every" true when every check was asked for,
+"picked" true or false, and for a picked run its "base" and its "picks" (per picked check: ran, of, why). Exit 1 when a check is red. Red is a non-zero exit code
 or a timeout: nothing here reads a suite's output to decide.
 
 The checks: `lint` (Ruff over the repo, with the version pinned in requirements-dev.txt and the
@@ -136,10 +140,23 @@ def run_one(command, minutes, output, root=ROOT, env=None) -> tuple[str, float]:
     return ("green" if code == 0 else "red"), round((time.monotonic() - started) / 60, 2)
 
 
+def pick_walks(root, changed) -> tuple[list[str], dict]:
+    """(the walk files to give the walk check, none when it is to run them all; {"ran", "of", "why"})."""
+    import picker  # only a picked run needs the picker: checks.py runs alone without it
+    import walk_map
+    every = sorted(str(path.relative_to(root)) for path in pathlib.Path(root).glob(walk_map.WALKS))
+    try:
+        the_map = walk_map.read(root)
+    except (OSError, ValueError):
+        return [], {"ran": len(every), "of": len(every), "why": f"every walk: no map of the pages at {walk_map.MAP}"}
+    files, why = picker.walks(changed, the_map, every)
+    return ([] if set(files) >= set(every) else files), {"ran": len(files), "of": len(every), "why": why}
+
+
 QUICK = "WALK_QUICK"  # set to 1 for a quick run: the walk fixtures then use the first window size only
 
 
-def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=True), quick=False) -> int:
+def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=True), quick=False, pick=False) -> int:
     checks = CHECKS if checks is None else checks
     known = [name for name, _, _ in checks]
     unknown = [name for name in names if name not in known]
@@ -156,7 +173,11 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
         env[QUICK] = "1"
     if "WALK_FEATURE" not in env and walk_feature(branch, root):
         env["WALK_FEATURE"] = walk_feature(branch, root)
-    started, results, red = time.monotonic(), [], None
+    started, results, red, picks = time.monotonic(), [], None, []
+    changed = base = None
+    if pick:
+        import picker  # only a picked run needs the picker: checks.py runs alone without it
+        changed, base = picker.changed(root)
     for name, command, minutes in checks:
         if names and name not in names:
             continue
@@ -166,6 +187,11 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
             results.append({"name": name, "result": "not run", "minutes": 0.0, "output": str(shown)})
             out(f"{name:<9} not run ({red} was red)")
             continue
+        if pick and name == "walks":
+            files, said = pick_walks(root, changed)
+            command = [*command, *files]
+            picks.append({"check": name, **said})
+            out(f"{name:<9} picked {said['ran']} of {said['of']} walk files: {said['why']}")
         result, took = run_one(command, minutes, output, root, env)
         results.append({"name": name, "result": result, "minutes": took, "output": str(shown)})
         out(f"{name:<9} {result:<6} {took:>5.1f} min  {shown}")
@@ -183,11 +209,15 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
         "minutes": total,
         "quick": quick,
         "every": set(known) <= set(names or known),  # every check was asked for: a run that can be a base (picker.py)
+        "picked": pick,  # a picked run is never a full run
+        "base": base,
+        "picks": picks,
         "checks": results,
     }
     with open(folder / "runs.jsonl", "a") as log:
         log.write(json.dumps(line) + "\n")
-    out(f"checks: {'red (' + red + ')' if red else 'green'} in {total:.1f} min{' (quick: walks at one window size)' if quick else ''}")
+    said = [words for on, words in ((quick, "quick: walks at one window size"), (pick, "picked: not a full run")) if on]
+    out(f"checks: {'red (' + red + ')' if red else 'green'} in {total:.1f} min{' (' + '; '.join(said) + ')' if said else ''}")
     return 1 if red else 0
 
 
@@ -200,8 +230,8 @@ def main(argv) -> int:
         problems = escape_problems()
         print("\n".join(problems) if problems else f"{ESCAPES}: every line reads and names its check where it must")
         return 1 if problems else 0
-    quick = "--quick" in argv
-    return run([name for name in argv if name != "--quick"], quick=quick)
+    options = {"--quick", "--pick"}
+    return run([name for name in argv if name not in options], quick="--quick" in argv, pick="--pick" in argv)
 
 
 if __name__ == "__main__":
