@@ -9,7 +9,7 @@
 - [x] Red first: a test fails while a run of the suite on four workers runs the broken pages more than once, and passes when it runs them once
 - [x] With one guard switched off in a copy, its guard test is still red: the comments say which guard was tried and what was printed
 - [x] The comments give the browser tests' time for one full run before and after, and the number of runs of the broken pages in each
-- [ ] A full `python3 checks.py` and a `python3 checks.py --quick --pick walks` both end green on this ticket's commit, and `python3 checks.py --comments` lists nothing
+- [x] A full `python3 checks.py` and a `python3 checks.py --quick --pick walks` both end green on this ticket's commit, and `python3 checks.py --comments` lists nothing
 
 ## Comments
 
@@ -29,3 +29,5 @@
 
 - **Checks run.** `python3 checks.py lint patterns escapes unit`: green (unit 0.4 min). `python3 checks.py --quick --pick walks`: green in 1.1 min; it picked all 42 walk files because `walks/conftest.py` is in the map's `shared`. `python3 checks.py --comments`: `0 comments in 0 files`. The full `python3 checks.py` is left for the caller.
 - `docs/agents/local/repo.md`, "Where the walks' time goes", gains one paragraph saying this.
+
+The full `python3 checks.py` on f10d776 ended green in 2.0 min (walks 1.8), run by the build lead.
