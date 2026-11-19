@@ -124,6 +124,14 @@ def test_a_run_line_says_when_and_where_and_names_only_the_checks_asked_for(tmp_
     assert line["at"].endswith("Z") and "T" in line["at"]
 
 
+def test_a_run_line_says_whether_the_run_asked_for_every_check(tmp_path):
+    both = [passing("one"), passing("two")]
+    _, _, runs = run(tmp_path, both)
+    run(tmp_path, both, names=["one"])
+    _, _, runs = run(tmp_path, both, names=["two", "one"])
+    assert [line["every"] for line in runs] == [True, False, True]
+
+
 def test_naming_a_check_that_does_not_exist_runs_nothing_and_says_which_exist(tmp_path):
     code, printed, runs = run(tmp_path, [passing("one")], names=["oen"])
     assert code == 2
@@ -170,11 +178,147 @@ def test_a_quick_runs_line_says_it_was_quick_and_a_plain_runs_line_says_it_was_n
 
 def test_quick_is_an_option_that_can_be_given_with_the_names_of_checks(monkeypatch):
     calls = []
-    monkeypatch.setattr(checks, "run", lambda names=(), quick=False: calls.append((list(names), quick)) or 0)
+    monkeypatch.setattr(checks, "run", lambda names=(), quick=False, pick=False: calls.append((list(names), quick)) or 0)
     checks.main(["--quick", "unit"])
     checks.main(["unit", "walks"])
     checks.main(["--quick"])
     assert calls == [(["unit"], True), (["unit", "walks"], False), ([], True)]
+
+
+def git_repo(tmp_path):
+    """A repo whose main holds a map of two areas and three walk files, on a branch that changed one area's file."""
+    def git(*args):
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com", *args], cwd=tmp_path, check=True,
+                       capture_output=True)
+    files = {"app/a.js": "a", "app/b.js": "b", "walks/test_a.py": "", "walks/test_b.py": "", "walks/test_guards.py": "",
+             ".gitignore": ".checks/\n",
+             "docs/agents/local/walk-map.json": json.dumps({
+                 "shared": [], "always": ["walks/test_guards.py"], "none": ["docs/*", ".gitignore"],
+                 "areas": [{"name": "Page A", "files": ["app/a.js"], "walks": ["walks/test_a.py"]},
+                           {"name": "Page B", "files": ["app/b.js"], "walks": ["walks/test_b.py"]}]})}
+    for name, body in files.items():
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text(body)
+    git("init", "-q", "-b", "main")
+    git("add", ".")
+    git("commit", "-q", "-m", "start")
+    git("checkout", "-q", "-b", "feature/thing")
+    (tmp_path / "app/a.js").write_text("a changed")
+
+
+def args_of(name):
+    """A stand-in check that writes the arguments it was given, one a line."""
+    return (name, [PY, "-c", "import sys; print('\\n'.join(sys.argv[1:]))"], 1)
+
+
+def test_a_picked_run_passes_the_picked_walk_files_to_the_walk_check_and_says_how_many_of_how_many_and_why(tmp_path):
+    git_repo(tmp_path)
+    code, printed, runs = run(tmp_path, [args_of("unit"), args_of("walks")], pick=True)
+    assert code == 0
+    assert (tmp_path / ".checks" / "walks.txt").read_text().split() == ["walks/test_a.py", "walks/test_guards.py"]
+    assert (tmp_path / ".checks" / "unit.txt").read_text().split() == ["--testmon-noselect"]  # app/a.js is not Python
+    said = next(line for line in printed if line.startswith("walks") and "picked" in line)
+    assert "2 of 3 walk files" in said and "Page A" in said and "`app/a.js`" in said
+    line = runs[-1]
+    assert line["picked"] is True
+    assert "where the branch left main" in line["base"]
+    assert line["picks"][1:] == [{"check": "walks", "ran": 2, "of": 3, "why": said.split(": ", 1)[1]}]
+    assert line["picks"][0]["check"] == "unit" and line["picks"][0]["ran"] is None  # this stand-in prints no count
+    assert "picked" in printed[-1]
+
+
+def test_a_picked_run_that_reaches_every_walk_gives_the_walk_check_no_files_so_it_runs_them_all(tmp_path):
+    git_repo(tmp_path)
+    (tmp_path / "lib.py").write_text("")  # placed nowhere by the map
+    _, printed, runs = run(tmp_path, [args_of("walks")], pick=True)
+    assert (tmp_path / ".checks" / "walks.txt").read_text() == "\n"
+    assert runs[-1]["picks"][0]["ran"] == 3 and "`lib.py`" in runs[-1]["picks"][0]["why"]
+
+
+def test_a_picked_run_with_no_map_of_the_pages_runs_every_walk_and_says_so(tmp_path):
+    git_repo(tmp_path)
+    (tmp_path / "docs/agents/local/walk-map.json").unlink()
+    _, _, runs = run(tmp_path, [args_of("walks")], pick=True)
+    assert (tmp_path / ".checks" / "walks.txt").read_text() == "\n"
+    assert runs[-1]["picks"][0]["ran"] == 3 and "no map" in runs[-1]["picks"][0]["why"]
+
+
+def test_a_plain_run_and_a_quick_run_are_not_picked_and_give_the_walk_check_what_they_gave_it_before(tmp_path):
+    git_repo(tmp_path)
+    run(tmp_path, [args_of("walks")])
+    assert (tmp_path / ".checks" / "walks.txt").read_text() == "\n"
+    _, printed, runs = run(tmp_path, [args_of("walks")], quick=True)
+    assert (tmp_path / ".checks" / "walks.txt").read_text() == "\n"
+    assert [r["picked"] for r in runs] == [False, False]
+    assert not any("picked" in line for line in printed)
+
+
+def counted(name, summary, there_are=12):
+    """A stand-in unit check: asked to collect only, it says how many tests there are; otherwise it writes the
+    arguments it was given, then a summary line as pytest -q ends with. Run across processors, pytest's summary
+    leaves out the tests the picker deselected, so the stand-in's does too."""
+    code = (f"import sys; print('{there_are} tests collected in 0.01s') if '--collect-only' in sys.argv "
+            f"else print(' '.join(sys.argv[1:]) + '\\n' + {summary!r})")
+    return (name, [PY, "-c", code], 1)
+
+
+def unit_pick(tmp_path, summary="3 passed in 0.10s"):
+    code, printed, runs = run(tmp_path, [counted("unit", summary)], pick=True)
+    said = next(line for line in printed if line.startswith("unit") and "picked" in line)
+    given = (tmp_path / ".checks" / "unit.txt").read_text().splitlines()[0].split()
+    return code, said, given, runs[-1]["picks"]
+
+
+def test_a_picked_run_whose_changed_files_are_all_python_lets_the_unit_check_select_and_says_how_many_of_how_many(tmp_path):
+    git_repo(tmp_path)
+    (tmp_path / "app/a.js").write_text("a")  # back as main has it
+    (tmp_path / "lib.py").write_text("")
+    (tmp_path / ".scratch/thing").mkdir(parents=True)
+    (tmp_path / ".scratch/thing/notes.md").write_text("")  # the build's own records never widen the run
+    code, said, given, picks = unit_pick(tmp_path)
+    assert code == 0
+    assert given == ["--testmon"]
+    assert "picked 3 of 12 unit tests" in said and "`lib.py`" in said
+    assert picks == [{"check": "unit", "ran": 3, "of": 12, "why": said.split(": ", 1)[1]}]
+
+
+def test_a_picked_run_with_a_changed_file_that_is_not_python_runs_the_whole_unit_suite_and_says_which(tmp_path):
+    git_repo(tmp_path)  # app/a.js changed
+    (tmp_path / "lib.py").write_text("")
+    _, said, given, picks = unit_pick(tmp_path, "12 passed in 0.30s")
+    assert given == ["--testmon-noselect"]
+    assert "picked 12 of 12 unit tests" in said and "whole" in said and "`app/a.js` is not Python" in said
+    assert "`lib.py`" not in said
+    assert picks[0]["ran"] == picks[0]["of"] == 12
+
+
+def test_a_picked_run_that_cannot_tell_what_changed_runs_the_whole_unit_suite_and_says_so(tmp_path):
+    _, said, given, picks = unit_pick(tmp_path, "1 failed, 11 passed, 2 skipped in 0.30s")  # no git here: no base
+    assert given == ["--testmon-noselect"]
+    assert "picked 14 of 14 unit tests" in said and "whole" in said and "cannot tell" in said
+    assert picks[0]["why"] == said.split(": ", 1)[1]
+
+
+def test_a_run_that_is_not_picked_gives_the_unit_check_the_whole_suite_and_refreshes_its_record(tmp_path):
+    git_repo(tmp_path)
+    for options in ({}, {"quick": True}):
+        _, printed, runs = run(tmp_path, [args_of("unit")], **options)
+        assert (tmp_path / ".checks" / "unit.txt").read_text().split() == ["--testmon-noselect"]
+        assert runs[-1]["picks"] == [] and not any("picked" in line for line in printed)
+
+
+def test_the_unit_check_keeps_pytests_cache_which_its_picker_needs():
+    unit = next(command for name, command, _ in checks.CHECKS if name == "unit")
+    assert "no:cacheprovider" not in unit
+
+
+def test_pick_is_an_option_that_combines_with_quick_and_with_the_names_of_checks(monkeypatch):
+    calls = []
+    monkeypatch.setattr(checks, "run", lambda names=(), quick=False, pick=False: calls.append((list(names), quick, pick)) or 0)
+    checks.main(["--quick", "--pick", "walks"])
+    checks.main(["--pick"])
+    checks.main(["walks"])
+    assert calls == [(["walks"], True, True), ([], False, True), (["walks"], False, False)]
 
 
 SELF = "assert (a, ident) == " + "(b, ident)\n"  # in two halves, so this file does not match the pattern itself
@@ -257,6 +401,21 @@ def test_every_check_this_repo_lists_has_a_name_a_command_and_a_time_limit():
     # About three times a normal run; a change to one is deliberate and changes this line.
     limits = {name: minutes for name, _, minutes in checks.CHECKS}
     assert limits == {"lint": 1, "patterns": 1, "escapes": 1, "unit": 3, "walks": 8}
+
+
+def test_the_unit_check_runs_the_suite_across_the_processors_the_machine_has():
+    unit = next(command for name, command, _ in checks.CHECKS if name == "unit")
+    assert unit[unit.index("-m") + 1] == "pytest"
+    assert unit[unit.index("-n") + 1] == "auto"  # pytest-xdist: one worker per processor
+
+
+def test_the_unit_picker_is_pinned_to_one_exact_version_and_its_record_is_never_tracked():
+    lines = (checks.ROOT / "requirements-dev.txt").read_text().splitlines()
+    testmon = [line for line in lines if line.startswith("pytest-testmon")]
+    assert len(testmon) == 1 and re.fullmatch(r"pytest-testmon==\d+\.\d+\.\d+", testmon[0]), testmon
+    for record in (".testmondata", ".testmondata-shm", ".testmondata-wal"):
+        ignored = subprocess.run(["git", "check-ignore", "-q", "--no-index", record], cwd=checks.ROOT)
+        assert ignored.returncode == 0, f"{record} is not git-ignored"
 
 
 WAITED_ON = 10  # minutes: the longest an agent's command tool waits on a command it runs in the foreground

@@ -6,6 +6,8 @@ venv/
 *.db
 *.db.lock
 .pytest_cache/
+# The unit picker's record of which test ran which code (pytest-testmon).
+.testmondata*
 
 .claude/worktrees/
 

@@ -104,6 +104,17 @@ def restyled():
     return build
 
 
+def serve_in_background(server):
+    """Start `server` answering on a daemon thread, as the `api` fixture does; returns the thread."""
+    import threading
+
+    # serve_forever looks for a stop request every poll_interval seconds; its default
+    # of half a second made each teardown wait up to that long.
+    thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
+    thread.start()
+    return thread
+
+
 @pytest.fixture
 def api(tmp_path, fetcher, make_finder):
     """The local server, running in-process on a free port over a temporary database.
@@ -113,7 +124,6 @@ def api(tmp_path, fetcher, make_finder):
     `get`/`post` give back (status, parsed JSON body).
     """
     import json as _json
-    import threading
     import urllib.error
     import urllib.request
 
@@ -122,8 +132,7 @@ def api(tmp_path, fetcher, make_finder):
     db = str(tmp_path / "api.db")
     find = make_finder()
     server = make_server(db, fetch=fetcher, find=find)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    thread = serve_in_background(server)
 
     class Client:
         path = db

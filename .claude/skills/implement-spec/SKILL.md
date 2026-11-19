@@ -15,7 +15,7 @@ The tickets are a **task graph** with blocking relationships. Build them **one a
 
 Start every subagent with a fresh context window, of the `general-purpose` type. Communicate through **context pointers**: to the spec, the ticket, the brief file, earlier commits. Don't duplicate what a pointer already gives.
 
-`python3 checks.py` is the only judge of whether the code works, and you run it yourself; a subagent's word is not a run. It takes about four minutes and ends within thirteen, longer than the ten minutes the command tool waits: run it in the background and wait for it to end.
+`python3 checks.py` is the only judge of whether the code works, and you run it yourself; a subagent's word is not a run. It takes about four minutes and ends within fourteen, longer than the ten minutes the command tool waits: run it in the background and wait for it to end.
 
 **When it is red, at any step:** send the path of the red check's output file to the subagent whose work turned it red (a fresh implementer if there is none) and run the command again when it reports. After two such goes, use one fresh subagent that calls the Skill tool with `mattpocock-skills:diagnosing-bugs`; tell it the owner is away, so where that skill says to ask the user it reports what it tried instead. If the checks are still red after that:
 
@@ -36,7 +36,7 @@ Start every subagent with a fresh context window, of the `general-purpose` type.
    - takes a `walk.shot("<step>")` at each moment worth seeing in a walk it adds. The walks this build adds or changes are the owner's walk-through: `handover.py` records the ones `hand-over.json` lists under `walk_through`, as one recording in parts, and shows the owner nothing else of the app;
    - ticks the ticket's boxes it has met, sets `Status: done`, and commits on the feature branch with the ticket number in the message.
 
-4. When the implementer reports, run `python3 checks.py --quick`. Start the next ticket only on green.
+4. When the implementer reports, run `python3 checks.py --quick --pick`. Start the next ticket only on green.
 
 5. **The early read.** After ticket 01 is green and before ticket 02 starts, use one fresh subagent with the brief `.claude/skills/implement-spec/reviewer.md`, finder `early-read`, area `whole`, on the diff so far. A wrong turn is cheapest to fix here. Have its findings fixed, by step 7's rules, before ticket 02 starts.
 
@@ -46,7 +46,7 @@ Start every subagent with a fresh context window, of the `general-purpose` type.
 
    A feature that touches no page gets no walker and the `server-and-checks` reviewer alone.
 
-7. **Fix on the same branch.** Use one fresh implementer subagent per area, one after another, each given that area's findings files together and pointed at "The files the page is built from" below. Within an area: `blocks` first, then `wrong`, then `cosmetic`. For each finding, in one commit of its own, in this order: a check that is red because of it goes into the suite (the walker's script made into a walk, or a unit test); then the fix; then one line in `.scratch/<feature>/fates.jsonl`. A finding that is not a defect, or is left unfixed, still gets its line, with the reason in `why`. Run `python3 checks.py --quick` after each implementer reports, and a full `python3 checks.py` after the last. Then compare the ids in `findings/` with the ids in `fates.jsonl`: any id without a fate line goes to a fresh implementer, named by id.
+7. **Fix on the same branch.** Use one fresh implementer subagent per area, one after another, each given that area's findings files together and pointed at "The files the page is built from" below. Within an area: `blocks` first, then `wrong`, then `cosmetic`. For each finding, in one commit of its own, in this order: a check that is red because of it goes into the suite (the walker's script made into a walk, or a unit test); then the fix; then one line in `.scratch/<feature>/fates.jsonl`. A finding that is not a defect, or is left unfixed, still gets its line, with the reason in `why`. Run `python3 checks.py --quick --pick` after each implementer reports, and a full `python3 checks.py` after the last. Then compare the ids in `findings/` with the ids in `fates.jsonl`: any id without a fate line goes to a fresh implementer, named by id.
 
 8. **Re-check once.** Skip this step when step 7 changed no code. Otherwise, in parallel:
    - walkers again to the areas the fixes touched, with `pass` set to `recheck`;

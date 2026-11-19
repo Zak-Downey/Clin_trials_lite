@@ -115,3 +115,10 @@ def test_repo_md_describes_the_quick_run_checks_py_has_and_github_never_uses():
     assert "`python3 checks.py --quick`" in every_check
     assert '"--quick"' in (WORKFLOW.parent.parent.parent / "checks.py").read_text()
     assert "--quick" not in text()
+
+
+def test_repo_md_describes_the_picked_run_checks_py_has_and_github_never_uses():
+    picked = next(line for line in REPO_MD.read_text().splitlines() if line.startswith("- **Picked run.**"))
+    assert "`python3 checks.py --pick`" in picked and "never a full run" in picked
+    assert '"--pick"' in (WORKFLOW.parent.parent.parent / "checks.py").read_text()
+    assert "--pick" not in text()

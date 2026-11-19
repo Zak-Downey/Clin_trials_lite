@@ -4,9 +4,17 @@
     python3 checks.py unit walks   run the named ones
     python3 checks.py --quick      the same with the walks at the first window size only (WALK_QUICK=1);
                                    it combines with naming checks, and the run's line in the log says quick
+    python3 checks.py --pick       the walks check runs only the walk files a change can reach (picker.py, on the map
+                                   walk_map.py reads), and the unit check only the tests that ran the changed code
+                                   (pytest-testmon), when every changed file outside .scratch/ is Python that the
+                                   tests run in their own process (not in the map's run_apart); the other
+                                   checks run whole. It combines with --quick and with naming checks. A picked run is
+                                   never a full run, whatever it ran. A run that is not picked runs every unit test and
+                                   refreshes the record of which test ran which code
 
 Each check's output goes to .checks/<name>.txt. One line is printed per check and one line is
-appended to .checks/runs.jsonl per run, with "quick" true or false. Exit 1 when a check is red. Red is a non-zero exit code
+appended to .checks/runs.jsonl per run, with "quick" true or false, "every" true when every check was asked for,
+"picked" true or false, and for a picked run its "base" and its "picks" (per picked check: ran, of, why). Exit 1 when a check is red. Red is a non-zero exit code
 or a timeout: nothing here reads a suite's output to decide.
 
 The checks: `lint` (Ruff over the repo, with the version pinned in requirements-dev.txt and the
@@ -36,7 +44,7 @@ CHECKS = [
     ("lint", [PYTHON, "-m", "ruff", "check", "--no-cache", "."], 1),
     ("patterns", [sys.executable, str(ROOT / "checks.py"), "--patterns"], 1),
     ("escapes", [sys.executable, str(ROOT / "checks.py"), "--escapes"], 1),
-    ("unit", [PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider"], 3),
+    ("unit", [PYTHON, "-m", "pytest", "-q", "-n", "auto"], 3),  # -n auto: one worker per processor (pytest-xdist)
     ("walks", [PYTHON, "walks/run_walks.py"], 8),
 ]
 
@@ -136,10 +144,72 @@ def run_one(command, minutes, output, root=ROOT, env=None) -> tuple[str, float]:
     return ("green" if code == 0 else "red"), round((time.monotonic() - started) / 60, 2)
 
 
+def pick_walks(root, changed) -> tuple[list[str], dict]:
+    """(the walk files to give the walk check, none when it is to run them all; {"ran", "of", "why"})."""
+    import picker  # only a picked run needs the picker: checks.py runs alone without it
+    import walk_map
+    every = sorted(str(path.relative_to(root)) for path in pathlib.Path(root).glob(walk_map.WALKS))
+    try:
+        the_map = walk_map.read(root)
+    except (OSError, ValueError):
+        return [], {"ran": len(every), "of": len(every), "why": f"every walk: no map of the pages at {walk_map.MAP}"}
+    files, why = picker.walks(changed, the_map, every)
+    return ([] if set(files) >= set(every) else files), {"ran": len(files), "of": len(every), "why": why}
+
+
+def unit_map(root) -> dict:
+    """The map's lists for the unit picker (walk_map.py says what they are); {"run_apart": None} when there is no map."""
+    import walk_map
+    try:
+        return walk_map.read(root)
+    except (OSError, ValueError):
+        return {"run_apart": None}
+
+
+def unit_always(root, why) -> tuple[list[str], str]:
+    """(the unit test files a picked run gives when its record selected none, none for every test; the reason, said
+    after `why`). They are the map's `unit_always`, so that green never means nothing ran."""
+    import walk_map
+    listed = unit_map(root).get("unit_always") or []
+    files = [name for name in walk_map.repo_files(root) if walk_map.matches(name, listed)] if listed else []
+    if not files:
+        return [], f"{why}; none was selected, and the map names no test that always runs, so every test"
+    return files, f"{why}; none was selected, so the tests that always run, {', '.join(f'`{name}`' for name in files)}"
+
+
+# What the unit check is given (pytest-testmon, which records which test ran which code, in pytest's cache folder):
+# select only the tests a change reaches, or run them all and refresh the record.
+SELECT, NOSELECT = "--testmon", "--testmon-noselect"
+
+COUNTED = re.compile(r"(\d+) (passed|failed|errors?|skipped|xfailed|xpassed)\b")
+COLLECTED = re.compile(r"(\d+) tests? collected")
+
+
+def unit_ran(output: str) -> int | None:
+    """How many tests ran, from the summary line pytest ends with; None when it printed none."""
+    for line in reversed(output.splitlines()):
+        counts = COUNTED.findall(line)
+        if counts:
+            return sum(int(n) for n, _ in counts)
+    return None
+
+
+def unit_there_are(command, root, env) -> int | None:
+    """How many unit tests there are, by collecting them without running any. A selecting run cannot say: across
+    processors, pytest's summary leaves out the tests it deselected."""
+    try:
+        done = subprocess.run([*command, "--collect-only", "--no-testmon"], cwd=root, env=env,
+                              capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    found = COLLECTED.search(done.stdout)
+    return int(found.group(1)) if found else None
+
+
 QUICK = "WALK_QUICK"  # set to 1 for a quick run: the walk fixtures then use the first window size only
 
 
-def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=True), quick=False) -> int:
+def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=True), quick=False, pick=False) -> int:
     checks = CHECKS if checks is None else checks
     known = [name for name, _, _ in checks]
     unknown = [name for name in names if name not in known]
@@ -156,7 +226,11 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
         env[QUICK] = "1"
     if "WALK_FEATURE" not in env and walk_feature(branch, root):
         env["WALK_FEATURE"] = walk_feature(branch, root)
-    started, results, red = time.monotonic(), [], None
+    started, results, red, picks = time.monotonic(), [], None, []
+    changed = base = None
+    if pick:
+        import picker  # only a picked run needs the picker: checks.py runs alone without it
+        changed, base = picker.changed(root)
     for name, command, minutes in checks:
         if names and name not in names:
             continue
@@ -166,7 +240,28 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
             results.append({"name": name, "result": "not run", "minutes": 0.0, "output": str(shown)})
             out(f"{name:<9} not run ({red} was red)")
             continue
+        if pick and name == "walks":
+            files, said = pick_walks(root, changed)
+            command = [*command, *files]
+            picks.append({"check": name, **said})
+            out(f"{name:<9} picked {said['ran']} of {said['of']} walk files: {said['why']}")
+        select, unit_why, there_are = False, None, None
+        if name == "unit":
+            if pick:
+                select, unit_why = picker.unit(changed, unit_map(root).get("run_apart", []))
+                there_are = unit_there_are(command, root, env) if select else None
+            given, command = command, [*command, SELECT if select else NOSELECT]
         result, took = run_one(command, minutes, output, root, env)
+        if unit_why:
+            ran = unit_ran(output.read_text(errors="replace"))
+            if select and result == "green" and not ran:  # a pick never ends green having run nothing
+                files, unit_why = unit_always(root, unit_why)
+                result, more = run_one([*given, *files, NOSELECT], minutes, output, root, env)
+                took, ran = round(took + more, 2), unit_ran(output.read_text(errors="replace"))
+            of = there_are if select else ran
+            picks.append({"check": name, "ran": ran, "of": of, "why": unit_why})
+            counted = f"{'?' if ran is None else ran} of {'?' if of is None else of} unit tests"
+            out(f"{name:<9} picked {counted}: {unit_why}")
         results.append({"name": name, "result": result, "minutes": took, "output": str(shown)})
         out(f"{name:<9} {result:<6} {took:>5.1f} min  {shown}")
         if result == "red":
@@ -182,11 +277,16 @@ def run(names=(), checks=None, root=ROOT, out=functools.partial(print, flush=Tru
         "result": "red" if red else "green",
         "minutes": total,
         "quick": quick,
+        "every": set(known) <= set(names or known),  # every check was asked for: a run that can be a base (picker.py)
+        "picked": pick,  # a picked run is never a full run
+        "base": base,
+        "picks": picks,
         "checks": results,
     }
     with open(folder / "runs.jsonl", "a") as log:
         log.write(json.dumps(line) + "\n")
-    out(f"checks: {'red (' + red + ')' if red else 'green'} in {total:.1f} min{' (quick: walks at one window size)' if quick else ''}")
+    said = [words for on, words in ((quick, "quick: walks at one window size"), (pick, "picked: not a full run")) if on]
+    out(f"checks: {'red (' + red + ')' if red else 'green'} in {total:.1f} min{' (' + '; '.join(said) + ')' if said else ''}")
     return 1 if red else 0
 
 
@@ -199,8 +299,8 @@ def main(argv) -> int:
         problems = escape_problems()
         print("\n".join(problems) if problems else f"{ESCAPES}: every line reads and names its check where it must")
         return 1 if problems else 0
-    quick = "--quick" in argv
-    return run([name for name in argv if name != "--quick"], quick=quick)
+    options = {"--quick", "--pick"}
+    return run([name for name in argv if name not in options], quick="--quick" in argv, pick="--pick" in argv)
 
 
 if __name__ == "__main__":

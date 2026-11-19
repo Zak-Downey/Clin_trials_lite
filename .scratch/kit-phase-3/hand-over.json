@@ -1,0 +1,40 @@
+{
+  "what": [
+    "The unit tests now take about 10 seconds instead of about 80: the test server stops at once and the tests run on every processor.",
+    "A whole run of the checks took 2.8 to 2.9 minutes on this build's last runs, against 3.7 measured before it.",
+    "A new option, python3 checks.py --pick, runs only the browser tests and unit tests a change can reach, and prints what it ran, out of how many, and why.",
+    "A map of which files belong to which page, and which browser tests cover each, now lives in docs/agents/local/walk-map.json, and a unit test fails when it falls out of date.",
+    "python3 prove.py --pick proves the picker on the deliberate breaks; the build instructions now ask for a quick, picked run after each ticket and each fix."
+  ],
+  "so_what": [
+    "A build waits less on its checks: after a change to one page, the browser tests took 0.6 minutes against 1.4 for a whole quick run.",
+    "The page never counts a picked run as a full run, and GitHub never picks, so the last full run it reports is still a run of everything.",
+    "To try it first: change one line of one page's script and run python3 checks.py --quick --pick, then read the two picked lines it prints.",
+    "To go back to whole runs, remove --pick from steps 4 and 7 of the build instructions (.claude/skills/implement-spec/SKILL.md)."
+  ],
+  "now_what": [
+    "No exploratory testing was made, on purpose: no page of the app changed, and the spec's Testing Decisions say so. One reviewer read all of the code instead.",
+    "The picker hid no break. I ran python3 prove.py --pick after the fixes and it ended 0: 6 of 7 breaks were caught by a pick smaller than the whole.",
+    "The seventh break changes a file every page shares, so its pick is every browser test, which a quick run cannot finish in the proof's 2 minutes. Plain prove.py still catches it.",
+    "The build treats a pick of everything that is stopped at the time limit as reported, not failed. That is the builder's reading of ticket 09; please confirm it.",
+    "Unit tests, measured on your Mac: 79 seconds before, 34 after the server fix, 8 to 12 in parallel. The limits in the checks are unchanged, so you can tighten them.",
+    "A whole run took 2.8 to 2.9 minutes, against 3.7 before; a quick run 1.5 to 1.6, against 2.6.",
+    "Picked runs: after a one-page change, 4 of 42 browser test files in 0.6 minutes; after a one-function change, 97 of 767 unit tests in about 2 seconds, against about 11 for all.",
+    "The slowest browser tests are the walk-guard tests (103 of 598 worker-seconds), the check walk (58) and the acceptance walk (49).",
+    "Two cheap fixes would cut about 45 of 152 seconds from the browser tests; neither was made. The test registry checks for a stop every half second, as the unit server did; that is about 27 seconds.",
+    "The other cheap fix: the walk-guard tests run their broken pages once on each of four workers, where one run would do (about 19 seconds).",
+    "One test was changed to hold in parallel: the one that finds the project's programs still listening. It now uses a long folder name, and its assertions are unchanged.",
+    "That test found a real fault: on Linux, which GitHub uses, the hand-over page could miss a program left listening, because ps cut its command line. Fixed (defect log E-041).",
+    "A second fault from an earlier build surfaced in parallel: the proof could crash on macOS while stopping a run that had already ended. Fixed with two tests (defect log E-042).",
+    "The review found two ways a picked unit run could pass wrongly, both now fixed. The unit picker cannot see code that tests run as a separate program.",
+    "The fix: the map now lists the files tests run as separate programs, and a change to one runs every unit test. A test keeps that list current.",
+    "Still unseen: code that only a separate program reaches, inside a module the tests also import. Most of the app runs inside the tests, so this should be rare; nothing measures it.",
+    "The second fix: a picked unit run that would select nothing now runs a small fixed set (the start-up tests, 10 tests) and says so, as the spec asks.",
+    "The skill file was edited directly (steps 4 and 7, and fourteen minutes for a whole run); nothing was left in skill-edits.md.",
+    "Defaults used, which you have not confirmed: the option is --pick, the map is walk-map.json, pytest-testmon 2.2.0, one unit worker per processor, limits unchanged.",
+    "When unsure, the map puts a file in the shared list, which runs every browser test. Ticket 04's comments list those files; most of the server and app modules are there.",
+    "Found wrong in the spec: the unit picker needs two lists the spec did not name (files run as separate programs, and the tests that always run). The map now holds both.",
+    "Not checked here: a picked run on GitHub's Linux machine, since GitHub never picks; and whether a quick run should count as the base a pick is measured from (today it does).",
+    "Ticket 02's builder started Docker Desktop and pulled a Python image. It said it quit Docker, but Docker was still running; you had it quit. Whether the image was removed is unchecked."
+  ]
+}
