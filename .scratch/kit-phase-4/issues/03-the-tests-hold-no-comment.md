@@ -9,7 +9,7 @@
 - [x] `python3 checks.py --comments` lists no Python file at all
 - [x] The comments hold the command that compared every changed file's syntax tree with its tree at the commit before, and its result: all equal, with the number of files; any test changed beyond that is named, with the reason
 - [x] The number of tests the unit suite and the browser tests collect is the same before and after, and both numbers are in the comments
-- [ ] `python3 checks.py` ends green on this ticket's commit
+- [x] `python3 checks.py` ends green on this ticket's commit
 
 ## Comments
 
@@ -18,3 +18,5 @@
 - Proof, run on the working tree before the commit against de58f98: `git diff --name-only HEAD -- '*.py'`, then for each file `ast.dump(ast.parse(git show HEAD:<file>)) == ast.dump(ast.parse(<file now>))`. Result: 61 files compared, 61 equal.
 - Tests collected, before and after: unit suite (`.venv/bin/python -m pytest --collect-only -q tests`) 791 and 791; browser tests (`... walks`) 412 and 412.
 - No test changed beyond comment removal: no test read a removed comment. `python3 checks.py lint patterns unit` green on the change. Every `find` text in `docs/agents/local/breaks.json` is still in its file. The full `python3 checks.py` is left to the build's own run.
+
+The full `python3 checks.py` on d5e5af3 ended green in 2.9 min (unit 0.3, walks 2.6), run by the build lead, who also re-ran the syntax-tree comparison: 61 files, all equal.
