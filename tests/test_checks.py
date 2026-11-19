@@ -523,6 +523,17 @@ def test_a_script_style_sheet_or_page_without_one_is_not_listed_nor_is_a_script_
     assert checks.comment_hits(tmp_path) == []
 
 
+def test_in_a_folder_git_cannot_list_every_file_outside_scratch_and_tool_folders_is_read(tmp_path):
+    files = {"a.py": "x = 1  # in a copy with no git\n", "webapp/static/a.js": "// a script's\n",
+             ".github/b.py": "# under a dotted folder\n", ".scratch/f/c.py": "# a record\n",
+             ".venv/lib/d.py": "# a tool's\n", "__pycache__/e.py": "# a cache's\n"}
+    for name, body in files.items():
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text(body)
+    assert checks.comment_hits(tmp_path) == [".github/b.py:1: # under a dotted folder",
+                                             "a.py:1: # in a copy with no git", "webapp/static/a.js:1: // a script's"]
+
+
 def test_the_comments_command_lists_each_comment_then_the_total_and_ends_zero(tmp_path, monkeypatch, capsys):
     tracked(tmp_path, {"a.py": "# one\n", "b.py": "x = 1  # two\n# three\n"})
     monkeypatch.setattr(checks, "ROOT", tmp_path)

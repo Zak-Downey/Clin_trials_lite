@@ -112,12 +112,27 @@ def static_comments(text: str, marks) -> list[tuple[int, str]]:
     return found
 
 
+UNLISTED_SKIPPED = {".git", ".venv", "venv", "__pycache__", "node_modules", ".pytest_cache"}
+
+
+def listed_files(root) -> list[str]:
+    """The files git tracks in `root`; in a folder git cannot list (a copy with no history, an unpacked download),
+    every file under it, but in a folder named in UNLISTED_SKIPPED and without following a linked folder."""
+    listed = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, text=True)
+    if listed.returncode == 0:
+        return [name for name in listed.stdout.split("\0") if name]
+    names = []
+    for folder, folders, files in os.walk(root):
+        folders[:] = [name for name in folders if name not in UNLISTED_SKIPPED]
+        names.extend(pathlib.Path(folder, name).relative_to(root).as_posix() for name in files)
+    return names
+
+
 def comment_hits(root=ROOT) -> list[str]:
-    """`<file>:<line>: <the comment>` for every comment in a file git tracks outside .scratch/: in Python, and in a
-    script, style sheet or page under STATIC."""
+    """`<file>:<line>: <the comment>` for every comment in a file listed_files gives outside .scratch/: in Python,
+    and in a script, style sheet or page under STATIC."""
     hits = []
-    names = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, text=True).stdout.split("\0")
-    for name in sorted(n for n in names if n and not n.startswith(".scratch/")):
+    for name in sorted(n for n in listed_files(root) if not n.startswith(".scratch/")):
         path = pathlib.Path(root) / name
         if not path.is_file():
             continue
